@@ -3,11 +3,14 @@
     <!-- Top Header Bar -->
     <HeaderBar @open-export="isExportOpen = true" />
 
-    <!-- 3D Dimension Overlay -->
-    <DimensionOverlay />
+    <!-- 3D Scene In-Canvas Overlays (Aligned with the 3D Canvas Area) -->
+    <div class="pointer-events-none absolute inset-0 md:right-[434px] z-10 overflow-hidden">
+      <!-- 3D Dimension Overlay -->
+      <DimensionOverlay />
 
-    <!-- In-Scene Wall Panel Interaction Overlay -->
-    <PanelSlotOverlay />
+      <!-- In-Scene Wall Panel Interaction Overlay -->
+      <PanelSlotOverlay />
+    </div>
 
     <!-- Lower-Left Toolset (Zoom +, Zoom -, Ruler, Undo, Redo) -->
     <ToolSet
@@ -17,7 +20,7 @@
 
     <!-- Right Sidebar / Mobile Bottom Sheet -->
     <aside
-      class="pointer-events-auto bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-slate-200/80 transition-all duration-300 flex flex-col justify-between mt-auto w-full md:w-[410px] md:absolute md:right-6 md:top-24 md:bottom-6 max-h-[62vh] md:max-h-[calc(100vh-7.5rem)] z-20"
+      class="pointer-events-auto bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-slate-200/80 transition-all duration-300 flex flex-col justify-between mt-auto w-full md:w-[410px] md:absolute md:right-6 md:top-24 md:bottom-6 max-h-[62vh] md:max-h-[calc(100vh-7.5rem)] z-40"
       :class="isMobileCollapsed ? 'h-auto max-h-[140px]' : 'h-[62vh] md:h-auto'"
       aria-label="Konfigurationspanel"
     >
@@ -29,6 +32,7 @@
         </div>
         <button
           type="button"
+          id="btn-toggle-mobile-sheet"
           @click="isMobileCollapsed = !isMobileCollapsed"
           class="text-xs font-semibold text-slate-600 hover:text-slate-900 py-1 px-2 rounded-lg"
         >
@@ -85,7 +89,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { useConfigStore } from '../store/useConfigStore';
 import HeaderBar from './HeaderBar.vue';
 import CategoryNav from './CategoryNav.vue';
@@ -99,6 +103,14 @@ import PanelSlotOverlay from './PanelSlotOverlay.vue';
 const store = useConfigStore();
 const isExportOpen = ref(false);
 const isMobileCollapsed = ref(false);
+
+// Auto-expand drawer when user selects a category (e.g. from 3D wall slot action pills)
+watch(
+  () => store.selectedCategory,
+  () => {
+    isMobileCollapsed.value = false;
+  }
+);
 
 defineEmits<{
   (e: 'zoom-in'): void;

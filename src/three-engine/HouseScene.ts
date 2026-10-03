@@ -27,8 +27,10 @@ export class HouseScene {
   private roofGroup: THREE.Group;
   private loftGroup: THREE.Group;
   private wallsGroup: THREE.Group;
+  private framingGroup: THREE.Group;
   private dimensionsGroup: THREE.Group;
   private highlightBox: THREE.LineSegments | null = null;
+  private hoverBox: THREE.Object3D | null = null;
 
   private interactivePanels: THREE.Mesh[] = [];
   private raycaster = new THREE.Raycaster();
@@ -37,8 +39,10 @@ export class HouseScene {
   private animFrameId: number | null = null;
   private currentConfig: SceneConfig;
 
-  // Callback when a wall panel is clicked
+  // Callbacks for 3D interactions
   public onPanelClick?: (slotId: string, screenX: number, screenY: number) => void;
+  public onPanelHover?: (slotId: string | null, screenX: number, screenY: number) => void;
+  public onSlotScreenPositionUpdate?: (pos: { x: number; y: number; visible: boolean; slotId: string }) => void;
 
   constructor(container: HTMLElement, initialConfig?: Partial<SceneConfig>) {
     this.container = container;
@@ -91,11 +95,13 @@ export class HouseScene {
 
     this.houseGroup = new THREE.Group();
     this.wallsGroup = new THREE.Group();
+    this.framingGroup = new THREE.Group();
     this.roofGroup = new THREE.Group();
     this.loftGroup = new THREE.Group();
     this.dimensionsGroup = new THREE.Group();
 
     this.houseGroup.add(this.wallsGroup);
+    this.houseGroup.add(this.framingGroup);
     this.houseGroup.add(this.roofGroup);
     this.houseGroup.add(this.loftGroup);
     this.scene.add(this.houseGroup);
@@ -108,93 +114,217 @@ export class HouseScene {
     window.addEventListener('resize', this.onResize);
   }
 
-  // --- Procedural Canvas Textures for Authentic Materials ---
+  // --- Procedural Canvas Textures for Authentic Scandinavian Timber ---
   private createVerticalPlankTexture(materialKey: MaterialKey): THREE.CanvasTexture {
     const canvas = document.createElement('canvas');
-    canvas.width = 512;
-    canvas.height = 512;
+    canvas.width = 1024;
+    canvas.height = 1024;
     const ctx = canvas.getContext('2d')!;
 
-    // Base color tones
-    let baseColor = '#e8d8be';
-    let grainColor = '#d9c7a7';
-    let battenColor = '#f2e4cc';
+    const isNaturalWood = materialKey === 'wood';
+    const plankW = 64; // ~16 individual timber boards across 1024px
+    const plankCount = 1024 / plankW;
 
+    // Authentic Scandinavian Spruce/Pine tone palettes ("Obehandlad Gran")
+    const spruceTones = [
+      { base: '#f4e7d1', grain: '#dbc5a2', darkGrain: '#be9e71' },
+      { base: '#ebdcc2', grain: '#d2bb95', darkGrain: '#b59363' },
+      { base: '#f8ecdc', grain: '#e2cfb0', darkGrain: '#c7a77d' },
+      { base: '#e6d3b4', grain: '#cdb387', darkGrain: '#af8a55' },
+      { base: '#eedfca', grain: '#d7c19f', darkGrain: '#bd9e72' },
+      { base: '#e4d0b1', grain: '#cbb085', darkGrain: '#ac8652' },
+      { base: '#f2e4cf', grain: '#dbc7a7', darkGrain: '#bfa075' },
+      { base: '#ece0cb', grain: '#d5c2a1', darkGrain: '#b99a6f' },
+    ];
+
+    let colorPalette: { base: string; grain: string; darkGrain: string };
     if (materialKey === 'falurod') {
-      baseColor = '#8b2522';
-      grainColor = '#771e1b';
-      battenColor = '#9c2f2c';
+      colorPalette = { base: '#892622', grain: '#731c19', darkGrain: '#591310' };
     } else if (materialKey === 'grey') {
-      baseColor = '#64748b';
-      grainColor = '#475569';
-      battenColor = '#7588a3';
+      colorPalette = { base: '#64748b', grain: '#475569', darkGrain: '#334155' };
     } else if (materialKey === 'white') {
-      baseColor = '#f8fafc';
-      grainColor = '#e2e8f0';
-      battenColor = '#ffffff';
+      colorPalette = { base: '#f8fafc', grain: '#e2e8f0', darkGrain: '#cbd5e1' };
     } else if (materialKey === 'black') {
-      baseColor = '#1e293b';
-      grainColor = '#0f172a';
-      battenColor = '#334155';
+      colorPalette = { base: '#1e293b', grain: '#0f172a', darkGrain: '#020617' };
+    } else {
+      colorPalette = spruceTones[0];
     }
 
-    ctx.fillStyle = baseColor;
-    ctx.fillRect(0, 0, 512, 512);
+    let seed = 42;
+    const rnd = () => {
+      seed = (seed * 9301 + 49297) % 233280;
+      return seed / 233280;
+    };
 
-    // Draw vertical planks with battens (lockläkt)
-    const plankWidth = 32;
-    for (let x = 0; x < 512; x += plankWidth) {
-      // Wood grain lines
-      ctx.fillStyle = grainColor;
-      ctx.fillRect(x, 0, 1.5, 512);
+    // 1. Draw each board with authentic grain & natural knot variations
+    for (let p = 0; p < plankCount; p++) {
+      const px = p * plankW;
+      const tone = isNaturalWood ? spruceTones[p % spruceTones.length] : colorPalette;
 
-      // Batten (lockläkt) down the center of each plank
-      ctx.fillStyle = battenColor;
-      ctx.fillRect(x + plankWidth / 2 - 2, 0, 4, 512);
+      // Base board tone
+      ctx.fillStyle = tone.base;
+      ctx.fillRect(px, 0, plankW, 1024);
 
-      // Shadow next to batten
-      ctx.fillStyle = 'rgba(0,0,0,0.12)';
-      ctx.fillRect(x + plankWidth / 2 + 2, 0, 1.5, 512);
+      // Fine longitudinal wood grain fibers
+      const fiberCount = 40;
+      for (let f = 0; f < fiberCount; f++) {
+        const fx = px + rnd() * plankW;
+        const wavePeriod = 70 + rnd() * 110;
+        const waveAmp = 1.0 + rnd() * 2.0;
+        const isDark = rnd() > 0.6;
+
+        ctx.strokeStyle = isDark ? tone.darkGrain : tone.grain;
+        ctx.globalAlpha = isDark ? 0.25 : 0.16;
+        ctx.lineWidth = 0.8 + rnd() * 0.8;
+
+        ctx.beginPath();
+        for (let y = 0; y <= 1024; y += 16) {
+          const ox = Math.sin(y / wavePeriod) * waveAmp;
+          if (y === 0) ctx.moveTo(fx + ox, y);
+          else ctx.lineTo(fx + ox, y);
+        }
+        ctx.stroke();
+      }
+
+      // Earlywood / latewood growth ring bands
+      const bandCount = 4 + Math.floor(rnd() * 3);
+      for (let b = 0; b < bandCount; b++) {
+        const bx = px + rnd() * plankW;
+        ctx.fillStyle = tone.grain;
+        ctx.globalAlpha = 0.07 + rnd() * 0.05;
+        ctx.fillRect(bx - 3, 0, 6, 1024);
+      }
+
+      // Natural wood knots (kvistar) on spruce boards
+      if (isNaturalWood && rnd() > 0.38) {
+        const knotY = 140 + rnd() * 740;
+        const knotX = px + 14 + rnd() * (plankW - 28);
+        const knotR = 3.5 + rnd() * 6;
+        const knotAspect = 1.3 + rnd() * 0.7;
+
+        // Concentric growth deflection rings
+        for (let r = knotR * 2.4; r >= knotR; r -= 1.6) {
+          ctx.strokeStyle = tone.darkGrain;
+          ctx.globalAlpha = 0.22;
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.ellipse(knotX, knotY, r, r * knotAspect, 0, 0, Math.PI * 2);
+          ctx.stroke();
+        }
+
+        // Dark amber knot center core
+        const knotGrad = ctx.createRadialGradient(knotX, knotY, 1, knotX, knotY, knotR);
+        knotGrad.addColorStop(0, '#5a381e');
+        knotGrad.addColorStop(0.7, '#784a28');
+        knotGrad.addColorStop(1, '#a66e3b');
+        ctx.fillStyle = knotGrad;
+        ctx.globalAlpha = 0.92;
+        ctx.beginPath();
+        ctx.ellipse(knotX, knotY, knotR, knotR * knotAspect, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Dark perimeter ring
+        ctx.strokeStyle = '#3b2210';
+        ctx.globalAlpha = 0.95;
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
+      }
+
+      // 2. Seam shadow groove between planks
+      ctx.globalAlpha = 1.0;
+      ctx.fillStyle = isNaturalWood ? 'rgba(60, 38, 18, 0.45)' : 'rgba(0, 0, 0, 0.35)';
+      ctx.fillRect(px + plankW - 2, 0, 2, 1024);
+
+      // Edge bevel highlight
+      ctx.fillStyle = isNaturalWood ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.2)';
+      ctx.fillRect(px, 0, 1.2, 1024);
+
+      // 3. Batten (Lockläkt) running vertically along the center of each seam
+      const battenW = 14;
+      const battenX = px + plankW - battenW / 2;
+
+      // Drop shadow cast by batten to the right
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.16)';
+      ctx.fillRect(battenX + battenW, 0, 3, 1024);
+
+      // Batten face
+      ctx.fillStyle = isNaturalWood ? tone.base : colorPalette.base;
+      ctx.fillRect(battenX, 0, battenW, 1024);
+
+      // Batten longitudinal grain line
+      ctx.strokeStyle = tone.grain;
+      ctx.globalAlpha = 0.22;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(battenX + battenW / 2, 0);
+      ctx.lineTo(battenX + battenW / 2, 1024);
+      ctx.stroke();
+
+      // Batten highlight on left edge
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.32)';
+      ctx.fillRect(battenX, 0, 1, 1024);
+
+      // Batten shadow on right edge
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.22)';
+      ctx.fillRect(battenX + battenW - 1, 0, 1, 1024);
     }
 
+    ctx.globalAlpha = 1.0;
     const texture = new THREE.CanvasTexture(canvas);
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
-    texture.repeat.set(2, 2);
+    texture.repeat.set(3, 2);
     return texture;
   }
 
-  private createInteriorStudsTexture(): THREE.CanvasTexture {
+  private createVerticalPlankBumpMap(): THREE.CanvasTexture {
     const canvas = document.createElement('canvas');
-    canvas.width = 256;
-    canvas.height = 256;
+    canvas.width = 1024;
+    canvas.height = 1024;
     const ctx = canvas.getContext('2d')!;
 
-    // Yellow mineral wool insulation background
-    ctx.fillStyle = '#fef08a';
-    ctx.fillRect(0, 0, 256, 256);
+    // Midtone neutral base height
+    ctx.fillStyle = '#808080';
+    ctx.fillRect(0, 0, 1024, 1024);
 
-    // Insulation fiber speckled pattern
-    ctx.fillStyle = '#facc15';
-    for (let i = 0; i < 600; i++) {
-      ctx.fillRect(Math.random() * 256, Math.random() * 256, 3, 1.5);
+    const plankW = 64;
+    const plankCount = 1024 / plankW;
+
+    for (let p = 0; p < plankCount; p++) {
+      const px = p * plankW;
+
+      // Slight curvature / bevel on plank board (center elevated)
+      const grad = ctx.createLinearGradient(px, 0, px + plankW, 0);
+      grad.addColorStop(0, '#757575');
+      grad.addColorStop(0.5, '#8c8c8c');
+      grad.addColorStop(1, '#707070');
+      ctx.fillStyle = grad;
+      ctx.fillRect(px, 0, plankW, 1024);
+
+      // Deep groove between planks
+      ctx.fillStyle = '#202020';
+      ctx.fillRect(px + plankW - 2, 0, 3, 1024);
+
+      // Batten (lockläkt) raised high
+      const battenW = 14;
+      const battenX = px + plankW - battenW / 2;
+      ctx.fillStyle = '#dcdcdc'; // elevated height
+      ctx.fillRect(battenX, 0, battenW, 1024);
+
+      // Batten left bevel highlight
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(battenX, 0, 1, 1024);
+
+      // Batten right groove
+      ctx.fillStyle = '#404040';
+      ctx.fillRect(battenX + battenW, 0, 2, 1024);
     }
 
-    // Vertical timber studs (regelstomme 45x145)
-    ctx.fillStyle = '#d6b78d';
-    ctx.fillRect(0, 0, 18, 256);
-    ctx.fillRect(128, 0, 18, 256);
-
-    // Stud wood grain & edge shadows
-    ctx.fillStyle = 'rgba(0,0,0,0.15)';
-    ctx.fillRect(18, 0, 2, 256);
-    ctx.fillRect(146, 0, 2, 256);
-
-    const texture = new THREE.CanvasTexture(canvas);
-    texture.wrapS = THREE.RepeatWrapping;
-    texture.wrapT = THREE.RepeatWrapping;
-    texture.repeat.set(3, 1);
-    return texture;
+    const bumpTexture = new THREE.CanvasTexture(canvas);
+    bumpTexture.wrapS = THREE.RepeatWrapping;
+    bumpTexture.wrapT = THREE.RepeatWrapping;
+    bumpTexture.repeat.set(3, 2);
+    return bumpTexture;
   }
 
   private createPineFloorTexture(): THREE.CanvasTexture {
@@ -264,6 +394,45 @@ export class HouseScene {
   }
 
   private setupRaycasting() {
+    this.container.addEventListener('pointermove', (e) => {
+      const rect = this.container.getBoundingClientRect();
+      this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+      this.raycaster.setFromCamera(this.mouse, this.camera);
+      const intersects = this.raycaster.intersectObjects(this.interactivePanels, false);
+
+      if (intersects.length > 0) {
+        const hit = intersects[0].object as THREE.Mesh;
+        const slotId = hit.userData.slotId as string;
+        if (slotId) {
+          this.container.style.cursor = 'pointer';
+          this.updateHoverBox(hit);
+
+          const center = new THREE.Vector3();
+          new THREE.Box3().setFromObject(hit).getCenter(center);
+          const proj = center.clone().project(this.camera);
+          const w = this.container.clientWidth;
+          const h = this.container.clientHeight;
+          const screenX = ((proj.x + 1) * w) / 2;
+          const screenY = ((-proj.y + 1) * h) / 2;
+
+          this.onPanelHover?.(slotId, screenX, screenY);
+          return;
+        }
+      }
+
+      this.container.style.cursor = 'default';
+      this.updateHoverBox(null);
+      this.onPanelHover?.(null, 0, 0);
+    });
+
+    this.container.addEventListener('pointerleave', () => {
+      this.container.style.cursor = 'default';
+      this.updateHoverBox(null);
+      this.onPanelHover?.(null, 0, 0);
+    });
+
     this.container.addEventListener('pointerdown', (e) => {
       const rect = this.container.getBoundingClientRect();
       this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
@@ -277,6 +446,7 @@ export class HouseScene {
         const slotId = hit.userData.slotId as string;
         if (slotId) {
           this.currentConfig.selectedSlotId = slotId;
+          this.updateHoverBox(null);
           this.updateHighlightBox(hit);
           this.onPanelClick?.(slotId, e.clientX, e.clientY);
         }
@@ -288,6 +458,9 @@ export class HouseScene {
     // Clear groups
     while (this.wallsGroup.children.length > 0) {
       this.wallsGroup.remove(this.wallsGroup.children[0]);
+    }
+    while (this.framingGroup.children.length > 0) {
+      this.framingGroup.remove(this.framingGroup.children[0]);
     }
     while (this.roofGroup.children.length > 0) {
       this.roofGroup.remove(this.roofGroup.children[0]);
@@ -307,22 +480,25 @@ export class HouseScene {
     const w = this.currentConfig.widthMm / 1000;
     const d = this.currentConfig.depthMm / 1000;
     const h = this.currentConfig.heightMm / 1000;
-    const wallThick = 0.2;
+    const wallThick = 0.18; // standard 180mm modular wall (145mm stud + 22mm cladding + air gap)
 
-    // Materials
+    // Materials - Authentic Scandinavian timber with tactile bump map
     const wallTexture = this.createVerticalPlankTexture(this.currentConfig.material);
-    const interiorTexture = this.createInteriorStudsTexture();
+    const wallBumpMap = this.createVerticalPlankBumpMap();
     const floorTexture = this.createPineFloorTexture();
 
     const exteriorMat = new THREE.MeshStandardMaterial({
       map: wallTexture,
-      roughness: 0.7,
-      metalness: 0.05
+      bumpMap: wallBumpMap,
+      bumpScale: 0.04,
+      roughness: 0.72,
+      metalness: 0.02
     });
 
-    const interiorMat = new THREE.MeshStandardMaterial({
-      map: interiorTexture,
-      roughness: 0.8
+    const framingMat = new THREE.MeshStandardMaterial({
+      color: '#eedec5',
+      roughness: 0.65,
+      metalness: 0.02
     });
 
     const floorMat = new THREE.MeshStandardMaterial({
@@ -349,30 +525,33 @@ export class HouseScene {
     this.wallsGroup.add(slab);
 
     // 2. Interior Floor
-    const floorGeo = new THREE.BoxGeometry(w - wallThick * 2, 0.05, d - wallThick * 2);
+    const floorGeo = new THREE.BoxGeometry(w - 0.28, 0.05, d - 0.28);
     const floor = new THREE.Mesh(floorGeo, floorMat);
     floor.position.set(0, 0.275, 0);
     floor.receiveShadow = true;
     this.wallsGroup.add(floor);
 
-    // 3. Modular Walls Construction
-    this.buildModularWall('front', 4, w, d, h, wallThick, exteriorMat, interiorMat, trimMat);
-    this.buildModularWall('back', 4, w, d, h, wallThick, exteriorMat, interiorMat, trimMat);
-    this.buildModularWall('left', 3, w, d, h, wallThick, exteriorMat, interiorMat, trimMat);
-    this.buildModularWall('right', 3, w, d, h, wallThick, exteriorMat, interiorMat, trimMat);
+    // 3. Modular Exterior Walls Construction (outer wood siding, inside left open for beams)
+    this.buildModularWall('front', 4, w, d, h, wallThick, exteriorMat, trimMat);
+    this.buildModularWall('back', 4, w, d, h, wallThick, exteriorMat, trimMat);
+    this.buildModularWall('left', 3, w, d, h, wallThick, exteriorMat, trimMat);
+    this.buildModularWall('right', 3, w, d, h, wallThick, exteriorMat, trimMat);
 
-    // 4. Roof Construction
+    // 4. Proper Architectural Timber Framing (Syll, Hammarband, Reglar cc 600, Avväxlingar)
+    this.buildTimberFraming(w, d, h, wallThick, framingMat);
+
+    // 5. Roof Construction
     this.buildRoof(w, d, h);
 
-    // 5. Interior Ceiling Joists / Rafters (sparrar)
+    // 6. Exposed Roof Rafters (Taksparrar cc 600)
     this.buildRafters(w, d, h, wallThick);
 
-    // 6. Loft Construction
+    // 7. Loft Construction
     if (this.currentConfig.hasLoft) {
       this.buildLoft(w, d, h, wallThick);
     }
 
-    // 7. 3D Architectural Dimensions
+    // 8. 3D Architectural Dimensions
     this.buildDimensionLines(w, d, h);
 
     // View mode visibility
@@ -387,7 +566,6 @@ export class HouseScene {
     h: number,
     wallThick: number,
     exteriorMat: THREE.Material,
-    interiorMat: THREE.Material,
     trimMat: THREE.Material
   ) {
     const isFrontOrBack = wallSide === 'front' || wallSide === 'back';
@@ -429,20 +607,56 @@ export class HouseScene {
       panelGroup.position.set(px, wallY, pz);
       panelGroup.rotation.y = rotY;
 
-      // Base wall mesh
-      const panelGeo = new THREE.BoxGeometry(panelWidth, wallHeight, wallThick);
-      const isInside = this.currentConfig.viewMode === 'insida';
-      const panelMesh = new THREE.Mesh(panelGeo, isInside ? interiorMat : exteriorMat);
-      panelMesh.castShadow = true;
-      panelMesh.receiveShadow = true;
-      panelMesh.userData = { slotId, wall: wallSide, index: i };
-      panelGroup.add(panelMesh);
-      this.interactivePanels.push(panelMesh);
+      // Base wall mesh - Exterior Cladding Layer (25 mm real timber boards on outside face)
+      // The interior side remains open, exposing the timber framing beams (no inner panels yet!)
+      let activeMesh: THREE.Mesh;
+      const claddingThick = 0.025;
+      const claddingZ = wallThick / 2 - claddingThick / 2;
 
-      // Horizontal mid-trim line (like the white mid-rib in Skånska Byggvaror)
+      if (slot?.isUpper) {
+        // Upper section mesh (for window placement, matching Image 1)
+        const upperH = wallHeight * 0.46;
+        const upperGeo = new THREE.BoxGeometry(panelWidth, upperH, claddingThick);
+        const upperMesh = new THREE.Mesh(upperGeo, exteriorMat);
+        upperMesh.position.set(0, wallHeight / 2 - upperH / 2, claddingZ);
+        upperMesh.castShadow = true;
+        upperMesh.receiveShadow = true;
+        upperMesh.userData = { slotId, wall: wallSide, index: i, isUpper: true };
+        panelGroup.add(upperMesh);
+        this.interactivePanels.push(upperMesh);
+        activeMesh = upperMesh;
+
+        // Lower solid section
+        const lowerH = wallHeight - upperH;
+        const lowerGeo = new THREE.BoxGeometry(panelWidth, lowerH, claddingThick);
+        const lowerMesh = new THREE.Mesh(lowerGeo, exteriorMat);
+        lowerMesh.position.set(0, -wallHeight / 2 + lowerH / 2, claddingZ);
+        lowerMesh.castShadow = true;
+        lowerMesh.receiveShadow = true;
+        panelGroup.add(lowerMesh);
+      } else {
+        const panelGeo = new THREE.BoxGeometry(panelWidth, wallHeight, claddingThick);
+        const panelMesh = new THREE.Mesh(panelGeo, exteriorMat);
+        panelMesh.position.set(0, 0, claddingZ);
+        panelMesh.castShadow = true;
+        panelMesh.receiveShadow = true;
+        panelMesh.userData = { slotId, wall: wallSide, index: i, isUpper: false };
+        panelGroup.add(panelMesh);
+        this.interactivePanels.push(panelMesh);
+        activeMesh = panelMesh;
+      }
+
+      // Subtle modular joint vertical trim line between panels for clear visual segmentation
+      const jointGeo = new THREE.BoxGeometry(0.012, wallHeight + 0.02, 0.035);
+      const jointMat = new THREE.MeshStandardMaterial({ color: '#94a3b8', roughness: 0.8 });
+      const jointMesh = new THREE.Mesh(jointGeo, jointMat);
+      jointMesh.position.set(panelWidth / 2, 0, claddingZ + 0.01);
+      panelGroup.add(jointMesh);
+
+      // Horizontal mid-trim line (white mid-rib matching Skånska Byggvaror)
       const midRibGeo = new THREE.BoxGeometry(panelWidth, 0.06, 0.04);
       const midRib = new THREE.Mesh(midRibGeo, trimMat);
-      midRib.position.set(0, 0.05, wallThick / 2 + 0.02);
+      midRib.position.set(0, 0.05, claddingZ + 0.02);
       midRib.castShadow = true;
       panelGroup.add(midRib);
 
@@ -459,10 +673,240 @@ export class HouseScene {
 
       // Check if this slot is selected to place the green highlight outline
       if (slotId === this.currentConfig.selectedSlotId) {
-        this.updateHighlightBox(panelMesh);
+        this.updateHighlightBox(activeMesh);
       }
     }
   }
+
+  // --- Proper Architectural Timber Framing (Regelstomme 45x145 mm) ---
+  private buildTimberFraming(w: number, d: number, h: number, wallThick: number, framingMat: THREE.Material) {
+    const studThick = 0.045; // 45 mm
+    const studDepth = 0.145; // 145 mm
+    const baseElevation = 0.25; // on top of slab foundation
+    const rearH = this.currentConfig.roofType === 'pulpettak'
+      ? Math.max(h - Math.tan((8 * Math.PI) / 180) * d, 2.4)
+      : h;
+
+    // 1. Bottom Sill Plates (Syll 45x145 mm)
+    // Front sill
+    const frontSyllGeo = new THREE.BoxGeometry(w, studThick, studDepth);
+    const frontSyll = new THREE.Mesh(frontSyllGeo, framingMat);
+    frontSyll.position.set(0, baseElevation + studThick / 2, d / 2 - studDepth / 2);
+    frontSyll.castShadow = true;
+    this.framingGroup.add(frontSyll);
+
+    // Back sill
+    const backSyll = new THREE.Mesh(frontSyllGeo, framingMat);
+    backSyll.position.set(0, baseElevation + studThick / 2, -d / 2 + studDepth / 2);
+    backSyll.castShadow = true;
+    this.framingGroup.add(backSyll);
+
+    // Left sill
+    const sideSyllGeo = new THREE.BoxGeometry(studDepth, studThick, d - studDepth * 2);
+    const leftSyll = new THREE.Mesh(sideSyllGeo, framingMat);
+    leftSyll.position.set(-w / 2 + studDepth / 2, baseElevation + studThick / 2, 0);
+    leftSyll.castShadow = true;
+    this.framingGroup.add(leftSyll);
+
+    // Right sill
+    const rightSyll = new THREE.Mesh(sideSyllGeo, framingMat);
+    rightSyll.position.set(w / 2 - studDepth / 2, baseElevation + studThick / 2, 0);
+    rightSyll.castShadow = true;
+    this.framingGroup.add(rightSyll);
+
+    // 2. Top Header Plates (Hammarband / Toppsyll 45x145 mm)
+    // Front header
+    const frontHeaderGeo = new THREE.BoxGeometry(w, studThick, studDepth);
+    const frontHeader = new THREE.Mesh(frontHeaderGeo, framingMat);
+    frontHeader.position.set(0, h - studThick / 2, d / 2 - studDepth / 2);
+    frontHeader.castShadow = true;
+    this.framingGroup.add(frontHeader);
+
+    // Back header (at rear slope height)
+    const backHeader = new THREE.Mesh(frontHeaderGeo, framingMat);
+    backHeader.position.set(0, rearH - studThick / 2, -d / 2 + studDepth / 2);
+    backHeader.castShadow = true;
+    this.framingGroup.add(backHeader);
+
+    // Sloping side headers on left and right connecting front to rear
+    const slopeLen = Math.sqrt(Math.pow(d - studDepth * 2, 2) + Math.pow(h - rearH, 2));
+    const slopeAngle = Math.atan2(h - rearH, d - studDepth * 2);
+    const sideHeaderGeo = new THREE.BoxGeometry(studDepth, studThick, slopeLen);
+
+    const leftHeader = new THREE.Mesh(sideHeaderGeo, framingMat);
+    leftHeader.position.set(-w / 2 + studDepth / 2, (h + rearH) / 2 - studThick / 2, 0);
+    leftHeader.rotation.x = slopeAngle;
+    leftHeader.castShadow = true;
+    this.framingGroup.add(leftHeader);
+
+    const rightHeader = new THREE.Mesh(sideHeaderGeo, framingMat);
+    rightHeader.position.set(w / 2 - studDepth / 2, (h + rearH) / 2 - studThick / 2, 0);
+    rightHeader.rotation.x = slopeAngle;
+    rightHeader.castShadow = true;
+    this.framingGroup.add(rightHeader);
+
+    // 3. Vertical Wall Studs (Väggreglar cc 600 mm)
+    // Corner Studs (dubbla hörnreglar)
+    const cornerPositions = [
+      { x: -w / 2 + studDepth / 2, z: d / 2 - studDepth / 2, height: h },
+      { x: w / 2 - studDepth / 2, z: d / 2 - studDepth / 2, height: h },
+      { x: -w / 2 + studDepth / 2, z: -d / 2 + studDepth / 2, height: rearH },
+      { x: w / 2 - studDepth / 2, z: -d / 2 + studDepth / 2, height: rearH }
+    ];
+    cornerPositions.forEach((cp) => {
+      const studH = cp.height - baseElevation - studThick * 2;
+      const cGeo = new THREE.BoxGeometry(studThick, studH, studDepth);
+      const cMesh = new THREE.Mesh(cGeo, framingMat);
+      cMesh.position.set(cp.x, baseElevation + studThick + studH / 2, cp.z);
+      cMesh.castShadow = true;
+      this.framingGroup.add(cMesh);
+    });
+
+    // Front Wall Studs with framing around door and window openings
+    const frontStudCount = Math.floor(w / 0.6);
+    const frontSpacing = w / frontStudCount;
+    const frontStudH = h - baseElevation - studThick * 2;
+
+    for (let s = 1; s < frontStudCount; s++) {
+      const sx = -w / 2 + s * frontSpacing;
+
+      // Check slot status at this position
+      const panelIndex = Math.min(Math.floor(((sx + w / 2) / w) * 4), 3);
+      const slot = this.currentConfig.wallSlots[`front-${panelIndex}`];
+      const panelCenter = -w / 2 + (panelIndex + 0.5) * (w / 4);
+
+      // If this stud falls within a door opening (~1.0m width)
+      if (slot?.type === 'door' && Math.abs(sx - panelCenter) < 0.45) {
+        // Cripple stud above door lintel
+        const lintelTop = baseElevation + 2.15;
+        const crippleH = h - studThick - lintelTop;
+        if (crippleH > 0.05) {
+          const cripple = new THREE.Mesh(new THREE.BoxGeometry(studThick, crippleH, studDepth), framingMat);
+          cripple.position.set(sx, lintelTop + crippleH / 2, d / 2 - studDepth / 2);
+          cripple.castShadow = true;
+          this.framingGroup.add(cripple);
+        }
+        continue;
+      }
+
+      // If this stud falls within a window opening
+      if (slot?.type === 'window' && Math.abs(sx - panelCenter) < 0.45) {
+        const sillY = baseElevation + 0.9;
+        const lintelY = baseElevation + 2.1;
+
+        // Cripple stud below window sill
+        const bottomCrippleH = sillY - (baseElevation + studThick);
+        if (bottomCrippleH > 0.05) {
+          const bCripple = new THREE.Mesh(new THREE.BoxGeometry(studThick, bottomCrippleH, studDepth), framingMat);
+          bCripple.position.set(sx, baseElevation + studThick + bottomCrippleH / 2, d / 2 - studDepth / 2);
+          bCripple.castShadow = true;
+          this.framingGroup.add(bCripple);
+        }
+
+        // Cripple stud above window lintel
+        const topCrippleH = h - studThick - lintelY;
+        if (topCrippleH > 0.05) {
+          const tCripple = new THREE.Mesh(new THREE.BoxGeometry(studThick, topCrippleH, studDepth), framingMat);
+          tCripple.position.set(sx, lintelY + topCrippleH / 2, d / 2 - studDepth / 2);
+          tCripple.castShadow = true;
+          this.framingGroup.add(tCripple);
+        }
+        continue;
+      }
+
+      // Standard vertical wall stud
+      const studMesh = new THREE.Mesh(new THREE.BoxGeometry(studThick, frontStudH, studDepth), framingMat);
+      studMesh.position.set(sx, baseElevation + studThick + frontStudH / 2, d / 2 - studDepth / 2);
+      studMesh.castShadow = true;
+      this.framingGroup.add(studMesh);
+    }
+
+    // Door and Window Trimmer Studs and Lintel Beams (Avväxlingar) on front wall
+    for (let p = 0; p < 4; p++) {
+      const slot = this.currentConfig.wallSlots[`front-${p}`];
+      const pc = -w / 2 + (p + 0.5) * (w / 4);
+
+      if (slot?.type === 'door') {
+        const doorW = 1.0;
+        const doorH = 2.1;
+        // Trimmer studs (smygreglar) left and right of door
+        [-doorW / 2 - studThick / 2, doorW / 2 + studThick / 2].forEach((tx) => {
+          const trimmer = new THREE.Mesh(new THREE.BoxGeometry(studThick, doorH, studDepth), framingMat);
+          trimmer.position.set(pc + tx, baseElevation + studThick + doorH / 2, d / 2 - studDepth / 2);
+          trimmer.castShadow = true;
+          this.framingGroup.add(trimmer);
+        });
+
+        // Horizontal Lintel Beam (Bärande avväxlingsbalk 45x145 mm)
+        const lintelGeo = new THREE.BoxGeometry(doorW + studThick * 2, studThick * 2, studDepth);
+        const lintel = new THREE.Mesh(lintelGeo, framingMat);
+        lintel.position.set(pc, baseElevation + studThick + doorH + studThick, d / 2 - studDepth / 2);
+        lintel.castShadow = true;
+        this.framingGroup.add(lintel);
+      } else if (slot?.type === 'window') {
+        const winW = 1.0;
+        const winH = 1.2;
+        const sillY = baseElevation + 0.9;
+        const lintelY = sillY + winH;
+
+        // Trimmer studs left and right of window
+        [-winW / 2 - studThick / 2, winW / 2 + studThick / 2].forEach((tx) => {
+          const trimmer = new THREE.Mesh(new THREE.BoxGeometry(studThick, winH, studDepth), framingMat);
+          trimmer.position.set(pc + tx, sillY + winH / 2, d / 2 - studDepth / 2);
+          trimmer.castShadow = true;
+          this.framingGroup.add(trimmer);
+        });
+
+        // Sill beam (fönsterbänk / underregel)
+        const sillGeo = new THREE.BoxGeometry(winW + studThick * 2, studThick, studDepth);
+        const sill = new THREE.Mesh(sillGeo, framingMat);
+        sill.position.set(pc, sillY - studThick / 2, d / 2 - studDepth / 2);
+        sill.castShadow = true;
+        this.framingGroup.add(sill);
+
+        // Lintel beam (avväxlingsbalk)
+        const lintelGeo = new THREE.BoxGeometry(winW + studThick * 2, studThick * 2, studDepth);
+        const lintel = new THREE.Mesh(lintelGeo, framingMat);
+        lintel.position.set(pc, lintelY + studThick, d / 2 - studDepth / 2);
+        lintel.castShadow = true;
+        this.framingGroup.add(lintel);
+      }
+    }
+
+    // Rear Wall Studs cc 600 mm
+    const rearStudH = rearH - baseElevation - studThick * 2;
+    for (let s = 1; s < frontStudCount; s++) {
+      const sx = -w / 2 + s * frontSpacing;
+      const studMesh = new THREE.Mesh(new THREE.BoxGeometry(studThick, rearStudH, studDepth), framingMat);
+      studMesh.position.set(sx, baseElevation + studThick + rearStudH / 2, -d / 2 + studDepth / 2);
+      studMesh.castShadow = true;
+      this.framingGroup.add(studMesh);
+    }
+
+    // Left and Right Wall Studs (interpolating height along roof slope)
+    const sideStudCount = Math.floor((d - studDepth * 2) / 0.6);
+    const sideSpacing = (d - studDepth * 2) / sideStudCount;
+
+    for (let s = 1; s < sideStudCount; s++) {
+      const sz = d / 2 - studDepth - s * sideSpacing;
+      const progress = (d / 2 - sz) / d; // 0 at front, 1 at back
+      const curH = h - progress * (h - rearH);
+      const curStudH = curH - baseElevation - studThick * 2;
+
+      // Left stud
+      const leftStud = new THREE.Mesh(new THREE.BoxGeometry(studDepth, curStudH, studThick), framingMat);
+      leftStud.position.set(-w / 2 + studDepth / 2, baseElevation + studThick + curStudH / 2, sz);
+      leftStud.castShadow = true;
+      this.framingGroup.add(leftStud);
+
+      // Right stud
+      const rightStud = new THREE.Mesh(new THREE.BoxGeometry(studDepth, curStudH, studThick), framingMat);
+      rightStud.position.set(w / 2 - studDepth / 2, baseElevation + studThick + curStudH / 2, sz);
+      rightStud.castShadow = true;
+      this.framingGroup.add(rightStud);
+    }
+  }
+
 
   private addDoorFeature(parent: THREE.Group, pw: number, ph: number, wt: number, doorId?: string) {
     // Cutout opening simulation
@@ -604,28 +1048,70 @@ export class HouseScene {
       flatMesh.castShadow = true;
       this.roofGroup.add(flatMesh);
     } else {
-      // Pulpettak
+      // Pulpettak 8° (matching Skånska Byggvaror configurator)
+      const angleRad = (8 * Math.PI) / 180;
       const roofGeo = new THREE.BoxGeometry(w + overhang * 2, 0.18, d + overhang * 2);
       const roofMesh = new THREE.Mesh(roofGeo, roofMat);
       roofMesh.position.set(0, h + 0.22, 0);
-      roofMesh.rotation.x = 0.08;
+      roofMesh.rotation.x = angleRad;
       roofMesh.castShadow = true;
       this.roofGroup.add(roofMesh);
     }
   }
 
-  private buildRafters(w: number, d: number, h: number, wt: number) {
-    const rafterMat = new THREE.MeshStandardMaterial({ color: '#f3e8d2', roughness: 0.6 });
-    const count = 7;
-    const spacing = (d - wt * 2) / (count - 1);
+  private buildRafters(w: number, d: number, h: number, _wt: number) {
+    const rafterMat = new THREE.MeshStandardMaterial({
+      color: '#eedec5',
+      roughness: 0.65,
+      metalness: 0.02
+    });
 
-    for (let i = 0; i < count; i++) {
-      const rz = -d / 2 + wt + i * spacing;
-      const rafterGeo = new THREE.BoxGeometry(w - wt * 2 + 0.1, 0.18, 0.06);
-      const rafter = new THREE.Mesh(rafterGeo, rafterMat);
-      rafter.position.set(0, h - 0.1, rz);
-      rafter.castShadow = true;
-      this.roofGroup.add(rafter);
+    const isPulpettak = this.currentConfig.roofType === 'pulpettak';
+    const rearH = isPulpettak
+      ? Math.max(h - Math.tan((8 * Math.PI) / 180) * d, 2.4)
+      : h;
+
+    // Rafter dimensions: 45 x 195 mm structural Scandinavian timber
+    const rafterW = 0.045;
+    const rafterH = 0.195;
+    const count = Math.floor(w / 0.6) + 1; // cc 600 mm
+    const spacing = w / (count - 1);
+
+    if (isPulpettak) {
+      const slopeAngle = Math.atan2(h - rearH, d);
+      const slopeLen = Math.sqrt(Math.pow(d, 2) + Math.pow(h - rearH, 2)) + 0.35;
+      const rafterGeo = new THREE.BoxGeometry(rafterW, rafterH, slopeLen);
+
+      for (let i = 0; i < count; i++) {
+        const rx = -w / 2 + i * spacing;
+        const rafter = new THREE.Mesh(rafterGeo, rafterMat);
+        rafter.position.set(rx, (h + rearH) / 2 + 0.08, 0);
+        rafter.rotation.x = slopeAngle;
+        rafter.castShadow = true;
+        this.framingGroup.add(rafter);
+      }
+    } else {
+      // Gable roof (sadeltak) rafters meeting at ridge
+      const slopeLen = Math.sqrt(Math.pow(d / 2, 2) + Math.pow(0.9, 2)) + 0.25;
+      const slopeAngle = Math.atan2(0.9, d / 2);
+      const rafterGeo = new THREE.BoxGeometry(rafterW, rafterH, slopeLen);
+
+      for (let i = 0; i < count; i++) {
+        const rx = -w / 2 + i * spacing;
+        // Front slope rafter
+        const frontRafter = new THREE.Mesh(rafterGeo, rafterMat);
+        frontRafter.position.set(rx, h + 0.45, d / 4);
+        frontRafter.rotation.x = slopeAngle;
+        frontRafter.castShadow = true;
+        this.framingGroup.add(frontRafter);
+
+        // Rear slope rafter
+        const rearRafter = new THREE.Mesh(rafterGeo, rafterMat);
+        rearRafter.position.set(rx, h + 0.45, -d / 4);
+        rearRafter.rotation.x = -slopeAngle;
+        rearRafter.castShadow = true;
+        this.framingGroup.add(rearRafter);
+      }
     }
   }
 
@@ -664,7 +1150,7 @@ export class HouseScene {
     const dimMat = new THREE.LineBasicMaterial({ color: '#1e293b', linewidth: 1.5 });
     const offset = 0.65;
 
-    // 1. Front Width Dimension Line (6040 mm / 29.9 m²)
+    // 1. Front Width Dimension Line (bottom)
     const yFront = 0.05;
     const zFront = d / 2 + offset;
     const frontLineGeo = new THREE.BufferGeometry().setFromPoints([
@@ -673,7 +1159,7 @@ export class HouseScene {
     ]);
     this.dimensionsGroup.add(new THREE.Line(frontLineGeo, dimMat));
 
-    // Extension lines
+    // Width Extension lines
     this.dimensionsGroup.add(
       new THREE.Line(
         new THREE.BufferGeometry().setFromPoints([
@@ -693,16 +1179,15 @@ export class HouseScene {
       )
     );
 
-    // 2. Right Height Dimension Line (3503 mm)
+    // 2. Right Front Height Dimension Line
     const xRight = w / 2 + offset;
     const zRight = d / 2;
-    const heightLineGeo = new THREE.BufferGeometry().setFromPoints([
+    const rightHeightGeo = new THREE.BufferGeometry().setFromPoints([
       new THREE.Vector3(xRight, 0.2, zRight),
       new THREE.Vector3(xRight, h, zRight)
     ]);
-    this.dimensionsGroup.add(new THREE.Line(heightLineGeo, dimMat));
+    this.dimensionsGroup.add(new THREE.Line(rightHeightGeo, dimMat));
 
-    // Height Extension lines
     this.dimensionsGroup.add(
       new THREE.Line(
         new THREE.BufferGeometry().setFromPoints([
@@ -721,13 +1206,89 @@ export class HouseScene {
         dimMat
       )
     );
+
+    // 3. Left Front Height Dimension Line (matching Image 3)
+    const xLeft = -w / 2 - offset;
+    const leftHeightGeo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(xLeft, 0.2, zRight),
+      new THREE.Vector3(xLeft, h, zRight)
+    ]);
+    this.dimensionsGroup.add(new THREE.Line(leftHeightGeo, dimMat));
+
+    this.dimensionsGroup.add(
+      new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(-w / 2 - 0.1, 0.2, zRight),
+          new THREE.Vector3(xLeft - 0.15, 0.2, zRight)
+        ]),
+        dimMat
+      )
+    );
+    this.dimensionsGroup.add(
+      new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(-w / 2 - 0.1, h, zRight),
+          new THREE.Vector3(xLeft - 0.15, h, zRight)
+        ]),
+        dimMat
+      )
+    );
+
+    // 4. Rear Height Dimension Line (for Pulpettak, matching Image 4)
+    if (this.currentConfig.roofType === 'pulpettak') {
+      const angleRad = (8 * Math.PI) / 180;
+      const drop = Math.tan(angleRad) * d;
+      const rearH = Math.max(h - drop, 2.4);
+      const zRear = -d / 2;
+      const rearHeightGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(xLeft, 0.2, zRear),
+        new THREE.Vector3(xLeft, rearH, zRear)
+      ]);
+      this.dimensionsGroup.add(new THREE.Line(rearHeightGeo, dimMat));
+
+      this.dimensionsGroup.add(
+        new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(-w / 2 - 0.1, 0.2, zRear),
+            new THREE.Vector3(xLeft - 0.15, 0.2, zRear)
+          ]),
+          dimMat
+        )
+      );
+      this.dimensionsGroup.add(
+        new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(-w / 2 - 0.1, rearH, zRear),
+            new THREE.Vector3(xLeft - 0.15, rearH, zRear)
+          ]),
+          dimMat
+        )
+      );
+
+      // 5. Roof pitch angle indicator lines (matching Image 4)
+      const roofAngleLineGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(xLeft, h + 0.35, 0.4),
+        new THREE.Vector3(xLeft, h + 0.35 - Math.tan(angleRad) * 0.8, -0.4)
+      ]);
+      const angleMat = new THREE.LineBasicMaterial({ color: '#0f172a', linewidth: 2 });
+      this.dimensionsGroup.add(new THREE.Line(roofAngleLineGeo, angleMat));
+
+      const baseAngleLineGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(xLeft, h + 0.35 - Math.tan(angleRad) * 0.8, 0.4),
+        new THREE.Vector3(xLeft, h + 0.35 - Math.tan(angleRad) * 0.8, -0.4)
+      ]);
+      this.dimensionsGroup.add(new THREE.Line(baseAngleLineGeo, dimMat));
+    }
+
+    this.dimensionsGroup.visible = this.currentConfig.showDimensions;
   }
 
-  private updateHighlightBox(targetMesh: THREE.Mesh) {
+  private updateHighlightBox(targetMesh: THREE.Mesh | null) {
     if (this.highlightBox) {
       this.scene.remove(this.highlightBox);
       this.highlightBox = null;
     }
+    if (!targetMesh) return;
 
     const bbox = new THREE.Box3().setFromObject(targetMesh);
     const size = new THREE.Vector3();
@@ -735,14 +1296,54 @@ export class HouseScene {
     bbox.getSize(size);
     bbox.getCenter(center);
 
-    // Green outline wireframe matching Skånska Byggvaror (#15803d)
+    // Green outline wireframe matching Skånska Byggvaror (#16a34a)
     const boxGeo = new THREE.BoxGeometry(size.x + 0.04, size.y + 0.04, size.z + 0.04);
     const edges = new THREE.EdgesGeometry(boxGeo);
-    const lineMat = new THREE.LineBasicMaterial({ color: '#16a34a', linewidth: 3 });
+    const lineMat = new THREE.LineBasicMaterial({ color: '#16a34a', linewidth: 3.5 });
 
     this.highlightBox = new THREE.LineSegments(edges, lineMat);
     this.highlightBox.position.copy(center);
     this.scene.add(this.highlightBox);
+  }
+
+  private updateHoverBox(targetMesh: THREE.Mesh | null) {
+    if (this.hoverBox) {
+      this.scene.remove(this.hoverBox);
+      this.hoverBox = null;
+    }
+    if (!targetMesh) return;
+    if (targetMesh.userData.slotId === this.currentConfig.selectedSlotId) return;
+
+    const bbox = new THREE.Box3().setFromObject(targetMesh);
+    const size = new THREE.Vector3();
+    const center = new THREE.Vector3();
+    bbox.getSize(size);
+    bbox.getCenter(center);
+
+    const group = new THREE.Group();
+
+    // Vibrant emerald outline for hover to make panel selection unmistakably obvious
+    const boxGeo = new THREE.BoxGeometry(size.x + 0.04, size.y + 0.04, size.z + 0.04);
+    const edges = new THREE.EdgesGeometry(boxGeo);
+    const lineMat = new THREE.LineBasicMaterial({
+      color: '#10b981',
+      linewidth: 3
+    });
+    group.add(new THREE.LineSegments(edges, lineMat));
+
+    // Luminous emerald translucent face glow
+    const glowMat = new THREE.MeshBasicMaterial({
+      color: '#10b981',
+      transparent: true,
+      opacity: 0.18,
+      depthWrite: false
+    });
+    const faceMesh = new THREE.Mesh(boxGeo, glowMat);
+    group.add(faceMesh);
+
+    group.position.copy(center);
+    this.hoverBox = group;
+    this.scene.add(this.hoverBox);
   }
 
   public updateConfig(config: Partial<SceneConfig>) {
@@ -758,8 +1359,8 @@ export class HouseScene {
   private applyViewMode() {
     if (this.currentConfig.viewMode === 'insida') {
       this.roofGroup.visible = false;
-      this.camera.position.set(0, 4.6, 6.2);
-      this.controls.target.set(0, 1.4, 0);
+      this.camera.position.set(2.5, 7.2, 5.8);
+      this.controls.target.set(0, 1.0, 0);
     } else {
       this.roofGroup.visible = true;
       this.camera.position.set(11, 7.5, 14);
@@ -790,6 +1391,30 @@ export class HouseScene {
     this.animFrameId = requestAnimationFrame(this.animate);
     this.controls.update();
     this.renderer.render(this.scene, this.camera);
+
+    // Update screen coordinates of selected panel for dynamic overlay tracking
+    if (this.currentConfig.selectedSlotId && this.onSlotScreenPositionUpdate) {
+      const mesh = this.interactivePanels.find(
+        (m) => m.userData.slotId === this.currentConfig.selectedSlotId
+      );
+      if (mesh) {
+        const center = new THREE.Vector3();
+        new THREE.Box3().setFromObject(mesh).getCenter(center);
+        const proj = center.clone().project(this.camera);
+        const w = this.container.clientWidth;
+        const h = this.container.clientHeight;
+        const x = ((proj.x + 1) * w) / 2;
+        const y = ((-proj.y + 1) * h) / 2;
+        const visible = proj.z < 1;
+
+        this.onSlotScreenPositionUpdate({
+          x,
+          y,
+          visible,
+          slotId: this.currentConfig.selectedSlotId
+        });
+      }
+    }
   };
 
   private onResize = () => {

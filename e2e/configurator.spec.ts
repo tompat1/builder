@@ -5,17 +5,13 @@ test.describe("3D Modular House Configurator", () => {
     await page.goto("/");
   });
 
-  test("renders 3D canvas and header UI controls with Skånska Byggvaror branding", async ({ page, isMobile }) => {
+  test("renders 3D canvas and header UI controls with Builder branding", async ({ page }) => {
     // Canvas WebGL element rendered
     const canvas = page.locator("canvas");
     await expect(canvas).toBeVisible();
 
     // Brand title & quick-action buttons
-    if (!isMobile) {
-      await expect(page.locator("text=Skånska Byggvaror")).toBeVisible();
-    } else {
-      await expect(page.locator("text=SB")).toBeVisible();
-    }
+    await expect(page.locator("text=Builder")).toBeVisible();
     await expect(page.locator("#toggle-utsida")).toBeVisible();
     await expect(page.locator("#toggle-insida")).toBeVisible();
 
@@ -75,9 +71,19 @@ test.describe("3D Modular House Configurator", () => {
     // Width annotation
     await expect(page.locator("#dim-width")).toHaveText(/6040 mm/);
     await expect(page.locator("#dim-area")).toHaveText(/29.9 m²/);
+
+    // Roof angle annotation (8° for pulpettak)
+    await expect(page.locator("#dim-roof-angle")).toHaveText(/8°/);
   });
 
-  test("interacts with wall slot panel to choose doors or windows", async ({ page }) => {
+  test("interacts with wall slot panel to choose doors or windows", async ({ page, isMobile }) => {
+    if (isMobile) {
+      const toggleMobileBtn = page.locator("#btn-toggle-mobile-sheet");
+      if (await toggleMobileBtn.isVisible()) {
+        await toggleMobileBtn.click();
+      }
+    }
+
     // Active slot overlay is visible
     const chooseDoorBtn = page.locator("#btn-choose-door");
     const chooseWinBtn = page.locator("#btn-choose-window");
@@ -92,23 +98,27 @@ test.describe("3D Modular House Configurator", () => {
 
   test("navigates through configuration categories and updates options", async ({ page }) => {
     // 1. Size Category
+    await page.locator("#category-size").scrollIntoViewIfNeeded();
     await page.locator("#category-size").click();
     await expect(page.locator("text=Storlek & Grundmått")).toBeVisible();
     await expect(page.locator("#option-size-15")).toBeVisible();
     await expect(page.locator("#option-size-30")).toBeVisible();
 
     // 2. Roof Category
+    await page.locator("#category-roof").scrollIntoViewIfNeeded();
     await page.locator("#category-roof").click();
     await expect(page.locator("text=Taktyp & Vinkel")).toBeVisible();
     await expect(page.locator("#option-sadeltak")).toBeVisible();
     await expect(page.locator("#option-pulpettak")).toBeVisible();
 
     // 3. Loft Category
+    await page.locator("#category-loft").scrollIntoViewIfNeeded();
     await page.locator("#category-loft").click();
     await expect(page.locator("text=Loft & Rymd")).toBeVisible();
     await expect(page.locator("#option-sleeping")).toBeVisible();
 
     // 4. Doors Category
+    await page.locator("#category-doors").scrollIntoViewIfNeeded();
     await page.locator("#category-doors").click();
     await expect(page.locator("text=Ytterdörrar")).toBeVisible();
     await expect(page.locator("#option-STEHAG")).toBeVisible();
@@ -122,7 +132,9 @@ test.describe("3D Modular House Configurator", () => {
     expect(initialPrice).toContain("kr");
 
     // Select Sadeltak (+14 800 kr)
+    await page.locator("#category-roof").scrollIntoViewIfNeeded();
     await page.locator("#category-roof").click();
+    await page.locator("#option-sadeltak").scrollIntoViewIfNeeded();
     await page.locator("#option-sadeltak").click();
 
     // Price should have updated

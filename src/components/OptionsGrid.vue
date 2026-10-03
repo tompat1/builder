@@ -213,17 +213,54 @@
 
     <!-- Doors Options -->
     <template v-else-if="store.selectedCategory === 'doors'">
+      <!-- Door Type Tabs (Enkeldörrar / Pardörrar) matching Image 1 & 2 -->
+      <div class="flex border-b border-slate-200 gap-4 mb-2">
+        <button
+          type="button"
+          class="text-xs font-bold pb-2 border-b-2 border-emerald-700 text-slate-900"
+        >
+          Enkeldörrar
+        </button>
+        <button
+          type="button"
+          class="text-xs font-semibold pb-2 border-b-2 border-transparent text-slate-400 hover:text-slate-600"
+        >
+          Pardörrar
+        </button>
+      </div>
+
       <!-- Door Series Selector -->
-      <div class="flex items-center justify-between bg-slate-50 p-2 rounded-xl border border-slate-200/80">
+      <div class="flex items-center justify-between bg-slate-50 p-2 rounded-xl border border-slate-200/80 mb-2">
         <span class="text-xs font-bold text-slate-700">Serie</span>
         <select class="text-xs font-semibold bg-white border border-slate-300 rounded-lg px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-slate-900">
-          <option>Stabil (Klassiker)</option>
+          <option>Stabil</option>
           <option>Modern Funkis</option>
           <option>Allmoge Trä</option>
         </select>
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+      <!-- Notice when slot cannot accept a door (matching Image 1) -->
+      <div
+        v-if="!store.selectedSlotCanAcceptDoor"
+        id="door-cannot-place-notice"
+        class="py-6 px-4 bg-slate-50/80 rounded-xl border border-slate-200/90 text-center space-y-2 animate-fade-in"
+      >
+        <p class="text-xs font-bold text-slate-900 leading-snug">
+          Dörr kan inte placeras på markerad väggyta på byggnaden.
+        </p>
+        <p class="text-[11px] text-slate-500">
+          Välj en marknära väggsektion eller byt till fönsterparti.
+        </p>
+        <button
+          type="button"
+          @click="store.selectCategory('windows')"
+          class="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:text-emerald-800 underline mt-1"
+        >
+          <span>Välj fönster istället →</span>
+        </button>
+      </div>
+
+      <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
         <button
           v-for="door in DOORS_OPTIONS"
           :key="door.id"

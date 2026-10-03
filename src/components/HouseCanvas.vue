@@ -26,12 +26,32 @@ onMounted(() => {
       wallSlots: store.wallSlots
     });
 
-    // Wire raycast clicks from 3D scene to store
+    // Wire raycast clicks & hover from 3D scene to store
     engine.onPanelClick = (slotId) => {
       store.selectSlot(slotId);
     };
+
+    engine.onPanelHover = (slotId, x, y) => {
+      store.setHoveredSlot(slotId, slotId && x && y ? { x, y } : null);
+    };
+
+    engine.onSlotScreenPositionUpdate = (pos) => {
+      store.setSlotScreenPosition(pos);
+    };
+
+    if (typeof window !== 'undefined') {
+      (window as any).__houseScene = engine;
+    }
   }
 });
+
+// Watch show dimensions toggle
+watch(
+  () => store.showDimensions,
+  (show) => {
+    engine?.updateConfig({ showDimensions: show });
+  }
+);
 
 // Watch view mode (Outside / Inside)
 watch(

@@ -7,14 +7,14 @@
     <div class="flex items-center gap-3 md:gap-5">
       <!-- Logo Badge -->
       <div class="flex items-center gap-2.5">
-        <div class="w-8 h-8 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center font-black text-xs shadow-xs tracking-tighter">
-          SB
+        <div class="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center font-black text-sm shadow-xs tracking-tight">
+          B
         </div>
         <div class="block">
           <div class="flex items-center gap-1.5 leading-none">
-            <span class="font-extrabold text-slate-900 tracking-tight text-xs sm:text-sm">Skånska Byggvaror</span>
+            <span class="font-extrabold text-slate-900 tracking-tight text-sm md:text-base">Builder</span>
           </div>
-          <span class="text-[9px] uppercase tracking-wider text-slate-400 font-bold block mt-0.5">En del av Byggmax</span>
+          <span class="text-[9px] uppercase tracking-wider text-slate-400 font-bold block mt-0.5">3D Modulhus</span>
         </div>
       </div>
 

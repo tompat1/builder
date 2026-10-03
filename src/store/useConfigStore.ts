@@ -272,6 +272,8 @@ export interface WallSlot {
   index: number;
   type: 'empty' | 'door' | 'window' | 'gate';
   itemId?: string;
+  canAcceptDoor?: boolean;
+  isUpper?: boolean;
 }
 
 export const useConfigStore = defineStore('config', () => {
@@ -280,6 +282,9 @@ export const useConfigStore = defineStore('config', () => {
   const activeMaterial = ref<MaterialKey>('wood');
   const showDimensions = ref<boolean>(true);
   const selectedSlotId = ref<string | null>('front-1');
+  const hoveredSlotId = ref<string | null>(null);
+  const hoveredSlotPos = ref<{ x: number; y: number } | null>(null);
+  const slotScreenPosition = ref<{ x: number; y: number; visible: boolean } | null>(null);
 
   const selectedSizeId = ref<string>('size-30');
   const activeRoof = ref<string>('pulpettak');
@@ -288,22 +293,22 @@ export const useConfigStore = defineStore('config', () => {
   const activeWindow = ref<string>('standard-single');
   const activeGate = ref<string>('none');
 
-  // Wall panel modular slots
+  // Wall panel modular slots (matching Skånska Byggvaror reference layout)
   const wallSlots = ref<Record<string, WallSlot>>({
-    'front-0': { id: 'front-0', wall: 'front', index: 0, type: 'empty' },
-    'front-1': { id: 'front-1', wall: 'front', index: 1, type: 'door', itemId: 'STEHAG' },
-    'front-2': { id: 'front-2', wall: 'front', index: 2, type: 'window', itemId: 'standard-single' },
-    'front-3': { id: 'front-3', wall: 'front', index: 3, type: 'empty' },
-    'left-0': { id: 'left-0', wall: 'left', index: 0, type: 'empty' },
-    'left-1': { id: 'left-1', wall: 'left', index: 1, type: 'empty' },
-    'left-2': { id: 'left-2', wall: 'left', index: 2, type: 'empty' },
-    'right-0': { id: 'right-0', wall: 'right', index: 0, type: 'empty' },
-    'right-1': { id: 'right-1', wall: 'right', index: 1, type: 'empty' },
-    'right-2': { id: 'right-2', wall: 'right', index: 2, type: 'empty' },
-    'back-0': { id: 'back-0', wall: 'back', index: 0, type: 'empty' },
-    'back-1': { id: 'back-1', wall: 'back', index: 1, type: 'empty' },
-    'back-2': { id: 'back-2', wall: 'back', index: 2, type: 'empty' },
-    'back-3': { id: 'back-3', wall: 'back', index: 3, type: 'empty' }
+    'front-0': { id: 'front-0', wall: 'front', index: 0, type: 'door', itemId: 'STEHAG', canAcceptDoor: true },
+    'front-1': { id: 'front-1', wall: 'front', index: 1, type: 'empty', canAcceptDoor: true },
+    'front-2': { id: 'front-2', wall: 'front', index: 2, type: 'window', itemId: 'standard-single', canAcceptDoor: false, isUpper: true },
+    'front-3': { id: 'front-3', wall: 'front', index: 3, type: 'empty', canAcceptDoor: true },
+    'left-0': { id: 'left-0', wall: 'left', index: 0, type: 'empty', canAcceptDoor: true },
+    'left-1': { id: 'left-1', wall: 'left', index: 1, type: 'empty', canAcceptDoor: false, isUpper: true },
+    'left-2': { id: 'left-2', wall: 'left', index: 2, type: 'empty', canAcceptDoor: true },
+    'right-0': { id: 'right-0', wall: 'right', index: 0, type: 'empty', canAcceptDoor: true },
+    'right-1': { id: 'right-1', wall: 'right', index: 1, type: 'empty', canAcceptDoor: true },
+    'right-2': { id: 'right-2', wall: 'right', index: 2, type: 'empty', canAcceptDoor: true },
+    'back-0': { id: 'back-0', wall: 'back', index: 0, type: 'empty', canAcceptDoor: true },
+    'back-1': { id: 'back-1', wall: 'back', index: 1, type: 'empty', canAcceptDoor: true },
+    'back-2': { id: 'back-2', wall: 'back', index: 2, type: 'empty', canAcceptDoor: true },
+    'back-3': { id: 'back-3', wall: 'back', index: 3, type: 'empty', canAcceptDoor: true }
   });
 
   // History stacks for Undo / Redo
@@ -374,6 +379,31 @@ export const useConfigStore = defineStore('config', () => {
     height: currentSize.value.height,
     areaSqMeters: currentSize.value.areaSqMeters
   }));
+
+  const roofPitchAngle = computed(() => {
+    switch (activeRoof.value) {
+      case 'pulpettak':
+        return 8;
+      case 'sadeltak':
+        return 22;
+      case 'flackt':
+        return 2;
+      default:
+        return 8;
+    }
+  });
+
+  const rearHeight = computed(() => {
+    if (activeRoof.value === 'pulpettak') {
+      const drop = Math.round(dimensions.value.depth * Math.tan((roofPitchAngle.value * Math.PI) / 180));
+      return Math.max(dimensions.value.height - drop, 2400);
+    }
+    return dimensions.value.height;
+  });
+
+  const innerCeilingHeight = computed(() => {
+    return viewMode.value === 'insida' ? 2595 : 2144;
+  });
 
   const hasLoft = computed(() => activeLoft.value !== 'none');
 
@@ -475,11 +505,49 @@ export const useConfigStore = defineStore('config', () => {
     showDimensions.value = !showDimensions.value;
   }
 
+  const selectedSlotCanAcceptDoor = computed(() => {
+    if (!selectedSlotId.value) return true;
+    const slot = wallSlots.value[selectedSlotId.value];
+    if (!slot) return true;
+    return slot.canAcceptDoor !== false;
+  });
+
+  function setHoveredSlot(slotId: string | null, pos?: { x: number; y: number } | null) {
+    hoveredSlotId.value = slotId;
+    hoveredSlotPos.value = pos ?? null;
+  }
+
+  function setSlotScreenPosition(pos: { x: number; y: number; visible: boolean } | null) {
+    slotScreenPosition.value = pos;
+  }
+
+  function cycleSlot(direction: 'prev' | 'next') {
+    const keys = Object.keys(wallSlots.value);
+    if (!selectedSlotId.value) {
+      selectedSlotId.value = keys[0];
+      return;
+    }
+    const currentIndex = keys.indexOf(selectedSlotId.value);
+    if (currentIndex === -1) return;
+    const nextIndex = direction === 'next'
+      ? (currentIndex + 1) % keys.length
+      : (currentIndex - 1 + keys.length) % keys.length;
+    selectedSlotId.value = keys[nextIndex];
+  }
+
+  function deselectSlot() {
+    selectedSlotId.value = null;
+    slotScreenPosition.value = null;
+  }
+
   return {
     viewMode,
     selectedCategory,
     activeMaterial,
     selectedSlotId,
+    hoveredSlotId,
+    hoveredSlotPos,
+    slotScreenPosition,
     showDimensions,
     wallSlots,
     selectedSizeId,
@@ -491,8 +559,12 @@ export const useConfigStore = defineStore('config', () => {
     currentSize,
     currentMaterial,
     dimensions,
+    roofPitchAngle,
+    rearHeight,
+    innerCeilingHeight,
     hasLoft,
     totalPriceSek,
+    selectedSlotCanAcceptDoor,
     toggleViewMode,
     setViewMode,
     selectCategory,
@@ -504,6 +576,10 @@ export const useConfigStore = defineStore('config', () => {
     selectGate,
     selectMaterial,
     selectSlot,
+    setHoveredSlot,
+    setSlotScreenPosition,
+    cycleSlot,
+    deselectSlot,
     assignSlotItem,
     removeSlotItem,
     toggleDimensions,
