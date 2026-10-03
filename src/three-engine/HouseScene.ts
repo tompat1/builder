@@ -418,10 +418,11 @@ export class HouseScene {
         const slotId = hit.userData.slotId as string;
         if (slotId) {
           this.container.style.cursor = 'pointer';
-          this.updateHoverBox(hit);
+          const bounds = this.boundsOf(hit);
+          this.updateHoverBox(bounds);
 
           const center = new THREE.Vector3();
-          new THREE.Box3().setFromObject(hit).getCenter(center);
+          new THREE.Box3().setFromObject(bounds).getCenter(center);
           const proj = center.clone().project(this.camera);
           const w = this.container.clientWidth;
           const h = this.container.clientHeight;
@@ -458,7 +459,7 @@ export class HouseScene {
         if (slotId) {
           this.currentConfig.selectedSlotId = slotId;
           this.updateHoverBox(null);
-          this.updateHighlightBox(hit);
+          this.updateHighlightBox(this.boundsOf(hit));
           this.onPanelClick?.(slotId, e.clientX, e.clientY);
         }
       }
@@ -506,13 +507,15 @@ export class HouseScene {
       bumpMap: wallBumpMap,
       bumpScale: 0.04,
       roughness: 0.72,
-      metalness: 0.02
+      metalness: 0.02,
+      side: THREE.DoubleSide
     });
 
     const framingMat = new THREE.MeshStandardMaterial({
       color: '#eedec5',
       roughness: 0.65,
-      metalness: 0.02
+      metalness: 0.02,
+      side: THREE.DoubleSide
     });
 
     const floorMat = new THREE.MeshStandardMaterial({
@@ -653,16 +656,27 @@ export class HouseScene {
       const panelGroup = new THREE.Group();
       panelGroup.position.set(px, wallY, pz);
       panelGroup.rotation.y = rotY;
+      panelGroup.userData = { slotId, wall: wallSide, index: i };
 
-      // Solid vertical timber cladding panel extending all the way up to roof underside
-      const panelGeo = new THREE.BoxGeometry(panelWidth, panelWallH, claddingThick);
-      const panelMesh = new THREE.Mesh(panelGeo, exteriorMat);
-      panelMesh.position.set(0, 0, 0);
-      panelMesh.castShadow = true;
-      panelMesh.receiveShadow = true;
-      panelMesh.userData = { slotId, wall: wallSide, index: i };
-      panelGroup.add(panelMesh);
-      this.interactivePanels.push(panelMesh);
+      const opening = slotType === 'window'
+        ? this.windowOpening(slot?.itemId, panelWidth, panelWallH)
+        : slotType === 'door'
+          ? this.doorOpening(panelWallH)
+          : null;
+
+      // Cladding. A window is a real hole in the board so the room is visible through it.
+      const panelMesh = opening
+        ? this.addCladdingAroundOpening(panelGroup, panelWidth, panelWallH, claddingThick, exteriorMat, opening, {
+            slotId,
+            wall: wallSide,
+            index: i,
+            panelGroup
+          })
+        : this.addSolidCladding(panelGroup, panelWidth, panelWallH, claddingThick, exteriorMat, {
+            slotId,
+            wall: wallSide,
+            index: i
+          });
       const activeMesh = panelMesh;
 
       // Subtle modular joint vertical trim line between panels for clear visual segmentation
@@ -673,21 +687,41 @@ export class HouseScene {
       panelGroup.add(jointMesh);
 
       // Horizontal mid-trim line (white coping / mid-rib matching Skånska Byggvaror)
-      const midRibGeo = new THREE.BoxGeometry(panelWidth, 0.06, 0.04);
-      const midRib = new THREE.Mesh(midRibGeo, trimMat);
       const midRibY =
         this.currentConfig.viewMode === 'insida' && wallSide === 'front'
           ? panelWallH / 2
           : (baseElev + 2.15) - wallY;
-      midRib.position.set(0, midRibY, 0.02);
-      midRib.castShadow = true;
-      panelGroup.add(midRib);
+      const ribOverlapsWindow = opening
+        && midRibY + 0.03 > opening.winY - opening.winH / 2
+        && midRibY - 0.03 < opening.winY + opening.winH / 2;
+      if (ribOverlapsWindow && opening) {
+        const sideW = (panelWidth - opening.winW) / 2;
+        const leftRib = new THREE.Mesh(new THREE.BoxGeometry(sideW, 0.06, 0.04), trimMat);
+        leftRib.position.set(-(panelWidth + opening.winW) / 4, midRibY, 0.02);
+        leftRib.castShadow = true;
+        panelGroup.add(leftRib);
+        const rightRib = new THREE.Mesh(new THREE.BoxGeometry(sideW, 0.06, 0.04), trimMat);
+        rightRib.position.set((panelWidth + opening.winW) / 4, midRibY, 0.02);
+        rightRib.castShadow = true;
+        panelGroup.add(rightRib);
+      } else {
+        const midRibGeo = new THREE.BoxGeometry(panelWidth, 0.06, 0.04);
+        const midRib = new THREE.Mesh(midRibGeo, trimMat);
+        midRib.position.set(0, midRibY, 0.02);
+        midRib.castShadow = true;
+        panelGroup.add(midRib);
+      }
 
       // Decorate panel based on assigned slot item
       if (slotType === 'door') {
         this.addDoorFeature(panelGroup, panelWidth, panelWallH, wallThick, slot?.itemId);
-      } else if (slotType === 'window') {
-        this.addWindowFeature(panelGroup, panelWidth, panelWallH, wallThick, slot?.itemId);
+      } else if (slotType === 'window' && opening) {
+        this.addWindowFeature(panelGroup, opening, slot?.itemId, {
+          slotId,
+          wall: wallSide,
+          index: i,
+          panelGroup
+        });
       } else if (slotType === 'gate') {
         this.addGateFeature(panelGroup, panelWidth, panelWallH, wallThick, slot?.itemId);
       }
@@ -696,7 +730,7 @@ export class HouseScene {
 
       // Check if this slot is selected to place the green highlight outline
       if (slotId === this.currentConfig.selectedSlotId) {
-        this.updateHighlightBox(activeMesh);
+        this.updateHighlightBox(opening ? panelGroup : activeMesh);
       }
     }
 
@@ -966,38 +1000,218 @@ export class HouseScene {
   }
 
 
+  private boundsOf(hit: THREE.Object3D): THREE.Object3D {
+    return (hit.userData.panelGroup as THREE.Object3D | undefined) ?? hit;
+  }
+
+  private doorOpening(panelHeight: number) {
+    const doorH = 2.1;
+    return { winW: 1.0, winH: doorH, winY: -panelHeight / 2 + doorH / 2 };
+  }
+
+  private windowOpening(windowId: string | undefined, panelWidth: number, panelHeight: number) {
+    let winW = 1.0;
+    let winH = 1.2;
+    let winY = 0.12;
+    if (windowId === 'panorama') {
+      winW = 1.45;
+      winH = panelHeight * 0.72;
+      winY = -panelHeight * 0.06;
+    } else if (windowId === 'frost') {
+      winW = 0.62;
+      winH = 0.62;
+      winY = 0.42;
+    } else if (windowId === 'sprojat') {
+      winW = 1.15;
+      winH = 1.15;
+      winY = 0.12;
+    }
+    const margin = 0.07;
+    winW = Math.min(winW, Math.max(0.35, panelWidth - margin * 2));
+    winH = Math.min(winH, Math.max(0.35, panelHeight - margin * 2));
+    const maxY = panelHeight / 2 - winH / 2 - 0.04;
+    const minY = -panelHeight / 2 + winH / 2 + 0.04;
+    winY = Math.max(minY, Math.min(maxY, winY));
+    return { winW, winH, winY };
+  }
+
+  private addSolidCladding(
+    parent: THREE.Group,
+    panelWidth: number,
+    panelHeight: number,
+    claddingThick: number,
+    material: THREE.Material,
+    userData: Record<string, unknown>
+  ) {
+    const panelMesh = new THREE.Mesh(
+      new THREE.BoxGeometry(panelWidth, panelHeight, claddingThick),
+      material
+    );
+    panelMesh.castShadow = true;
+    panelMesh.receiveShadow = true;
+    panelMesh.userData = userData;
+    parent.add(panelMesh);
+    this.interactivePanels.push(panelMesh);
+    return panelMesh;
+  }
+
+  private addCladdingAroundOpening(
+    parent: THREE.Group,
+    panelWidth: number,
+    panelHeight: number,
+    claddingThick: number,
+    material: THREE.Material,
+    opening: { winW: number; winH: number; winY: number },
+    userData: Record<string, unknown>
+  ) {
+    const { winW, winH, winY } = opening;
+    const sideW = (panelWidth - winW) / 2;
+    const boards: { x: number; y: number; w: number; h: number }[] = [];
+    if (sideW > 0.01) {
+      boards.push({ x: -(panelWidth + winW) / 4, y: 0, w: sideW, h: panelHeight });
+      boards.push({ x: (panelWidth + winW) / 4, y: 0, w: sideW, h: panelHeight });
+    }
+    const bottomH = winY - winH / 2 + panelHeight / 2;
+    if (bottomH > 0.01) {
+      boards.push({
+        x: 0,
+        y: (-panelHeight / 2 + (winY - winH / 2)) / 2,
+        w: winW,
+        h: bottomH
+      });
+    }
+    const topH = panelHeight / 2 - (winY + winH / 2);
+    if (topH > 0.01) {
+      boards.push({
+        x: 0,
+        y: (winY + winH / 2 + panelHeight / 2) / 2,
+        w: winW,
+        h: topH
+      });
+    }
+
+    let first: THREE.Mesh | null = null;
+    for (const board of boards) {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(board.w, board.h, claddingThick), material);
+      mesh.position.set(board.x, board.y, 0);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.userData = userData;
+      parent.add(mesh);
+      this.interactivePanels.push(mesh);
+      first ??= mesh;
+    }
+    return first ?? this.addSolidCladding(parent, panelWidth, panelHeight, claddingThick, material, userData);
+  }
+
+  private addWindowFeature(
+    parent: THREE.Group,
+    opening: { winW: number; winH: number; winY: number },
+    windowId: string | undefined,
+    userData: Record<string, unknown>
+  ) {
+    const { winW, winH, winY } = opening;
+    const frameT = 0.045;
+    const frameD = 0.055;
+    const frameMat = new THREE.MeshStandardMaterial({ color: '#f8fafc', roughness: 0.35 });
+    const members: { x: number; y: number; w: number; h: number }[] = [
+      { x: -winW / 2 - frameT / 2, y: winY, w: frameT, h: winH + frameT * 2 },
+      { x: winW / 2 + frameT / 2, y: winY, w: frameT, h: winH + frameT * 2 },
+      { x: 0, y: winY + winH / 2 + frameT / 2, w: winW, h: frameT },
+      { x: 0, y: winY - winH / 2 - frameT / 2, w: winW, h: frameT }
+    ];
+    for (const member of members) {
+      const frame = new THREE.Mesh(new THREE.BoxGeometry(member.w, member.h, frameD), frameMat);
+      frame.position.set(member.x, member.y, 0.01);
+      frame.castShadow = true;
+      parent.add(frame);
+    }
+
+    const frosted = windowId === 'frost';
+    const glass = new THREE.Mesh(
+      new THREE.PlaneGeometry(winW, winH),
+      new THREE.MeshStandardMaterial({
+        color: frosted ? '#f1f5f9' : '#dbeafe',
+        transparent: true,
+        opacity: frosted ? 0.38 : 0.07,
+        roughness: frosted ? 0.55 : 0.04,
+        metalness: 0.04,
+        side: THREE.DoubleSide,
+        depthWrite: false
+      })
+    );
+    glass.position.set(0, winY, 0.012);
+    glass.renderOrder = 2;
+    glass.userData = userData;
+    parent.add(glass);
+    this.interactivePanels.push(glass);
+
+    if (windowId === 'sprojat') {
+      const mullionMat = new THREE.MeshStandardMaterial({ color: '#f8fafc', roughness: 0.35 });
+      const vertMullion = new THREE.Mesh(new THREE.BoxGeometry(0.028, winH, 0.03), mullionMat);
+      vertMullion.position.set(0, winY, 0.02);
+      parent.add(vertMullion);
+      const horizMullion = new THREE.Mesh(new THREE.BoxGeometry(winW, 0.028, 0.03), mullionMat);
+      horizMullion.position.set(0, winY, 0.02);
+      parent.add(horizMullion);
+    }
+  }
+
   private addDoorFeature(parent: THREE.Group, pw: number, ph: number, wt: number, doorId?: string) {
     // Cutout opening simulation
     const doorW = 1.0;
     const doorH = 2.1;
     const doorY = -ph / 2 + doorH / 2;
 
-    // Door Frame
-    const frameGeo = new THREE.BoxGeometry(doorW + 0.08, doorH + 0.04, wt + 0.06);
+    const frameT = 0.04;
+    const frameD = 0.06;
     const frameMat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.3 });
-    const frame = new THREE.Mesh(frameGeo, frameMat);
-    frame.position.set(0, doorY, 0);
-    parent.add(frame);
+    const frameMembers: { x: number; y: number; w: number; h: number }[] = [
+      { x: -doorW / 2 - frameT / 2, y: doorY, w: frameT, h: doorH + frameT },
+      { x: doorW / 2 + frameT / 2, y: doorY, w: frameT, h: doorH + frameT },
+      { x: 0, y: doorY + doorH / 2 + frameT / 2, w: doorW, h: frameT }
+    ];
+    for (const member of frameMembers) {
+      const frame = new THREE.Mesh(new THREE.BoxGeometry(member.w, member.h, frameD), frameMat);
+      frame.position.set(member.x, member.y, 0.01);
+      parent.add(frame);
+    }
 
-    // Door Leaf
-    const leafGeo = new THREE.BoxGeometry(doorW, doorH, 0.08);
+    // Door leaf, with a real opening behind the glass so the room shows through.
+    const leafZ = wt / 2 + 0.02;
+    const leafD = 0.08;
+    const liteW = doorId === 'SVANSHALL' ? 0.72 : 0.16;
+    const liteH = doorId === 'SVANSHALL' ? 1.6 : 0.9;
+    const liteY = doorY + 0.25;
     const leafMat = new THREE.MeshStandardMaterial({ color: '#f8fafc', roughness: 0.35 });
-    const leaf = new THREE.Mesh(leafGeo, leafMat);
-    leaf.position.set(0, doorY, wt / 2 + 0.02);
-    leaf.castShadow = true;
-    parent.add(leaf);
+    const leafParts: { x: number; y: number; w: number; h: number }[] = [
+      { x: 0, y: (liteY + liteH / 2 + doorY + doorH / 2) / 2, w: doorW, h: doorY + doorH / 2 - (liteY + liteH / 2) },
+      { x: 0, y: (doorY - doorH / 2 + liteY - liteH / 2) / 2, w: doorW, h: liteY - liteH / 2 - (doorY - doorH / 2) },
+      { x: -(doorW + liteW) / 4, y: liteY, w: (doorW - liteW) / 2, h: liteH },
+      { x: (doorW + liteW) / 4, y: liteY, w: (doorW - liteW) / 2, h: liteH }
+    ];
+    for (const part of leafParts) {
+      if (part.w <= 0.01 || part.h <= 0.01) continue;
+      const leaf = new THREE.Mesh(new THREE.BoxGeometry(part.w, part.h, leafD), leafMat);
+      leaf.position.set(part.x, part.y, leafZ);
+      leaf.castShadow = true;
+      parent.add(leaf);
+    }
 
-    // Glass insert
-    const glassGeo = new THREE.BoxGeometry(doorId === 'SVANSHALL' ? 0.35 : 0.16, doorId === 'SVANSHALL' ? 1.6 : 0.9, 0.02);
-    const glassMat = new THREE.MeshPhysicalMaterial({
-      color: '#e0f2fe',
-      transparent: true,
-      opacity: 0.65,
-      roughness: 0.1,
-      transmission: 0.9
-    });
-    const glass = new THREE.Mesh(glassGeo, glassMat);
-    glass.position.set(0, doorY + 0.25, wt / 2 + 0.07);
+    const glass = new THREE.Mesh(
+      new THREE.PlaneGeometry(liteW, liteH),
+      new THREE.MeshStandardMaterial({
+        color: '#dbeafe',
+        transparent: true,
+        opacity: 0.07,
+        roughness: 0.04,
+        metalness: 0.04,
+        side: THREE.DoubleSide,
+        depthWrite: false
+      })
+    );
+    glass.position.set(0, liteY, leafZ + leafD / 2 + 0.004);
+    glass.renderOrder = 2;
     parent.add(glass);
 
     // Handle
@@ -1007,44 +1221,6 @@ export class HouseScene {
     handle.rotation.z = Math.PI / 2;
     handle.position.set(0.38, doorY, wt / 2 + 0.09);
     parent.add(handle);
-  }
-
-  private addWindowFeature(parent: THREE.Group, pw: number, ph: number, wt: number, windowId?: string) {
-    const winW = 1.0;
-    const winH = 1.2;
-    const winY = 0.1;
-
-    // Window Frame
-    const frameGeo = new THREE.BoxGeometry(winW + 0.08, winH + 0.08, wt + 0.06);
-    const frameMat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.3 });
-    const frame = new THREE.Mesh(frameGeo, frameMat);
-    frame.position.set(0, winY, 0);
-    parent.add(frame);
-
-    // Glass Pane
-    const glassGeo = new THREE.BoxGeometry(winW, winH, 0.02);
-    const glassMat = new THREE.MeshPhysicalMaterial({
-      color: '#dbeafe',
-      transparent: true,
-      opacity: 0.6,
-      roughness: 0.1,
-      transmission: 0.95
-    });
-    const glass = new THREE.Mesh(glassGeo, glassMat);
-    glass.position.set(0, winY, wt / 2 + 0.02);
-    parent.add(glass);
-
-    // Mullions (spröjs)
-    if (windowId === 'sprojat') {
-      const mullionMat = new THREE.MeshStandardMaterial({ color: '#ffffff' });
-      const vertMullion = new THREE.Mesh(new THREE.BoxGeometry(0.03, winH, 0.04), mullionMat);
-      vertMullion.position.set(0, winY, wt / 2 + 0.03);
-      parent.add(vertMullion);
-
-      const horizMullion = new THREE.Mesh(new THREE.BoxGeometry(winW, 0.03, 0.04), mullionMat);
-      horizMullion.position.set(0, winY, wt / 2 + 0.03);
-      parent.add(horizMullion);
-    }
   }
 
   private addGateFeature(parent: THREE.Group, pw: number, ph: number, wt: number, gateId?: string) {
@@ -1651,14 +1827,14 @@ export class HouseScene {
     this.dimensionsGroup.visible = this.currentConfig.showDimensions;
   }
 
-  private updateHighlightBox(targetMesh: THREE.Mesh | null) {
+  private updateHighlightBox(target: THREE.Object3D | null) {
     if (this.highlightBox) {
       this.scene.remove(this.highlightBox);
       this.highlightBox = null;
     }
-    if (!targetMesh) return;
+    if (!target) return;
 
-    const bbox = new THREE.Box3().setFromObject(targetMesh);
+    const bbox = new THREE.Box3().setFromObject(target);
     const size = new THREE.Vector3();
     const center = new THREE.Vector3();
     bbox.getSize(size);
@@ -1674,15 +1850,15 @@ export class HouseScene {
     this.scene.add(this.highlightBox);
   }
 
-  private updateHoverBox(targetMesh: THREE.Mesh | null) {
+  private updateHoverBox(target: THREE.Object3D | null) {
     if (this.hoverBox) {
       this.scene.remove(this.hoverBox);
       this.hoverBox = null;
     }
-    if (!targetMesh) return;
-    if (targetMesh.userData.slotId === this.currentConfig.selectedSlotId) return;
+    if (!target) return;
+    if (target.userData.slotId === this.currentConfig.selectedSlotId) return;
 
-    const bbox = new THREE.Box3().setFromObject(targetMesh);
+    const bbox = new THREE.Box3().setFromObject(target);
     const size = new THREE.Vector3();
     const center = new THREE.Vector3();
     bbox.getSize(size);

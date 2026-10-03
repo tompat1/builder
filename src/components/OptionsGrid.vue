@@ -4,12 +4,12 @@
     <div class="flex items-center justify-between">
       <div>
         <h3 class="text-sm font-bold text-slate-900 tracking-tight">
-          {{ categoryTitles[store.selectedCategory] }}
+          {{ t(`category.${store.selectedCategory}Title`) }}
         </h3>
-        <p class="text-xs text-slate-500">Välj alternativ för att anpassa din byggnad</p>
+        <p class="text-xs text-slate-500">{{ t('category.hint') }}</p>
       </div>
       <span class="text-[11px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
-        {{ currentOptionsCount }} alternativ
+        {{ t('category.options', { count: currentOptionsCount }) }}
       </span>
     </div>
 
@@ -21,17 +21,17 @@
       <div class="flex items-center gap-2">
         <span class="w-2 h-2 rounded-full bg-emerald-600 animate-pulse"></span>
         <span class="text-xs font-semibold text-emerald-900">
-          Aktiv panel i 3D: {{ store.selectedSlotId.toUpperCase() }}
+          {{ t('category.activeSlot', { id: store.selectedSlotId.toUpperCase() }) }}
         </span>
       </div>
-      <span class="text-[11px] text-emerald-700">Klicka på en produkt för att placera</span>
+      <span class="text-[11px] text-emerald-700">{{ t('category.placeHint') }}</span>
     </div>
 
     <!-- Category Content: Size & Material -->
     <template v-if="store.selectedCategory === 'size'">
       <!-- Size Options -->
       <div>
-        <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Byggmått & Area</h4>
+        <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">{{ t('category.measures') }}</h4>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           <button
             v-for="size in SIZE_OPTIONS"
@@ -55,18 +55,18 @@
                 </text>
               </svg>
               <span class="absolute top-1.5 right-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/90 text-slate-700 shadow-2xs border border-slate-200/60">
-                {{ size.badge }}
+                {{ catalog(size.id, 'badge', size.badge) }}
               </span>
             </div>
 
             <div>
               <div class="flex items-center justify-between">
-                <p class="text-xs font-bold text-slate-900">{{ size.name }}</p>
+                <p class="text-xs font-bold text-slate-900">{{ catalog(size.id, 'name', size.name) }}</p>
                 <span class="text-xs font-extrabold text-slate-900 tabular-nums">
-                  {{ size.basePrice.toLocaleString('sv-SE') }} kr
+                  {{ money(size.basePrice) }}
                 </span>
               </div>
-              <p class="text-[11px] text-slate-500 mt-0.5 leading-snug">{{ size.desc }}</p>
+              <p class="text-[11px] text-slate-500 mt-0.5 leading-snug">{{ catalog(size.id, 'desc', size.desc) }}</p>
             </div>
           </button>
         </div>
@@ -75,9 +75,9 @@
       <!-- Material & Fasad Heading -->
       <div class="pt-3 border-t border-slate-200/70">
         <div class="flex items-center justify-between mb-2">
-          <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider">Fasadmaterial & Kulör</h4>
+          <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider">{{ t('category.facade') }}</h4>
           <span class="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60">
-            Vald: {{ store.currentMaterial.name }}
+            {{ t('category.selected', { name: catalog(store.currentMaterial.id, 'name', store.currentMaterial.name) }) }}
           </span>
         </div>
 
@@ -108,12 +108,12 @@
 
             <div class="min-w-0 flex-1">
               <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-slate-900 truncate">{{ mat.name }}</span>
+                <span class="text-xs font-bold text-slate-900 truncate">{{ catalog(mat.id, 'name', mat.name) }}</span>
                 <span class="text-[11px] font-semibold text-slate-500 tabular-nums">
-                  {{ mat.priceDelta === 0 ? 'Ingår' : `+${mat.priceDelta.toLocaleString('sv-SE')} kr` }}
+                  {{ delta(mat.priceDelta) }}
                 </span>
               </div>
-              <p class="text-[10px] text-slate-500 truncate">{{ mat.desc }}</p>
+              <p class="text-[10px] text-slate-500 truncate">{{ catalog(mat.id, 'desc', mat.desc) }}</p>
             </div>
           </button>
         </div>
@@ -156,12 +156,12 @@
 
           <div>
             <div class="flex items-center justify-between">
-              <p class="text-xs font-bold text-slate-900">{{ roof.name }}</p>
+              <p class="text-xs font-bold text-slate-900">{{ catalog(roof.id, 'name', roof.name) }}</p>
               <span class="text-xs font-extrabold text-slate-900 tabular-nums">
-                {{ roof.priceDelta === 0 ? 'Ingår' : `+${roof.priceDelta.toLocaleString('sv-SE')} kr` }}
+                {{ delta(roof.priceDelta) }}
               </span>
             </div>
-            <p class="text-[11px] text-slate-500 mt-0.5">{{ roof.spec }}</p>
+            <p class="text-[11px] text-slate-500 mt-0.5">{{ catalog(roof.id, 'spec', roof.spec ?? '') }}</p>
           </div>
         </button>
       </div>
@@ -175,10 +175,10 @@
           <div class="flex items-start justify-between gap-4">
             <div class="min-w-0 flex-1">
               <label for="option-sleeping" class="text-sm font-bold text-slate-900 block cursor-pointer">
-                Lägg till Loft
+                {{ t('category.addLoft') }}
               </label>
               <p class="text-xs text-slate-500 leading-relaxed mt-1">
-                Maximera golvytan med loft. Perfekt för sängplatser eller förvaring. Detta tillval finns för samtliga tak med undantag för sadeltak 25°.
+                {{ t('category.addLoftBody') }}
               </p>
             </div>
 
@@ -194,7 +194,7 @@
                 store.hasLoft ? 'bg-emerald-800' : 'bg-slate-200'
               ]"
             >
-              <span class="sr-only">Aktivera loft</span>
+              <span class="sr-only">{{ t('category.toggleLoft') }}</span>
               <span
                 :class="[
                   'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out',
@@ -219,7 +219,7 @@
                   : 'border-b-2 border-transparent text-slate-400 hover:text-slate-600'
               ]"
             >
-              Planlösning
+              {{ t('category.plan') }}
             </button>
             <button
               type="button"
@@ -231,7 +231,7 @@
                   : 'border-b-2 border-transparent text-slate-400 hover:text-slate-600'
               ]"
             >
-              Golv
+              {{ t('category.floor') }}
             </button>
           </div>
 
@@ -254,7 +254,7 @@
                   <svg v-if="store.loftCount === 'ett'" class="w-3.5 h-3.5 text-emerald-800" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
-                  Ett loft
+                  {{ t('category.oneLoft') }}
                 </button>
                 <button
                   type="button"
@@ -270,14 +270,14 @@
                   <svg v-if="store.loftCount === 'tva'" class="w-3.5 h-3.5 text-emerald-800" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
-                  Två loft
+                  {{ t('category.twoLofts') }}
                 </button>
               </div>
             </div>
 
             <!-- 2. Placering (Vänster / Höger) -->
             <div v-if="store.loftCount === 'ett'">
-              <h5 class="text-xs font-bold text-slate-800 mb-2">Placering</h5>
+              <h5 class="text-xs font-bold text-slate-800 mb-2">{{ t('category.placement') }}</h5>
               <div class="flex gap-2">
                 <button
                   type="button"
@@ -293,7 +293,7 @@
                   <svg v-if="store.loftPlacement === 'vanster'" class="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
-                  Vänster
+                  {{ t('category.left') }}
                 </button>
                 <button
                   type="button"
@@ -309,7 +309,7 @@
                   <svg v-if="store.loftPlacement === 'hoger'" class="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
-                  Höger
+                  {{ t('category.right') }}
                 </button>
               </div>
             </div>
@@ -317,9 +317,9 @@
             <!-- 3. Storlek (10,95 m², 16,43 m², 21,9 m², 27,38 m²) -->
             <div>
               <div class="flex items-center justify-between mb-2">
-                <h5 class="text-xs font-bold text-slate-800">Storlek</h5>
+                <h5 class="text-xs font-bold text-slate-800">{{ t('category.size') }}</h5>
                 <span class="text-[11px] text-slate-500">
-                  Byggnadsarea: {{ store.currentSize.areaSqMeters }} m²
+                  {{ t('category.buildingArea', { area: store.currentSize.areaSqMeters }) }}
                 </span>
               </div>
               <div class="grid grid-cols-2 gap-2">
@@ -365,7 +365,7 @@
                       Math.abs(store.selectedLoftSize - loftSize.areaSqMeters) < 0.1 ? 'text-emerald-100' : 'text-slate-500'
                     ]"
                   >
-                    {{ loftSize.desc }}
+                    {{ loftDesc(loftSize.descId, loftSize.desc) }}
                   </span>
                 </button>
               </div>
@@ -373,7 +373,7 @@
 
             <!-- 4. Lofttrappa / Stege -->
             <div class="pt-1">
-              <h5 class="text-xs font-bold text-slate-800 mb-2">Lofttrappa & Tillträde</h5>
+              <h5 class="text-xs font-bold text-slate-800 mb-2">{{ t('category.stair') }}</h5>
               <div
                 @click="store.toggleLoftStair()"
                 class="p-3 rounded-xl border border-slate-200/90 bg-white hover:border-slate-300 cursor-pointer flex items-center justify-between transition-all"
@@ -392,12 +392,12 @@
                     </svg>
                   </div>
                   <div>
-                    <span class="text-xs font-bold text-slate-900 block">Lofttrappa i massiv furu</span>
-                    <span class="text-[11px] text-slate-500">Inkl. vangstycken, steg och handledare (visas i 3D)</span>
+                    <span class="text-xs font-bold text-slate-900 block">{{ t('category.stairName') }}</span>
+                    <span class="text-[11px] text-slate-500">{{ t('category.stairBody') }}</span>
                   </div>
                 </div>
                 <span class="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded">
-                  Ingår
+                  {{ t('price.included') }}
                 </span>
               </div>
             </div>
@@ -405,37 +405,37 @@
 
           <!-- Golv Tab Content -->
           <div v-else class="space-y-2.5 pt-1">
-            <h5 class="text-xs font-bold text-slate-800">Loftgolv & Ytbehandling</h5>
+            <h5 class="text-xs font-bold text-slate-800">{{ t('category.floorFinish') }}</h5>
             <div class="grid grid-cols-1 gap-2">
               <button
                 type="button"
                 class="p-2.5 rounded-lg border border-emerald-800 bg-emerald-50/50 text-left flex items-center justify-between"
               >
                 <div>
-                  <span class="text-xs font-bold text-emerald-950 block">Granplank 28×120 mm (Standard)</span>
-                  <span class="text-[11px] text-emerald-800">Hyvlad massiv svensk gran, spårad undersida</span>
+                  <span class="text-xs font-bold text-emerald-950 block">{{ t('category.floorSpruce') }}</span>
+                  <span class="text-[11px] text-emerald-800">{{ t('category.floorSpruceBody') }}</span>
                 </div>
-                <span class="text-xs font-bold text-emerald-900">Ingår</span>
+                <span class="text-xs font-bold text-emerald-900">{{ t('price.included') }}</span>
               </button>
               <button
                 type="button"
                 class="p-2.5 rounded-lg border border-slate-200 bg-white hover:border-slate-300 text-left flex items-center justify-between"
               >
                 <div>
-                  <span class="text-xs font-bold text-slate-900 block">Furu Obehandlad Ekologiskt</span>
-                  <span class="text-[11px] text-slate-500">Klassisk norrländsk kärnfuru för vacker patinering</span>
+                  <span class="text-xs font-bold text-slate-900 block">{{ t('category.floorPine') }}</span>
+                  <span class="text-[11px] text-slate-500">{{ t('category.floorPineBody') }}</span>
                 </div>
-                <span class="text-xs font-semibold text-slate-600">+1 800 kr</span>
+                <span class="text-xs font-semibold text-slate-600">{{ delta(1800) }}</span>
               </button>
               <button
                 type="button"
                 class="p-2.5 rounded-lg border border-slate-200 bg-white hover:border-slate-300 text-left flex items-center justify-between"
               >
                 <div>
-                  <span class="text-xs font-bold text-slate-900 block">Slät Undergolvsskiva 22 mm</span>
-                  <span class="text-[11px] text-slate-500">Förberedd för direkt läggning av parkett eller matta</span>
+                  <span class="text-xs font-bold text-slate-900 block">{{ t('category.floorBoard') }}</span>
+                  <span class="text-[11px] text-slate-500">{{ t('category.floorBoardBody') }}</span>
                 </div>
-                <span class="text-xs font-semibold text-slate-600">+900 kr</span>
+                <span class="text-xs font-semibold text-slate-600">{{ delta(900) }}</span>
               </button>
             </div>
           </div>
@@ -461,23 +461,23 @@
           type="button"
           class="text-xs font-bold pb-2 border-b-2 border-emerald-700 text-slate-900"
         >
-          Enkeldörrar
+          {{ t('category.singleDoors') }}
         </button>
         <button
           type="button"
           class="text-xs font-semibold pb-2 border-b-2 border-transparent text-slate-400 hover:text-slate-600"
         >
-          Pardörrar
+          {{ t('category.doubleDoors') }}
         </button>
       </div>
 
       <!-- Door Series Selector -->
       <div class="flex items-center justify-between bg-slate-50 p-2 rounded-xl border border-slate-200/80 mb-2">
-        <span class="text-xs font-bold text-slate-700">Serie</span>
+        <span class="text-xs font-bold text-slate-700">{{ t('category.series') }}</span>
         <select class="text-xs font-semibold bg-white border border-slate-300 rounded-lg px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-slate-900">
-          <option>Stabil</option>
-          <option>Modern Funkis</option>
-          <option>Allmoge Trä</option>
+          <option>{{ t('category.seriesStabil') }}</option>
+          <option>{{ t('category.seriesModern') }}</option>
+          <option>{{ t('category.seriesTraditional') }}</option>
         </select>
       </div>
 
@@ -488,10 +488,10 @@
         class="py-3 px-4 bg-amber-50 rounded-xl border border-amber-200/90 text-center space-y-1 mb-2 animate-fade-in"
       >
         <p class="text-xs font-bold text-amber-900 leading-snug">
-          Dörr kan inte placeras på markerad väggyta på byggnaden.
+          {{ t('category.doorBlocked') }}
         </p>
         <p class="text-[11px] text-amber-700">
-          Välj en marknära väggsektion eller byt till fönsterparti.
+          {{ t('category.doorBlockedHint') }}
         </p>
       </div>
 
@@ -535,12 +535,12 @@
 
           <div>
             <div class="flex items-center justify-between">
-              <p class="text-xs font-bold text-slate-900">{{ door.name }}</p>
+              <p class="text-xs font-bold text-slate-900">{{ catalog(door.id, 'name', door.name) }}</p>
               <span class="text-xs font-extrabold text-slate-900 tabular-nums">
-                {{ door.priceDelta === 0 ? 'Ingår' : `+${door.priceDelta.toLocaleString('sv-SE')} kr` }}
+                {{ delta(door.priceDelta) }}
               </span>
             </div>
-            <p class="text-[11px] text-slate-500 mt-0.5">{{ door.desc }}</p>
+            <p class="text-[11px] text-slate-500 mt-0.5">{{ catalog(door.id, 'desc', door.desc) }}</p>
           </div>
         </button>
       </div>
@@ -584,12 +584,12 @@
 
           <div>
             <div class="flex items-center justify-between">
-              <p class="text-xs font-bold text-slate-900">{{ win.name }}</p>
+              <p class="text-xs font-bold text-slate-900">{{ catalog(win.id, 'name', win.name) }}</p>
               <span class="text-xs font-extrabold text-slate-900 tabular-nums">
-                {{ win.priceDelta === 0 ? 'Ingår' : `+${win.priceDelta.toLocaleString('sv-SE')} kr` }}
+                {{ delta(win.priceDelta) }}
               </span>
             </div>
-            <p class="text-[11px] text-slate-500 mt-0.5">{{ win.spec }}</p>
+            <p class="text-[11px] text-slate-500 mt-0.5">{{ catalog(win.id, 'spec', win.spec ?? '') }}</p>
           </div>
         </button>
       </div>
@@ -634,12 +634,12 @@
 
           <div>
             <div class="flex items-center justify-between">
-              <p class="text-xs font-bold text-slate-900">{{ gate.name }}</p>
+              <p class="text-xs font-bold text-slate-900">{{ catalog(gate.id === 'none' ? 'gate-none' : gate.id, 'name', gate.name) }}</p>
               <span class="text-xs font-extrabold text-slate-900 tabular-nums">
-                {{ gate.priceDelta === 0 ? 'Ingår' : `+${gate.priceDelta.toLocaleString('sv-SE')} kr` }}
+                {{ delta(gate.priceDelta) }}
               </span>
             </div>
-            <p class="text-[11px] text-slate-500 mt-0.5">{{ gate.spec }}</p>
+            <p class="text-[11px] text-slate-500 mt-0.5">{{ catalog(gate.id === 'none' ? 'gate-none' : gate.id, 'spec', gate.spec ?? '') }}</p>
           </div>
         </button>
       </div>
@@ -659,17 +659,10 @@ import {
   WINDOWS_OPTIONS,
   GATES_OPTIONS
 } from '../store/useConfigStore';
+import { useLabels } from '../i18n';
 
 const store = useConfigStore();
-
-const categoryTitles: Record<string, string> = {
-  size: 'Storlek & Grundmått',
-  roof: 'Taktyp & Vinkel',
-  loft: 'Loft & Rymd',
-  doors: 'Ytterdörrar',
-  windows: 'Fönsterpartier',
-  gates: 'Portar & Partier'
-};
+const { t, catalog, loftDesc, money, delta } = useLabels();
 
 const currentOptionsCount = computed(() => {
   switch (store.selectedCategory) {

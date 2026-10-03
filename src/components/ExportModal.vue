@@ -12,7 +12,7 @@
         type="button"
         @click="$emit('close')"
         class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
-        aria-label="Stäng dialog"
+        :aria-label="t('export.close')"
       >
         <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <line x1="18" y1="6" x2="6" y2="18" />
@@ -21,10 +21,10 @@
       </button>
 
       <h2 id="export-modal-title" class="text-base font-bold text-slate-900 mb-1">
-        Exportera Byggsatshandlingar
+        {{ t('export.title') }}
       </h2>
       <p class="text-xs text-slate-500 mb-5">
-        Ladda ner ritningar, 3D-renderingar och specifikationer för din konfiguration.
+        {{ t('export.body') }}
       </p>
 
       <div class="space-y-2.5">
@@ -46,12 +46,12 @@
             </div>
             <div>
               <p class="text-xs font-bold text-slate-900 group-hover:text-emerald-700 transition-colors">
-                2D Planritning (SVG)
+                {{ t('export.blueprint') }}
               </p>
-              <p class="text-[11px] text-slate-500">Måttskiss med yttermått och sektionsdata</p>
+              <p class="text-[11px] text-slate-500">{{ t('export.blueprintBody') }}</p>
             </div>
           </div>
-          <span class="text-xs font-semibold text-slate-400 group-hover:text-slate-900 transition-colors">Ladda ner</span>
+          <span class="text-xs font-semibold text-slate-400 group-hover:text-slate-900 transition-colors">{{ t('export.download') }}</span>
         </button>
 
         <!-- High-res Render Image -->
@@ -70,12 +70,12 @@
             </div>
             <div>
               <p class="text-xs font-bold text-slate-900 group-hover:text-sky-700 transition-colors">
-                Högupplöst 3D-rendering (PNG)
+                {{ t('export.render') }}
               </p>
-              <p class="text-[11px] text-slate-500">Ögonblicksbild från nuvarande kameravinkel</p>
+              <p class="text-[11px] text-slate-500">{{ t('export.renderBody') }}</p>
             </div>
           </div>
-          <span class="text-xs font-semibold text-slate-400 group-hover:text-slate-900 transition-colors">Spara</span>
+          <span class="text-xs font-semibold text-slate-400 group-hover:text-slate-900 transition-colors">{{ t('export.save') }}</span>
         </button>
       </div>
 
@@ -86,7 +86,7 @@
           @click="$emit('close')"
           class="px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-xl transition-colors min-h-[36px]"
         >
-          Klar
+          {{ t('export.done') }}
         </button>
       </div>
     </div>
@@ -96,6 +96,7 @@
 <script setup lang="ts">
 import { useConfigStore } from '../store/useConfigStore';
 import { exportBlueprintSvg, exportRenderedImage } from '../services/exportService';
+import { useLabels } from '../i18n';
 
 const props = defineProps<{
   isOpen: boolean;
@@ -106,6 +107,7 @@ const emit = defineEmits<{
 }>();
 
 const store = useConfigStore();
+const { t, catalog } = useLabels();
 
 async function downloadBlueprint() {
   const svgContent = await exportBlueprintSvg(store.dimensions);
@@ -113,7 +115,7 @@ async function downloadBlueprint() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `planritning-${store.currentSize.name.toLowerCase().replace(/\s+/g, '-')}.svg`;
+  a.download = `planritning-${catalog(store.currentSize.id, 'name', store.currentSize.name).toLowerCase().replace(/\s+/g, '-')}.svg`;
   a.click();
   URL.revokeObjectURL(url);
 }

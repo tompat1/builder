@@ -1,5 +1,5 @@
 <template>
-  <nav class="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none" aria-label="Konfigurationssteg">
+  <nav class="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none" :aria-label="t('nav.label')">
     <button
       v-for="(cat, idx) in categories"
       :key="cat.id"
@@ -65,7 +65,7 @@
       </span>
 
       <span class="text-[11px] font-medium tracking-tight whitespace-nowrap">
-        {{ cat.label }}
+        {{ t(`nav.${cat.id}`) }}
       </span>
     </button>
   </nav>
@@ -73,15 +73,17 @@
 
 <script setup lang="ts">
 import { useConfigStore, type CategoryKey } from '../store/useConfigStore';
+import { useLabels } from '../i18n';
 
 const store = useConfigStore();
+const { t } = useLabels();
 
-const categories: { id: CategoryKey; label: string }[] = [
-  { id: 'size', label: 'Storlek' },
-  { id: 'roof', label: 'Tak' },
-  { id: 'loft', label: 'Loft' },
-  { id: 'doors', label: 'Dörrar' },
-  { id: 'windows', label: 'Fönster' },
-  { id: 'gates', label: 'Portar' }
+const categories: { id: CategoryKey }[] = [
+  { id: 'size' },
+  { id: 'roof' },
+  { id: 'loft' },
+  { id: 'doors' },
+  { id: 'windows' },
+  { id: 'gates' }
 ];
 </script>

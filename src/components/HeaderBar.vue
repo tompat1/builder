@@ -14,7 +14,7 @@
           <div class="flex items-center gap-1.5 leading-none">
             <span class="font-extrabold text-slate-900 tracking-tight text-sm md:text-base">Builder</span>
           </div>
-          <span class="text-[9px] uppercase tracking-wider text-slate-400 font-bold block mt-0.5">3D Modulhus</span>
+          <span class="text-[9px] uppercase tracking-wider text-slate-400 font-bold block mt-0.5">{{ t('brand.tagline') }}</span>
         </div>
       </div>
 
@@ -33,7 +33,7 @@
             <polyline points="17 21 17 13 7 13 7 21" />
             <polyline points="7 3 7 8 15 8" />
           </svg>
-          <span>Spara projekt</span>
+          <span>{{ t('header.save') }}</span>
         </button>
 
         <button
@@ -48,13 +48,41 @@
             <line x1="16" y1="13" x2="8" y2="13" />
             <line x1="16" y1="17" x2="8" y2="17" />
           </svg>
-          <span>Ritningsunderlag</span>
+          <span>{{ t('header.drawings') }}</span>
         </button>
       </div>
     </div>
 
+    <div class="flex items-center gap-2 shrink-0">
+    <div
+      class="flex bg-slate-100/90 p-1 rounded-xl border border-slate-200/80 shadow-inner shrink-0"
+      role="group"
+      :aria-label="t('lang.label')"
+    >
+      <button
+        type="button"
+        id="lang-sv"
+        lang="sv"
+        :aria-pressed="locale === 'sv'"
+        @click="applyLocale('sv')"
+        :class="langButtonClass(locale === 'sv')"
+      >
+        Sv
+      </button>
+      <button
+        type="button"
+        id="lang-en"
+        lang="en"
+        :aria-pressed="locale === 'en'"
+        @click="applyLocale('en')"
+        :class="langButtonClass(locale === 'en')"
+      >
+        En
+      </button>
+    </div>
+
     <!-- Center Segmented Master Toggle (Outside / Inside) -->
-    <nav class="flex bg-slate-100/90 p-1 rounded-xl border border-slate-200/80 shadow-inner shrink-0" role="tablist" aria-label="Visningsläge">
+    <nav class="flex bg-slate-100/90 p-1 rounded-xl border border-slate-200/80 shadow-inner shrink-0" role="tablist" :aria-label="t('header.view')">
       <button
         type="button"
         role="tab"
@@ -68,7 +96,7 @@
             : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
         ]"
       >
-        <span>Utsida</span>
+        <span>{{ t('header.outside') }}</span>
       </button>
 
       <button
@@ -84,17 +112,18 @@
             : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
         ]"
       >
-        <span>Insida</span>
+        <span>{{ t('header.inside') }}</span>
       </button>
     </nav>
+    </div>
 
     <!-- Price and Action Cluster -->
     <div class="flex items-center gap-2 md:gap-5 shrink-0">
       <div class="flex items-center gap-1 text-right">
         <div>
-          <span class="hidden md:block text-[10px] uppercase font-bold text-slate-400 leading-none">Totalpris</span>
+          <span class="hidden md:block text-[10px] uppercase font-bold text-slate-400 leading-none">{{ t('header.total') }}</span>
           <span class="font-extrabold text-xs sm:text-sm md:text-lg text-slate-900 tabular-nums whitespace-nowrap">
-            {{ store.totalPriceSek.toLocaleString('sv-SE') }} kr
+            {{ money(store.totalPriceSek) }}
           </span>
         </div>
         <!-- Price breakdown dropdown indicator -->
@@ -102,7 +131,8 @@
           type="button"
           @click="showPriceBreakdown = !showPriceBreakdown"
           class="text-slate-500 hover:text-slate-900 p-0.5"
-          title="Visa prisdetaljer"
+          :title="t('header.priceDetails')"
+          :aria-label="t('header.priceDetails')"
         >
           <svg class="w-3.5 h-3.5 md:w-4 md:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="6 9 12 15 18 9" />
@@ -117,7 +147,7 @@
         class="bg-[#1b5e40] hover:bg-[#154a32] active:bg-[#0f3624] text-white font-extrabold tracking-wide uppercase px-3 py-1.5 md:px-6 md:py-2.5 rounded-lg text-xs md:text-sm transition-all duration-150 shadow-sm hover:shadow min-h-[32px] md:min-h-[38px] flex items-center gap-1 shrink-0"
         @click="$emit('open-export')"
       >
-        <span>NÄSTA</span>
+        <span>{{ t('header.next') }}</span>
       </button>
     </div>
   </header>
@@ -128,26 +158,26 @@
     class="pointer-events-auto absolute top-20 right-6 z-30 bg-white rounded-xl shadow-xl border border-slate-200 p-4 w-72 text-xs text-slate-700 animate-fade-in"
   >
     <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-100 font-bold text-slate-900">
-      <span>Prisspecifikation</span>
+      <span>{{ t('header.breakdown') }}</span>
       <button @click="showPriceBreakdown = false" class="text-slate-400 hover:text-slate-600">✕</button>
     </div>
     <div class="space-y-1.5">
       <div class="flex justify-between">
-        <span>{{ store.currentSize.name }}</span>
-        <span class="font-semibold">{{ store.currentSize.basePrice.toLocaleString('sv-SE') }} kr</span>
+        <span>{{ catalog(store.currentSize.id, 'name', store.currentSize.name) }}</span>
+        <span class="font-semibold">{{ money(store.currentSize.basePrice) }}</span>
       </div>
       <div class="flex justify-between">
-        <span>Fasad ({{ store.currentMaterial.name }})</span>
-        <span class="font-semibold">{{ store.currentMaterial.priceDelta === 0 ? 'Ingår' : `+${store.currentMaterial.priceDelta.toLocaleString('sv-SE')} kr` }}</span>
+        <span>{{ t('header.facade', { name: catalog(store.currentMaterial.id, 'name', store.currentMaterial.name) }) }}</span>
+        <span class="font-semibold">{{ delta(store.currentMaterial.priceDelta) }}</span>
       </div>
       <div v-if="store.hasLoft" class="flex justify-between text-emerald-700">
-        <span>Sovloft tillval</span>
-        <span class="font-semibold">+21 500 kr</span>
+        <span>{{ t('header.loftExtra') }}</span>
+        <span class="font-semibold">{{ delta(21500) }}</span>
       </div>
     </div>
     <div class="pt-2 mt-2 border-t border-slate-200 flex justify-between font-extrabold text-slate-900 text-sm">
-      <span>Totalt inkl. moms</span>
-      <span>{{ store.totalPriceSek.toLocaleString('sv-SE') }} kr</span>
+      <span>{{ t('header.totalVat') }}</span>
+      <span>{{ money(store.totalPriceSek) }}</span>
     </div>
   </div>
 </template>
@@ -155,15 +185,26 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useConfigStore } from '../store/useConfigStore';
+import { applyLocale, useLabels } from '../i18n';
 
 const store = useConfigStore();
+const { t, locale, catalog, money, delta } = useLabels();
 const showPriceBreakdown = ref(false);
 
 defineEmits<{
   (e: 'open-export'): void;
 }>();
 
+function langButtonClass(active: boolean) {
+  return [
+    'px-2 md:px-2.5 py-1 text-xs font-semibold rounded-lg transition-all duration-200 min-h-[30px] md:min-h-[34px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
+    active
+      ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
+      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+  ];
+}
+
 function showSaveNotice() {
-  alert('Projektet har sparats i webbläsarens lokala minne.');
+  alert(t('header.saved'));
 }
 </script>

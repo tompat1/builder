@@ -156,6 +156,7 @@ export type LoftTab = 'planlosning' | 'golv';
 export interface LoftSizeItem {
   areaSqMeters: number;
   label: string;
+  descId: string;
   desc: string;
   priceDelta: number;
 }
@@ -440,31 +441,31 @@ export const useConfigStore = defineStore('config', () => {
   const availableLoftSizes = computed<LoftSizeItem[]>(() => {
     if (selectedSizeId.value === 'size-30') {
       return [
-        { areaSqMeters: 10.95, label: '10,95 m²', desc: 'Kompakt sovloft / förvaring', priceDelta: 18500 },
-        { areaSqMeters: 16.43, label: '16,43 m²', desc: 'Generöst sovloft', priceDelta: 24900 },
-        { areaSqMeters: 21.9, label: '21,9 m²', desc: 'Stort allrum / dubbelloft', priceDelta: 31200 },
-        { areaSqMeters: 27.38, label: '27,38 m²', desc: 'Hela golvytan / fullt loftplan', priceDelta: 37800 }
+        { areaSqMeters: 10.95, label: '10,95 m²', descId: 'compact-storage', desc: 'Kompakt sovloft / förvaring', priceDelta: 18500 },
+        { areaSqMeters: 16.43, label: '16,43 m²', descId: 'generous', desc: 'Generöst sovloft', priceDelta: 24900 },
+        { areaSqMeters: 21.9, label: '21,9 m²', descId: 'large-room', desc: 'Stort allrum / dubbelloft', priceDelta: 31200 },
+        { areaSqMeters: 27.38, label: '27,38 m²', descId: 'full-floor', desc: 'Hela golvytan / fullt loftplan', priceDelta: 37800 }
       ];
     } else if (selectedSizeId.value === 'size-25') {
       return [
-        { areaSqMeters: 8.21, label: '8,21 m²', desc: 'Kompakt sovloft', priceDelta: 16200 },
-        { areaSqMeters: 12.32, label: '12,32 m²', desc: 'Standardloft', priceDelta: 21500 },
-        { areaSqMeters: 16.4, label: '16,4 m²', desc: 'Stort sovloft', priceDelta: 26800 },
-        { areaSqMeters: 22.8, label: '22,8 m²', desc: 'Hela golvytan', priceDelta: 32500 }
+        { areaSqMeters: 8.21, label: '8,21 m²', descId: 'compact', desc: 'Kompakt sovloft', priceDelta: 16200 },
+        { areaSqMeters: 12.32, label: '12,32 m²', descId: 'standard', desc: 'Standardloft', priceDelta: 21500 },
+        { areaSqMeters: 16.4, label: '16,4 m²', descId: 'large', desc: 'Stort sovloft', priceDelta: 26800 },
+        { areaSqMeters: 22.8, label: '22,8 m²', descId: 'whole-floor', desc: 'Hela golvytan', priceDelta: 32500 }
       ];
     } else if (selectedSizeId.value === 'size-15') {
       return [
-        { areaSqMeters: 5.5, label: '5,5 m²', desc: 'Kompakt sovalkov', priceDelta: 12500 },
-        { areaSqMeters: 8.2, label: '8,2 m²', desc: 'Standardloft', priceDelta: 16800 },
-        { areaSqMeters: 11.0, label: '11,0 m²', desc: 'Stort sovloft', priceDelta: 20500 },
-        { areaSqMeters: 13.7, label: '13,7 m²', desc: 'Hela golvytan', priceDelta: 24800 }
+        { areaSqMeters: 5.5, label: '5,5 m²', descId: 'alcove', desc: 'Kompakt sovalkov', priceDelta: 12500 },
+        { areaSqMeters: 8.2, label: '8,2 m²', descId: 'standard', desc: 'Standardloft', priceDelta: 16800 },
+        { areaSqMeters: 11.0, label: '11,0 m²', descId: 'large', desc: 'Stort sovloft', priceDelta: 20500 },
+        { areaSqMeters: 13.7, label: '13,7 m²', descId: 'whole-floor', desc: 'Hela golvytan', priceDelta: 24800 }
       ];
     } else {
       return [
-        { areaSqMeters: 14.6, label: '14,6 m²', desc: 'Kompakt sovloft', priceDelta: 22500 },
-        { areaSqMeters: 21.9, label: '21,9 m²', desc: 'Generöst sovloft', priceDelta: 30500 },
-        { areaSqMeters: 29.2, label: '29,2 m²', desc: 'Stort loftplan', priceDelta: 38500 },
-        { areaSqMeters: 36.5, label: '36,5 m²', desc: 'Hela golvytan', priceDelta: 46500 }
+        { areaSqMeters: 14.6, label: '14,6 m²', descId: 'compact', desc: 'Kompakt sovloft', priceDelta: 22500 },
+        { areaSqMeters: 21.9, label: '21,9 m²', descId: 'generous', desc: 'Generöst sovloft', priceDelta: 30500 },
+        { areaSqMeters: 29.2, label: '29,2 m²', descId: 'large-plan', desc: 'Stort loftplan', priceDelta: 38500 },
+        { areaSqMeters: 36.5, label: '36,5 m²', descId: 'whole-floor', desc: 'Hela golvytan', priceDelta: 46500 }
       ];
     }
   });

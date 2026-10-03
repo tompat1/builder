@@ -78,6 +78,9 @@ const sv = {
     singleDoors: 'Enkeldörrar',
     doubleDoors: 'Pardörrar',
     series: 'Serie',
+    seriesStabil: 'Stabil',
+    seriesModern: 'Modern Funkis',
+    seriesTraditional: 'Allmoge Trä',
     doorBlocked: 'Dörr kan inte placeras på markerad väggyta på byggnaden.',
     doorBlockedHint: 'Välj en marknära väggsektion eller byt till fönsterparti.'
   },
@@ -214,6 +217,9 @@ const en = {
     singleDoors: 'Single doors',
     doubleDoors: 'Double doors',
     series: 'Series',
+    seriesStabil: 'Stabil',
+    seriesModern: 'Modern functionalist',
+    seriesTraditional: 'Traditional timber',
     doorBlocked: 'A door cannot be placed on the marked wall of the building.',
     doorBlockedHint: 'Choose a wall section at ground level, or switch to a window.'
   },
@@ -297,8 +303,8 @@ const en = {
     },
     black: {
       name: 'Architect black',
-      badge: 'Bold',
-      desc: 'Deep black cladding with a sharp silhouette.'
+      badge: 'Modern',
+      desc: 'A clean black timber cladding for contemporary Nordic buildings.'
     },
     'size-15': {
       name: 'Friggebod 15 m²',

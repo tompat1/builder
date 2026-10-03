@@ -27,7 +27,7 @@
       <span class="text-xs font-black text-slate-900 leading-none">
         {{ store.roofPitchAngle }}°
       </span>
-      <span class="text-[10px] text-slate-500 font-semibold hidden md:inline">Taklutning</span>
+      <span class="text-[10px] text-slate-500 font-semibold hidden md:inline">{{ t('dims.pitch') }}</span>
     </div>
 
     <!-- Left Front Height Annotation (matching Image 3) -->
@@ -38,7 +38,7 @@
       <span class="block text-xs font-bold text-slate-900 leading-none">
         {{ store.dimensions.height }} mm
       </span>
-      <span class="block text-[9px] text-slate-500 font-medium">Vägg fram</span>
+      <span class="block text-[9px] text-slate-500 font-medium">{{ t('dims.frontWall') }}</span>
     </div>
 
     <!-- Right Height Annotation (3503 mm or rear 2744 mm for Pulpettak) -->
@@ -50,7 +50,7 @@
         {{ store.activeRoof === 'pulpettak' ? store.rearHeight : store.dimensions.height }} mm
       </span>
       <span class="block text-[9px] text-slate-500 font-medium">
-        {{ store.activeRoof === 'pulpettak' ? 'Vägg bak' : 'Totalhöjd' }}
+        {{ store.activeRoof === 'pulpettak' ? t('dims.rearWall') : t('dims.overall') }}
       </span>
     </div>
 
@@ -63,13 +63,15 @@
       <span class="block text-xs font-bold text-slate-900 leading-none">
         {{ store.innerCeilingHeight }} mm
       </span>
-      <span class="block text-[10px] text-slate-500 font-medium">Invändig takhöjd</span>
+      <span class="block text-[10px] text-slate-500 font-medium">{{ t('dims.ceiling') }}</span>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { useConfigStore } from '../store/useConfigStore';
+import { useLabels } from '../i18n';
 
 const store = useConfigStore();
+const { t } = useLabels();
 </script>
