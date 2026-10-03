@@ -141,8 +141,13 @@ If a gate fails:
 
 The pre-push hook runs `npm run build` once. `scripts/build-verified.sh` already
 runs `test:gate` before `build:bundle`. Do not add a second `test:gate`
-invocation to the hook. The duplicate end-to-end run made every push take about
-twice as long.
+invocation to the hook.
+
+Playwright is temporarily out of `test:gate`, and therefore out of commit and
+push. `npm run test:e2e` still runs the browser suite when someone asks for it.
+Putting it back on the gate made every push take several minutes and turned
+timeouts into failed pushes. Do not add `npm run test:e2e` to `test:gate` or
+the pre-push hook until that is an explicit choice again.
 
 Record additional commands, allowed warnings, CI requirements, deployment
 details, and known test isolation constraints here as the repository evolves.
