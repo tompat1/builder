@@ -3,10 +3,11 @@
   "version": "1.0.0",
   "type": "module",
   "private": true,
-  "description": "Modular web application and UI component builder optimized for agentic workflows.",
+  "description": "3D Modular House Configurator with Impeccable zero-defect UI architecture.",
   "scripts": {
+    "dev": "vite",
     "preflight": "bash scripts/preflight && npm run typecheck && npm run lint",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "vue-tsc --noEmit",
     "lint": "node scripts/run-lint.mjs",
     "lint:fix": "eslint . --fix",
     "test": "node --test tests/*.test.js",
@@ -14,17 +15,30 @@
     "test:e2e:ui": "playwright test --ui",
     "test:gate": "npm run typecheck && npm run lint && npm test && npm run test:e2e",
     "build": "bash scripts/build-verified.sh",
-    "build:bundle": "node -e 'console.log(\"Bundle verification passed: no production bundle configured yet.\")'",
-    "preview": "wrangler dev",
+    "build:bundle": "vite build",
+    "preview": "vite preview",
     "deploy": "npm run build && wrangler deploy"
+  },
+  "dependencies": {
+    "pinia": "^2.3.1",
+    "three": "^0.174.0",
+    "vue": "^3.5.13",
+    "vue-i18n": "^11.1.2"
   },
   "devDependencies": {
     "@eslint/js": "^9.21.0",
     "@playwright/test": "^1.63.0",
     "@types/node": "^22.13.10",
+    "@types/three": "^0.174.0",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "autoprefixer": "^10.4.20",
     "eslint": "^9.21.0",
     "globals": "^17.13.0",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^3.4.17",
     "typescript": "^5.8.2",
+    "vite": "^6.2.0",
+    "vue-tsc": "^2.2.8",
     "wrangler": "^4.147.0"
   }
 }

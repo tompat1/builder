@@ -1,17 +1,40 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "target": "ESNext",
+    "useDefineForClassFields": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
     "strict": true,
+    "jsx": "preserve",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
     "skipLibCheck": true,
     "noEmit": true,
-    "allowJs": true,
-    "checkJs": false,
-    "isolatedModules": true,
-    "types": ["node"]
+    "types": ["node"],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
-  "include": ["src/**/*", "components/**/*", "tests/**/*", "e2e/**/*", "*.js", "*.ts", "*.mjs"],
-  "exclude": ["node_modules", "dist", ".agent", ".agents", ".gemini", ".impeccable"]
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.d.ts",
+    "src/**/*.tsx",
+    "src/**/*.vue",
+    "e2e/**/*.ts",
+    "tests/**/*.ts",
+    "tests/**/*.js",
+    "*.ts",
+    "*.mjs"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    ".tmp",
+    ".agent",
+    ".agents",
+    ".gemini",
+    ".impeccable"
+  ]
 }
