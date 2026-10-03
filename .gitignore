@@ -35,3 +35,13 @@ dist-ssr/
 # Credentials / OAuth tokens
 credentials.json
 token.json
+
+# Agent harness local caches, skills, and platform binaries
+.agent/
+.agents/skills/
+.gemini/
+.codex/
+
+# Impeccable local state
+.impeccable/*.local.json
+.impeccable/hook.cache.json
