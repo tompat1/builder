@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "strict": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "allowJs": true,
+    "checkJs": false,
+    "isolatedModules": true,
+    "types": ["node"]
+  },
+  "include": ["src/**/*", "components/**/*", "tests/**/*", "e2e/**/*", "*.js", "*.ts", "*.mjs"],
+  "exclude": ["node_modules", "dist", ".agent", ".agents", ".gemini", ".impeccable"]
+}
