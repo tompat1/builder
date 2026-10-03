@@ -149,19 +149,18 @@ export class HouseScene {
     const ctx = canvas.getContext('2d')!;
 
     const isNaturalWood = materialKey === 'wood';
-    const plankW = 64; // ~16 individual timber boards across 1024px
-    const plankCount = 1024 / plankW;
+    // Four boards per tile, so neighbouring boards can differ and the width stays readable.
+    const plankCount = 4;
+    const plankW = 1024 / plankCount;
 
-    // Authentic Scandinavian Spruce/Pine tone palettes ("Obehandlad Gran")
+    // Close pale spruce tones. Neighbouring boards stay in the same family.
     const spruceTones = [
-      { base: '#f4e7d1', grain: '#dbc5a2', darkGrain: '#be9e71' },
-      { base: '#ebdcc2', grain: '#d2bb95', darkGrain: '#b59363' },
-      { base: '#f8ecdc', grain: '#e2cfb0', darkGrain: '#c7a77d' },
-      { base: '#e6d3b4', grain: '#cdb387', darkGrain: '#af8a55' },
-      { base: '#eedfca', grain: '#d7c19f', darkGrain: '#bd9e72' },
-      { base: '#e4d0b1', grain: '#cbb085', darkGrain: '#ac8652' },
-      { base: '#f2e4cf', grain: '#dbc7a7', darkGrain: '#bfa075' },
-      { base: '#ece0cb', grain: '#d5c2a1', darkGrain: '#b99a6f' },
+      { base: '#f6ead8', grain: '#e4d2b4', darkGrain: '#cbb892' },
+      { base: '#f4e7d4', grain: '#e2d0b2', darkGrain: '#c9b690' },
+      { base: '#f7ebda', grain: '#e6d4b6', darkGrain: '#cdba94' },
+      { base: '#f3e5d2', grain: '#e0ceb0', darkGrain: '#c7b48e' },
+      { base: '#f5e9d6', grain: '#e3d1b3', darkGrain: '#cab791' },
+      { base: '#f8ecdb', grain: '#e7d5b7', darkGrain: '#cebb95' }
     ];
 
     let colorPalette: { base: string; grain: string; darkGrain: string };
@@ -188,7 +187,6 @@ export class HouseScene {
       const px = p * plankW;
       const tone = isNaturalWood ? spruceTones[p % spruceTones.length] : colorPalette;
 
-      // Base board tone
       ctx.fillStyle = tone.base;
       ctx.fillRect(px, 0, plankW, 1024);
 
@@ -257,43 +255,14 @@ export class HouseScene {
         ctx.stroke();
       }
 
-      // 2. Seam shadow groove between planks
+      // Thin joint, the same on every board.
+      const seam = Math.max(3, Math.round(plankW * 0.045));
       ctx.globalAlpha = 1.0;
-      ctx.fillStyle = isNaturalWood ? 'rgba(60, 38, 18, 0.45)' : 'rgba(0, 0, 0, 0.35)';
-      ctx.fillRect(px + plankW - 2, 0, 2, 1024);
+      ctx.fillStyle = isNaturalWood ? 'rgba(90, 68, 42, 0.55)' : 'rgba(0, 0, 0, 0.35)';
+      ctx.fillRect(px + plankW - seam, 0, seam, 1024);
 
-      // Edge bevel highlight
-      ctx.fillStyle = isNaturalWood ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.2)';
-      ctx.fillRect(px, 0, 1.2, 1024);
-
-      // 3. Batten (Lockläkt) running vertically along the center of each seam
-      const battenW = 14;
-      const battenX = px + plankW - battenW / 2;
-
-      // Drop shadow cast by batten to the right
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.16)';
-      ctx.fillRect(battenX + battenW, 0, 3, 1024);
-
-      // Batten face
-      ctx.fillStyle = isNaturalWood ? tone.base : colorPalette.base;
-      ctx.fillRect(battenX, 0, battenW, 1024);
-
-      // Batten longitudinal grain line
-      ctx.strokeStyle = tone.grain;
-      ctx.globalAlpha = 0.22;
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(battenX + battenW / 2, 0);
-      ctx.lineTo(battenX + battenW / 2, 1024);
-      ctx.stroke();
-
-      // Batten highlight on left edge
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.32)';
-      ctx.fillRect(battenX, 0, 1, 1024);
-
-      // Batten shadow on right edge
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.22)';
-      ctx.fillRect(battenX + battenW - 1, 0, 1, 1024);
+      ctx.fillStyle = isNaturalWood ? 'rgba(255, 255, 255, 0.35)' : 'rgba(255, 255, 255, 0.22)';
+      ctx.fillRect(px, 0, Math.max(1, seam * 0.35), 1024);
     }
 
     ctx.globalAlpha = 1.0;
@@ -319,10 +288,10 @@ export class HouseScene {
     return turned;
   }
 
-  /** One texture tile holds 16 boards. Repeat so each board is the chosen width. */
+  /** Four boards per tile. Repeat so each board is the chosen width. */
   private applyCladdingRepeat(texture: THREE.Texture) {
     const cover = Math.max(0.07, this.currentConfig.panelWidthMm / 1000);
-    const moduleM = 16 * cover;
+    const moduleM = 4 * cover;
     const along = 2.4;
     if (this.currentConfig.panelOrientation === 'liggande') {
       texture.repeat.set(1 / along, 1 / moduleM);
@@ -467,8 +436,8 @@ export class HouseScene {
     ctx.fillStyle = '#808080';
     ctx.fillRect(0, 0, 1024, 1024);
 
-    const plankW = 64;
-    const plankCount = 1024 / plankW;
+    const plankCount = 4;
+    const plankW = 1024 / plankCount;
 
     for (let p = 0; p < plankCount; p++) {
       const px = p * plankW;
@@ -481,23 +450,11 @@ export class HouseScene {
       ctx.fillStyle = grad;
       ctx.fillRect(px, 0, plankW, 1024);
 
-      // Deep groove between planks
-      ctx.fillStyle = '#202020';
-      ctx.fillRect(px + plankW - 2, 0, 3, 1024);
-
-      // Batten (lockläkt) raised high
-      const battenW = 14;
-      const battenX = px + plankW - battenW / 2;
-      ctx.fillStyle = '#dcdcdc'; // elevated height
-      ctx.fillRect(battenX, 0, battenW, 1024);
-
-      // Batten left bevel highlight
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(battenX, 0, 1, 1024);
-
-      // Batten right groove
-      ctx.fillStyle = '#404040';
-      ctx.fillRect(battenX + battenW, 0, 2, 1024);
+      const seam = Math.max(3, Math.round(plankW * 0.045));
+      ctx.fillStyle = '#5a5a5a';
+      ctx.fillRect(px + plankW - seam, 0, seam, 1024);
+      ctx.fillStyle = '#9a9a9a';
+      ctx.fillRect(px, 0, Math.max(1, Math.round(seam * 0.35)), 1024);
     }
 
     const bumpTexture = new THREE.CanvasTexture(this.orientBoards(canvas));
