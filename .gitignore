@@ -48,6 +48,7 @@ token.json
 .agents/skills/
 .gemini/
 .codex/
+.cursor/
 
 # Impeccable local state
 .impeccable/*.local.json

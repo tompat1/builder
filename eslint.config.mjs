@@ -11,6 +11,7 @@ export default [
       ".agents/",
       ".gemini/",
       ".codex/",
+      ".cursor/",
       ".impeccable/",
       "test-results/",
       "playwright-report/"
