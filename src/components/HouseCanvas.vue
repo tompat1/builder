@@ -25,6 +25,7 @@ onMounted(() => {
       loftAreaSqMeters: store.selectedLoftSize,
       hasLoftStair: store.hasLoftStair,
       viewMode: store.viewMode,
+      loftView: store.selectedCategory === 'loft',
       material: store.activeMaterial,
       showDimensions: store.showDimensions,
       selectedSlotId: store.selectedSlotId,
@@ -64,10 +65,12 @@ watch(
 
 // Watch view mode (Outside / Inside)
 watch(
-  () => store.viewMode,
-  (newMode) => {
-    engine?.setViewMode(newMode);
-    engine?.updateConfig({ viewMode: newMode });
+  [() => store.viewMode, () => store.selectedCategory],
+  ([mode, category]) => {
+    engine?.updateConfig({
+      viewMode: mode,
+      loftView: category === 'loft'
+    });
   }
 );
 

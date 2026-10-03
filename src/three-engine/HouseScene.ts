@@ -715,12 +715,10 @@ export class HouseScene {
   }
 
   private ghostBeamMaterial() {
-    return new THREE.MeshStandardMaterial({
-      color: '#f6f1e8',
+    return new THREE.MeshBasicMaterial({
+      color: '#fffaf4',
       transparent: true,
-      opacity: 0.16,
-      roughness: 0.2,
-      metalness: 0,
+      opacity: 0.22,
       depthWrite: false,
       side: THREE.DoubleSide
     });
@@ -842,11 +840,9 @@ export class HouseScene {
       panelGroup.rotation.y = rotY;
       panelGroup.userData = { slotId, wall: wallSide, index: i };
 
-      const opening = slotType === 'window'
-        ? this.windowOpening(slot?.itemId, panelWidth, panelWallH)
-        : slotType === 'door'
-          ? this.doorOpening(panelWallH)
-          : null;
+      const opening = slotType === 'window' || slotType === 'door'
+        ? this.regulatedOpening(slotType, slot?.itemId, slot?.isUpper === true, panelWidth, panelWallH, baseElev)
+        : null;
 
       // Cladding. A window is a real hole in the board so the room is visible through it.
       const panelMesh = opening
@@ -949,6 +945,69 @@ export class HouseScene {
     }
   }
 
+  private addCripples(
+    x: number,
+    z: number,
+    base: number,
+    wallTop: number,
+    sill: number,
+    head: number,
+    studThick: number,
+    studDepth: number,
+    mat: THREE.Material
+  ) {
+    const belowH = sill - (base + studThick);
+    if (belowH > 0.05) {
+      const below = new THREE.Mesh(new THREE.BoxGeometry(studThick, belowH, studDepth), mat);
+      below.position.set(x, base + studThick + belowH / 2, z);
+      below.castShadow = true;
+      this.framingGroup.add(below);
+    }
+    const aboveH = wallTop - studThick - head;
+    if (aboveH > 0.05) {
+      const above = new THREE.Mesh(new THREE.BoxGeometry(studThick, aboveH, studDepth), mat);
+      above.position.set(x, head + aboveH / 2, z);
+      above.castShadow = true;
+      this.framingGroup.add(above);
+    }
+  }
+
+  private addOpeningFrame(
+    x: number,
+    z: number,
+    opening: { winW: number; sill: number; head: number },
+    studThick: number,
+    studDepth: number,
+    mat: THREE.Material
+  ) {
+    const bottom = opening.sill < 0.4 ? opening.sill + studThick : opening.sill;
+    const trimmerH = opening.head - bottom;
+    if (trimmerH > 0.05) {
+      for (const side of [-1, 1]) {
+        const trimmer = new THREE.Mesh(new THREE.BoxGeometry(studThick, trimmerH, studDepth), mat);
+        trimmer.position.set(x + side * (opening.winW / 2 + studThick / 2), bottom + trimmerH / 2, z);
+        trimmer.castShadow = true;
+        this.framingGroup.add(trimmer);
+      }
+    }
+    if (opening.sill > 0.4) {
+      const sill = new THREE.Mesh(
+        new THREE.BoxGeometry(opening.winW + studThick * 2, studThick, studDepth),
+        mat
+      );
+      sill.position.set(x, opening.sill - studThick / 2, z);
+      sill.castShadow = true;
+      this.framingGroup.add(sill);
+    }
+    const header = new THREE.Mesh(
+      new THREE.BoxGeometry(opening.winW + studThick * 2, studThick * 2, studDepth),
+      mat
+    );
+    header.position.set(x, opening.head + studThick, z);
+    header.castShadow = true;
+    this.framingGroup.add(header);
+  }
+
   // --- Proper Architectural Timber Framing (Regelstomme 45x145 mm) ---
   private buildTimberFraming(w: number, d: number, h: number, wallThick: number, framingMat: THREE.Material) {
     const studThick = 0.045; // 45 mm
@@ -1046,47 +1105,15 @@ export class HouseScene {
     for (let s = 1; s < frontStudCount; s++) {
       const sx = -w / 2 + 0.05 + s * frontSpacing;
 
-      // Check slot status at this position
       const panelIndex = Math.min(Math.floor(((sx + w / 2) / w) * 4), 3);
       const slot = this.currentConfig.wallSlots[`front-${panelIndex}`];
       const panelCenter = -w / 2 + (panelIndex + 0.5) * (w / 4);
+      const opening = slot && (slot.type === 'door' || slot.type === 'window')
+        ? this.regulatedOpening(slot.type, slot.itemId, slot.isUpper === true, w / 4, h - baseElevation, baseElevation)
+        : null;
 
-      // If this stud falls within a door opening (~1.0m width)
-      if (slot?.type === 'door' && Math.abs(sx - panelCenter) < 0.45) {
-        // Cripple stud above door lintel
-        const lintelTop = baseElevation + 2.15;
-        const crippleH = h - studThick - lintelTop;
-        if (crippleH > 0.05) {
-          const cripple = new THREE.Mesh(new THREE.BoxGeometry(studThick, crippleH, studDepth), framingMat);
-          cripple.position.set(sx, lintelTop + crippleH / 2, framingFrontZ);
-          cripple.castShadow = true;
-          this.framingGroup.add(cripple);
-        }
-        continue;
-      }
-
-      // If this stud falls within a window opening
-      if (slot?.type === 'window' && Math.abs(sx - panelCenter) < 0.45) {
-        const sillY = baseElevation + 0.9;
-        const lintelY = baseElevation + 2.1;
-
-        // Cripple stud below window sill
-        const bottomCrippleH = sillY - (baseElevation + studThick);
-        if (bottomCrippleH > 0.05) {
-          const bCripple = new THREE.Mesh(new THREE.BoxGeometry(studThick, bottomCrippleH, studDepth), framingMat);
-          bCripple.position.set(sx, baseElevation + studThick + bottomCrippleH / 2, framingFrontZ);
-          bCripple.castShadow = true;
-          this.framingGroup.add(bCripple);
-        }
-
-        // Cripple stud above window lintel
-        const topCrippleH = h - studThick - lintelY;
-        if (topCrippleH > 0.05) {
-          const tCripple = new THREE.Mesh(new THREE.BoxGeometry(studThick, topCrippleH, studDepth), framingMat);
-          tCripple.position.set(sx, lintelY + topCrippleH / 2, framingFrontZ);
-          tCripple.castShadow = true;
-          this.framingGroup.add(tCripple);
-        }
+      if (opening && Math.abs(sx - panelCenter) < opening.winW / 2 - 0.02) {
+        this.addCripples(sx, framingFrontZ, baseElevation, h, opening.sill, opening.head, studThick, studDepth, framingMat);
         continue;
       }
 
@@ -1097,56 +1124,20 @@ export class HouseScene {
       this.framingGroup.add(studMesh);
     }
 
-    // Door and Window Trimmer Studs and Lintel Beams (Avväxlingar) on front wall
+    // Trimmers, sill and header follow the same opening as the cladding.
     for (let p = 0; p < 4; p++) {
       const slot = this.currentConfig.wallSlots[`front-${p}`];
+      if (!slot || (slot.type !== 'door' && slot.type !== 'window')) continue;
+      const opening = this.regulatedOpening(
+        slot.type,
+        slot.itemId,
+        slot.isUpper === true,
+        w / 4,
+        h - baseElevation,
+        baseElevation
+      );
       const pc = -w / 2 + (p + 0.5) * (w / 4);
-
-      if (slot?.type === 'door') {
-        const doorW = 1.0;
-        const doorH = 2.1;
-        // Trimmer studs (smygreglar) left and right of door
-        [-doorW / 2 - studThick / 2, doorW / 2 + studThick / 2].forEach((tx) => {
-          const trimmer = new THREE.Mesh(new THREE.BoxGeometry(studThick, doorH, studDepth), framingMat);
-          trimmer.position.set(pc + tx, baseElevation + studThick + doorH / 2, framingFrontZ);
-          trimmer.castShadow = true;
-          this.framingGroup.add(trimmer);
-        });
-
-        // Horizontal Lintel Beam (Bärande avväxlingsbalk 45x145 mm)
-        const lintelGeo = new THREE.BoxGeometry(doorW + studThick * 2, studThick * 2, studDepth);
-        const lintel = new THREE.Mesh(lintelGeo, framingMat);
-        lintel.position.set(pc, baseElevation + studThick + doorH + studThick, framingFrontZ);
-        lintel.castShadow = true;
-        this.framingGroup.add(lintel);
-      } else if (slot?.type === 'window') {
-        const winW = 1.0;
-        const winH = 1.2;
-        const sillY = baseElevation + 0.9;
-        const lintelY = sillY + winH;
-
-        // Trimmer studs left and right of window
-        [-winW / 2 - studThick / 2, winW / 2 + studThick / 2].forEach((tx) => {
-          const trimmer = new THREE.Mesh(new THREE.BoxGeometry(studThick, winH, studDepth), framingMat);
-          trimmer.position.set(pc + tx, sillY + winH / 2, framingFrontZ);
-          trimmer.castShadow = true;
-          this.framingGroup.add(trimmer);
-        });
-
-        // Sill beam (fönsterbänk / underregel)
-        const sillGeo = new THREE.BoxGeometry(winW + studThick * 2, studThick, studDepth);
-        const sill = new THREE.Mesh(sillGeo, framingMat);
-        sill.position.set(pc, sillY - studThick / 2, framingFrontZ);
-        sill.castShadow = true;
-        this.framingGroup.add(sill);
-
-        // Lintel beam (avväxlingsbalk)
-        const lintelGeo = new THREE.BoxGeometry(winW + studThick * 2, studThick * 2, studDepth);
-        const lintel = new THREE.Mesh(lintelGeo, framingMat);
-        lintel.position.set(pc, lintelY + studThick, framingFrontZ);
-        lintel.castShadow = true;
-        this.framingGroup.add(lintel);
-      }
+      this.addOpeningFrame(pc, framingFrontZ, opening, studThick, studDepth, framingMat);
     }
 
     // Rear Wall Studs cc 600 mm
@@ -1188,35 +1179,53 @@ export class HouseScene {
     return (hit.userData.panelGroup as THREE.Object3D | undefined) ?? hit;
   }
 
-  private doorOpening(panelHeight: number) {
-    const doorH = 2.1;
-    return { winW: 1.0, winH: doorH, winY: -panelHeight / 2 + doorH / 2 };
-  }
-
-  private windowOpening(windowId: string | undefined, panelWidth: number, panelHeight: number) {
-    let winW = 1.0;
-    let winH = 1.2;
-    let winY = 0.12;
-    if (windowId === 'panorama') {
-      winW = 1.45;
-      winH = panelHeight * 0.72;
-      winY = -panelHeight * 0.06;
-    } else if (windowId === 'frost') {
-      winW = 0.62;
-      winH = 0.62;
-      winY = 0.42;
-    } else if (windowId === 'sprojat') {
-      winW = 1.15;
-      winH = 1.15;
-      winY = 0.12;
+  /**
+   * Module placement. The white mid-rail is the head line at 2.15 m.
+   * A door stands on the floor and stops under that line.
+   * A normal window uses a 0.90 m sill and the same head.
+   * An upper bay keeps the whole window above the rail.
+   * Nothing is allowed to straddle the rail.
+   */
+  private regulatedOpening(
+    kind: 'door' | 'window',
+    itemId: string | undefined,
+    isUpper: boolean,
+    panelWidth: number,
+    panelHeight: number,
+    baseElev: number
+  ) {
+    const wallTop = baseElev + panelHeight;
+    const belt = baseElev + 2.15;
+    let winW = 1;
+    let wantedH = kind === 'door' ? 2.1 : 1.2;
+    if (kind === 'window') {
+      if (itemId === 'panorama') {
+        winW = 1.45;
+        wantedH = 1.6;
+      } else if (itemId === 'frost') {
+        winW = 0.62;
+        wantedH = 0.62;
+      } else if (itemId === 'sprojat') {
+        winW = 1.15;
+        wantedH = 1.15;
+      }
     }
-    const margin = 0.07;
-    winW = Math.min(winW, Math.max(0.35, panelWidth - margin * 2));
-    winH = Math.min(winH, Math.max(0.35, panelHeight - margin * 2));
-    const maxY = panelHeight / 2 - winH / 2 - 0.04;
-    const minY = -panelHeight / 2 + winH / 2 + 0.04;
-    winY = Math.max(minY, Math.min(maxY, winY));
-    return { winW, winH, winY };
+    winW = Math.min(winW, Math.max(0.4, panelWidth - 0.16));
+
+    let sill = baseElev;
+    let head = Math.min(baseElev + 2.1, wallTop - 0.08);
+    if (kind === 'window' && isUpper) {
+      sill = belt + 0.08;
+      head = Math.min(sill + wantedH, wallTop - 0.1);
+    } else if (kind === 'window') {
+      sill = baseElev + 0.9;
+      head = Math.min(sill + wantedH, belt - 0.05);
+    }
+    if (head - sill < 0.4) head = Math.min(wallTop - 0.08, sill + 0.4);
+
+    const winH = head - sill;
+    const winY = (sill + head) / 2 - (baseElev + panelHeight / 2);
+    return { winW, winH, winY, sill, head };
   }
 
   private addSolidCladding(
@@ -1557,20 +1566,23 @@ export class HouseScene {
     const roofThick = 0.07;
     const roofW = w + overhang * 2;
     const slopeLen = (d / 2 + overhang) / Math.cos(angleRad) + 0.06;
+    const bargeT = 0.028;
+    // Inner end is local z = -bargeInset, which lands in the middle of the nockbalk after the slope rotation.
+    const bargeLen = slopeLen + 0.12;
+    const bargeInset = 0.02;
 
     const addSlope = (sign: 1 | -1) => {
       const slope = new THREE.Group();
       slope.position.set(0, ridgeY, 0);
       slope.rotation.x = sign * angleRad;
       const mesh = new THREE.Mesh(new THREE.BoxGeometry(roofW, roofThick, slopeLen), roofMat);
-      mesh.position.set(0, roofThick / 2 + 0.012, sign * (slopeLen / 2 - 0.03));
+      mesh.position.set(0, roofThick / 2 + 0.012, sign * (slopeLen / 2 - 0.1));
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       slope.add(mesh);
 
-      const bargeT = 0.028;
-      const bargeGeo = new THREE.BoxGeometry(bargeT, roofThick, slopeLen);
-      const bargeZ = sign * (slopeLen / 2 - 0.03);
+      const bargeGeo = new THREE.BoxGeometry(bargeT, roofThick + 0.02, bargeLen);
+      const bargeZ = sign * (bargeLen / 2 - bargeInset);
       const bargeY = roofThick / 2 + 0.008;
       const leftBarge = new THREE.Mesh(bargeGeo, trimMat);
       leftBarge.position.set(-(roofW / 2 + bargeT / 2 + 0.001), bargeY, bargeZ);
@@ -1595,11 +1607,22 @@ export class HouseScene {
     addSlope(1);
     addSlope(-1);
 
+    // Nockbalk. Height matches the barge boards where they meet the beam, so the boards die into it flush.
+    const beamH = 0.07;
+    const beamD = 0.16;
+    const beam = new THREE.Mesh(
+      new THREE.BoxGeometry(roofW + bargeT * 2 + 0.004, beamH, beamD),
+      new THREE.MeshStandardMaterial({ color: '#e4d2b4', roughness: 0.68 })
+    );
+    beam.position.set(0, ridgeY + 0.02, 0);
+    beam.castShadow = true;
+    this.roofGroup.add(beam);
+
     const ridge = new THREE.Mesh(
-      new THREE.BoxGeometry(roofW + 0.04, 0.05, 0.16),
+      new THREE.BoxGeometry(roofW + bargeT * 2 + 0.004, 0.035, beamD + 0.04),
       roofMat
     );
-    ridge.position.set(0, ridgeY + roofThick + 0.02, 0);
+    ridge.position.set(0, ridgeY + 0.02 + beamH / 2 + 0.012, 0);
     ridge.castShadow = true;
     this.roofGroup.add(ridge);
   }
@@ -1644,42 +1667,43 @@ export class HouseScene {
     const isPulpettak = this.currentConfig.roofType === 'pulpettak';
     const angleRad = (8 * Math.PI) / 180;
     const rearH = isPulpettak ? Math.max(h - Math.tan(angleRad) * d, 2.4) : h;
+    const beamParent = ghost ? this.trussesGroup : this.framingGroup;
 
     const rafterW = 0.045;
-    const rafterH = 0.195;
+    const rafterH = ghost ? 0.145 : 0.195;
     const count = Math.floor(w / 0.6) + 1; // cc 600 mm
     const spacing = w / (count - 1);
 
     if (isPulpettak) {
       const slopeAngle = Math.atan2(h - rearH, d);
-      const slopeLen = Math.sqrt(Math.pow(d, 2) + Math.pow(h - rearH, 2));
+      const slopeLen = Math.sqrt(Math.pow(d, 2) + Math.pow(h - rearH, 2)) + (ghost ? 0.7 : 0);
       const rafterGeo = new THREE.BoxGeometry(rafterW, rafterH, slopeLen);
 
       for (let i = 0; i < count; i++) {
         const rx = -w / 2 + i * spacing;
         const rafter = new THREE.Mesh(rafterGeo, rafterMat);
-        rafter.position.set(rx, (h + rearH) / 2 - rafterH / 2 - (ghost ? 0.02 : 0.12), 0);
+        rafter.position.set(rx, (h + rearH) / 2 - rafterH / 2 + (ghost ? 0.06 : -0.12), 0);
         rafter.rotation.x = -slopeAngle;
         rafter.castShadow = !ghost;
-        this.framingGroup.add(rafter);
+        beamParent.add(rafter);
       }
     } else if (this.currentConfig.roofType === 'flackt') {
       const angleRad = (2 * Math.PI) / 180;
-      const len = d - 0.2;
-      const rafterGeo = new THREE.BoxGeometry(rafterW, 0.12, len);
+      const len = ghost ? d + 0.7 : d - 0.2;
+      const rafterGeo = new THREE.BoxGeometry(rafterW, ghost ? rafterH : 0.12, len);
       for (let i = 0; i < count; i++) {
         const rafter = new THREE.Mesh(rafterGeo, rafterMat);
-        rafter.position.set(-w / 2 + i * spacing, h - 0.12, 0);
+        rafter.position.set(-w / 2 + i * spacing, h - (ghost ? rafterH / 2 - 0.04 : 0.12), 0);
         rafter.rotation.x = -angleRad;
         rafter.castShadow = !ghost;
-        this.framingGroup.add(rafter);
+        beamParent.add(rafter);
       }
     } else {
       const angleRad = (22 * Math.PI) / 180;
       const rise = Math.tan(angleRad) * (d / 2);
-      const slopeLen = (d / 2) / Math.cos(angleRad) - 0.2;
+      const slopeLen = (d / 2) / Math.cos(angleRad) + (ghost ? 0.25 : 0.08);
       const rafterGeo = new THREE.BoxGeometry(rafterW, rafterH, slopeLen);
-      const y = h + rise / 2 - rafterH / 2 - 0.1;
+      const y = h + rise / 2 - rafterH / 2 + (ghost ? 0.04 : -0.02);
 
       for (let i = 0; i < count; i++) {
         const rx = -w / 2 + i * spacing;
@@ -1687,19 +1711,22 @@ export class HouseScene {
         frontRafter.position.set(rx, y, d / 4);
         frontRafter.rotation.x = angleRad;
         frontRafter.castShadow = !ghost;
-        this.framingGroup.add(frontRafter);
+        beamParent.add(frontRafter);
 
         const rearRafter = new THREE.Mesh(rafterGeo, rafterMat);
         rearRafter.position.set(rx, y, -d / 4);
         rearRafter.rotation.x = -angleRad;
         rearRafter.castShadow = !ghost;
-        this.framingGroup.add(rearRafter);
+        beamParent.add(rearRafter);
       }
     }
   }
 
   // --- Prefabricerad Fackverkstakstol C/C 1200 mm (Takstol med transparent visning i Insida-vy) ---
   private buildTrusses(w: number, d: number, h: number, wt: number) {
+    // The loft cutaway draws one set of ghost beams from buildRafters.
+    if (this.loftCutaway()) return;
+
     // Prefabricerad fackverkstakstol C/C 1200 mm
     // Virke: 45 x 145 mm C24 konstruktionsvirke
     // Renderas semi-transparent så att inredning, loft och väggar inte döljs i Insida-läget
@@ -2327,7 +2354,12 @@ export class HouseScene {
   }
 
   private applyViewMode() {
-    if (this.currentConfig.viewMode === 'insida') {
+    if (this.loftCutaway()) {
+      this.roofGroup.visible = false;
+      this.trussesGroup.visible = true;
+      this.camera.position.set(3.4, 10.2, 6.4);
+      this.controls.target.set(0, 1.55, -0.2);
+    } else if (this.currentConfig.viewMode === 'insida') {
       this.roofGroup.visible = false;
       this.trussesGroup.visible = true;
       this.camera.position.set(0.5, 8.5, 7.8);

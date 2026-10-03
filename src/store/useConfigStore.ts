@@ -535,7 +535,16 @@ export const useConfigStore = defineStore('config', () => {
     viewMode.value = mode;
   }
 
+  let viewModeBeforeLoft: ViewMode | null = null;
+
   function selectCategory(category: CategoryKey) {
+    if (category === 'loft' && selectedCategory.value !== 'loft') {
+      viewModeBeforeLoft = viewMode.value;
+      viewMode.value = 'insida';
+    } else if (selectedCategory.value === 'loft' && category !== 'loft' && viewModeBeforeLoft) {
+      viewMode.value = viewModeBeforeLoft;
+      viewModeBeforeLoft = null;
+    }
     selectedCategory.value = category;
   }
 
@@ -619,11 +628,12 @@ export const useConfigStore = defineStore('config', () => {
   }
 
   function assignSlotItem(slotId: string, type: 'empty' | 'door' | 'window' | 'gate', itemId?: string) {
-    if (wallSlots.value[slotId]) {
-      wallSlots.value[slotId].type = type;
-      wallSlots.value[slotId].itemId = itemId;
-      saveSnapshot();
-    }
+    const slot = wallSlots.value[slotId];
+    if (!slot) return;
+    if ((type === 'door' || type === 'gate') && slot.canAcceptDoor === false) return;
+    slot.type = type;
+    slot.itemId = itemId;
+    saveSnapshot();
   }
 
   function removeSlotItem(slotId: string) {
