@@ -64,6 +64,11 @@ const sv = {
     unitMm: 'mm',
     heightHint: 'Höjden är den högsta sidan. Max 5 000 mm.',
     facade: 'Fasadmaterial & Kulör',
+    cladding: 'Paneltyp & dimension',
+    standing: 'Stående',
+    lying: 'Liggande',
+    standardBoard: 'Standard',
+    claddingHint: 'Standard är stående ytterpanel 22×145 mm.',
     selected: 'Vald: {name}',
     addLoft: 'Lägg till Loft',
     addLoftBody:
@@ -219,6 +224,11 @@ const en = {
     unitMm: 'mm',
     heightHint: 'Height is the high end of the house. Maximum 5,000 mm.',
     facade: 'Facade & colour',
+    cladding: 'Cladding & board size',
+    standing: 'Vertical',
+    lying: 'Horizontal',
+    standardBoard: 'Standard',
+    claddingHint: 'The standard board is vertical cladding, 22×145 mm.',
     selected: 'Selected: {name}',
     addLoft: 'Add a loft',
     addLoftBody:

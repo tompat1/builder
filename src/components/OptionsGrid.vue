@@ -139,6 +139,66 @@
             </div>
           </button>
         </div>
+
+        <div class="mt-4 pt-3 border-t border-slate-200/70">
+          <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2">{{ t('category.cladding') }}</h4>
+          <div class="grid grid-cols-2 gap-2">
+            <button
+              v-for="orientation in panelOrientations"
+              :key="orientation.id"
+              type="button"
+              :id="`panel-${orientation.id}`"
+              @click="store.selectPanelOrientation(orientation.id)"
+              :class="[
+                'p-2.5 rounded-xl border text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
+                store.panelOrientation === orientation.id
+                  ? 'border-slate-900 ring-1 ring-slate-900 bg-slate-50 shadow-sm'
+                  : 'border-slate-200 bg-white hover:border-slate-300'
+              ]"
+            >
+              <svg class="w-full h-8 text-slate-700 mb-1" viewBox="0 0 120 32" fill="none" aria-hidden="true">
+                <template v-if="orientation.id === 'staende'">
+                  <path
+                    v-for="x in [8, 28, 48, 68, 88, 108]"
+                    :key="x"
+                    :d="`M ${x} 2 V 30`"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                  />
+                </template>
+                <template v-else>
+                  <path
+                    v-for="y in [6, 16, 26]"
+                    :key="y"
+                    :d="`M 4 ${y} H 116`"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                  />
+                </template>
+              </svg>
+              <span class="block text-xs font-bold text-slate-900">{{ t(orientation.label) }}</span>
+            </button>
+          </div>
+          <div class="grid grid-cols-2 gap-2 mt-2">
+            <button
+              v-for="size in CLADDING_SIZES"
+              :key="size.id"
+              type="button"
+              :id="`panel-size-${size.id}`"
+              @click="store.selectCladdingSize(size.id)"
+              :class="[
+                'px-2.5 py-2 rounded-xl border text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
+                store.claddingSizeId === size.id
+                  ? 'border-slate-900 ring-1 ring-slate-900 bg-slate-50 shadow-sm'
+                  : 'border-slate-200 bg-white hover:border-slate-300'
+              ]"
+            >
+              <span class="block text-xs font-bold text-slate-900 tabular-nums">{{ size.thickness }}×{{ size.width }} mm</span>
+              <span v-if="size.id === '22x145'" class="block text-[10px] font-semibold text-slate-500">{{ t('category.standardBoard') }}</span>
+            </button>
+          </div>
+          <p class="text-[11px] text-slate-500 mt-1.5">{{ t('category.claddingHint') }}</p>
+        </div>
       </div>
     </template>
 
@@ -701,6 +761,7 @@ import { computed } from 'vue';
 import {
   useConfigStore,
   BUILDING_LIMITS,
+  CLADDING_SIZES,
   MATERIAL_OPTIONS,
   SIZE_OPTIONS,
   ROOF_OPTIONS,
@@ -714,6 +775,11 @@ import { useLabels } from '../i18n';
 
 const store = useConfigStore();
 const { t, catalog, loftDesc, money, delta } = useLabels();
+
+const panelOrientations = [
+  { id: 'staende' as const, label: 'category.standing' },
+  { id: 'liggande' as const, label: 'category.lying' }
+];
 
 const measureFields = [
   { axis: 'width' as const, label: 'category.width' },

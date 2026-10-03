@@ -4,6 +4,17 @@ import { ref, computed, reactive } from 'vue';
 export type ViewMode = 'utsida' | 'insida';
 export type CategoryKey = 'size' | 'roof' | 'loft' | 'doors' | 'windows' | 'gates' | 'extras';
 export type MaterialKey = 'wood' | 'falurod' | 'grey' | 'white' | 'black';
+export type PanelOrientation = 'staende' | 'liggande';
+
+/** Common Swedish exterior boards. 22×145 mm is the usual standard. */
+export const CLADDING_SIZES = [
+  { id: '22x95', thickness: 22, width: 95 },
+  { id: '22x120', thickness: 22, width: 120 },
+  { id: '22x145', thickness: 22, width: 145 },
+  { id: '22x170', thickness: 22, width: 170 }
+] as const;
+
+export type CladdingSizeId = (typeof CLADDING_SIZES)[number]['id'];
 
 export interface MaterialOption {
   id: MaterialKey;
@@ -376,6 +387,8 @@ export const useConfigStore = defineStore('config', () => {
   const viewMode = ref<ViewMode>('utsida');
   const selectedCategory = ref<CategoryKey>('size');
   const activeMaterial = ref<MaterialKey>('wood');
+  const panelOrientation = ref<PanelOrientation>('staende');
+  const claddingSizeId = ref<CladdingSizeId>('22x145');
   const showDimensions = ref<boolean>(true);
   const selectedSlotId = ref<string | null>(null);
   const hoveredSlotId = ref<string | null>(null);
@@ -432,6 +445,8 @@ export const useConfigStore = defineStore('config', () => {
       activeWindow: activeWindow.value,
       activeGate: activeGate.value,
       activeMaterial: activeMaterial.value,
+      panelOrientation: panelOrientation.value,
+      claddingSizeId: claddingSizeId.value,
       wallSlots: wallSlots.value
     });
     // Truncate forward history if we were in the middle
@@ -481,6 +496,10 @@ export const useConfigStore = defineStore('config', () => {
       if (data.activeWindow) activeWindow.value = data.activeWindow;
       if (data.activeGate) activeGate.value = data.activeGate;
       activeMaterial.value = data.activeMaterial;
+      panelOrientation.value = data.panelOrientation === 'liggande' ? 'liggande' : 'staende';
+      claddingSizeId.value = CLADDING_SIZES.some((size) => size.id === data.claddingSizeId)
+        ? data.claddingSizeId
+        : '22x145';
       wallSlots.value = mergeWallSlots(data.wallSlots);
     } catch {
       // ignore parse error
@@ -731,6 +750,17 @@ export const useConfigStore = defineStore('config', () => {
     saveSnapshot();
   }
 
+  function selectPanelOrientation(orientation: PanelOrientation) {
+    panelOrientation.value = orientation;
+    saveSnapshot();
+  }
+
+  function selectCladdingSize(id: CladdingSizeId) {
+    if (!CLADDING_SIZES.some((size) => size.id === id)) return;
+    claddingSizeId.value = id;
+    saveSnapshot();
+  }
+
   function selectSlot(slotId: string | null) {
     selectedSlotId.value = slotId;
   }
@@ -809,6 +839,8 @@ export const useConfigStore = defineStore('config', () => {
     viewMode,
     selectedCategory,
     activeMaterial,
+    panelOrientation,
+    claddingSizeId,
     selectedSlotId,
     hoveredSlotId,
     hoveredSlotPos,
@@ -856,6 +888,8 @@ export const useConfigStore = defineStore('config', () => {
     selectWindow,
     selectGate,
     selectMaterial,
+    selectPanelOrientation,
+    selectCladdingSize,
     selectSlot,
     setHoveredSlot,
     setSlotScreenPosition,

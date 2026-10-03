@@ -27,6 +27,14 @@ onMounted(() => {
       viewMode: store.viewMode,
       loftView: store.selectedCategory === 'loft',
       material: store.activeMaterial,
+      panelOrientation: store.panelOrientation,
+      panelWidthMm: store.claddingSizeId === '22x95'
+        ? 95
+        : store.claddingSizeId === '22x120'
+          ? 120
+          : store.claddingSizeId === '22x170'
+            ? 170
+            : 145,
       showDimensions: store.showDimensions,
       selectedSlotId: store.selectedSlotId,
       wallSlots: store.wallSlots
@@ -78,11 +86,16 @@ watch(
   }
 );
 
-// Watch material
+// Watch material and cladding boards
 watch(
-  () => store.activeMaterial,
-  (mat) => {
-    engine?.updateConfig({ material: mat });
+  [() => store.activeMaterial, () => store.panelOrientation, () => store.claddingSizeId],
+  ([mat, orientation, sizeId]) => {
+    const width = sizeId === '22x95' ? 95 : sizeId === '22x120' ? 120 : sizeId === '22x170' ? 170 : 145;
+    engine?.updateConfig({
+      material: mat,
+      panelOrientation: orientation,
+      panelWidthMm: width
+    });
   }
 );
 

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { PULPET_PITCH_DEG, type MaterialKey, type WallSlot, type LoftPlacement, type LoftCount } from '../store/useConfigStore';
+import { PULPET_PITCH_DEG, type MaterialKey, type WallSlot, type LoftPlacement, type LoftCount, type PanelOrientation } from '../store/useConfigStore';
 
 const PULPET_PITCH_RAD = (PULPET_PITCH_DEG * Math.PI) / 180;
 
@@ -19,6 +19,9 @@ export interface SceneConfig {
   /** Overhead cutaway used while the Loft category is open. */
   loftView: boolean;
   material: MaterialKey;
+  panelOrientation: PanelOrientation;
+  /** Visible board width, millimetres. 145 is the standard 22×145 board. */
+  panelWidthMm: number;
   showDimensions: boolean;
   selectedSlotId: string | null;
   wallSlots: Record<string, WallSlot>;
@@ -74,6 +77,8 @@ export class HouseScene {
       viewMode: initialConfig?.viewMode ?? 'utsida',
       loftView: initialConfig?.loftView ?? false,
       material: initialConfig?.material ?? 'wood',
+      panelOrientation: initialConfig?.panelOrientation ?? 'staende',
+      panelWidthMm: initialConfig?.panelWidthMm ?? 145,
       showDimensions: initialConfig?.showDimensions ?? true,
       selectedSlotId: initialConfig?.selectedSlotId ?? null,
       wallSlots: initialConfig?.wallSlots ?? {}
@@ -292,13 +297,57 @@ export class HouseScene {
     }
 
     ctx.globalAlpha = 1.0;
-    const texture = new THREE.CanvasTexture(canvas);
+    const texture = new THREE.CanvasTexture(this.orientBoards(canvas));
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.anisotropy = 8;
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
-    texture.repeat.set(3, 2);
+    this.applyCladdingRepeat(texture);
     return texture;
+  }
+
+  /** Turn vertical boards onto their side for liggande cladding. */
+  private orientBoards(source: HTMLCanvasElement) {
+    if (this.currentConfig.panelOrientation !== 'liggande') return source;
+    const turned = document.createElement('canvas');
+    turned.width = source.width;
+    turned.height = source.height;
+    const ctx = turned.getContext('2d')!;
+    ctx.translate(source.width, 0);
+    ctx.rotate(Math.PI / 2);
+    ctx.drawImage(source, 0, 0);
+    return turned;
+  }
+
+  /** One texture tile holds 16 boards. Repeat so each board is the chosen width. */
+  private applyCladdingRepeat(texture: THREE.Texture) {
+    const cover = Math.max(0.07, this.currentConfig.panelWidthMm / 1000);
+    const moduleM = 16 * cover;
+    const along = 2.4;
+    if (this.currentConfig.panelOrientation === 'liggande') {
+      texture.repeat.set(1 / along, 1 / moduleM);
+    } else {
+      texture.repeat.set(1 / moduleM, 1 / along);
+    }
+  }
+
+  /** Store UV axes in metres so the shared repeat matches the board size on every face. */
+  private writeMetreUvs(geo: THREE.BufferGeometry, yShift: number) {
+    const pos = geo.getAttribute('position');
+    const uv = geo.getAttribute('uv');
+    const norm = geo.getAttribute('normal');
+    if (!pos || !uv || !norm) return;
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i);
+      const y = pos.getY(i) + yShift;
+      const z = pos.getZ(i);
+      const nx = Math.abs(norm.getX(i));
+      const ny = Math.abs(norm.getY(i));
+      const u = ny > 0.5 || nx > 0.5 ? (nx > 0.5 ? z : x) : x;
+      const v = ny > 0.5 ? z : y;
+      uv.setXY(i, u, v);
+    }
+    uv.needsUpdate = true;
   }
 
   private createRoofFeltTexture(): THREE.CanvasTexture {
@@ -451,10 +500,10 @@ export class HouseScene {
       ctx.fillRect(battenX + battenW, 0, 2, 1024);
     }
 
-    const bumpTexture = new THREE.CanvasTexture(canvas);
+    const bumpTexture = new THREE.CanvasTexture(this.orientBoards(canvas));
     bumpTexture.wrapS = THREE.RepeatWrapping;
     bumpTexture.wrapT = THREE.RepeatWrapping;
-    bumpTexture.repeat.set(3, 2);
+    this.applyCladdingRepeat(bumpTexture);
     return bumpTexture;
   }
 
@@ -687,7 +736,7 @@ export class HouseScene {
     this.buildModularWall('back', 4, w, d, h, wallThick, exteriorMat, trimMat, casingMat);
     this.buildModularWall('left', 3, w, d, h, wallThick, exteriorMat, trimMat, casingMat);
     this.buildModularWall('right', 3, w, d, h, wallThick, exteriorMat, trimMat, casingMat);
-    if (!this.interiorCut()) this.addBeltFlashing(w, d, trimMat);
+    if (!this.interiorCut()) this.addBeltFlashing(w, d, h, trimMat);
     if (!this.interiorCut()) {
       const rearTop = this.currentConfig.roofType === 'pulpettak'
         ? Math.max(h - Math.tan(PULPET_PITCH_RAD) * d, 2.4)
@@ -775,13 +824,20 @@ export class HouseScene {
     shape.closePath();
     const geo = new THREE.ExtrudeGeometry(shape, { depth: thick, bevelEnabled: false });
     geo.translate(0, 0, -thick / 2);
+    this.writeMetreUvs(geo, h);
 
     const gableMat = exteriorMat.clone();
     if (exteriorMat.map) {
       const map = exteriorMat.map.clone();
-      map.repeat.set((d / 1.5) * 3, Math.max(0.6, rise / 1.6));
+      this.applyCladdingRepeat(map);
       map.needsUpdate = true;
       gableMat.map = map;
+    }
+    if (exteriorMat.bumpMap) {
+      const bump = exteriorMat.bumpMap.clone();
+      this.applyCladdingRepeat(bump);
+      bump.needsUpdate = true;
+      gableMat.bumpMap = bump;
     }
 
     for (const sign of [-1, 1] as const) {
@@ -868,7 +924,7 @@ export class HouseScene {
 
       if (!this.interiorCut()) panelWallH += 0.02;
 
-      const belt = 2.15;
+      const belt = this.beltRise(h);
       const upperId = `${wallSide}-${i}u`;
       const split = Boolean(this.currentConfig.wallSlots[upperId]) && panelWallH > belt + 0.4;
       const bands = split
@@ -930,9 +986,21 @@ export class HouseScene {
     }
   }
 
+  /**
+   * Lower cladding height, measured from the wall base.
+   * On a facade about 5 m high the rail sits 2.7 m above the ground,
+   * with the floor between the two storeys (the allowed band is 2.4–3.0 m).
+   * Shorter houses keep the lower rail.
+   */
+  private beltRise(wallTop: number) {
+    const wallBase = 0.25;
+    if (wallTop >= 4.5) return 2.7 - wallBase;
+    return 2.15;
+  }
+
   /** White metal belt on each wall, stopping against the vertical corner boards. */
-  private addBeltFlashing(w: number, d: number, trimMat: THREE.Material) {
-    const y = 0.25 + 2.15;
+  private addBeltFlashing(w: number, d: number, wallTop: number, trimMat: THREE.Material) {
+    const y = 0.25 + this.beltRise(wallTop);
     const height = 0.055;
     const { face, thick } = this.cornerTrimSize();
     const inset = face - thick;
@@ -1277,8 +1345,9 @@ export class HouseScene {
 
   private frontOpenings(w: number, h: number, base: number) {
     const fullH = h - base;
-    const lowerH = Math.min(2.15, fullH);
-    const split = fullH > 2.15 + 0.4 && !this.interiorCut();
+    const belt = this.beltRise(h);
+    const lowerH = Math.min(belt, fullH);
+    const split = fullH > belt + 0.4 && !this.interiorCut();
     const openings: { x: number; winW: number; winH: number; winY: number; sill: number; head: number }[] = [];
     for (let p = 0; p < 4; p++) {
       const panelW = w / 4;
@@ -1404,6 +1473,7 @@ export class HouseScene {
       const alongSide = new THREE.Mesh(new THREE.BoxGeometry(thick, height, face), material);
       alongSide.position.set(corner.x * (w / 2 + thick / 2), y, corner.z * (d / 2 - face / 2));
       for (const board of [alongFront, alongSide]) {
+        this.writeMetreUvs(board.geometry, y);
         board.castShadow = true;
         board.receiveShadow = true;
         this.wallsGroup.add(board);
@@ -1445,6 +1515,7 @@ export class HouseScene {
     }
     const geo = new THREE.ExtrudeGeometry(shape, { depth: claddingThick, bevelEnabled: false });
     geo.translate(0, 0, -claddingThick / 2);
+    this.writeMetreUvs(geo, parent.position.y);
     const mesh = new THREE.Mesh(geo, material);
     mesh.castShadow = true;
     mesh.receiveShadow = true;
@@ -1462,10 +1533,9 @@ export class HouseScene {
     material: THREE.Material,
     userData: Record<string, unknown>
   ) {
-    const panelMesh = new THREE.Mesh(
-      new THREE.BoxGeometry(panelWidth, panelHeight, claddingThick),
-      material
-    );
+    const panelGeo = new THREE.BoxGeometry(panelWidth, panelHeight, claddingThick);
+    this.writeMetreUvs(panelGeo, parent.position.y);
+    const panelMesh = new THREE.Mesh(panelGeo, material);
     panelMesh.castShadow = true;
     panelMesh.receiveShadow = true;
     panelMesh.userData = userData;
@@ -1511,7 +1581,9 @@ export class HouseScene {
 
     let first: THREE.Mesh | null = null;
     for (const board of boards) {
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(board.w, board.h, claddingThick), material);
+      const piece = new THREE.BoxGeometry(board.w, board.h, claddingThick);
+      this.writeMetreUvs(piece, parent.position.y + board.y);
+      const mesh = new THREE.Mesh(piece, material);
       mesh.position.set(board.x, board.y, 0);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
