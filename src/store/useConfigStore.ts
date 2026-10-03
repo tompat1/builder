@@ -149,6 +149,17 @@ export const ROOF_OPTIONS: OptionItem[] = [
   }
 ];
 
+export type LoftCount = 'ett' | 'tva';
+export type LoftPlacement = 'vanster' | 'hoger';
+export type LoftTab = 'planlosning' | 'golv';
+
+export interface LoftSizeItem {
+  areaSqMeters: number;
+  label: string;
+  desc: string;
+  priceDelta: number;
+}
+
 export const LOFT_OPTIONS: OptionItem[] = [
   {
     id: 'none',
@@ -288,7 +299,13 @@ export const useConfigStore = defineStore('config', () => {
 
   const selectedSizeId = ref<string>('size-30');
   const activeRoof = ref<string>('pulpettak');
+  const hasLoft = ref<boolean>(false);
   const activeLoft = ref<string>('none');
+  const loftCount = ref<LoftCount>('ett');
+  const loftPlacement = ref<LoftPlacement>('vanster');
+  const selectedLoftSize = ref<number>(10.95);
+  const hasLoftStair = ref<boolean>(true);
+  const loftTab = ref<LoftTab>('planlosning');
   const activeDoor = ref<string>('STEHAG');
   const activeWindow = ref<string>('standard-single');
   const activeGate = ref<string>('none');
@@ -320,6 +337,11 @@ export const useConfigStore = defineStore('config', () => {
       selectedSizeId: selectedSizeId.value,
       activeRoof: activeRoof.value,
       activeLoft: activeLoft.value,
+      hasLoft: hasLoft.value,
+      loftCount: loftCount.value,
+      loftPlacement: loftPlacement.value,
+      selectedLoftSize: selectedLoftSize.value,
+      hasLoftStair: hasLoftStair.value,
       activeDoor: activeDoor.value,
       activeWindow: activeWindow.value,
       activeGate: activeGate.value,
@@ -352,6 +374,15 @@ export const useConfigStore = defineStore('config', () => {
       selectedSizeId.value = data.selectedSizeId;
       activeRoof.value = data.activeRoof;
       activeLoft.value = data.activeLoft;
+      if (data.hasLoft !== undefined) {
+        hasLoft.value = data.hasLoft;
+      } else {
+        hasLoft.value = data.activeLoft !== 'none';
+      }
+      if (data.loftCount) loftCount.value = data.loftCount;
+      if (data.loftPlacement) loftPlacement.value = data.loftPlacement;
+      if (data.selectedLoftSize) selectedLoftSize.value = data.selectedLoftSize;
+      if (data.hasLoftStair !== undefined) hasLoftStair.value = data.hasLoftStair;
       if (data.activeDoor) activeDoor.value = data.activeDoor;
       if (data.activeWindow) activeWindow.value = data.activeWindow;
       if (data.activeGate) activeGate.value = data.activeGate;
@@ -405,7 +436,37 @@ export const useConfigStore = defineStore('config', () => {
     return viewMode.value === 'insida' ? 2595 : 2144;
   });
 
-  const hasLoft = computed(() => activeLoft.value !== 'none');
+  const availableLoftSizes = computed<LoftSizeItem[]>(() => {
+    if (selectedSizeId.value === 'size-30') {
+      return [
+        { areaSqMeters: 10.95, label: '10,95 m²', desc: 'Kompakt sovloft / förvaring', priceDelta: 18500 },
+        { areaSqMeters: 16.43, label: '16,43 m²', desc: 'Generöst sovloft', priceDelta: 24900 },
+        { areaSqMeters: 21.9, label: '21,9 m²', desc: 'Stort allrum / dubbelloft', priceDelta: 31200 },
+        { areaSqMeters: 27.38, label: '27,38 m²', desc: 'Hela golvytan / fullt loftplan', priceDelta: 37800 }
+      ];
+    } else if (selectedSizeId.value === 'size-25') {
+      return [
+        { areaSqMeters: 8.21, label: '8,21 m²', desc: 'Kompakt sovloft', priceDelta: 16200 },
+        { areaSqMeters: 12.32, label: '12,32 m²', desc: 'Standardloft', priceDelta: 21500 },
+        { areaSqMeters: 16.4, label: '16,4 m²', desc: 'Stort sovloft', priceDelta: 26800 },
+        { areaSqMeters: 22.8, label: '22,8 m²', desc: 'Hela golvytan', priceDelta: 32500 }
+      ];
+    } else if (selectedSizeId.value === 'size-15') {
+      return [
+        { areaSqMeters: 5.5, label: '5,5 m²', desc: 'Kompakt sovalkov', priceDelta: 12500 },
+        { areaSqMeters: 8.2, label: '8,2 m²', desc: 'Standardloft', priceDelta: 16800 },
+        { areaSqMeters: 11.0, label: '11,0 m²', desc: 'Stort sovloft', priceDelta: 20500 },
+        { areaSqMeters: 13.7, label: '13,7 m²', desc: 'Hela golvytan', priceDelta: 24800 }
+      ];
+    } else {
+      return [
+        { areaSqMeters: 14.6, label: '14,6 m²', desc: 'Kompakt sovloft', priceDelta: 22500 },
+        { areaSqMeters: 21.9, label: '21,9 m²', desc: 'Generöst sovloft', priceDelta: 30500 },
+        { areaSqMeters: 29.2, label: '29,2 m²', desc: 'Stort loftplan', priceDelta: 38500 },
+        { areaSqMeters: 36.5, label: '36,5 m²', desc: 'Hela golvytan', priceDelta: 46500 }
+      ];
+    }
+  });
 
   const totalPriceSek = computed(() => {
     let total = currentSize.value.basePrice;
@@ -418,8 +479,12 @@ export const useConfigStore = defineStore('config', () => {
     if (roof) total += roof.priceDelta;
 
     // Loft price
-    const loft = LOFT_OPTIONS.find((l) => l.id === activeLoft.value);
-    if (loft) total += loft.priceDelta;
+    if (hasLoft.value) {
+      const match = availableLoftSizes.value.find(
+        (s) => Math.abs(s.areaSqMeters - selectedLoftSize.value) < 0.1
+      );
+      total += match ? match.priceDelta : 21500;
+    }
 
     // Wall slots (doors, windows, gates)
     Object.values(wallSlots.value).forEach((slot) => {
@@ -452,6 +517,11 @@ export const useConfigStore = defineStore('config', () => {
 
   function selectSize(id: string) {
     selectedSizeId.value = id;
+    // Ensure selectedLoftSize is valid for this new size
+    const available = availableLoftSizes.value;
+    if (available.length > 0 && !available.some((s) => Math.abs(s.areaSqMeters - selectedLoftSize.value) < 0.1)) {
+      selectedLoftSize.value = available[0].areaSqMeters;
+    }
     saveSnapshot();
   }
 
@@ -462,7 +532,38 @@ export const useConfigStore = defineStore('config', () => {
 
   function selectLoft(id: string) {
     activeLoft.value = id;
+    hasLoft.value = id !== 'none';
     saveSnapshot();
+  }
+
+  function toggleHasLoft(forceState?: boolean) {
+    hasLoft.value = forceState !== undefined ? forceState : !hasLoft.value;
+    activeLoft.value = hasLoft.value ? 'sleeping' : 'none';
+    saveSnapshot();
+  }
+
+  function setLoftCount(count: LoftCount) {
+    loftCount.value = count;
+    saveSnapshot();
+  }
+
+  function setLoftPlacement(placement: LoftPlacement) {
+    loftPlacement.value = placement;
+    saveSnapshot();
+  }
+
+  function setLoftSize(area: number) {
+    selectedLoftSize.value = area;
+    saveSnapshot();
+  }
+
+  function toggleLoftStair() {
+    hasLoftStair.value = !hasLoftStair.value;
+    saveSnapshot();
+  }
+
+  function setLoftTab(tab: LoftTab) {
+    loftTab.value = tab;
   }
 
   function selectDoor(id: string) {
@@ -563,6 +664,12 @@ export const useConfigStore = defineStore('config', () => {
     rearHeight,
     innerCeilingHeight,
     hasLoft,
+    loftCount,
+    loftPlacement,
+    selectedLoftSize,
+    hasLoftStair,
+    loftTab,
+    availableLoftSizes,
     totalPriceSek,
     selectedSlotCanAcceptDoor,
     toggleViewMode,
@@ -571,6 +678,12 @@ export const useConfigStore = defineStore('config', () => {
     selectSize,
     selectRoof,
     selectLoft,
+    toggleHasLoft,
+    setLoftCount,
+    setLoftPlacement,
+    setLoftSize,
+    toggleLoftStair,
+    setLoftTab,
     selectDoor,
     selectWindow,
     selectGate,

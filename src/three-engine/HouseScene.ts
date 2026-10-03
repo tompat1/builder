@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import type { MaterialKey, WallSlot } from '../store/useConfigStore';
+import type { MaterialKey, WallSlot, LoftPlacement, LoftCount } from '../store/useConfigStore';
 
 export interface SceneConfig {
   widthMm: number;
@@ -8,6 +8,10 @@ export interface SceneConfig {
   heightMm: number;
   roofType: 'pulpettak' | 'sadeltak' | 'flackt';
   hasLoft: boolean;
+  loftPlacement?: LoftPlacement;
+  loftAreaSqMeters?: number;
+  hasLoftStair?: boolean;
+  loftCount?: LoftCount;
   viewMode: 'utsida' | 'insida';
   material: MaterialKey;
   showDimensions: boolean;
@@ -28,6 +32,7 @@ export class HouseScene {
   private loftGroup: THREE.Group;
   private wallsGroup: THREE.Group;
   private framingGroup: THREE.Group;
+  private trussesGroup: THREE.Group;
   private dimensionsGroup: THREE.Group;
   private highlightBox: THREE.LineSegments | null = null;
   private hoverBox: THREE.Object3D | null = null;
@@ -52,6 +57,10 @@ export class HouseScene {
       heightMm: initialConfig?.heightMm ?? 3503,
       roofType: initialConfig?.roofType ?? 'pulpettak',
       hasLoft: initialConfig?.hasLoft ?? false,
+      loftPlacement: initialConfig?.loftPlacement ?? 'vanster',
+      loftAreaSqMeters: initialConfig?.loftAreaSqMeters ?? 10.95,
+      hasLoftStair: initialConfig?.hasLoftStair ?? true,
+      loftCount: initialConfig?.loftCount ?? 'ett',
       viewMode: initialConfig?.viewMode ?? 'utsida',
       material: initialConfig?.material ?? 'wood',
       showDimensions: initialConfig?.showDimensions ?? true,
@@ -96,12 +105,14 @@ export class HouseScene {
     this.houseGroup = new THREE.Group();
     this.wallsGroup = new THREE.Group();
     this.framingGroup = new THREE.Group();
+    this.trussesGroup = new THREE.Group();
     this.roofGroup = new THREE.Group();
     this.loftGroup = new THREE.Group();
     this.dimensionsGroup = new THREE.Group();
 
     this.houseGroup.add(this.wallsGroup);
     this.houseGroup.add(this.framingGroup);
+    this.houseGroup.add(this.trussesGroup);
     this.houseGroup.add(this.roofGroup);
     this.houseGroup.add(this.loftGroup);
     this.scene.add(this.houseGroup);
@@ -462,6 +473,9 @@ export class HouseScene {
     while (this.framingGroup.children.length > 0) {
       this.framingGroup.remove(this.framingGroup.children[0]);
     }
+    while (this.trussesGroup.children.length > 0) {
+      this.trussesGroup.remove(this.trussesGroup.children[0]);
+    }
     while (this.roofGroup.children.length > 0) {
       this.roofGroup.remove(this.roofGroup.children[0]);
     }
@@ -546,6 +560,9 @@ export class HouseScene {
     // 6. Exposed Roof Rafters (Taksparrar cc 600)
     this.buildRafters(w, d, h, wallThick);
 
+    // 6b. Prefabricated Roof Trusses (Takstolar: Prefabricerad fackverkstakstol C/C 1200 mm)
+    this.buildTrusses(w, d, h, wallThick);
+
     // 7. Loft Construction
     if (this.currentConfig.hasLoft) {
       this.buildLoft(w, d, h, wallThick);
@@ -568,105 +585,111 @@ export class HouseScene {
     exteriorMat: THREE.Material,
     trimMat: THREE.Material
   ) {
+    const isPulpettak = this.currentConfig.roofType === 'pulpettak';
+    const angleRad = (8 * Math.PI) / 180;
+    const rearH = isPulpettak ? Math.max(h - Math.tan(angleRad) * d, 2.4) : h;
+    const yMid = (h + rearH) / 2;
+    const baseElev = 0.25;
+
     const isFrontOrBack = wallSide === 'front' || wallSide === 'back';
-    const wallLength = isFrontOrBack ? w : d - wallThick * 2;
+    const wallLength = isFrontOrBack ? w : d;
     const panelWidth = wallLength / panelCount;
-    const wallHeight = h - 0.25;
-    const wallY = 0.25 + wallHeight / 2;
+    const claddingThick = 0.025;
 
     for (let i = 0; i < panelCount; i++) {
       const slotId = `${wallSide}-${i}`;
       const slot = this.currentConfig.wallSlots[slotId];
       const slotType = slot?.type ?? 'empty';
 
-      // Panel center coordinates
+      // Panel center coordinates and height
       let px = 0;
       let pz = 0;
       let rotY = 0;
+      let panelWallH = h - baseElev;
 
       if (wallSide === 'front') {
         px = -w / 2 + panelWidth / 2 + i * panelWidth;
-        pz = d / 2 - wallThick / 2;
+        pz = d / 2 - claddingThick / 2;
         rotY = 0;
+        // In insida view, cut front wall to waist height (1.35m) matching Reference Image 4 & 5
+        // so interior floor, loft, stairs, and framing are completely visible without obstruction
+        panelWallH = this.currentConfig.viewMode === 'insida' ? 1.35 : (h - baseElev);
       } else if (wallSide === 'back') {
         px = w / 2 - panelWidth / 2 - i * panelWidth;
-        pz = -d / 2 + wallThick / 2;
+        pz = -d / 2 + claddingThick / 2;
         rotY = Math.PI;
+        panelWallH = rearH - baseElev;
       } else if (wallSide === 'left') {
-        px = -w / 2 + wallThick / 2;
-        pz = d / 2 - wallThick - panelWidth / 2 - i * panelWidth;
+        px = -w / 2 + claddingThick / 2;
+        pz = d / 2 - panelWidth / 2 - i * panelWidth;
         rotY = -Math.PI / 2;
+        if (this.currentConfig.viewMode === 'insida') {
+          // Slope from 1.35m at front up to rear wall height matching Reference Image 4
+          const progress = Math.max(0, Math.min(1, (d / 2 - pz) / d));
+          const topY = 1.35 + progress * (rearH - 1.35);
+          panelWallH = topY - baseElev;
+        } else {
+          // Slope height matching 8° roof angle exactly at center of panel
+          const topY = yMid + pz * Math.tan(angleRad);
+          panelWallH = topY - baseElev;
+        }
       } else {
-        px = w / 2 - wallThick / 2;
-        pz = -d / 2 + wallThick + panelWidth / 2 + i * panelWidth;
+        px = w / 2 - claddingThick / 2;
+        pz = -d / 2 + panelWidth / 2 + i * panelWidth;
         rotY = Math.PI / 2;
+        if (this.currentConfig.viewMode === 'insida') {
+          const progress = Math.max(0, Math.min(1, (d / 2 - pz) / d));
+          const topY = 1.35 + progress * (rearH - 1.35);
+          panelWallH = topY - baseElev;
+        } else {
+          const topY = yMid + pz * Math.tan(angleRad);
+          panelWallH = topY - baseElev;
+        }
       }
+
+      const wallY = baseElev + panelWallH / 2;
 
       // Panel Group
       const panelGroup = new THREE.Group();
       panelGroup.position.set(px, wallY, pz);
       panelGroup.rotation.y = rotY;
 
-      // Base wall mesh - Exterior Cladding Layer (25 mm real timber boards on outside face)
-      // The interior side remains open, exposing the timber framing beams (no inner panels yet!)
-      let activeMesh: THREE.Mesh;
-      const claddingThick = 0.025;
-      const claddingZ = wallThick / 2 - claddingThick / 2;
-
-      if (slot?.isUpper) {
-        // Upper section mesh (for window placement, matching Image 1)
-        const upperH = wallHeight * 0.46;
-        const upperGeo = new THREE.BoxGeometry(panelWidth, upperH, claddingThick);
-        const upperMesh = new THREE.Mesh(upperGeo, exteriorMat);
-        upperMesh.position.set(0, wallHeight / 2 - upperH / 2, claddingZ);
-        upperMesh.castShadow = true;
-        upperMesh.receiveShadow = true;
-        upperMesh.userData = { slotId, wall: wallSide, index: i, isUpper: true };
-        panelGroup.add(upperMesh);
-        this.interactivePanels.push(upperMesh);
-        activeMesh = upperMesh;
-
-        // Lower solid section
-        const lowerH = wallHeight - upperH;
-        const lowerGeo = new THREE.BoxGeometry(panelWidth, lowerH, claddingThick);
-        const lowerMesh = new THREE.Mesh(lowerGeo, exteriorMat);
-        lowerMesh.position.set(0, -wallHeight / 2 + lowerH / 2, claddingZ);
-        lowerMesh.castShadow = true;
-        lowerMesh.receiveShadow = true;
-        panelGroup.add(lowerMesh);
-      } else {
-        const panelGeo = new THREE.BoxGeometry(panelWidth, wallHeight, claddingThick);
-        const panelMesh = new THREE.Mesh(panelGeo, exteriorMat);
-        panelMesh.position.set(0, 0, claddingZ);
-        panelMesh.castShadow = true;
-        panelMesh.receiveShadow = true;
-        panelMesh.userData = { slotId, wall: wallSide, index: i, isUpper: false };
-        panelGroup.add(panelMesh);
-        this.interactivePanels.push(panelMesh);
-        activeMesh = panelMesh;
-      }
+      // Solid vertical timber cladding panel extending all the way up to roof underside
+      const panelGeo = new THREE.BoxGeometry(panelWidth, panelWallH, claddingThick);
+      const panelMesh = new THREE.Mesh(panelGeo, exteriorMat);
+      panelMesh.position.set(0, 0, 0);
+      panelMesh.castShadow = true;
+      panelMesh.receiveShadow = true;
+      panelMesh.userData = { slotId, wall: wallSide, index: i };
+      panelGroup.add(panelMesh);
+      this.interactivePanels.push(panelMesh);
+      const activeMesh = panelMesh;
 
       // Subtle modular joint vertical trim line between panels for clear visual segmentation
-      const jointGeo = new THREE.BoxGeometry(0.012, wallHeight + 0.02, 0.035);
+      const jointGeo = new THREE.BoxGeometry(0.012, panelWallH + 0.02, 0.035);
       const jointMat = new THREE.MeshStandardMaterial({ color: '#94a3b8', roughness: 0.8 });
       const jointMesh = new THREE.Mesh(jointGeo, jointMat);
-      jointMesh.position.set(panelWidth / 2, 0, claddingZ + 0.01);
+      jointMesh.position.set(panelWidth / 2, 0, 0.01);
       panelGroup.add(jointMesh);
 
-      // Horizontal mid-trim line (white mid-rib matching Skånska Byggvaror)
+      // Horizontal mid-trim line (white coping / mid-rib matching Skånska Byggvaror)
       const midRibGeo = new THREE.BoxGeometry(panelWidth, 0.06, 0.04);
       const midRib = new THREE.Mesh(midRibGeo, trimMat);
-      midRib.position.set(0, 0.05, claddingZ + 0.02);
+      const midRibY =
+        this.currentConfig.viewMode === 'insida' && wallSide === 'front'
+          ? panelWallH / 2
+          : (baseElev + 2.15) - wallY;
+      midRib.position.set(0, midRibY, 0.02);
       midRib.castShadow = true;
       panelGroup.add(midRib);
 
       // Decorate panel based on assigned slot item
       if (slotType === 'door') {
-        this.addDoorFeature(panelGroup, panelWidth, wallHeight, wallThick, slot?.itemId);
+        this.addDoorFeature(panelGroup, panelWidth, panelWallH, wallThick, slot?.itemId);
       } else if (slotType === 'window') {
-        this.addWindowFeature(panelGroup, panelWidth, wallHeight, wallThick, slot?.itemId);
+        this.addWindowFeature(panelGroup, panelWidth, panelWallH, wallThick, slot?.itemId);
       } else if (slotType === 'gate') {
-        this.addGateFeature(panelGroup, panelWidth, wallHeight, wallThick, slot?.itemId);
+        this.addGateFeature(panelGroup, panelWidth, panelWallH, wallThick, slot?.itemId);
       }
 
       this.wallsGroup.add(panelGroup);
@@ -675,6 +698,36 @@ export class HouseScene {
       if (slotId === this.currentConfig.selectedSlotId) {
         this.updateHighlightBox(activeMesh);
       }
+    }
+
+    // Top eave trim and fascia to ensure 100% gapless junction with roof underside
+    if (wallSide === 'left' || wallSide === 'right') {
+      if (this.currentConfig.viewMode !== 'insida') {
+        const sideSpan = d - wallThick * 2;
+        const slopeLen = Math.hypot(sideSpan, h - rearH);
+        const slopeAngle = Math.atan2(h - rearH, sideSpan);
+        const trimGeo = new THREE.BoxGeometry(0.035, 0.16, slopeLen + 0.1);
+        const eavesTrim = new THREE.Mesh(trimGeo, trimMat);
+        const trimX = wallSide === 'left' ? -w / 2 + wallThick / 2 - 0.012 : w / 2 - wallThick / 2 + 0.012;
+        eavesTrim.position.set(trimX, yMid - 0.07, 0);
+        eavesTrim.rotation.x = -slopeAngle;
+        eavesTrim.castShadow = true;
+        this.wallsGroup.add(eavesTrim);
+      }
+    } else if (wallSide === 'front') {
+      if (this.currentConfig.viewMode !== 'insida') {
+        const frontTrimGeo = new THREE.BoxGeometry(w + 0.05, 0.12, 0.03);
+        const frontTrim = new THREE.Mesh(frontTrimGeo, trimMat);
+        frontTrim.position.set(0, h - 0.06, d / 2 + 0.01);
+        frontTrim.castShadow = true;
+        this.wallsGroup.add(frontTrim);
+      }
+    } else if (wallSide === 'back') {
+      const backTrimGeo = new THREE.BoxGeometry(w + 0.05, 0.12, 0.03);
+      const backTrim = new THREE.Mesh(backTrimGeo, trimMat);
+      backTrim.position.set(0, rearH - 0.06, -d / 2 - 0.01);
+      backTrim.castShadow = true;
+      this.wallsGroup.add(backTrim);
     }
   }
 
@@ -687,71 +740,76 @@ export class HouseScene {
       ? Math.max(h - Math.tan((8 * Math.PI) / 180) * d, 2.4)
       : h;
 
+    const framingFrontZ = d / 2 - 0.025 - studDepth / 2;
+    const framingBackZ = -d / 2 + 0.025 + studDepth / 2;
+    const framingLeftX = -w / 2 + 0.025 + studDepth / 2;
+    const framingRightX = w / 2 - 0.025 - studDepth / 2;
+
     // 1. Bottom Sill Plates (Syll 45x145 mm)
     // Front sill
-    const frontSyllGeo = new THREE.BoxGeometry(w, studThick, studDepth);
+    const frontSyllGeo = new THREE.BoxGeometry(w - 0.05, studThick, studDepth);
     const frontSyll = new THREE.Mesh(frontSyllGeo, framingMat);
-    frontSyll.position.set(0, baseElevation + studThick / 2, d / 2 - studDepth / 2);
+    frontSyll.position.set(0, baseElevation + studThick / 2, framingFrontZ);
     frontSyll.castShadow = true;
     this.framingGroup.add(frontSyll);
 
     // Back sill
     const backSyll = new THREE.Mesh(frontSyllGeo, framingMat);
-    backSyll.position.set(0, baseElevation + studThick / 2, -d / 2 + studDepth / 2);
+    backSyll.position.set(0, baseElevation + studThick / 2, framingBackZ);
     backSyll.castShadow = true;
     this.framingGroup.add(backSyll);
 
     // Left sill
-    const sideSyllGeo = new THREE.BoxGeometry(studDepth, studThick, d - studDepth * 2);
+    const sideSyllGeo = new THREE.BoxGeometry(studDepth, studThick, d - 0.05 - studDepth * 2);
     const leftSyll = new THREE.Mesh(sideSyllGeo, framingMat);
-    leftSyll.position.set(-w / 2 + studDepth / 2, baseElevation + studThick / 2, 0);
+    leftSyll.position.set(framingLeftX, baseElevation + studThick / 2, 0);
     leftSyll.castShadow = true;
     this.framingGroup.add(leftSyll);
 
     // Right sill
     const rightSyll = new THREE.Mesh(sideSyllGeo, framingMat);
-    rightSyll.position.set(w / 2 - studDepth / 2, baseElevation + studThick / 2, 0);
+    rightSyll.position.set(framingRightX, baseElevation + studThick / 2, 0);
     rightSyll.castShadow = true;
     this.framingGroup.add(rightSyll);
 
     // 2. Top Header Plates (Hammarband / Toppsyll 45x145 mm)
     // Front header
-    const frontHeaderGeo = new THREE.BoxGeometry(w, studThick, studDepth);
+    const frontHeaderGeo = new THREE.BoxGeometry(w - 0.05, studThick, studDepth);
     const frontHeader = new THREE.Mesh(frontHeaderGeo, framingMat);
-    frontHeader.position.set(0, h - studThick / 2, d / 2 - studDepth / 2);
+    frontHeader.position.set(0, h - studThick / 2, framingFrontZ);
     frontHeader.castShadow = true;
     this.framingGroup.add(frontHeader);
 
     // Back header (at rear slope height)
     const backHeader = new THREE.Mesh(frontHeaderGeo, framingMat);
-    backHeader.position.set(0, rearH - studThick / 2, -d / 2 + studDepth / 2);
+    backHeader.position.set(0, rearH - studThick / 2, framingBackZ);
     backHeader.castShadow = true;
     this.framingGroup.add(backHeader);
 
     // Sloping side headers on left and right connecting front to rear
-    const slopeLen = Math.sqrt(Math.pow(d - studDepth * 2, 2) + Math.pow(h - rearH, 2));
-    const slopeAngle = Math.atan2(h - rearH, d - studDepth * 2);
+    const slopeLen = Math.sqrt(Math.pow(d - 0.05 - studDepth * 2, 2) + Math.pow(h - rearH, 2));
+    const slopeAngle = Math.atan2(h - rearH, d - 0.05 - studDepth * 2);
     const sideHeaderGeo = new THREE.BoxGeometry(studDepth, studThick, slopeLen);
 
     const leftHeader = new THREE.Mesh(sideHeaderGeo, framingMat);
-    leftHeader.position.set(-w / 2 + studDepth / 2, (h + rearH) / 2 - studThick / 2, 0);
-    leftHeader.rotation.x = slopeAngle;
+    leftHeader.position.set(framingLeftX, (h + rearH) / 2 - studThick / 2, 0);
+    leftHeader.rotation.x = -slopeAngle;
     leftHeader.castShadow = true;
     this.framingGroup.add(leftHeader);
 
     const rightHeader = new THREE.Mesh(sideHeaderGeo, framingMat);
-    rightHeader.position.set(w / 2 - studDepth / 2, (h + rearH) / 2 - studThick / 2, 0);
-    rightHeader.rotation.x = slopeAngle;
+    rightHeader.position.set(framingRightX, (h + rearH) / 2 - studThick / 2, 0);
+    rightHeader.rotation.x = -slopeAngle;
     rightHeader.castShadow = true;
     this.framingGroup.add(rightHeader);
 
     // 3. Vertical Wall Studs (Väggreglar cc 600 mm)
     // Corner Studs (dubbla hörnreglar)
     const cornerPositions = [
-      { x: -w / 2 + studDepth / 2, z: d / 2 - studDepth / 2, height: h },
-      { x: w / 2 - studDepth / 2, z: d / 2 - studDepth / 2, height: h },
-      { x: -w / 2 + studDepth / 2, z: -d / 2 + studDepth / 2, height: rearH },
-      { x: w / 2 - studDepth / 2, z: -d / 2 + studDepth / 2, height: rearH }
+      { x: framingLeftX, z: framingFrontZ, height: h },
+      { x: framingRightX, z: framingFrontZ, height: h },
+      { x: framingLeftX, z: framingBackZ, height: rearH },
+      { x: framingRightX, z: framingBackZ, height: rearH }
     ];
     cornerPositions.forEach((cp) => {
       const studH = cp.height - baseElevation - studThick * 2;
@@ -763,12 +821,12 @@ export class HouseScene {
     });
 
     // Front Wall Studs with framing around door and window openings
-    const frontStudCount = Math.floor(w / 0.6);
-    const frontSpacing = w / frontStudCount;
+    const frontStudCount = Math.floor((w - 0.1) / 0.6);
+    const frontSpacing = (w - 0.1) / frontStudCount;
     const frontStudH = h - baseElevation - studThick * 2;
 
     for (let s = 1; s < frontStudCount; s++) {
-      const sx = -w / 2 + s * frontSpacing;
+      const sx = -w / 2 + 0.05 + s * frontSpacing;
 
       // Check slot status at this position
       const panelIndex = Math.min(Math.floor(((sx + w / 2) / w) * 4), 3);
@@ -782,7 +840,7 @@ export class HouseScene {
         const crippleH = h - studThick - lintelTop;
         if (crippleH > 0.05) {
           const cripple = new THREE.Mesh(new THREE.BoxGeometry(studThick, crippleH, studDepth), framingMat);
-          cripple.position.set(sx, lintelTop + crippleH / 2, d / 2 - studDepth / 2);
+          cripple.position.set(sx, lintelTop + crippleH / 2, framingFrontZ);
           cripple.castShadow = true;
           this.framingGroup.add(cripple);
         }
@@ -798,7 +856,7 @@ export class HouseScene {
         const bottomCrippleH = sillY - (baseElevation + studThick);
         if (bottomCrippleH > 0.05) {
           const bCripple = new THREE.Mesh(new THREE.BoxGeometry(studThick, bottomCrippleH, studDepth), framingMat);
-          bCripple.position.set(sx, baseElevation + studThick + bottomCrippleH / 2, d / 2 - studDepth / 2);
+          bCripple.position.set(sx, baseElevation + studThick + bottomCrippleH / 2, framingFrontZ);
           bCripple.castShadow = true;
           this.framingGroup.add(bCripple);
         }
@@ -807,7 +865,7 @@ export class HouseScene {
         const topCrippleH = h - studThick - lintelY;
         if (topCrippleH > 0.05) {
           const tCripple = new THREE.Mesh(new THREE.BoxGeometry(studThick, topCrippleH, studDepth), framingMat);
-          tCripple.position.set(sx, lintelY + topCrippleH / 2, d / 2 - studDepth / 2);
+          tCripple.position.set(sx, lintelY + topCrippleH / 2, framingFrontZ);
           tCripple.castShadow = true;
           this.framingGroup.add(tCripple);
         }
@@ -816,7 +874,7 @@ export class HouseScene {
 
       // Standard vertical wall stud
       const studMesh = new THREE.Mesh(new THREE.BoxGeometry(studThick, frontStudH, studDepth), framingMat);
-      studMesh.position.set(sx, baseElevation + studThick + frontStudH / 2, d / 2 - studDepth / 2);
+      studMesh.position.set(sx, baseElevation + studThick + frontStudH / 2, framingFrontZ);
       studMesh.castShadow = true;
       this.framingGroup.add(studMesh);
     }
@@ -832,7 +890,7 @@ export class HouseScene {
         // Trimmer studs (smygreglar) left and right of door
         [-doorW / 2 - studThick / 2, doorW / 2 + studThick / 2].forEach((tx) => {
           const trimmer = new THREE.Mesh(new THREE.BoxGeometry(studThick, doorH, studDepth), framingMat);
-          trimmer.position.set(pc + tx, baseElevation + studThick + doorH / 2, d / 2 - studDepth / 2);
+          trimmer.position.set(pc + tx, baseElevation + studThick + doorH / 2, framingFrontZ);
           trimmer.castShadow = true;
           this.framingGroup.add(trimmer);
         });
@@ -840,7 +898,7 @@ export class HouseScene {
         // Horizontal Lintel Beam (Bärande avväxlingsbalk 45x145 mm)
         const lintelGeo = new THREE.BoxGeometry(doorW + studThick * 2, studThick * 2, studDepth);
         const lintel = new THREE.Mesh(lintelGeo, framingMat);
-        lintel.position.set(pc, baseElevation + studThick + doorH + studThick, d / 2 - studDepth / 2);
+        lintel.position.set(pc, baseElevation + studThick + doorH + studThick, framingFrontZ);
         lintel.castShadow = true;
         this.framingGroup.add(lintel);
       } else if (slot?.type === 'window') {
@@ -852,7 +910,7 @@ export class HouseScene {
         // Trimmer studs left and right of window
         [-winW / 2 - studThick / 2, winW / 2 + studThick / 2].forEach((tx) => {
           const trimmer = new THREE.Mesh(new THREE.BoxGeometry(studThick, winH, studDepth), framingMat);
-          trimmer.position.set(pc + tx, sillY + winH / 2, d / 2 - studDepth / 2);
+          trimmer.position.set(pc + tx, sillY + winH / 2, framingFrontZ);
           trimmer.castShadow = true;
           this.framingGroup.add(trimmer);
         });
@@ -860,14 +918,14 @@ export class HouseScene {
         // Sill beam (fönsterbänk / underregel)
         const sillGeo = new THREE.BoxGeometry(winW + studThick * 2, studThick, studDepth);
         const sill = new THREE.Mesh(sillGeo, framingMat);
-        sill.position.set(pc, sillY - studThick / 2, d / 2 - studDepth / 2);
+        sill.position.set(pc, sillY - studThick / 2, framingFrontZ);
         sill.castShadow = true;
         this.framingGroup.add(sill);
 
         // Lintel beam (avväxlingsbalk)
         const lintelGeo = new THREE.BoxGeometry(winW + studThick * 2, studThick * 2, studDepth);
         const lintel = new THREE.Mesh(lintelGeo, framingMat);
-        lintel.position.set(pc, lintelY + studThick, d / 2 - studDepth / 2);
+        lintel.position.set(pc, lintelY + studThick, framingFrontZ);
         lintel.castShadow = true;
         this.framingGroup.add(lintel);
       }
@@ -876,32 +934,32 @@ export class HouseScene {
     // Rear Wall Studs cc 600 mm
     const rearStudH = rearH - baseElevation - studThick * 2;
     for (let s = 1; s < frontStudCount; s++) {
-      const sx = -w / 2 + s * frontSpacing;
+      const sx = -w / 2 + 0.05 + s * frontSpacing;
       const studMesh = new THREE.Mesh(new THREE.BoxGeometry(studThick, rearStudH, studDepth), framingMat);
-      studMesh.position.set(sx, baseElevation + studThick + rearStudH / 2, -d / 2 + studDepth / 2);
+      studMesh.position.set(sx, baseElevation + studThick + rearStudH / 2, framingBackZ);
       studMesh.castShadow = true;
       this.framingGroup.add(studMesh);
     }
 
     // Left and Right Wall Studs (interpolating height along roof slope)
-    const sideStudCount = Math.floor((d - studDepth * 2) / 0.6);
-    const sideSpacing = (d - studDepth * 2) / sideStudCount;
+    const sideStudCount = Math.floor((d - 0.05 - studDepth * 2) / 0.6);
+    const sideSpacing = (d - 0.05 - studDepth * 2) / sideStudCount;
 
     for (let s = 1; s < sideStudCount; s++) {
-      const sz = d / 2 - studDepth - s * sideSpacing;
+      const sz = d / 2 - 0.025 - studDepth - s * sideSpacing;
       const progress = (d / 2 - sz) / d; // 0 at front, 1 at back
       const curH = h - progress * (h - rearH);
       const curStudH = curH - baseElevation - studThick * 2;
 
       // Left stud
       const leftStud = new THREE.Mesh(new THREE.BoxGeometry(studDepth, curStudH, studThick), framingMat);
-      leftStud.position.set(-w / 2 + studDepth / 2, baseElevation + studThick + curStudH / 2, sz);
+      leftStud.position.set(framingLeftX, baseElevation + studThick + curStudH / 2, sz);
       leftStud.castShadow = true;
       this.framingGroup.add(leftStud);
 
       // Right stud
       const rightStud = new THREE.Mesh(new THREE.BoxGeometry(studDepth, curStudH, studThick), framingMat);
-      rightStud.position.set(w / 2 - studDepth / 2, baseElevation + studThick + curStudH / 2, sz);
+      rightStud.position.set(framingRightX, baseElevation + studThick + curStudH / 2, sz);
       rightStud.castShadow = true;
       this.framingGroup.add(rightStud);
     }
@@ -1023,6 +1081,11 @@ export class HouseScene {
       metalness: 0.25
     });
 
+    const whiteTrimMat = new THREE.MeshStandardMaterial({
+      color: '#ffffff',
+      roughness: 0.4
+    });
+
     if (roofType === 'sadeltak') {
       const ridgeHeight = 1.25;
       const roofLen = d + overhang * 2;
@@ -1048,14 +1111,69 @@ export class HouseScene {
       flatMesh.castShadow = true;
       this.roofGroup.add(flatMesh);
     } else {
-      // Pulpettak 8° (matching Skånska Byggvaror configurator)
+      // Pulpettak 8° (matching Skånska Byggvaror reference layout)
       const angleRad = (8 * Math.PI) / 180;
-      const roofGeo = new THREE.BoxGeometry(w + overhang * 2, 0.18, d + overhang * 2);
+      const rearH = Math.max(h - Math.tan(angleRad) * d, 2.4);
+      const yMid = (h + rearH) / 2;
+      const roofThick = 0.18;
+      const slopeLen = (d + overhang * 2) / Math.cos(angleRad);
+
+      // Main roof slab - underside rests flush on the wall top plates (zero gap)
+      const roofGeo = new THREE.BoxGeometry(w + overhang * 2, roofThick, slopeLen);
       const roofMesh = new THREE.Mesh(roofGeo, roofMat);
-      roofMesh.position.set(0, h + 0.22, 0);
-      roofMesh.rotation.x = angleRad;
+      const roofCenterY = yMid + (roofThick / 2) / Math.cos(angleRad);
+      roofMesh.position.set(0, roofCenterY, 0);
+      roofMesh.rotation.x = -angleRad;
       roofMesh.castShadow = true;
       this.roofGroup.add(roofMesh);
+
+      // White Bargeboards (Vindskivor) along left and right sloping edges (matching Image 1 & 2)
+      const bargeGeo = new THREE.BoxGeometry(0.04, 0.22, slopeLen);
+
+      const leftBarge = new THREE.Mesh(bargeGeo, whiteTrimMat);
+      leftBarge.position.set(-w / 2 - overhang + 0.02, roofCenterY + 0.02, 0);
+      leftBarge.rotation.x = -angleRad;
+      leftBarge.castShadow = true;
+      this.roofGroup.add(leftBarge);
+
+      const rightBarge = new THREE.Mesh(bargeGeo, whiteTrimMat);
+      rightBarge.position.set(w / 2 + overhang - 0.02, roofCenterY + 0.02, 0);
+      rightBarge.rotation.x = -angleRad;
+      rightBarge.castShadow = true;
+      this.roofGroup.add(rightBarge);
+
+      // Front eave fascia board (Takfotsbräda) matching Image 3
+      const frontFasciaGeo = new THREE.BoxGeometry(w + overhang * 2 + 0.04, 0.22, 0.04);
+      const frontFascia = new THREE.Mesh(frontFasciaGeo, whiteTrimMat);
+      const frontZ = (d / 2) + overhang;
+      const frontFasciaY = yMid + frontZ * Math.tan(angleRad) + 0.02;
+      frontFascia.position.set(0, frontFasciaY, frontZ - 0.02);
+      frontFascia.rotation.x = -angleRad;
+      frontFascia.castShadow = true;
+      this.roofGroup.add(frontFascia);
+
+      // Rear eave fascia board
+      const rearZ = -(d / 2) - overhang;
+      const rearFasciaY = yMid + rearZ * Math.tan(angleRad) + 0.02;
+      const rearFascia = new THREE.Mesh(frontFasciaGeo, whiteTrimMat);
+      rearFascia.position.set(0, rearFasciaY, rearZ + 0.02);
+      rearFascia.rotation.x = -angleRad;
+      rearFascia.castShadow = true;
+      this.roofGroup.add(rearFascia);
+
+      // Exposed structural rafter brackets (sparrtassar) under front eave overhang (matching Image 3)
+      const tailCount = 4;
+      const tailSpacing = (w - 0.6) / (tailCount - 1);
+      const tailGeo = new THREE.BoxGeometry(0.045, 0.145, overhang);
+      const tailMat = new THREE.MeshStandardMaterial({ color: '#dfcaa6', roughness: 0.6 });
+      for (let t = 0; t < tailCount; t++) {
+        const tx = -w / 2 + 0.3 + t * tailSpacing;
+        const tail = new THREE.Mesh(tailGeo, tailMat);
+        tail.position.set(tx, h - 0.06, d / 2 + overhang / 2 - 0.02);
+        tail.rotation.x = -angleRad;
+        tail.castShadow = true;
+        this.roofGroup.add(tail);
+      }
     }
   }
 
@@ -1067,11 +1185,9 @@ export class HouseScene {
     });
 
     const isPulpettak = this.currentConfig.roofType === 'pulpettak';
-    const rearH = isPulpettak
-      ? Math.max(h - Math.tan((8 * Math.PI) / 180) * d, 2.4)
-      : h;
+    const angleRad = (8 * Math.PI) / 180;
+    const rearH = isPulpettak ? Math.max(h - Math.tan(angleRad) * d, 2.4) : h;
 
-    // Rafter dimensions: 45 x 195 mm structural Scandinavian timber
     const rafterW = 0.045;
     const rafterH = 0.195;
     const count = Math.floor(w / 0.6) + 1; // cc 600 mm
@@ -1085,27 +1201,24 @@ export class HouseScene {
       for (let i = 0; i < count; i++) {
         const rx = -w / 2 + i * spacing;
         const rafter = new THREE.Mesh(rafterGeo, rafterMat);
-        rafter.position.set(rx, (h + rearH) / 2 + 0.08, 0);
-        rafter.rotation.x = slopeAngle;
+        rafter.position.set(rx, (h + rearH) / 2 - rafterH / 2, 0);
+        rafter.rotation.x = -slopeAngle;
         rafter.castShadow = true;
         this.framingGroup.add(rafter);
       }
     } else {
-      // Gable roof (sadeltak) rafters meeting at ridge
       const slopeLen = Math.sqrt(Math.pow(d / 2, 2) + Math.pow(0.9, 2)) + 0.25;
       const slopeAngle = Math.atan2(0.9, d / 2);
       const rafterGeo = new THREE.BoxGeometry(rafterW, rafterH, slopeLen);
 
       for (let i = 0; i < count; i++) {
         const rx = -w / 2 + i * spacing;
-        // Front slope rafter
         const frontRafter = new THREE.Mesh(rafterGeo, rafterMat);
         frontRafter.position.set(rx, h + 0.45, d / 4);
         frontRafter.rotation.x = slopeAngle;
         frontRafter.castShadow = true;
         this.framingGroup.add(frontRafter);
 
-        // Rear slope rafter
         const rearRafter = new THREE.Mesh(rafterGeo, rafterMat);
         rearRafter.position.set(rx, h + 0.45, -d / 4);
         rearRafter.rotation.x = -slopeAngle;
@@ -1115,34 +1228,289 @@ export class HouseScene {
     }
   }
 
+  // --- Prefabricerad Fackverkstakstol C/C 1200 mm (Takstol med transparent visning i Insida-vy) ---
+  private buildTrusses(w: number, d: number, h: number, wt: number) {
+    // Prefabricerad fackverkstakstol C/C 1200 mm
+    // Virke: 45 x 145 mm C24 konstruktionsvirke
+    // Renderas semi-transparent så att inredning, loft och väggar inte döljs i Insida-läget
+    const trussMat = new THREE.MeshStandardMaterial({
+      color: '#ffffff',
+      transparent: true,
+      opacity: 0.28,
+      roughness: 0.35,
+      depthWrite: false,
+      side: THREE.DoubleSide
+    });
+
+    const timberThick = 0.045; // 45 mm virkestjocklek
+    const timberWidth = 0.145; // 145 mm virkesbredd
+
+    const isPulpettak = this.currentConfig.roofType === 'pulpettak';
+    const angleRad = (8 * Math.PI) / 180;
+    const rearH = isPulpettak ? Math.max(h - Math.tan(angleRad) * d, 2.4) : h;
+
+    // C/C 1200 mm Swedish standard spacing across house width
+    const spanW = w - wt * 2;
+    const trussCount = Math.max(3, Math.floor(spanW / 1.2) + 1);
+    const spacing = spanW / (trussCount - 1);
+
+    const spanD = d - wt * 2;
+    const slopeLen = Math.sqrt(Math.pow(spanD, 2) + Math.pow(h - rearH, 2));
+    const slopeAngle = Math.atan2(h - rearH, spanD);
+
+    for (let i = 0; i < trussCount; i++) {
+      const tx = -w / 2 + wt + i * spacing;
+      const trussGroup = new THREE.Group();
+      trussGroup.position.set(tx, 0, 0);
+
+      // 1. Överram (Top chord): follows 8° roof slope from front to rear
+      const topChordGeo = new THREE.BoxGeometry(timberThick, timberWidth, slopeLen);
+      const topChord = new THREE.Mesh(topChordGeo, trussMat);
+      topChord.position.set(0, (h + rearH) / 2 - timberWidth / 2, 0);
+      topChord.rotation.x = -slopeAngle;
+      trussGroup.add(topChord);
+
+      // 2. Underram (Bottom tie chord): horizontal tie beam at ceiling height
+      const bottomChordGeo = new THREE.BoxGeometry(timberThick, timberWidth, spanD);
+      const bottomChord = new THREE.Mesh(bottomChordGeo, trussMat);
+      bottomChord.position.set(0, rearH - timberWidth / 2, 0);
+      trussGroup.add(bottomChord);
+
+      // 3. Lodrät stolpe vid framvägg (Front vertical king strut)
+      const frontPostH = h - rearH;
+      if (frontPostH > 0.1) {
+        const frontPostGeo = new THREE.BoxGeometry(timberThick, frontPostH, timberWidth);
+        const frontPost = new THREE.Mesh(frontPostGeo, trussMat);
+        frontPost.position.set(0, rearH + frontPostH / 2 - timberWidth / 2, spanD / 2 - timberWidth / 2);
+        trussGroup.add(frontPost);
+      }
+
+      // 4. Fackverksstag (Diagonal web members - triangulation)
+      const midY = (h + rearH) / 2 - timberWidth / 2;
+      const diagLen = Math.hypot(spanD / 2, midY - rearH);
+      const diagAngle = Math.atan2(midY - rearH, spanD / 2);
+      const diagGeo = new THREE.BoxGeometry(timberThick, timberWidth * 0.75, diagLen);
+
+      const diag1 = new THREE.Mesh(diagGeo, trussMat);
+      diag1.position.set(0, (rearH + midY) / 2, -spanD / 4);
+      diag1.rotation.x = -diagAngle;
+      trussGroup.add(diag1);
+
+      const diag2 = new THREE.Mesh(diagGeo, trussMat);
+      diag2.position.set(0, (rearH + midY) / 2, spanD / 4);
+      diag2.rotation.x = diagAngle;
+      trussGroup.add(diag2);
+
+      this.trussesGroup.add(trussGroup);
+    }
+  }
+
+  // --- Loft Construction with Left/Right Placement, Area Sizes and 3D Stair ---
   private buildLoft(w: number, d: number, h: number, wt: number) {
-    const loftW = w * 0.45;
-    const loftD = d - wt * 2 - 0.1;
-    const loftH = 0.12;
-    const loftElev = h * 0.58;
+    const loftArea = this.currentConfig.loftAreaSqMeters ?? 10.95;
+    const placement = this.currentConfig.loftPlacement ?? 'vanster';
+    const isTwoLofts = this.currentConfig.loftCount === 'tva';
 
-    const pineMat = new THREE.MeshStandardMaterial({ color: '#d9bf98', roughness: 0.5 });
+    // Total house footprint reference for size-30 is 27.38 m2
+    const houseAreaRef = this.currentConfig.widthMm === 4800 ? 13.7
+      : this.currentConfig.widthMm === 5800 ? 22.8
+      : this.currentConfig.widthMm === 8000 ? 36.5
+      : 27.38;
 
-    // Loft floor slab
-    const floorMesh = new THREE.Mesh(new THREE.BoxGeometry(loftW, loftH, loftD), pineMat);
-    floorMesh.position.set(-w / 2 + wt + loftW / 2, loftElev, 0);
-    floorMesh.receiveShadow = true;
-    floorMesh.castShadow = true;
-    this.loftGroup.add(floorMesh);
+    const areaFraction = Math.min(1.0, Math.max(0.25, loftArea / houseAreaRef));
+    const interiorW = w - wt * 2;
+    const interiorD = d - wt * 2;
 
-    // Safety Rail
-    const railX = -w / 2 + wt + loftW;
-    const postCount = 4;
-    for (let i = 0; i < postCount; i++) {
-      const pz = -loftD / 2 + (loftD / (postCount - 1)) * i;
-      const post = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.7, 0.04), pineMat);
-      post.position.set(railX, loftElev + 0.35, pz);
-      this.loftGroup.add(post);
+    const loftD = interiorD;
+    const loftElev = 1.95; // 1950 mm clearance below loft
+    const joistH = 0.195; // 195 mm floor joists (45x195 mm bjälklag)
+    const joistW = 0.045; // 45 mm joist thickness
+    const floorboardThick = 0.028; // 28 mm massive granplank
+
+    const timberMat = new THREE.MeshStandardMaterial({
+      color: '#dfcaa6',
+      roughness: 0.6,
+      metalness: 0.02
+    });
+
+    const floorMat = new THREE.MeshStandardMaterial({
+      color: '#e7d8c0',
+      roughness: 0.45,
+      metalness: 0.02
+    });
+
+    const buildSingleLoftSection = (sectionW: number, startX: number, isLeftSection: boolean) => {
+      const sectionGroup = new THREE.Group();
+
+      // 1. Floor Joists (Loftbjälklag 45x195 mm cc 600 mm) - visible from below matching Image 4
+      const joistCount = Math.max(3, Math.floor(sectionW / 0.6) + 1);
+      const joistSpacing = sectionW / (joistCount - 1);
+      const joistGeo = new THREE.BoxGeometry(joistW, joistH, loftD);
+
+      for (let j = 0; j < joistCount; j++) {
+        const jx = startX + j * joistSpacing;
+        const joistMesh = new THREE.Mesh(joistGeo, timberMat);
+        joistMesh.position.set(jx, loftElev - joistH / 2, 0);
+        joistMesh.castShadow = true;
+        sectionGroup.add(joistMesh);
+      }
+
+      // Outer Edge Carrier Beam (Bärlina / Kantbjälke 45x195 mm) along the open room edge
+      const edgeX = isLeftSection ? startX + sectionW : startX;
+      const rimBeamGeo = new THREE.BoxGeometry(joistW * 1.5, joistH, loftD);
+      const rimBeam = new THREE.Mesh(rimBeamGeo, timberMat);
+      rimBeam.position.set(edgeX, loftElev - joistH / 2, 0);
+      rimBeam.castShadow = true;
+      sectionGroup.add(rimBeam);
+
+      // 2. Top Floorboard Surface (Granplank 28x120 mm) matching Image 5
+      const floorGeo = new THREE.BoxGeometry(sectionW, floorboardThick, loftD);
+      const floorMesh = new THREE.Mesh(floorGeo, floorMat);
+      floorMesh.position.set(startX + sectionW / 2, loftElev + floorboardThick / 2, 0);
+      floorMesh.receiveShadow = true;
+      floorMesh.castShadow = true;
+      sectionGroup.add(floorMesh);
+
+      // 3. Safety Railing (Skyddsräcke 850 mm) along the open inner edge
+      if (sectionW < interiorW * 0.95) {
+        const railH = 0.85;
+        const stairGap = this.currentConfig.hasLoftStair ? 0.7 : 0;
+        const railLength = loftD - stairGap;
+
+        // Top Handrail
+        const handrail = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.04, railLength), timberMat);
+        handrail.position.set(edgeX, loftElev + railH, -stairGap / 2);
+        sectionGroup.add(handrail);
+
+        // Balusters (Spjälor cc 120 mm)
+        const balusterCount = Math.floor(railLength / 0.12);
+        for (let b = 0; b <= balusterCount; b++) {
+          const bz = -loftD / 2 + (railLength / balusterCount) * b;
+          const baluster = new THREE.Mesh(new THREE.BoxGeometry(0.025, railH, 0.025), timberMat);
+          baluster.position.set(edgeX, loftElev + railH / 2, bz);
+          sectionGroup.add(baluster);
+        }
+      }
+
+      this.loftGroup.add(sectionGroup);
+    };
+
+    if (isTwoLofts) {
+      // Two lofts: one left, one right, open center
+      const eachW = Math.min((interiorW * 0.42), (interiorW * areaFraction) / 2);
+      buildSingleLoftSection(eachW, -w / 2 + wt, true);
+      buildSingleLoftSection(eachW, w / 2 - wt - eachW, false);
+    } else {
+      // Single loft: Left or Right placement
+      const loftW = interiorW * areaFraction;
+      if (placement === 'vanster') {
+        buildSingleLoftSection(loftW, -w / 2 + wt, true);
+      } else {
+        buildSingleLoftSection(loftW, w / 2 - wt - loftW, false);
+      }
     }
 
-    const handrail = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.04, loftD), pineMat);
-    handrail.position.set(railX, loftElev + 0.7, 0);
-    this.loftGroup.add(handrail);
+    // 4. Loft Stair (Lofttrappa i massiv furu) in 3D
+    if (this.currentConfig.hasLoftStair) {
+      this.buildLoftStair(w, d, h, wt, loftElev, placement, isTwoLofts, areaFraction);
+    }
+  }
+
+  // --- Solid Pine Loft Staircase / Ladder in 3D ---
+  private buildLoftStair(
+    w: number,
+    d: number,
+    _h: number,
+    wt: number,
+    loftElev: number,
+    placement: LoftPlacement,
+    isTwoLofts: boolean,
+    areaFraction: number
+  ) {
+    const pineMat = new THREE.MeshStandardMaterial({
+      color: '#dfcaa6',
+      roughness: 0.55,
+      metalness: 0.02
+    });
+
+    const stairGroup = new THREE.Group();
+
+    // Stair dimensions
+    const stairW = 0.55; // 550 mm width
+    const floorY = 0.275; // ground floor elevation
+    const deltaY = loftElev - floorY;
+    const runZ = 1.05; // horizontal floor projection (~60° angle)
+
+    const stringerThick = 0.04;
+    const stringerWidth = 0.16;
+    const stringerLen = Math.hypot(deltaY, runZ);
+    const stairAngle = Math.atan2(deltaY, runZ);
+
+    // Position stair at the open edge of the loft
+    const interiorW = w - wt * 2;
+    let stairX = 0;
+
+    if (isTwoLofts || placement === 'vanster') {
+      const loftW = interiorW * (isTwoLofts ? 0.42 : areaFraction);
+      stairX = -w / 2 + wt + loftW - stairW / 2;
+    } else {
+      const loftW = interiorW * areaFraction;
+      stairX = w / 2 - wt - loftW + stairW / 2;
+    }
+
+    // Ground landing at front section of the loft edge
+    const zStart = d / 2 - wt - runZ - 0.2;
+    const zEnd = zStart + runZ;
+
+    // 1. Left Stringer (Vangstycke)
+    const stringerGeo = new THREE.BoxGeometry(stringerThick, stringerWidth, stringerLen);
+    const leftStringer = new THREE.Mesh(stringerGeo, pineMat);
+    leftStringer.position.set(-stairW / 2, floorY + deltaY / 2, (zStart + zEnd) / 2);
+    leftStringer.rotation.x = -stairAngle;
+    leftStringer.castShadow = true;
+    stairGroup.add(leftStringer);
+
+    // 2. Right Stringer
+    const rightStringer = new THREE.Mesh(stringerGeo, pineMat);
+    rightStringer.position.set(stairW / 2, floorY + deltaY / 2, (zStart + zEnd) / 2);
+    rightStringer.rotation.x = -stairAngle;
+    rightStringer.castShadow = true;
+    stairGroup.add(rightStringer);
+
+    // 3. Treads (Trappsteg 28x140 mm)
+    const stepCount = 8;
+    const treadGeo = new THREE.BoxGeometry(stairW - stringerThick * 2, 0.028, 0.14);
+
+    for (let s = 1; s <= stepCount; s++) {
+      const fraction = s / (stepCount + 1);
+      const sy = floorY + deltaY * fraction;
+      const sz = zStart + runZ * fraction;
+
+      const tread = new THREE.Mesh(treadGeo, pineMat);
+      tread.position.set(0, sy, sz);
+      tread.castShadow = true;
+      stairGroup.add(tread);
+    }
+
+    // 4. Safety Handrail on the outer side
+    const handrailGeo = new THREE.BoxGeometry(0.04, 0.04, stringerLen);
+    const handrail = new THREE.Mesh(handrailGeo, pineMat);
+    handrail.position.set(stairW / 2 + 0.03, floorY + deltaY / 2 + 0.45, (zStart + zEnd) / 2);
+    handrail.rotation.x = -stairAngle;
+    stairGroup.add(handrail);
+
+    // Handrail support posts
+    const postGeo = new THREE.BoxGeometry(0.03, 0.45, 0.03);
+    const bottomPost = new THREE.Mesh(postGeo, pineMat);
+    bottomPost.position.set(stairW / 2 + 0.03, floorY + 0.225, zStart + 0.1);
+    stairGroup.add(bottomPost);
+
+    const topPost = new THREE.Mesh(postGeo, pineMat);
+    topPost.position.set(stairW / 2 + 0.03, loftElev + 0.225, zEnd - 0.1);
+    stairGroup.add(topPost);
+
+    stairGroup.position.set(stairX, 0, 0);
+    this.loftGroup.add(stairGroup);
   }
 
   // --- Dimension Lines with 3D/Screen Coordinate Projection ---
@@ -1359,10 +1727,12 @@ export class HouseScene {
   private applyViewMode() {
     if (this.currentConfig.viewMode === 'insida') {
       this.roofGroup.visible = false;
-      this.camera.position.set(2.5, 7.2, 5.8);
-      this.controls.target.set(0, 1.0, 0);
+      this.trussesGroup.visible = true;
+      this.camera.position.set(0.5, 8.5, 7.8);
+      this.controls.target.set(0, 1.2, 0);
     } else {
       this.roofGroup.visible = true;
+      this.trussesGroup.visible = false;
       this.camera.position.set(11, 7.5, 14);
       this.controls.target.set(0, 1.5, 0);
     }

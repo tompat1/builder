@@ -19,6 +19,10 @@ onMounted(() => {
       heightMm: store.dimensions.height,
       roofType: store.activeRoof as 'pulpettak' | 'sadeltak' | 'flackt',
       hasLoft: store.hasLoft,
+      loftCount: store.loftCount,
+      loftPlacement: store.loftPlacement,
+      loftAreaSqMeters: store.selectedLoftSize,
+      hasLoftStair: store.hasLoftStair,
       viewMode: store.viewMode,
       material: store.activeMaterial,
       showDimensions: store.showDimensions,
@@ -93,11 +97,23 @@ watch(
   }
 );
 
-// Watch loft toggle
+// Watch loft toggle and settings
 watch(
-  () => store.hasLoft,
-  (loft) => {
-    engine?.updateConfig({ hasLoft: loft });
+  [
+    () => store.hasLoft,
+    () => store.loftPlacement,
+    () => store.selectedLoftSize,
+    () => store.hasLoftStair,
+    () => store.loftCount
+  ],
+  ([loft, placement, size, stair, count]) => {
+    engine?.updateConfig({
+      hasLoft: loft,
+      loftPlacement: placement,
+      loftAreaSqMeters: size,
+      hasLoftStair: stair,
+      loftCount: count
+    });
   }
 );
 
