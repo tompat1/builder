@@ -1,9 +1,9 @@
 <template>
   <div v-if="store.showDimensions" class="pointer-events-none absolute inset-0 z-10 select-none overflow-hidden" aria-hidden="true">
-    <!-- Front Width Annotation (6040 mm / 29.9 m²) -->
     <div
       id="dim-front-annotation"
-      class="absolute left-1/2 -translate-x-1/2 top-[38%] md:top-auto md:bottom-28 bg-white/90 backdrop-blur-xs px-3 py-1 rounded-md border border-slate-300/80 shadow-2xs text-center transition-all"
+      class="absolute -translate-x-1/2 -translate-y-1/2 bg-white/90 backdrop-blur-xs px-3 py-1 rounded-md border border-slate-300/80 shadow-2xs text-center"
+      :style="labelStyle('width')"
     >
       <span id="dim-width" class="block text-xs md:text-sm font-bold text-slate-900 tracking-tight leading-none">
         {{ store.dimensions.width }} mm
@@ -13,12 +13,11 @@
       </span>
     </div>
 
-    <!-- Roof Pitch Angle Indicator (e.g., 8° as shown in images) -->
     <div
       id="dim-roof-angle"
-      class="absolute left-[36%] md:left-[42%] top-[18%] md:top-[16%] -translate-y-1/2 bg-white/95 backdrop-blur-xs px-2.5 py-1 rounded-md border border-slate-300/80 shadow-xs flex items-center gap-1.5 transition-all"
+      class="absolute -translate-x-1/2 -translate-y-1/2 bg-white/95 backdrop-blur-xs px-2.5 py-1 rounded-md border border-slate-300/80 shadow-xs flex items-center gap-1.5"
+      :style="labelStyle('pitch')"
     >
-      <!-- Sloping angle schematic icon -->
       <svg class="w-4 h-3 text-slate-700" viewBox="0 0 24 12" fill="none" stroke="currentColor" stroke-width="2">
         <line x1="2" y1="11" x2="22" y2="11" />
         <line x1="2" y1="11" x2="22" y2="3" />
@@ -30,10 +29,10 @@
       <span class="text-[10px] text-slate-500 font-semibold hidden md:inline">{{ t('dims.pitch') }}</span>
     </div>
 
-    <!-- Left Front Height Annotation (matching Image 3) -->
     <div
       id="dim-left-height"
-      class="hidden sm:block absolute left-[18%] md:left-[22%] top-1/2 -translate-y-1/2 bg-white/90 backdrop-blur-xs px-2 py-1 rounded-md border border-slate-300/80 shadow-2xs text-center"
+      class="absolute -translate-x-1/2 -translate-y-1/2 bg-white/90 backdrop-blur-xs px-2 py-1 rounded-md border border-slate-300/80 shadow-2xs text-center"
+      :style="labelStyle('frontHeight')"
     >
       <span class="block text-xs font-bold text-slate-900 leading-none">
         {{ store.dimensions.height }} mm
@@ -41,10 +40,10 @@
       <span class="block text-[9px] text-slate-500 font-medium">{{ t('dims.frontWall') }}</span>
     </div>
 
-    <!-- Right Height Annotation (3503 mm or rear 2744 mm for Pulpettak) -->
     <div
       id="dim-height-annotation"
-      class="hidden sm:block absolute right-[28%] md:right-[32%] top-1/2 -translate-y-1/2 bg-white/90 backdrop-blur-xs px-2 py-1 rounded-md border border-slate-300/80 shadow-2xs text-center"
+      class="absolute -translate-x-1/2 -translate-y-1/2 bg-white/90 backdrop-blur-xs px-2 py-1 rounded-md border border-slate-300/80 shadow-2xs text-center"
+      :style="labelStyle('rearHeight')"
     >
       <span id="dim-height" class="block text-xs font-bold text-slate-900 leading-none">
         {{ store.activeRoof === 'pulpettak' ? store.rearHeight : store.dimensions.height }} mm
@@ -54,11 +53,11 @@
       </span>
     </div>
 
-    <!-- Inside Room Ceiling Height Annotation -->
     <div
       v-if="store.viewMode === 'insida'"
       id="dim-inside-height"
-      class="absolute left-[36%] top-[38%] bg-white/95 backdrop-blur-xs px-2.5 py-1 rounded-md border border-slate-300 shadow-2xs text-center"
+      class="absolute -translate-x-1/2 -translate-y-1/2 bg-white/95 backdrop-blur-xs px-2.5 py-1 rounded-md border border-slate-300 shadow-2xs text-center"
+      :style="labelStyle('ceiling')"
     >
       <span class="block text-xs font-bold text-slate-900 leading-none">
         {{ store.innerCeilingHeight }} mm
@@ -74,4 +73,16 @@ import { useLabels } from '../i18n';
 
 const store = useConfigStore();
 const { t } = useLabels();
+
+function labelStyle(id: string) {
+  const label = store.dimensionLabels[id];
+  if (!label?.visible) {
+    return { left: '0px', top: '0px', visibility: 'hidden' as const };
+  }
+  return {
+    left: `${label.x}px`,
+    top: `${label.y}px`,
+    visibility: 'visible' as const
+  };
+}
 </script>

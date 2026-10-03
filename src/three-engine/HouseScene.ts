@@ -39,6 +39,7 @@ export class HouseScene {
 
   private interactivePanels: THREE.Mesh[] = [];
   private raycaster = new THREE.Raycaster();
+  private labelRaycaster = new THREE.Raycaster();
   private mouse = new THREE.Vector2();
 
   private animFrameId: number | null = null;
@@ -48,6 +49,8 @@ export class HouseScene {
   public onPanelClick?: (slotId: string, screenX: number, screenY: number) => void;
   public onPanelHover?: (slotId: string | null, screenX: number, screenY: number) => void;
   public onSlotScreenPositionUpdate?: (pos: { x: number; y: number; visible: boolean; slotId: string }) => void;
+  public onDimensionLabels?: (labels: Record<string, { x: number; y: number; visible: boolean }>) => void;
+  private dimensionAnchors = new Map<string, THREE.Vector3>();
 
   constructor(container: HTMLElement, initialConfig?: Partial<SceneConfig>) {
     this.container = container;
@@ -380,7 +383,8 @@ export class HouseScene {
     sunLight.shadow.camera.right = 16;
     sunLight.shadow.camera.top = 16;
     sunLight.shadow.camera.bottom = -16;
-    sunLight.shadow.bias = -0.0003;
+    sunLight.shadow.bias = -0.0006;
+    sunLight.shadow.normalBias = 0.04;
     this.scene.add(sunLight);
 
     const skyFill = new THREE.DirectionalLight(0xe0f2fe, 0.4);
@@ -1254,7 +1258,10 @@ export class HouseScene {
     const roofMat = new THREE.MeshStandardMaterial({
       color: '#1e293b',
       roughness: 0.35,
-      metalness: 0.25
+      metalness: 0.25,
+      polygonOffset: true,
+      polygonOffsetFactor: 1,
+      polygonOffsetUnits: 1
     });
 
     const whiteTrimMat = new THREE.MeshStandardMaterial({
@@ -1303,37 +1310,34 @@ export class HouseScene {
       roofMesh.castShadow = true;
       this.roofGroup.add(roofMesh);
 
-      // White Bargeboards (Vindskivor) along left and right sloping edges (matching Image 1 & 2)
-      const bargeGeo = new THREE.BoxGeometry(0.04, 0.22, slopeLen);
+      // Barge boards sit just outside the roof slab so the sloped faces do not share a plane.
+      const bargeGeo = new THREE.BoxGeometry(0.035, 0.16, slopeLen - 0.02);
+      const roofHalfX = (w + overhang * 2) / 2;
+      const bargeY = roofCenterY - 0.045;
 
       const leftBarge = new THREE.Mesh(bargeGeo, whiteTrimMat);
-      leftBarge.position.set(-w / 2 - overhang + 0.02, roofCenterY + 0.02, 0);
+      leftBarge.position.set(-roofHalfX - 0.02, bargeY, 0);
       leftBarge.rotation.x = -angleRad;
       leftBarge.castShadow = true;
       this.roofGroup.add(leftBarge);
 
       const rightBarge = new THREE.Mesh(bargeGeo, whiteTrimMat);
-      rightBarge.position.set(w / 2 + overhang - 0.02, roofCenterY + 0.02, 0);
+      rightBarge.position.set(roofHalfX + 0.02, bargeY, 0);
       rightBarge.rotation.x = -angleRad;
       rightBarge.castShadow = true;
       this.roofGroup.add(rightBarge);
 
-      // Front eave fascia board (Takfotsbräda) matching Image 3
-      const frontFasciaGeo = new THREE.BoxGeometry(w + overhang * 2 + 0.04, 0.22, 0.04);
+      // Vertical fascia boards, clear of the roof end caps.
+      const frontFasciaGeo = new THREE.BoxGeometry(w + overhang * 2 + 0.08, 0.16, 0.03);
+      const frontZ = d / 2 + overhang + 0.02;
       const frontFascia = new THREE.Mesh(frontFasciaGeo, whiteTrimMat);
-      const frontZ = (d / 2) + overhang;
-      const frontFasciaY = yMid + frontZ * Math.tan(angleRad) + 0.02;
-      frontFascia.position.set(0, frontFasciaY, frontZ - 0.02);
-      frontFascia.rotation.x = -angleRad;
+      frontFascia.position.set(0, yMid + frontZ * Math.tan(angleRad) - 0.06, frontZ);
       frontFascia.castShadow = true;
       this.roofGroup.add(frontFascia);
 
-      // Rear eave fascia board
-      const rearZ = -(d / 2) - overhang;
-      const rearFasciaY = yMid + rearZ * Math.tan(angleRad) + 0.02;
+      const rearZ = -(d / 2) - overhang - 0.02;
       const rearFascia = new THREE.Mesh(frontFasciaGeo, whiteTrimMat);
-      rearFascia.position.set(0, rearFasciaY, rearZ + 0.02);
-      rearFascia.rotation.x = -angleRad;
+      rearFascia.position.set(0, yMid + rearZ * Math.tan(angleRad) - 0.06, rearZ);
       rearFascia.castShadow = true;
       this.roofGroup.add(rearFascia);
 
@@ -1345,7 +1349,7 @@ export class HouseScene {
       for (let t = 0; t < tailCount; t++) {
         const tx = -w / 2 + 0.3 + t * tailSpacing;
         const tail = new THREE.Mesh(tailGeo, tailMat);
-        tail.position.set(tx, h - 0.06, d / 2 + overhang / 2 - 0.02);
+        tail.position.set(tx, h - 0.14, d / 2 + overhang / 2 - 0.04);
         tail.rotation.x = -angleRad;
         tail.castShadow = true;
         this.roofGroup.add(tail);
@@ -1377,7 +1381,7 @@ export class HouseScene {
       for (let i = 0; i < count; i++) {
         const rx = -w / 2 + i * spacing;
         const rafter = new THREE.Mesh(rafterGeo, rafterMat);
-        rafter.position.set(rx, (h + rearH) / 2 - rafterH / 2, 0);
+        rafter.position.set(rx, (h + rearH) / 2 - rafterH / 2 - 0.06, 0);
         rafter.rotation.x = -slopeAngle;
         rafter.castShadow = true;
         this.framingGroup.add(rafter);
@@ -1693,6 +1697,7 @@ export class HouseScene {
   private buildDimensionLines(w: number, d: number, h: number) {
     const dimMat = new THREE.LineBasicMaterial({ color: '#1e293b', linewidth: 1.5 });
     const offset = 0.65;
+    this.dimensionAnchors.clear();
 
     // 1. Front Width Dimension Line (bottom)
     const yFront = 0.05;
@@ -1702,6 +1707,7 @@ export class HouseScene {
       new THREE.Vector3(w / 2, yFront, zFront)
     ]);
     this.dimensionsGroup.add(new THREE.Line(frontLineGeo, dimMat));
+    this.dimensionAnchors.set('width', new THREE.Vector3(0, yFront, zFront));
 
     // Width Extension lines
     this.dimensionsGroup.add(
@@ -1731,6 +1737,7 @@ export class HouseScene {
       new THREE.Vector3(xRight, h, zRight)
     ]);
     this.dimensionsGroup.add(new THREE.Line(rightHeightGeo, dimMat));
+    this.dimensionAnchors.set('frontHeightRight', new THREE.Vector3(xRight, (0.2 + h) / 2, zRight));
 
     this.dimensionsGroup.add(
       new THREE.Line(
@@ -1758,6 +1765,7 @@ export class HouseScene {
       new THREE.Vector3(xLeft, h, zRight)
     ]);
     this.dimensionsGroup.add(new THREE.Line(leftHeightGeo, dimMat));
+    this.dimensionAnchors.set('frontHeightLeft', new THREE.Vector3(xLeft, (0.2 + h) / 2, zRight));
 
     this.dimensionsGroup.add(
       new THREE.Line(
@@ -1789,6 +1797,38 @@ export class HouseScene {
         new THREE.Vector3(xLeft, rearH, zRear)
       ]);
       this.dimensionsGroup.add(new THREE.Line(rearHeightGeo, dimMat));
+      this.dimensionAnchors.set(
+        'rearHeightLeft',
+        new THREE.Vector3(xLeft, (0.2 + rearH) / 2, zRear)
+      );
+
+      const rearRightGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(xRight, 0.2, zRear),
+        new THREE.Vector3(xRight, rearH, zRear)
+      ]);
+      this.dimensionsGroup.add(new THREE.Line(rearRightGeo, dimMat));
+      this.dimensionAnchors.set(
+        'rearHeightRight',
+        new THREE.Vector3(xRight, (0.2 + rearH) / 2, zRear)
+      );
+      this.dimensionsGroup.add(
+        new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(w / 2 + 0.1, 0.2, zRear),
+            new THREE.Vector3(xRight + 0.15, 0.2, zRear)
+          ]),
+          dimMat
+        )
+      );
+      this.dimensionsGroup.add(
+        new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(w / 2 + 0.1, rearH, zRear),
+            new THREE.Vector3(xRight + 0.15, rearH, zRear)
+          ]),
+          dimMat
+        )
+      );
 
       this.dimensionsGroup.add(
         new THREE.Line(
@@ -1822,9 +1862,105 @@ export class HouseScene {
         new THREE.Vector3(xLeft, h + 0.35 - Math.tan(angleRad) * 0.8, -0.4)
       ]);
       this.dimensionsGroup.add(new THREE.Line(baseAngleLineGeo, dimMat));
+
+      const pitchA = new THREE.Vector3(xLeft, h + 0.35, 0.4);
+      const pitchB = new THREE.Vector3(xLeft, h + 0.35 - Math.tan(angleRad) * 0.8, -0.4);
+      this.dimensionAnchors.set('pitchLeft', pitchA.clone().lerp(pitchB, 0.5));
+
+      const rightPitchGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(xRight, h + 0.35, 0.4),
+        new THREE.Vector3(xRight, h + 0.35 - Math.tan(angleRad) * 0.8, -0.4)
+      ]);
+      this.dimensionsGroup.add(new THREE.Line(rightPitchGeo, angleMat));
+      const rightBaseGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(xRight, h + 0.35 - Math.tan(angleRad) * 0.8, 0.4),
+        new THREE.Vector3(xRight, h + 0.35 - Math.tan(angleRad) * 0.8, -0.4)
+      ]);
+      this.dimensionsGroup.add(new THREE.Line(rightBaseGeo, dimMat));
+      const pitchC = new THREE.Vector3(xRight, h + 0.35, 0.4);
+      const pitchD = new THREE.Vector3(xRight, h + 0.35 - Math.tan(angleRad) * 0.8, -0.4);
+      this.dimensionAnchors.set('pitchRight', pitchC.clone().lerp(pitchD, 0.5));
     }
 
+    this.dimensionAnchors.set('ceiling', new THREE.Vector3(0, 2.2, 0));
     this.dimensionsGroup.visible = this.currentConfig.showDimensions;
+  }
+
+  private projectAnchor(point: THREE.Vector3, occlude = true) {
+    const proj = point.clone().project(this.camera);
+    const width = this.container.clientWidth;
+    const height = this.container.clientHeight;
+    const x = ((proj.x + 1) * width) / 2;
+    const y = ((-proj.y + 1) * height) / 2;
+    let visible = proj.z < 1 && x > -60 && x < width + 60 && y > -30 && y < height + 30;
+
+    if (visible && occlude) {
+      const direction = point.clone().sub(this.camera.position);
+      const distance = direction.length();
+      direction.normalize();
+      this.labelRaycaster.set(this.camera.position, direction);
+      this.labelRaycaster.far = Math.max(distance - 0.2, 0.01);
+      const blocked = this.labelRaycaster.intersectObjects(
+        [this.wallsGroup, this.roofGroup],
+        true
+      );
+      if (blocked.length > 0) visible = false;
+    }
+
+    return { x, y, visible };
+  }
+
+  private bestVisibleAnchor(ids: string[]) {
+    let best: { x: number; y: number; visible: boolean; id: string } | null = null;
+    let bestDist = Infinity;
+    for (const id of ids) {
+      const point = this.dimensionAnchors.get(id);
+      if (!point) continue;
+      const projected = this.projectAnchor(point);
+      if (!projected.visible) continue;
+      const dist = this.camera.position.distanceToSquared(point);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = { ...projected, id };
+      }
+    }
+    return best ?? { x: 0, y: 0, visible: false, id: '' };
+  }
+
+  private publishDimensionLabels() {
+    if (!this.onDimensionLabels) return;
+    if (!this.currentConfig.showDimensions) {
+      this.onDimensionLabels({
+        width: { x: 0, y: 0, visible: false },
+        frontHeight: { x: 0, y: 0, visible: false },
+        rearHeight: { x: 0, y: 0, visible: false },
+        pitch: { x: 0, y: 0, visible: false },
+        ceiling: { x: 0, y: 0, visible: false }
+      });
+      return;
+    }
+
+    const widthPoint = this.dimensionAnchors.get('width');
+    const front = this.bestVisibleAnchor(['frontHeightLeft', 'frontHeightRight']);
+    const rear =
+      this.currentConfig.roofType === 'pulpettak'
+        ? this.bestVisibleAnchor(['rearHeightLeft', 'rearHeightRight'])
+        : this.bestVisibleAnchor(
+            front.id === 'frontHeightLeft' ? ['frontHeightRight'] : ['frontHeightLeft']
+          );
+    const pitch = this.bestVisibleAnchor(['pitchLeft', 'pitchRight']);
+    const ceilingPoint = this.dimensionAnchors.get('ceiling');
+
+    this.onDimensionLabels({
+      width: widthPoint ? this.projectAnchor(widthPoint) : { x: 0, y: 0, visible: false },
+      frontHeight: { x: front.x, y: front.y, visible: front.visible },
+      rearHeight: { x: rear.x, y: rear.y, visible: rear.visible },
+      pitch: { x: pitch.x, y: pitch.y, visible: pitch.visible },
+      ceiling:
+        this.currentConfig.viewMode === 'insida' && ceilingPoint
+          ? this.projectAnchor(ceilingPoint, false)
+          : { x: 0, y: 0, visible: false }
+    });
   }
 
   private updateHighlightBox(target: THREE.Object3D | null) {
@@ -1937,6 +2073,7 @@ export class HouseScene {
     this.animFrameId = requestAnimationFrame(this.animate);
     this.controls.update();
     this.renderer.render(this.scene, this.camera);
+    this.publishDimensionLabels();
 
     // Update screen coordinates of selected panel for dynamic overlay tracking
     if (this.currentConfig.selectedSlotId && this.onSlotScreenPositionUpdate) {

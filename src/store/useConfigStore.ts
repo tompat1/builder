@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia';
-import { ref, computed } from 'vue';
+import { ref, computed, reactive } from 'vue';
 
 export type ViewMode = 'utsida' | 'insida';
 export type CategoryKey = 'size' | 'roof' | 'loft' | 'doors' | 'windows' | 'gates' | 'extras';
@@ -297,6 +297,13 @@ export const useConfigStore = defineStore('config', () => {
   const hoveredSlotId = ref<string | null>(null);
   const hoveredSlotPos = ref<{ x: number; y: number } | null>(null);
   const slotScreenPosition = ref<{ x: number; y: number; visible: boolean } | null>(null);
+  const dimensionLabels = reactive<Record<string, { x: number; y: number; visible: boolean }>>({
+    width: { x: 0, y: 0, visible: false },
+    frontHeight: { x: 0, y: 0, visible: false },
+    rearHeight: { x: 0, y: 0, visible: false },
+    pitch: { x: 0, y: 0, visible: false },
+    ceiling: { x: 0, y: 0, visible: false }
+  });
 
   const selectedSizeId = ref<string>('size-30');
   const activeRoof = ref<string>('pulpettak');
@@ -623,6 +630,24 @@ export const useConfigStore = defineStore('config', () => {
     slotScreenPosition.value = pos;
   }
 
+  function setDimensionLabels(next: Record<string, { x: number; y: number; visible: boolean }>) {
+    for (const key of Object.keys(next)) {
+      const current = dimensionLabels[key];
+      const value = next[key];
+      if (!current || !value) continue;
+      if (
+        Math.abs(current.x - value.x) < 0.5 &&
+        Math.abs(current.y - value.y) < 0.5 &&
+        current.visible === value.visible
+      ) {
+        continue;
+      }
+      current.x = value.x;
+      current.y = value.y;
+      current.visible = value.visible;
+    }
+  }
+
   function cycleSlot(direction: 'prev' | 'next') {
     const keys = Object.keys(wallSlots.value);
     if (!selectedSlotId.value) {
@@ -650,6 +675,7 @@ export const useConfigStore = defineStore('config', () => {
     hoveredSlotId,
     hoveredSlotPos,
     slotScreenPosition,
+    dimensionLabels,
     showDimensions,
     wallSlots,
     selectedSizeId,
@@ -692,6 +718,7 @@ export const useConfigStore = defineStore('config', () => {
     selectSlot,
     setHoveredSlot,
     setSlotScreenPosition,
+    setDimensionLabels,
     cycleSlot,
     deselectSlot,
     assignSlotItem,

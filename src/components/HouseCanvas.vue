@@ -43,6 +43,10 @@ onMounted(() => {
       store.setSlotScreenPosition(pos);
     };
 
+    engine.onDimensionLabels = (labels) => {
+      store.setDimensionLabels(labels);
+    };
+
     if (typeof window !== 'undefined') {
       (window as any).__houseScene = engine;
     }
