@@ -495,7 +495,7 @@
         </p>
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+      <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
         <button
           v-for="door in DOORS_OPTIONS"
           :key="door.id"

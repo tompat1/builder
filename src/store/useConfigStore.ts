@@ -299,8 +299,8 @@ export const useConfigStore = defineStore('config', () => {
 
   const selectedSizeId = ref<string>('size-30');
   const activeRoof = ref<string>('pulpettak');
-  const hasLoft = ref<boolean>(false);
   const activeLoft = ref<string>('none');
+  const hasLoft = computed(() => activeLoft.value !== 'none');
   const loftCount = ref<LoftCount>('ett');
   const loftPlacement = ref<LoftPlacement>('vanster');
   const selectedLoftSize = ref<number>(10.95);
@@ -373,11 +373,12 @@ export const useConfigStore = defineStore('config', () => {
       const data = JSON.parse(snapshotStr);
       selectedSizeId.value = data.selectedSizeId;
       activeRoof.value = data.activeRoof;
-      activeLoft.value = data.activeLoft;
-      if (data.hasLoft !== undefined) {
-        hasLoft.value = data.hasLoft;
-      } else {
-        hasLoft.value = data.activeLoft !== 'none';
+      if (typeof data.hasLoft === 'boolean') {
+        activeLoft.value = data.hasLoft
+          ? (data.activeLoft && data.activeLoft !== 'none' ? data.activeLoft : 'sleeping')
+          : 'none';
+      } else if (data.activeLoft !== undefined) {
+        activeLoft.value = data.activeLoft;
       }
       if (data.loftCount) loftCount.value = data.loftCount;
       if (data.loftPlacement) loftPlacement.value = data.loftPlacement;
@@ -532,13 +533,12 @@ export const useConfigStore = defineStore('config', () => {
 
   function selectLoft(id: string) {
     activeLoft.value = id;
-    hasLoft.value = id !== 'none';
     saveSnapshot();
   }
 
   function toggleHasLoft(forceState?: boolean) {
-    hasLoft.value = forceState !== undefined ? forceState : !hasLoft.value;
-    activeLoft.value = hasLoft.value ? 'sleeping' : 'none';
+    const next = forceState !== undefined ? forceState : activeLoft.value === 'none';
+    activeLoft.value = next ? 'sleeping' : 'none';
     saveSnapshot();
   }
 

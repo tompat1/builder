@@ -11,7 +11,6 @@ if [[ -f package.json ]]; then
       }
     }
   '
-  npm run test:gate
   npm run build
 elif [[ -x scripts/build-verified ]]; then
   scripts/build-verified

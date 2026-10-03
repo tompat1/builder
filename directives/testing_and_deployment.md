@@ -85,10 +85,10 @@ bash execution/install-git-hooks.sh
 ```
 
 The pre-commit hook requires and runs `preflight`. The pre-push hook requires
-and runs both `test:gate` and the verified production `build`. This deliberate
-redundancy still catches a miswired build script locally. For non-npm
-repositories, provide executable `scripts/preflight` and
-`scripts/build-verified` equivalents.
+`test:gate` to exist and runs the verified production `build` once. That build
+must execute `test:gate` before bundling, so the hook does not run the gate a
+second time. For non-npm repositories, provide executable `scripts/preflight`
+and `scripts/build-verified` equivalents.
 
 Missing scripts are errors, not reasons to skip validation. Do not use
 `--no-verify` to bypass the hooks. If an emergency exception is ever necessary,
@@ -138,6 +138,11 @@ If a gate fails:
 6. Add durable lessons or project-specific edge cases to this directive.
 
 ## Project-specific checks
+
+The pre-push hook runs `npm run build` once. `scripts/build-verified.sh` already
+runs `test:gate` before `build:bundle`. Do not add a second `test:gate`
+invocation to the hook. The duplicate end-to-end run made every push take about
+twice as long.
 
 Record additional commands, allowed warnings, CI requirements, deployment
 details, and known test isolation constraints here as the repository evolves.

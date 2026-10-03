@@ -592,7 +592,7 @@ export class HouseScene {
     const baseElev = 0.25;
 
     const isFrontOrBack = wallSide === 'front' || wallSide === 'back';
-    const wallLength = isFrontOrBack ? w : d;
+    const wallLength = isFrontOrBack ? w : d - wallThick * 2;
     const panelWidth = wallLength / panelCount;
     const claddingThick = 0.025;
 
@@ -621,7 +621,7 @@ export class HouseScene {
         panelWallH = rearH - baseElev;
       } else if (wallSide === 'left') {
         px = -w / 2 + claddingThick / 2;
-        pz = d / 2 - panelWidth / 2 - i * panelWidth;
+        pz = d / 2 - wallThick - panelWidth / 2 - i * panelWidth;
         rotY = -Math.PI / 2;
         if (this.currentConfig.viewMode === 'insida') {
           // Slope from 1.35m at front up to rear wall height matching Reference Image 4
@@ -635,7 +635,7 @@ export class HouseScene {
         }
       } else {
         px = w / 2 - claddingThick / 2;
-        pz = -d / 2 + panelWidth / 2 + i * panelWidth;
+        pz = -d / 2 + wallThick + panelWidth / 2 + i * panelWidth;
         rotY = Math.PI / 2;
         if (this.currentConfig.viewMode === 'insida') {
           const progress = Math.max(0, Math.min(1, (d / 2 - pz) / d));
