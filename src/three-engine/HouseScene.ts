@@ -7,12 +7,15 @@ export interface SceneConfig {
   depthMm: number;
   heightMm: number;
   roofType: 'pulpettak' | 'sadeltak' | 'flackt';
+  roofCovering: 'felt' | 'metal' | 'tiles';
   hasLoft: boolean;
   loftPlacement?: LoftPlacement;
   loftAreaSqMeters?: number;
   hasLoftStair?: boolean;
   loftCount?: LoftCount;
   viewMode: 'utsida' | 'insida';
+  /** Overhead cutaway used while the Loft category is open. */
+  loftView: boolean;
   material: MaterialKey;
   showDimensions: boolean;
   selectedSlotId: string | null;
@@ -60,12 +63,14 @@ export class HouseScene {
       depthMm: initialConfig?.depthMm ?? 3503,
       heightMm: initialConfig?.heightMm ?? 3503,
       roofType: initialConfig?.roofType ?? 'pulpettak',
+      roofCovering: initialConfig?.roofCovering ?? 'felt',
       hasLoft: initialConfig?.hasLoft ?? false,
       loftPlacement: initialConfig?.loftPlacement ?? 'vanster',
       loftAreaSqMeters: initialConfig?.loftAreaSqMeters ?? 10.95,
       hasLoftStair: initialConfig?.hasLoftStair ?? true,
       loftCount: initialConfig?.loftCount ?? 'ett',
       viewMode: initialConfig?.viewMode ?? 'utsida',
+      loftView: initialConfig?.loftView ?? false,
       material: initialConfig?.material ?? 'wood',
       showDimensions: initialConfig?.showDimensions ?? true,
       selectedSlotId: initialConfig?.selectedSlotId ?? null,
@@ -318,6 +323,87 @@ export class HouseScene {
     texture.repeat.set(4, 3);
     texture.anisotropy = 8;
     return texture;
+  }
+
+  private createRoofMetalTexture(): THREE.CanvasTexture {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = '#7d8b99';
+    ctx.fillRect(0, 0, 256, 256);
+    for (let x = 0; x < 256; x += 32) {
+      ctx.fillStyle = '#c5d0da';
+      ctx.fillRect(x, 0, 2, 256);
+      ctx.fillStyle = '#4e5c6a';
+      ctx.fillRect(x + 2, 0, 3, 256);
+      ctx.fillStyle = '#9aabba';
+      ctx.fillRect(x + 5, 0, 24, 256);
+    }
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(3, 2);
+    texture.anisotropy = 8;
+    return texture;
+  }
+
+  private createRoofTileTexture(): THREE.CanvasTexture {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = '#6a655f';
+    ctx.fillRect(0, 0, 256, 256);
+    const tileW = 32;
+    const tileH = 22;
+    for (let row = 0; row < 14; row++) {
+      const offset = row % 2 === 0 ? 0 : tileW / 2;
+      for (let col = -1; col < 10; col++) {
+        const x = col * tileW + offset;
+        const y = row * (tileH - 6);
+        ctx.fillStyle = '#514c47';
+        ctx.fillRect(x, y + tileH - 8, tileW - 2, 8);
+        ctx.fillStyle = row % 2 === 0 ? '#7a756e' : '#6e6962';
+        ctx.beginPath();
+        ctx.roundRect(x + 1, y + 2, tileW - 4, tileH - 6, 3);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+        ctx.stroke();
+      }
+    }
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(4, 3);
+    texture.anisotropy = 8;
+    return texture;
+  }
+
+  private roofSurfaceMaterial(): THREE.MeshStandardMaterial {
+    const covering = this.currentConfig.roofCovering;
+    if (covering === 'metal') {
+      return new THREE.MeshStandardMaterial({
+        map: this.createRoofMetalTexture(),
+        roughness: 0.34,
+        metalness: 0.72
+      });
+    }
+    if (covering === 'tiles') {
+      return new THREE.MeshStandardMaterial({
+        map: this.createRoofTileTexture(),
+        roughness: 0.86,
+        metalness: 0.04
+      });
+    }
+    return new THREE.MeshStandardMaterial({
+      map: this.createRoofFeltTexture(),
+      color: '#3a4250',
+      roughness: 0.92,
+      metalness: 0.02
+    });
   }
 
   private createVerticalPlankBumpMap(): THREE.CanvasTexture {
@@ -590,6 +676,9 @@ export class HouseScene {
     this.buildModularWall('back', 4, w, d, h, wallThick, exteriorMat, trimMat);
     this.buildModularWall('left', 3, w, d, h, wallThick, exteriorMat, trimMat);
     this.buildModularWall('right', 3, w, d, h, wallThick, exteriorMat, trimMat);
+    if (this.currentConfig.roofType === 'sadeltak' && this.currentConfig.viewMode === 'utsida') {
+      this.addGableEnds(w, d, h, exteriorMat);
+    }
 
     // 4. Proper Architectural Timber Framing (Syll, Hammarband, Reglar cc 600, Avväxlingar)
     this.buildTimberFraming(w, d, h, wallThick, framingMat);
@@ -614,6 +703,79 @@ export class HouseScene {
 
     // View mode visibility
     this.applyViewMode();
+  }
+
+  /** Waist-height cut used by the Insida tab. The loft cutaway keeps the shell intact. */
+  private interiorCut() {
+    return this.currentConfig.viewMode === 'insida' && !this.currentConfig.loftView;
+  }
+
+  private loftCutaway() {
+    return this.currentConfig.loftView && this.currentConfig.viewMode === 'insida';
+  }
+
+  private ghostBeamMaterial() {
+    return new THREE.MeshStandardMaterial({
+      color: '#f6f1e8',
+      transparent: true,
+      opacity: 0.16,
+      roughness: 0.2,
+      metalness: 0,
+      depthWrite: false,
+      side: THREE.DoubleSide
+    });
+  }
+
+  private sidePanelHeight(
+    d: number,
+    h: number,
+    rearH: number,
+    yMid: number,
+    angleRad: number,
+    pz: number,
+    baseElev: number
+  ) {
+    if (this.interiorCut()) {
+      const progress = Math.max(0, Math.min(1, (d / 2 - pz) / d));
+      return 1.35 + progress * (rearH - 1.35) - baseElev;
+    }
+    if (this.currentConfig.roofType === 'pulpettak') {
+      return yMid + pz * Math.tan(angleRad) - baseElev;
+    }
+    if (this.currentConfig.roofType === 'flackt') {
+      const shallow = (2 * Math.PI) / 180;
+      return h + pz * Math.tan(shallow) - baseElev;
+    }
+    return h - baseElev;
+  }
+
+  private addGableEnds(w: number, d: number, h: number, exteriorMat: THREE.MeshStandardMaterial) {
+    const rise = Math.tan((22 * Math.PI) / 180) * (d / 2);
+    const thick = 0.025;
+    const shape = new THREE.Shape();
+    shape.moveTo(-d / 2, -0.02);
+    shape.lineTo(0, rise + 0.04);
+    shape.lineTo(d / 2, -0.02);
+    shape.closePath();
+    const geo = new THREE.ExtrudeGeometry(shape, { depth: thick, bevelEnabled: false });
+    geo.translate(0, 0, -thick / 2);
+
+    const gableMat = exteriorMat.clone();
+    if (exteriorMat.map) {
+      const map = exteriorMat.map.clone();
+      map.repeat.set((d / 1.5) * 3, Math.max(0.6, rise / 1.6));
+      map.needsUpdate = true;
+      gableMat.map = map;
+    }
+
+    for (const sign of [-1, 1] as const) {
+      const mesh = new THREE.Mesh(geo, gableMat);
+      mesh.rotation.y = sign > 0 ? -Math.PI / 2 : Math.PI / 2;
+      mesh.position.set(sign * (w / 2 - thick / 2), h, 0);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      this.wallsGroup.add(mesh);
+    }
   }
 
   private buildModularWall(
@@ -654,7 +816,7 @@ export class HouseScene {
         rotY = 0;
         // In insida view, cut front wall to waist height (1.35m) matching Reference Image 4 & 5
         // so interior floor, loft, stairs, and framing are completely visible without obstruction
-        panelWallH = this.currentConfig.viewMode === 'insida' ? 1.35 : (h - baseElev);
+        panelWallH = this.interiorCut() ? 1.35 : (h - baseElev);
       } else if (wallSide === 'back') {
         px = w / 2 - panelWidth / 2 - i * panelWidth;
         pz = -d / 2 + claddingThick / 2;
@@ -664,28 +826,12 @@ export class HouseScene {
         px = -w / 2 + claddingThick / 2;
         pz = d / 2 - wallThick - panelWidth / 2 - i * panelWidth;
         rotY = -Math.PI / 2;
-        if (this.currentConfig.viewMode === 'insida') {
-          // Slope from 1.35m at front up to rear wall height matching Reference Image 4
-          const progress = Math.max(0, Math.min(1, (d / 2 - pz) / d));
-          const topY = 1.35 + progress * (rearH - 1.35);
-          panelWallH = topY - baseElev;
-        } else {
-          // Slope height matching 8° roof angle exactly at center of panel
-          const topY = yMid + pz * Math.tan(angleRad);
-          panelWallH = topY - baseElev;
-        }
+        panelWallH = this.sidePanelHeight(d, h, rearH, yMid, angleRad, pz, baseElev);
       } else {
         px = w / 2 - claddingThick / 2;
         pz = -d / 2 + wallThick + panelWidth / 2 + i * panelWidth;
         rotY = Math.PI / 2;
-        if (this.currentConfig.viewMode === 'insida') {
-          const progress = Math.max(0, Math.min(1, (d / 2 - pz) / d));
-          const topY = 1.35 + progress * (rearH - 1.35);
-          panelWallH = topY - baseElev;
-        } else {
-          const topY = yMid + pz * Math.tan(angleRad);
-          panelWallH = topY - baseElev;
-        }
+        panelWallH = this.sidePanelHeight(d, h, rearH, yMid, angleRad, pz, baseElev);
       }
 
       const wallY = baseElev + panelWallH / 2;
@@ -726,7 +872,7 @@ export class HouseScene {
 
       // Horizontal mid-trim line (white coping / mid-rib matching Skånska Byggvaror)
       const midRibY =
-        this.currentConfig.viewMode === 'insida' && wallSide === 'front'
+        this.interiorCut() && wallSide === 'front'
           ? panelWallH / 2
           : (baseElev + 2.15) - wallY;
       const ribOverlapsWindow = opening
@@ -774,7 +920,7 @@ export class HouseScene {
 
     // Top eave trim and fascia to ensure 100% gapless junction with roof underside
     if (wallSide === 'left' || wallSide === 'right') {
-      if (this.currentConfig.viewMode !== 'insida') {
+      if (!this.interiorCut()) {
         const sideSpan = d - wallThick * 2;
         const slopeLen = Math.hypot(sideSpan, h - rearH);
         const slopeAngle = Math.atan2(h - rearH, sideSpan);
@@ -787,7 +933,7 @@ export class HouseScene {
         this.wallsGroup.add(eavesTrim);
       }
     } else if (wallSide === 'front') {
-      if (this.currentConfig.viewMode !== 'insida') {
+      if (!this.interiorCut()) {
         const frontTrimGeo = new THREE.BoxGeometry(w + 0.05, 0.12, 0.03);
         const frontTrim = new THREE.Mesh(frontTrimGeo, trimMat);
         frontTrim.position.set(0, h - 0.06, d / 2 + 0.01);
@@ -1289,12 +1435,7 @@ export class HouseScene {
   private buildRoof(w: number, d: number, h: number) {
     const { roofType } = this.currentConfig;
     const overhang = 0.4;
-    const roofMat = new THREE.MeshStandardMaterial({
-      map: this.createRoofFeltTexture(),
-      color: '#3a4250',
-      roughness: 0.92,
-      metalness: 0.02
-    });
+    const roofMat = this.roofSurfaceMaterial();
 
     const whiteTrimMat = new THREE.MeshStandardMaterial({
       color: '#f4f1ea',
@@ -1302,29 +1443,9 @@ export class HouseScene {
     });
 
     if (roofType === 'sadeltak') {
-      const ridgeHeight = 1.25;
-      const roofLen = d + overhang * 2;
-      const halfW = (w / 2 + overhang) * 1.08;
-
-      const slopeGeo = new THREE.BoxGeometry(halfW, 0.16, roofLen);
-
-      const leftSlope = new THREE.Mesh(slopeGeo, roofMat);
-      leftSlope.position.set(-halfW / 2 + 0.1, h + ridgeHeight / 2, 0);
-      leftSlope.rotation.z = 0.38;
-      leftSlope.castShadow = true;
-      this.roofGroup.add(leftSlope);
-
-      const rightSlope = new THREE.Mesh(slopeGeo, roofMat);
-      rightSlope.position.set(halfW / 2 - 0.1, h + ridgeHeight / 2, 0);
-      rightSlope.rotation.z = -0.38;
-      rightSlope.castShadow = true;
-      this.roofGroup.add(rightSlope);
+      this.addGableRoof(w, d, h, overhang, roofMat, whiteTrimMat);
     } else if (roofType === 'flackt') {
-      const flatGeo = new THREE.BoxGeometry(w + 0.3, 0.22, d + 0.3);
-      const flatMesh = new THREE.Mesh(flatGeo, roofMat);
-      flatMesh.position.set(0, h + 0.11, 0);
-      flatMesh.castShadow = true;
-      this.roofGroup.add(flatMesh);
+      this.addShallowRoof(w, d, h, overhang, 2, roofMat, whiteTrimMat);
     } else {
       // Pulpettak 8°. The slab, barge boards, and fascia share one rotated assembly
       // so each board meets the next at an edge instead of occupying the same face.
@@ -1385,6 +1506,104 @@ export class HouseScene {
     }
   }
 
+  private addShallowRoof(
+    w: number,
+    d: number,
+    h: number,
+    overhang: number,
+    pitchDeg: number,
+    roofMat: THREE.Material,
+    trimMat: THREE.Material
+  ) {
+    const angleRad = (pitchDeg * Math.PI) / 180;
+    const roofThick = 0.07;
+    const slopeLen = (d + overhang * 2) / Math.cos(angleRad);
+    const roofW = w + overhang * 2;
+    const yMid = h + Math.tan(angleRad) * (d / 2) * 0.15;
+    const roofCenterY = yMid + (roofThick / 2) / Math.cos(angleRad) + 0.04;
+
+    const assembly = new THREE.Group();
+    assembly.position.set(0, roofCenterY, 0);
+    assembly.rotation.x = -angleRad;
+
+    const roofMesh = new THREE.Mesh(new THREE.BoxGeometry(roofW, roofThick, slopeLen), roofMat);
+    roofMesh.castShadow = true;
+    roofMesh.receiveShadow = true;
+    assembly.add(roofMesh);
+
+    const fasciaT = 0.03;
+    const fascia = new THREE.Mesh(
+      new THREE.BoxGeometry(roofW + 0.02, roofThick + 0.01, fasciaT),
+      trimMat
+    );
+    fascia.position.set(0, -0.004, slopeLen / 2 + fasciaT / 2 + 0.001);
+    fascia.castShadow = true;
+    assembly.add(fascia);
+
+    this.roofGroup.add(assembly);
+  }
+
+  private addGableRoof(
+    w: number,
+    d: number,
+    h: number,
+    overhang: number,
+    roofMat: THREE.Material,
+    trimMat: THREE.Material
+  ) {
+    const angleRad = (22 * Math.PI) / 180;
+    const rise = Math.tan(angleRad) * (d / 2);
+    const ridgeY = h + rise;
+    const roofThick = 0.07;
+    const roofW = w + overhang * 2;
+    const slopeLen = (d / 2 + overhang) / Math.cos(angleRad) + 0.06;
+
+    const addSlope = (sign: 1 | -1) => {
+      const slope = new THREE.Group();
+      slope.position.set(0, ridgeY, 0);
+      slope.rotation.x = sign * angleRad;
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(roofW, roofThick, slopeLen), roofMat);
+      mesh.position.set(0, roofThick / 2 + 0.012, sign * (slopeLen / 2 - 0.03));
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      slope.add(mesh);
+
+      const bargeT = 0.028;
+      const bargeGeo = new THREE.BoxGeometry(bargeT, roofThick, slopeLen);
+      const bargeZ = sign * (slopeLen / 2 - 0.03);
+      const bargeY = roofThick / 2 + 0.008;
+      const leftBarge = new THREE.Mesh(bargeGeo, trimMat);
+      leftBarge.position.set(-(roofW / 2 + bargeT / 2 + 0.001), bargeY, bargeZ);
+      leftBarge.castShadow = true;
+      slope.add(leftBarge);
+      const rightBarge = new THREE.Mesh(bargeGeo, trimMat);
+      rightBarge.position.set(roofW / 2 + bargeT / 2 + 0.001, bargeY, bargeZ);
+      rightBarge.castShadow = true;
+      slope.add(rightBarge);
+
+      const fasciaT = 0.028;
+      const fascia = new THREE.Mesh(
+        new THREE.BoxGeometry(roofW + 0.02, roofThick, fasciaT),
+        trimMat
+      );
+      fascia.position.set(0, roofThick / 2 - 0.004, sign * (slopeLen - fasciaT / 2));
+      fascia.castShadow = true;
+      slope.add(fascia);
+      this.roofGroup.add(slope);
+    };
+
+    addSlope(1);
+    addSlope(-1);
+
+    const ridge = new THREE.Mesh(
+      new THREE.BoxGeometry(roofW + 0.04, 0.05, 0.16),
+      roofMat
+    );
+    ridge.position.set(0, ridgeY + roofThick + 0.02, 0);
+    ridge.castShadow = true;
+    this.roofGroup.add(ridge);
+  }
+
   private buildContactShadow(w: number, d: number) {
     if (this.contactShadow) {
       this.scene.remove(this.contactShadow);
@@ -1413,11 +1632,14 @@ export class HouseScene {
   }
 
   private buildRafters(w: number, d: number, h: number, _wt: number) {
-    const rafterMat = new THREE.MeshStandardMaterial({
-      color: '#eedec5',
-      roughness: 0.65,
-      metalness: 0.02
-    });
+    const ghost = this.loftCutaway();
+    const rafterMat = ghost
+      ? this.ghostBeamMaterial()
+      : new THREE.MeshStandardMaterial({
+          color: '#eedec5',
+          roughness: 0.65,
+          metalness: 0.02
+        });
 
     const isPulpettak = this.currentConfig.roofType === 'pulpettak';
     const angleRad = (8 * Math.PI) / 180;
@@ -1430,34 +1652,47 @@ export class HouseScene {
 
     if (isPulpettak) {
       const slopeAngle = Math.atan2(h - rearH, d);
-      const slopeLen = Math.sqrt(Math.pow(d, 2) + Math.pow(h - rearH, 2)) + 0.35;
+      const slopeLen = Math.sqrt(Math.pow(d, 2) + Math.pow(h - rearH, 2));
       const rafterGeo = new THREE.BoxGeometry(rafterW, rafterH, slopeLen);
 
       for (let i = 0; i < count; i++) {
         const rx = -w / 2 + i * spacing;
         const rafter = new THREE.Mesh(rafterGeo, rafterMat);
-        rafter.position.set(rx, (h + rearH) / 2 - rafterH / 2 - 0.06, 0);
+        rafter.position.set(rx, (h + rearH) / 2 - rafterH / 2 - (ghost ? 0.02 : 0.12), 0);
         rafter.rotation.x = -slopeAngle;
-        rafter.castShadow = true;
+        rafter.castShadow = !ghost;
+        this.framingGroup.add(rafter);
+      }
+    } else if (this.currentConfig.roofType === 'flackt') {
+      const angleRad = (2 * Math.PI) / 180;
+      const len = d - 0.2;
+      const rafterGeo = new THREE.BoxGeometry(rafterW, 0.12, len);
+      for (let i = 0; i < count; i++) {
+        const rafter = new THREE.Mesh(rafterGeo, rafterMat);
+        rafter.position.set(-w / 2 + i * spacing, h - 0.12, 0);
+        rafter.rotation.x = -angleRad;
+        rafter.castShadow = !ghost;
         this.framingGroup.add(rafter);
       }
     } else {
-      const slopeLen = Math.sqrt(Math.pow(d / 2, 2) + Math.pow(0.9, 2)) + 0.25;
-      const slopeAngle = Math.atan2(0.9, d / 2);
+      const angleRad = (22 * Math.PI) / 180;
+      const rise = Math.tan(angleRad) * (d / 2);
+      const slopeLen = (d / 2) / Math.cos(angleRad) - 0.2;
       const rafterGeo = new THREE.BoxGeometry(rafterW, rafterH, slopeLen);
+      const y = h + rise / 2 - rafterH / 2 - 0.1;
 
       for (let i = 0; i < count; i++) {
         const rx = -w / 2 + i * spacing;
         const frontRafter = new THREE.Mesh(rafterGeo, rafterMat);
-        frontRafter.position.set(rx, h + 0.45, d / 4);
-        frontRafter.rotation.x = slopeAngle;
-        frontRafter.castShadow = true;
+        frontRafter.position.set(rx, y, d / 4);
+        frontRafter.rotation.x = angleRad;
+        frontRafter.castShadow = !ghost;
         this.framingGroup.add(frontRafter);
 
         const rearRafter = new THREE.Mesh(rafterGeo, rafterMat);
-        rearRafter.position.set(rx, h + 0.45, -d / 4);
-        rearRafter.rotation.x = -slopeAngle;
-        rearRafter.castShadow = true;
+        rearRafter.position.set(rx, y, -d / 4);
+        rearRafter.rotation.x = -angleRad;
+        rearRafter.castShadow = !ghost;
         this.framingGroup.add(rearRafter);
       }
     }

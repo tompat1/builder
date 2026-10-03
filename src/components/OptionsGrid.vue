@@ -165,6 +165,33 @@
           </div>
         </button>
       </div>
+
+      <div class="pt-1">
+        <p class="text-xs font-bold text-slate-900 mb-2">{{ t('category.covering') }}</p>
+        <div class="grid grid-cols-3 gap-2">
+          <button
+            v-for="cover in ROOF_COVERINGS"
+            :key="cover.id"
+            type="button"
+            :id="`option-roof-${cover.id}`"
+            @click="store.selectRoofCovering(cover.id)"
+            :class="[
+              'text-left p-2.5 rounded-xl border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
+              store.roofCovering === cover.id
+                ? 'border-slate-900 ring-1 ring-slate-900 bg-slate-50/70'
+                : 'border-slate-200/90 bg-white hover:border-slate-300'
+            ]"
+          >
+            <span
+              class="block h-8 rounded-md mb-2 border border-slate-200"
+              :class="cover.id === 'felt' ? 'bg-slate-700' : cover.id === 'metal' ? 'bg-slate-400' : 'bg-stone-500'"
+            ></span>
+            <span class="block text-xs font-bold text-slate-900">{{ t('category.' + cover.id) }}</span>
+            <span class="block text-[10px] text-slate-500 mt-0.5">{{ t('category.' + cover.id + 'Body') }}</span>
+            <span class="block text-[11px] font-semibold text-slate-500 tabular-nums mt-1">{{ delta(cover.priceDelta) }}</span>
+          </button>
+        </div>
+      </div>
     </template>
 
     <!-- Loft Options (Matching Skånska Byggvaror Reference Images 4 & 5) -->
@@ -654,6 +681,7 @@ import {
   MATERIAL_OPTIONS,
   SIZE_OPTIONS,
   ROOF_OPTIONS,
+  ROOF_COVERINGS,
   LOFT_OPTIONS,
   DOORS_OPTIONS,
   WINDOWS_OPTIONS,

@@ -125,6 +125,14 @@ export const SIZE_OPTIONS: SizeOption[] = [
   }
 ];
 
+export type RoofCovering = 'felt' | 'metal' | 'tiles';
+
+export const ROOF_COVERINGS: { id: RoofCovering; priceDelta: number }[] = [
+  { id: 'felt', priceDelta: 0 },
+  { id: 'metal', priceDelta: 6400 },
+  { id: 'tiles', priceDelta: 9800 }
+];
+
 export const ROOF_OPTIONS: OptionItem[] = [
   {
     id: 'pulpettak',
@@ -307,6 +315,7 @@ export const useConfigStore = defineStore('config', () => {
 
   const selectedSizeId = ref<string>('size-30');
   const activeRoof = ref<string>('pulpettak');
+  const roofCovering = ref<RoofCovering>('felt');
   const activeLoft = ref<string>('none');
   const hasLoft = computed(() => activeLoft.value !== 'none');
   const loftCount = ref<LoftCount>('ett');
@@ -344,6 +353,7 @@ export const useConfigStore = defineStore('config', () => {
     const snapshot = JSON.stringify({
       selectedSizeId: selectedSizeId.value,
       activeRoof: activeRoof.value,
+      roofCovering: roofCovering.value,
       activeLoft: activeLoft.value,
       hasLoft: hasLoft.value,
       loftCount: loftCount.value,
@@ -381,6 +391,9 @@ export const useConfigStore = defineStore('config', () => {
       const data = JSON.parse(snapshotStr);
       selectedSizeId.value = data.selectedSizeId;
       activeRoof.value = data.activeRoof;
+      if (data.roofCovering === 'felt' || data.roofCovering === 'metal' || data.roofCovering === 'tiles') {
+        roofCovering.value = data.roofCovering;
+      }
       if (typeof data.hasLoft === 'boolean') {
         activeLoft.value = data.hasLoft
           ? (data.activeLoft && data.activeLoft !== 'none' ? data.activeLoft : 'sleeping')
@@ -486,6 +499,8 @@ export const useConfigStore = defineStore('config', () => {
     // Roof price
     const roof = ROOF_OPTIONS.find((r) => r.id === activeRoof.value);
     if (roof) total += roof.priceDelta;
+    const covering = ROOF_COVERINGS.find((item) => item.id === roofCovering.value);
+    if (covering) total += covering.priceDelta;
 
     // Loft price
     if (hasLoft.value) {
@@ -536,6 +551,11 @@ export const useConfigStore = defineStore('config', () => {
 
   function selectRoof(id: string) {
     activeRoof.value = id;
+    saveSnapshot();
+  }
+
+  function selectRoofCovering(id: RoofCovering) {
+    roofCovering.value = id;
     saveSnapshot();
   }
 
@@ -680,6 +700,7 @@ export const useConfigStore = defineStore('config', () => {
     wallSlots,
     selectedSizeId,
     activeRoof,
+    roofCovering,
     activeLoft,
     activeDoor,
     activeWindow,
@@ -704,6 +725,7 @@ export const useConfigStore = defineStore('config', () => {
     selectCategory,
     selectSize,
     selectRoof,
+    selectRoofCovering,
     selectLoft,
     toggleHasLoft,
     setLoftCount,

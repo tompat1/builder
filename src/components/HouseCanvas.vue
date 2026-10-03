@@ -18,6 +18,7 @@ onMounted(() => {
       depthMm: store.dimensions.depth,
       heightMm: store.dimensions.height,
       roofType: store.activeRoof as 'pulpettak' | 'sadeltak' | 'flackt',
+      roofCovering: store.roofCovering,
       hasLoft: store.hasLoft,
       loftCount: store.loftCount,
       loftPlacement: store.loftPlacement,
@@ -98,6 +99,13 @@ watch(
     engine?.updateConfig({
       roofType: roof as 'pulpettak' | 'sadeltak' | 'flackt'
     });
+  }
+);
+
+watch(
+  () => store.roofCovering,
+  (covering) => {
+    engine?.updateConfig({ roofCovering: covering });
   }
 );
 
