@@ -293,7 +293,7 @@ export const useConfigStore = defineStore('config', () => {
   const selectedCategory = ref<CategoryKey>('size');
   const activeMaterial = ref<MaterialKey>('wood');
   const showDimensions = ref<boolean>(true);
-  const selectedSlotId = ref<string | null>('front-1');
+  const selectedSlotId = ref<string | null>(null);
   const hoveredSlotId = ref<string | null>(null);
   const hoveredSlotPos = ref<{ x: number; y: number } | null>(null);
   const slotScreenPosition = ref<{ x: number; y: number; visible: boolean } | null>(null);

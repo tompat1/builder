@@ -35,6 +35,7 @@ export class HouseScene {
   private trussesGroup: THREE.Group;
   private dimensionsGroup: THREE.Group;
   private highlightBox: THREE.LineSegments | null = null;
+  private contactShadow: THREE.Mesh | null = null;
   private hoverBox: THREE.Object3D | null = null;
 
   private interactivePanels: THREE.Mesh[] = [];
@@ -67,12 +68,12 @@ export class HouseScene {
       viewMode: initialConfig?.viewMode ?? 'utsida',
       material: initialConfig?.material ?? 'wood',
       showDimensions: initialConfig?.showDimensions ?? true,
-      selectedSlotId: initialConfig?.selectedSlotId ?? 'front-1',
+      selectedSlotId: initialConfig?.selectedSlotId ?? null,
       wallSlots: initialConfig?.wallSlots ?? {}
     };
 
     this.scene = new THREE.Scene();
-    this.scene.background = new THREE.Color('#f8fafc');
+    this.scene.background = new THREE.Color('#f3f5f7');
 
     this.camera = new THREE.PerspectiveCamera(
       42,
@@ -92,7 +93,7 @@ export class HouseScene {
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 1.05;
+    this.renderer.toneMappingExposure = 1.0;
     container.appendChild(this.renderer.domElement);
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
@@ -285,9 +286,37 @@ export class HouseScene {
 
     ctx.globalAlpha = 1.0;
     const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.anisotropy = 8;
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
     texture.repeat.set(3, 2);
+    return texture;
+  }
+
+  private createRoofFeltTexture(): THREE.CanvasTexture {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = '#2a313c';
+    ctx.fillRect(0, 0, 256, 256);
+    let seed = 17;
+    const rnd = () => {
+      seed = (seed * 9301 + 49297) % 233280;
+      return seed / 233280;
+    };
+    for (let i = 0; i < 1800; i++) {
+      const shade = rnd() > 0.5 ? 58 : 28;
+      ctx.fillStyle = `rgba(${shade}, ${shade + 4}, ${shade + 8}, 0.35)`;
+      ctx.fillRect(rnd() * 256, rnd() * 256, 1 + rnd() * 1.5, 1 + rnd());
+    }
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(4, 3);
+    texture.anisotropy = 8;
     return texture;
   }
 
@@ -369,26 +398,30 @@ export class HouseScene {
   }
 
   private setupLighting() {
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.72);
+    const hemisphere = new THREE.HemisphereLight(0xf7f4ee, 0xd5dde6, 0.62);
+    this.scene.add(hemisphere);
+
+    const ambientLight = new THREE.AmbientLight(0xfffaf3, 0.28);
     this.scene.add(ambientLight);
 
-    const sunLight = new THREE.DirectionalLight(0xfff8ee, 1.05);
-    sunLight.position.set(16, 24, 14);
+    const sunLight = new THREE.DirectionalLight(0xfff3e4, 1.55);
+    sunLight.position.set(12, 22, 10);
     sunLight.castShadow = true;
     sunLight.shadow.mapSize.width = 2048;
     sunLight.shadow.mapSize.height = 2048;
     sunLight.shadow.camera.near = 0.5;
-    sunLight.shadow.camera.far = 70;
-    sunLight.shadow.camera.left = -16;
-    sunLight.shadow.camera.right = 16;
-    sunLight.shadow.camera.top = 16;
-    sunLight.shadow.camera.bottom = -16;
-    sunLight.shadow.bias = -0.0006;
-    sunLight.shadow.normalBias = 0.04;
+    sunLight.shadow.camera.far = 60;
+    sunLight.shadow.camera.left = -14;
+    sunLight.shadow.camera.right = 14;
+    sunLight.shadow.camera.top = 14;
+    sunLight.shadow.camera.bottom = -14;
+    sunLight.shadow.bias = -0.0002;
+    sunLight.shadow.normalBias = 0.025;
+    sunLight.shadow.radius = 5;
     this.scene.add(sunLight);
 
-    const skyFill = new THREE.DirectionalLight(0xe0f2fe, 0.4);
-    skyFill.position.set(-14, 16, -10);
+    const skyFill = new THREE.DirectionalLight(0xdbeafe, 0.28);
+    skyFill.position.set(-10, 12, -8);
     this.scene.add(skyFill);
 
     // Ground platform
@@ -577,6 +610,7 @@ export class HouseScene {
 
     // 8. 3D Architectural Dimensions
     this.buildDimensionLines(w, d, h);
+    this.buildContactShadow(w, d);
 
     // View mode visibility
     this.applyViewMode();
@@ -1256,17 +1290,15 @@ export class HouseScene {
     const { roofType } = this.currentConfig;
     const overhang = 0.4;
     const roofMat = new THREE.MeshStandardMaterial({
-      color: '#1e293b',
-      roughness: 0.35,
-      metalness: 0.25,
-      polygonOffset: true,
-      polygonOffsetFactor: 1,
-      polygonOffsetUnits: 1
+      map: this.createRoofFeltTexture(),
+      color: '#3a4250',
+      roughness: 0.92,
+      metalness: 0.02
     });
 
     const whiteTrimMat = new THREE.MeshStandardMaterial({
-      color: '#ffffff',
-      roughness: 0.4
+      color: '#f4f1ea',
+      roughness: 0.55
     });
 
     if (roofType === 'sadeltak') {
@@ -1294,67 +1326,90 @@ export class HouseScene {
       flatMesh.castShadow = true;
       this.roofGroup.add(flatMesh);
     } else {
-      // Pulpettak 8° (matching Skånska Byggvaror reference layout)
+      // Pulpettak 8°. The slab, barge boards, and fascia share one rotated assembly
+      // so each board meets the next at an edge instead of occupying the same face.
       const angleRad = (8 * Math.PI) / 180;
       const rearH = Math.max(h - Math.tan(angleRad) * d, 2.4);
       const yMid = (h + rearH) / 2;
-      const roofThick = 0.18;
+      const roofThick = 0.1;
       const slopeLen = (d + overhang * 2) / Math.cos(angleRad);
-
-      // Main roof slab - underside rests flush on the wall top plates (zero gap)
-      const roofGeo = new THREE.BoxGeometry(w + overhang * 2, roofThick, slopeLen);
-      const roofMesh = new THREE.Mesh(roofGeo, roofMat);
+      const roofW = w + overhang * 2;
       const roofCenterY = yMid + (roofThick / 2) / Math.cos(angleRad);
-      roofMesh.position.set(0, roofCenterY, 0);
-      roofMesh.rotation.x = -angleRad;
+
+      const assembly = new THREE.Group();
+      assembly.position.set(0, roofCenterY, 0);
+      assembly.rotation.x = -angleRad;
+
+      const roofMesh = new THREE.Mesh(new THREE.BoxGeometry(roofW, roofThick, slopeLen), roofMat);
       roofMesh.castShadow = true;
-      this.roofGroup.add(roofMesh);
+      roofMesh.receiveShadow = true;
+      assembly.add(roofMesh);
 
-      // Barge boards sit just outside the roof slab so the sloped faces do not share a plane.
-      const bargeGeo = new THREE.BoxGeometry(0.035, 0.16, slopeLen - 0.02);
-      const roofHalfX = (w + overhang * 2) / 2;
-      const bargeY = roofCenterY - 0.045;
-
+      const bargeT = 0.028;
+      const bargeH = roofThick - 0.012;
+      const bargeGeo = new THREE.BoxGeometry(bargeT, bargeH, slopeLen);
+      const bargeY = -0.008;
       const leftBarge = new THREE.Mesh(bargeGeo, whiteTrimMat);
-      leftBarge.position.set(-roofHalfX - 0.02, bargeY, 0);
-      leftBarge.rotation.x = -angleRad;
+      leftBarge.position.set(-(roofW / 2 + bargeT / 2 + 0.001), bargeY, 0);
       leftBarge.castShadow = true;
-      this.roofGroup.add(leftBarge);
-
+      assembly.add(leftBarge);
       const rightBarge = new THREE.Mesh(bargeGeo, whiteTrimMat);
-      rightBarge.position.set(roofHalfX + 0.02, bargeY, 0);
-      rightBarge.rotation.x = -angleRad;
+      rightBarge.position.set(roofW / 2 + bargeT / 2 + 0.001, bargeY, 0);
       rightBarge.castShadow = true;
-      this.roofGroup.add(rightBarge);
+      assembly.add(rightBarge);
 
-      // Vertical fascia boards, clear of the roof end caps.
-      const frontFasciaGeo = new THREE.BoxGeometry(w + overhang * 2 + 0.08, 0.16, 0.03);
-      const frontZ = d / 2 + overhang + 0.02;
-      const frontFascia = new THREE.Mesh(frontFasciaGeo, whiteTrimMat);
-      frontFascia.position.set(0, yMid + frontZ * Math.tan(angleRad) - 0.06, frontZ);
+      const fasciaT = 0.022;
+      const fasciaGeo = new THREE.BoxGeometry(roofW + bargeT * 2 + 0.004, bargeH, fasciaT);
+      const frontFascia = new THREE.Mesh(fasciaGeo, whiteTrimMat);
+      frontFascia.position.set(0, bargeY, slopeLen / 2 + fasciaT / 2 + 0.001);
       frontFascia.castShadow = true;
-      this.roofGroup.add(frontFascia);
-
-      const rearZ = -(d / 2) - overhang - 0.02;
-      const rearFascia = new THREE.Mesh(frontFasciaGeo, whiteTrimMat);
-      rearFascia.position.set(0, yMid + rearZ * Math.tan(angleRad) - 0.06, rearZ);
+      assembly.add(frontFascia);
+      const rearFascia = new THREE.Mesh(fasciaGeo, whiteTrimMat);
+      rearFascia.position.set(0, bargeY, -(slopeLen / 2 + fasciaT / 2 + 0.001));
       rearFascia.castShadow = true;
-      this.roofGroup.add(rearFascia);
+      assembly.add(rearFascia);
 
-      // Exposed structural rafter brackets (sparrtassar) under front eave overhang (matching Image 3)
       const tailCount = 4;
       const tailSpacing = (w - 0.6) / (tailCount - 1);
-      const tailGeo = new THREE.BoxGeometry(0.045, 0.145, overhang);
-      const tailMat = new THREE.MeshStandardMaterial({ color: '#dfcaa6', roughness: 0.6 });
+      const tailGeo = new THREE.BoxGeometry(0.04, 0.09, overhang * 0.85);
+      const tailMat = new THREE.MeshStandardMaterial({ color: '#e4d2b4', roughness: 0.7 });
       for (let t = 0; t < tailCount; t++) {
-        const tx = -w / 2 + 0.3 + t * tailSpacing;
         const tail = new THREE.Mesh(tailGeo, tailMat);
-        tail.position.set(tx, h - 0.14, d / 2 + overhang / 2 - 0.04);
-        tail.rotation.x = -angleRad;
+        const localX = -w / 2 + 0.3 + t * tailSpacing;
+        tail.position.set(localX, -(roofThick / 2 + 0.05), slopeLen / 2 - overhang * 0.48);
         tail.castShadow = true;
-        this.roofGroup.add(tail);
+        assembly.add(tail);
       }
+
+      this.roofGroup.add(assembly);
     }
+  }
+
+  private buildContactShadow(w: number, d: number) {
+    if (this.contactShadow) {
+      this.scene.remove(this.contactShadow);
+      this.contactShadow.geometry.dispose();
+      (this.contactShadow.material as THREE.Material).dispose();
+      this.contactShadow = null;
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d')!;
+    const gradient = ctx.createRadialGradient(64, 64, 18, 64, 64, 64);
+    gradient.addColorStop(0, 'rgba(30, 41, 59, 0.28)');
+    gradient.addColorStop(1, 'rgba(30, 41, 59, 0)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 128, 128);
+    const texture = new THREE.CanvasTexture(canvas);
+    const shadow = new THREE.Mesh(
+      new THREE.PlaneGeometry(w + 2.4, d + 2.4),
+      new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false })
+    );
+    shadow.rotation.x = -Math.PI / 2;
+    shadow.position.y = 0.015;
+    this.contactShadow = shadow;
+    this.scene.add(shadow);
   }
 
   private buildRafters(w: number, d: number, h: number, _wt: number) {
