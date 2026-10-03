@@ -15,6 +15,11 @@ Reference POC / MVP: https://www.skanskabyggvaror.se/modulara-byggnader/skapa-di
 ## 3. Core Features & Requirements
 * **3D Master View:** OrbitControls for seamless 360-degree dragging, rotating, and zooming with boundary constraints.
 * **View Toggling:** Master toggle between Outside (exterior walls, siding, roof) and Inside (floor plan, interior framing, loft).
+* **Construction layers:** A third view that peels one wall so the build-up can be shown or hidden independently. Default Utsida stays the finished exterior. The first version has four toggles and no dimension callouts or exploded roof:
+  1. **Panel** — vertical timber cladding, including the door and window already cut into the slot. One wall slides outward, the way a cladding panel is pulled off an assembly drawing.
+  2. **Regelstomme** — the stud frame already in the scene: sole plate, studs, top plate, and lintels.
+  3. **Isolering** — wind barrier, then mineral wool in the stud cavities.
+  4. **Innervägg** — inner lining with plaster, visible from the room side.
 * **Step-by-Step UI:** Intuitive step-by-step sidebar on desktop and swipeable bottom drawer on mobile/iPad.
 * **AI Support Hooks:** Extensible service integration for generative space layout, door/window placement recommendations, and budget constraints.
 * **Export Pipeline:**
@@ -28,3 +33,4 @@ Reference POC / MVP: https://www.skanskabyggvaror.se/modulara-byggnader/skapa-di
 3. **UI Layout & State Management:** Overlay UI with outside/inside toggle and step navigation.
 4. **Modular Integration & Interactivity:** Placement slots for doors, windows, and modular roof types reacting to Pinia updates.
 5. **Export Utilities & AI Integration:** Implement rendering capture, blueprint generation stubs, and AI prompt helper endpoints.
+6. **Construction layers:** Add Panel, Regelstomme, Isolering, and Innervägg toggles. Reuse the existing cladding meshes and stud frame. Build the wind barrier, cavity insulation, and plaster lining into the reserved 180 mm wall. Slide one wall outward in that view. Leave Utsida and Insida unchanged.
