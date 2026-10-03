@@ -445,6 +445,16 @@
 
     <!-- Doors Options -->
     <template v-else-if="store.selectedCategory === 'doors'">
+      <!-- Category Title matching other sections -->
+      <div class="flex items-center justify-between mb-1">
+        <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider">
+          Ytterdörrar
+        </h4>
+        <span class="text-xs text-slate-500 font-medium">
+          {{ Object.values(store.wallSlots).filter(s => s.type === 'door').length }} monterade
+        </span>
+      </div>
+
       <!-- Door Type Tabs (Enkeldörrar / Pardörrar) matching Image 1 & 2 -->
       <div class="flex border-b border-slate-200 gap-4 mb-2">
         <button
@@ -475,24 +485,17 @@
       <div
         v-if="!store.selectedSlotCanAcceptDoor"
         id="door-cannot-place-notice"
-        class="py-6 px-4 bg-slate-50/80 rounded-xl border border-slate-200/90 text-center space-y-2 animate-fade-in"
+        class="py-3 px-4 bg-amber-50 rounded-xl border border-amber-200/90 text-center space-y-1 mb-2 animate-fade-in"
       >
-        <p class="text-xs font-bold text-slate-900 leading-snug">
+        <p class="text-xs font-bold text-amber-900 leading-snug">
           Dörr kan inte placeras på markerad väggyta på byggnaden.
         </p>
-        <p class="text-[11px] text-slate-500">
+        <p class="text-[11px] text-amber-700">
           Välj en marknära väggsektion eller byt till fönsterparti.
         </p>
-        <button
-          type="button"
-          @click="store.selectCategory('windows')"
-          class="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:text-emerald-800 underline mt-1"
-        >
-          <span>Välj fönster istället →</span>
-        </button>
       </div>
 
-      <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
         <button
           v-for="door in DOORS_OPTIONS"
           :key="door.id"

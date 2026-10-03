@@ -1073,7 +1073,7 @@ export class HouseScene {
   }
 
   private buildRoof(w: number, d: number, h: number) {
-    const roofType = this.currentConfig.roofType;
+    const { roofType } = this.currentConfig;
     const overhang = 0.4;
     const roofMat = new THREE.MeshStandardMaterial({
       color: '#1e293b',

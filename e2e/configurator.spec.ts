@@ -120,7 +120,7 @@ test.describe("3D Modular House Configurator", () => {
     // 4. Doors Category
     await page.locator("#category-doors").scrollIntoViewIfNeeded();
     await page.locator("#category-doors").click();
-    await expect(page.locator("text=Ytterdörrar")).toBeVisible();
+    await expect(page.locator("h4:has-text('Ytterdörrar')")).toBeVisible();
     await expect(page.locator("#option-STEHAG")).toBeVisible();
     await expect(page.locator("#option-SVANSHALL")).toBeVisible();
   });
@@ -143,14 +143,18 @@ test.describe("3D Modular House Configurator", () => {
   });
 
   test("AI assistant interprets suggestions and updates configurator", async ({ page }) => {
-    await page.locator("button:has-text('Sadeltak + Sovloft')").click();
+    const aiBtn = page.locator("button:has-text('Sadeltak + Sovloft')");
+    await aiBtn.scrollIntoViewIfNeeded();
+    await aiBtn.click();
 
     // Feedback confirms action
     await expect(page.locator("text=Sadeltak och sovloft aktiverat")).toBeVisible();
   });
 
   test("opens and displays export modal with download options", async ({ page }) => {
-    await page.locator("#btn-next-step").click();
+    const nextBtn = page.locator("#btn-next-step");
+    await nextBtn.scrollIntoViewIfNeeded();
+    await nextBtn.click();
 
     await expect(page.locator("text=Exportera Byggsatshandlingar")).toBeVisible();
     await expect(page.locator("text=2D Planritning (SVG)")).toBeVisible();
