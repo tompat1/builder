@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import type { MaterialKey, WallSlot, LoftPlacement, LoftCount } from '../store/useConfigStore';
+import { PULPET_PITCH_DEG, type MaterialKey, type WallSlot, type LoftPlacement, type LoftCount } from '../store/useConfigStore';
+
+const PULPET_PITCH_RAD = (PULPET_PITCH_DEG * Math.PI) / 180;
 
 export interface SceneConfig {
   widthMm: number;
@@ -61,7 +63,7 @@ export class HouseScene {
     this.currentConfig = {
       widthMm: initialConfig?.widthMm ?? 6040,
       depthMm: initialConfig?.depthMm ?? 3503,
-      heightMm: initialConfig?.heightMm ?? 3503,
+      heightMm: initialConfig?.heightMm ?? 5000,
       roofType: initialConfig?.roofType ?? 'pulpettak',
       roofCovering: initialConfig?.roofCovering ?? 'felt',
       hasLoft: initialConfig?.hasLoft ?? false,
@@ -506,6 +508,10 @@ export class HouseScene {
     sunLight.shadow.radius = 5;
     this.scene.add(sunLight);
 
+    const interiorFill = new THREE.PointLight(0xfff6ea, 0.55, 14, 2);
+    interiorFill.position.set(0, 1.7, 0);
+    this.scene.add(interiorFill);
+
     const skyFill = new THREE.DirectionalLight(0xdbeafe, 0.28);
     skyFill.position.set(-10, 12, -8);
     this.scene.add(skyFill);
@@ -650,6 +656,11 @@ export class HouseScene {
       color: '#f8fafc',
       roughness: 0.4
     });
+    const casingMat = new THREE.MeshStandardMaterial({
+      color: this.casingColor(),
+      roughness: 0.58,
+      metalness: 0.02
+    });
 
     const foundationMat = new THREE.MeshStandardMaterial({
       color: '#94a3b8',
@@ -672,10 +683,17 @@ export class HouseScene {
     this.wallsGroup.add(floor);
 
     // 3. Modular Exterior Walls Construction (outer wood siding, inside left open for beams)
-    this.buildModularWall('front', 4, w, d, h, wallThick, exteriorMat, trimMat);
-    this.buildModularWall('back', 4, w, d, h, wallThick, exteriorMat, trimMat);
-    this.buildModularWall('left', 3, w, d, h, wallThick, exteriorMat, trimMat);
-    this.buildModularWall('right', 3, w, d, h, wallThick, exteriorMat, trimMat);
+    this.buildModularWall('front', 4, w, d, h, wallThick, exteriorMat, trimMat, casingMat);
+    this.buildModularWall('back', 4, w, d, h, wallThick, exteriorMat, trimMat, casingMat);
+    this.buildModularWall('left', 3, w, d, h, wallThick, exteriorMat, trimMat, casingMat);
+    this.buildModularWall('right', 3, w, d, h, wallThick, exteriorMat, trimMat, casingMat);
+    if (!this.interiorCut()) this.addBeltFlashing(w, d, trimMat);
+    if (!this.interiorCut()) {
+      const rearTop = this.currentConfig.roofType === 'pulpettak'
+        ? Math.max(h - Math.tan(PULPET_PITCH_RAD) * d, 2.4)
+        : h;
+      this.addCornerBoards(w, d, h, rearTop, 0.25, exteriorMat);
+    }
     if (this.currentConfig.roofType === 'sadeltak' && this.currentConfig.viewMode === 'utsida') {
       this.addGableEnds(w, d, h, exteriorMat);
     }
@@ -776,6 +794,21 @@ export class HouseScene {
     }
   }
 
+  private casingColor() {
+    switch (this.currentConfig.material) {
+      case 'falurod':
+        return '#9a2d28';
+      case 'grey':
+        return '#8b98a5';
+      case 'white':
+        return '#f7f4ee';
+      case 'black':
+        return '#3f4c5e';
+      default:
+        return '#f3e6d0';
+    }
+  }
+
   private buildModularWall(
     wallSide: 'front' | 'back' | 'left' | 'right',
     panelCount: number,
@@ -784,23 +817,24 @@ export class HouseScene {
     h: number,
     wallThick: number,
     exteriorMat: THREE.Material,
-    trimMat: THREE.Material
+    trimMat: THREE.Material,
+    casingMat: THREE.Material
   ) {
     const isPulpettak = this.currentConfig.roofType === 'pulpettak';
-    const angleRad = (8 * Math.PI) / 180;
+    const angleRad = PULPET_PITCH_RAD;
     const rearH = isPulpettak ? Math.max(h - Math.tan(angleRad) * d, 2.4) : h;
     const yMid = (h + rearH) / 2;
     const baseElev = 0.25;
 
     const isFrontOrBack = wallSide === 'front' || wallSide === 'back';
-    const wallLength = isFrontOrBack ? w : d - wallThick * 2;
-    const panelWidth = wallLength / panelCount;
     const claddingThick = 0.025;
+    // Side cladding tucks into the front and back sheets so the corner has no hole.
+    const endInset = claddingThick - 0.008;
+    const wallLength = isFrontOrBack ? w : d - endInset * 2;
+    const panelWidth = wallLength / panelCount;
 
     for (let i = 0; i < panelCount; i++) {
       const slotId = `${wallSide}-${i}`;
-      const slot = this.currentConfig.wallSlots[slotId];
-      const slotType = slot?.type ?? 'empty';
 
       // Panel center coordinates and height
       let px = 0;
@@ -822,117 +856,68 @@ export class HouseScene {
         panelWallH = rearH - baseElev;
       } else if (wallSide === 'left') {
         px = -w / 2 + claddingThick / 2;
-        pz = d / 2 - wallThick - panelWidth / 2 - i * panelWidth;
+        pz = d / 2 - endInset - panelWidth / 2 - i * panelWidth;
         rotY = -Math.PI / 2;
         panelWallH = this.sidePanelHeight(d, h, rearH, yMid, angleRad, pz, baseElev);
       } else {
         px = w / 2 - claddingThick / 2;
-        pz = -d / 2 + wallThick + panelWidth / 2 + i * panelWidth;
+        pz = -d / 2 + endInset + panelWidth / 2 + i * panelWidth;
         rotY = Math.PI / 2;
         panelWallH = this.sidePanelHeight(d, h, rearH, yMid, angleRad, pz, baseElev);
       }
 
-      const wallY = baseElev + panelWallH / 2;
+      if (!this.interiorCut()) panelWallH += 0.02;
 
-      // Panel Group
-      const panelGroup = new THREE.Group();
-      panelGroup.position.set(px, wallY, pz);
-      panelGroup.rotation.y = rotY;
-      panelGroup.userData = { slotId, wall: wallSide, index: i };
+      const belt = 2.15;
+      const upperId = `${wallSide}-${i}u`;
+      const split = Boolean(this.currentConfig.wallSlots[upperId]) && panelWallH > belt + 0.4;
+      const bands = split
+        ? [
+            { slotId, height: belt, base: baseElev, upper: false, reachesRoof: false },
+            { slotId: upperId, height: panelWallH - belt, base: baseElev + belt, upper: true, reachesRoof: true }
+          ]
+        : [{ slotId, height: panelWallH, base: baseElev, upper: false, reachesRoof: true }];
 
-      const opening = slotType === 'window' || slotType === 'door'
-        ? this.regulatedOpening(slotType, slot?.itemId, slot?.isUpper === true, panelWidth, panelWallH, baseElev)
-        : null;
-
-      // Cladding. A window is a real hole in the board so the room is visible through it.
-      const panelMesh = opening
-        ? this.addCladdingAroundOpening(panelGroup, panelWidth, panelWallH, claddingThick, exteriorMat, opening, {
-            slotId,
-            wall: wallSide,
-            index: i,
-            panelGroup
-          })
-        : this.addSolidCladding(panelGroup, panelWidth, panelWallH, claddingThick, exteriorMat, {
-            slotId,
-            wall: wallSide,
-            index: i
-          });
-      const activeMesh = panelMesh;
-
-      // Subtle modular joint vertical trim line between panels for clear visual segmentation
-      const jointGeo = new THREE.BoxGeometry(0.012, panelWallH + 0.02, 0.035);
-      const jointMat = new THREE.MeshStandardMaterial({ color: '#94a3b8', roughness: 0.8 });
-      const jointMesh = new THREE.Mesh(jointGeo, jointMat);
-      jointMesh.position.set(panelWidth / 2, 0, 0.01);
-      panelGroup.add(jointMesh);
-
-      // Horizontal mid-trim line (white coping / mid-rib matching Skånska Byggvaror)
-      const midRibY =
-        this.interiorCut() && wallSide === 'front'
-          ? panelWallH / 2
-          : (baseElev + 2.15) - wallY;
-      const ribOverlapsWindow = opening
-        && midRibY + 0.03 > opening.winY - opening.winH / 2
-        && midRibY - 0.03 < opening.winY + opening.winH / 2;
-      if (ribOverlapsWindow && opening) {
-        const sideW = (panelWidth - opening.winW) / 2;
-        const leftRib = new THREE.Mesh(new THREE.BoxGeometry(sideW, 0.06, 0.04), trimMat);
-        leftRib.position.set(-(panelWidth + opening.winW) / 4, midRibY, 0.02);
-        leftRib.castShadow = true;
-        panelGroup.add(leftRib);
-        const rightRib = new THREE.Mesh(new THREE.BoxGeometry(sideW, 0.06, 0.04), trimMat);
-        rightRib.position.set((panelWidth + opening.winW) / 4, midRibY, 0.02);
-        rightRib.castShadow = true;
-        panelGroup.add(rightRib);
-      } else {
-        const midRibGeo = new THREE.BoxGeometry(panelWidth, 0.06, 0.04);
-        const midRib = new THREE.Mesh(midRibGeo, trimMat);
-        midRib.position.set(0, midRibY, 0.02);
-        midRib.castShadow = true;
-        panelGroup.add(midRib);
-      }
-
-      // Decorate panel based on assigned slot item
-      if (slotType === 'door') {
-        this.addDoorFeature(panelGroup, panelWidth, panelWallH, wallThick, slot?.itemId);
-      } else if (slotType === 'window' && opening) {
-        this.addWindowFeature(panelGroup, opening, slot?.itemId, {
-          slotId,
-          wall: wallSide,
-          index: i,
-          panelGroup
-        });
-      } else if (slotType === 'gate') {
-        this.addGateFeature(panelGroup, panelWidth, panelWallH, wallThick, slot?.itemId);
-      }
-
-      this.wallsGroup.add(panelGroup);
-
-      // Check if this slot is selected to place the green highlight outline
-      if (slotId === this.currentConfig.selectedSlotId) {
-        this.updateHighlightBox(opening ? panelGroup : activeMesh);
+      const slope = this.alongWallSlope(wallSide);
+      for (const band of bands) {
+        this.buildWallBand(
+          band,
+          px,
+          pz,
+          rotY,
+          panelWidth,
+          claddingThick,
+          wallThick,
+          wallSide,
+          i,
+          i > 0 && (wallSide === 'left' || wallSide === 'right') || i < panelCount - 1 && wallSide !== 'left' && wallSide !== 'right',
+          slope,
+          exteriorMat,
+          casingMat
+        );
       }
     }
 
     // Top eave trim and fascia to ensure 100% gapless junction with roof underside
     if (wallSide === 'left' || wallSide === 'right') {
-      if (!this.interiorCut()) {
-        const sideSpan = d - wallThick * 2;
-        const slopeLen = Math.hypot(sideSpan, h - rearH);
-        const slopeAngle = Math.atan2(h - rearH, sideSpan);
-        const trimGeo = new THREE.BoxGeometry(0.035, 0.16, slopeLen + 0.1);
-        const eavesTrim = new THREE.Mesh(trimGeo, trimMat);
-        const trimX = wallSide === 'left' ? -w / 2 + wallThick / 2 - 0.012 : w / 2 - wallThick / 2 + 0.012;
-        eavesTrim.position.set(trimX, yMid - 0.07, 0);
+      const roof = this.currentConfig.roofType;
+      if (!this.interiorCut() && (roof === 'pulpettak' || roof === 'flackt')) {
+        const pitch = this.alongWallSlope('left');
+        const rise = Math.abs(pitch) * d;
+        const slopeLen = Math.hypot(d + 0.08, rise);
+        const slopeAngle = Math.atan2(rise, d);
+        const eavesTrim = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.1, slopeLen), trimMat);
+        const trimX = wallSide === 'left' ? -w / 2 - 0.004 : w / 2 + 0.004;
+        eavesTrim.position.set(trimX, yMid + 0.01, 0);
         eavesTrim.rotation.x = -slopeAngle;
         eavesTrim.castShadow = true;
         this.wallsGroup.add(eavesTrim);
       }
     } else if (wallSide === 'front') {
       if (!this.interiorCut()) {
-        const frontTrimGeo = new THREE.BoxGeometry(w + 0.05, 0.12, 0.03);
+        const frontTrimGeo = new THREE.BoxGeometry(w + 0.06, 0.14, 0.035);
         const frontTrim = new THREE.Mesh(frontTrimGeo, trimMat);
-        frontTrim.position.set(0, h - 0.06, d / 2 + 0.01);
+        frontTrim.position.set(0, h + 0.04, d / 2 + 0.012);
         frontTrim.castShadow = true;
         this.wallsGroup.add(frontTrim);
       }
@@ -945,30 +930,106 @@ export class HouseScene {
     }
   }
 
-  private addCripples(
-    x: number,
-    z: number,
-    base: number,
-    wallTop: number,
-    sill: number,
-    head: number,
-    studThick: number,
-    studDepth: number,
-    mat: THREE.Material
-  ) {
-    const belowH = sill - (base + studThick);
-    if (belowH > 0.05) {
-      const below = new THREE.Mesh(new THREE.BoxGeometry(studThick, belowH, studDepth), mat);
-      below.position.set(x, base + studThick + belowH / 2, z);
-      below.castShadow = true;
-      this.framingGroup.add(below);
+  /** White metal belt on each wall, stopping against the vertical corner boards. */
+  private addBeltFlashing(w: number, d: number, trimMat: THREE.Material) {
+    const y = 0.25 + 2.15;
+    const height = 0.055;
+    const { face, thick } = this.cornerTrimSize();
+    const inset = face - thick;
+    const frontLen = w - inset * 2;
+    const sideLen = d - face * 2;
+    const frontZ = d / 2 + thick / 2;
+    const sideX = w / 2 + thick / 2;
+    const boards: [number, number, number, number, number, number][] = [
+      [frontLen, height, thick, 0, y, frontZ],
+      [frontLen, height, thick, 0, y, -frontZ],
+      [thick, height, sideLen, -sideX, y, 0],
+      [thick, height, sideLen, sideX, y, 0]
+    ];
+    for (const [sx, sy, sz, px, py, pz] of boards) {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), trimMat);
+      mesh.position.set(px, py, pz);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      this.wallsGroup.add(mesh);
     }
-    const aboveH = wallTop - studThick - head;
-    if (aboveH > 0.05) {
-      const above = new THREE.Mesh(new THREE.BoxGeometry(studThick, aboveH, studDepth), mat);
-      above.position.set(x, head + aboveH / 2, z);
-      above.castShadow = true;
-      this.framingGroup.add(above);
+  }
+
+  /** Rise of the roof along a side wall, in metres of height per metre of local panel X. */
+  private alongWallSlope(wallSide: 'front' | 'back' | 'left' | 'right') {
+    if (this.interiorCut() || (wallSide !== 'left' && wallSide !== 'right')) return 0;
+    const roof = this.currentConfig.roofType;
+    if (roof !== 'pulpettak' && roof !== 'flackt') return 0;
+    const degrees = roof === 'pulpettak' ? PULPET_PITCH_DEG : 2;
+    const tan = Math.tan((degrees * Math.PI) / 180);
+    return wallSide === 'left' ? tan : -tan;
+  }
+
+  private buildWallBand(
+    band: { slotId: string; height: number; base: number; upper: boolean; reachesRoof: boolean },
+    px: number,
+    pz: number,
+    rotY: number,
+    panelWidth: number,
+    claddingThick: number,
+    wallThick: number,
+    wallSide: 'front' | 'back' | 'left' | 'right',
+    index: number,
+    showEdgeJoint: boolean,
+    slope: number,
+    exteriorMat: THREE.Material,
+    casingMat: THREE.Material
+  ) {
+    const slot = this.currentConfig.wallSlots[band.slotId];
+    const slotType = slot?.type ?? 'empty';
+    const panelGroup = new THREE.Group();
+    panelGroup.position.set(px, band.base + band.height / 2, pz);
+    panelGroup.rotation.y = rotY;
+    panelGroup.userData = { slotId: band.slotId, wall: wallSide, index };
+
+    const opening = slotType === 'window' || slotType === 'door'
+      ? this.fittedOpening(slotType, slot?.itemId, band.upper, panelWidth, band.height, band.base)
+      : null;
+    const userData = {
+      slotId: band.slotId,
+      wall: wallSide,
+      index,
+      panelGroup
+    };
+
+    const sloped = band.reachesRoof && Math.abs(slope) > 0.0001;
+    if (sloped) {
+      this.addSlopedCladding(panelGroup, panelWidth, band.height, slope, claddingThick, exteriorMat, userData, opening);
+    } else if (opening) {
+      this.addCladdingAroundOpening(panelGroup, panelWidth, band.height, claddingThick, exteriorMat, opening, userData);
+    } else {
+      this.addSolidCladding(panelGroup, panelWidth, band.height, claddingThick, exteriorMat, userData);
+    }
+
+    if (showEdgeJoint) {
+      const edgeRise = sloped ? (panelWidth / 2) * slope : 0;
+      const joint = new THREE.Mesh(
+        new THREE.BoxGeometry(0.006, band.height + edgeRise, 0.01),
+        new THREE.MeshStandardMaterial({ color: '#cbb89a', roughness: 0.8 })
+      );
+      joint.position.set(panelWidth / 2, edgeRise / 2, 0.014);
+      panelGroup.add(joint);
+    }
+
+    if ((slotType === 'door' || slotType === 'window') && opening) {
+      this.addOpeningCasing(panelGroup, opening, slotType, casingMat);
+    }
+    if (slotType === 'door' && opening) {
+      this.addDoorFeature(panelGroup, opening, slot?.itemId, userData);
+    } else if (slotType === 'window' && opening) {
+      this.addWindowFeature(panelGroup, opening, slot?.itemId, userData);
+    } else if (slotType === 'gate') {
+      this.addGateFeature(panelGroup, panelWidth, band.height, wallThick, slot?.itemId, userData);
+    }
+
+    this.wallsGroup.add(panelGroup);
+    if (band.slotId === this.currentConfig.selectedSlotId) {
+      this.updateHighlightBox(panelGroup);
     }
   }
 
@@ -1014,7 +1075,7 @@ export class HouseScene {
     const studDepth = 0.145; // 145 mm
     const baseElevation = 0.25; // on top of slab foundation
     const rearH = this.currentConfig.roofType === 'pulpettak'
-      ? Math.max(h - Math.tan((8 * Math.PI) / 180) * d, 2.4)
+      ? Math.max(h - Math.tan(PULPET_PITCH_RAD) * d, 2.4)
       : h;
 
     const framingFrontZ = d / 2 - 0.025 - studDepth / 2;
@@ -1101,43 +1162,24 @@ export class HouseScene {
     const frontStudCount = Math.floor((w - 0.1) / 0.6);
     const frontSpacing = (w - 0.1) / frontStudCount;
     const frontStudH = h - baseElevation - studThick * 2;
+    const frontOpenings = this.frontOpenings(w, h, baseElevation);
 
     for (let s = 1; s < frontStudCount; s++) {
       const sx = -w / 2 + 0.05 + s * frontSpacing;
-
-      const panelIndex = Math.min(Math.floor(((sx + w / 2) / w) * 4), 3);
-      const slot = this.currentConfig.wallSlots[`front-${panelIndex}`];
-      const panelCenter = -w / 2 + (panelIndex + 0.5) * (w / 4);
-      const opening = slot && (slot.type === 'door' || slot.type === 'window')
-        ? this.regulatedOpening(slot.type, slot.itemId, slot.isUpper === true, w / 4, h - baseElevation, baseElevation)
-        : null;
-
-      if (opening && Math.abs(sx - panelCenter) < opening.winW / 2 - 0.02) {
-        this.addCripples(sx, framingFrontZ, baseElevation, h, opening.sill, opening.head, studThick, studDepth, framingMat);
+      const blocked = frontOpenings.filter((opening) => Math.abs(sx - opening.x) < opening.winW / 2 - 0.02);
+      if (blocked.length > 0) {
+        this.fillStudGaps(sx, framingFrontZ, baseElevation, h, blocked, studThick, studDepth, framingMat);
         continue;
       }
 
-      // Standard vertical wall stud
       const studMesh = new THREE.Mesh(new THREE.BoxGeometry(studThick, frontStudH, studDepth), framingMat);
       studMesh.position.set(sx, baseElevation + studThick + frontStudH / 2, framingFrontZ);
       studMesh.castShadow = true;
       this.framingGroup.add(studMesh);
     }
 
-    // Trimmers, sill and header follow the same opening as the cladding.
-    for (let p = 0; p < 4; p++) {
-      const slot = this.currentConfig.wallSlots[`front-${p}`];
-      if (!slot || (slot.type !== 'door' && slot.type !== 'window')) continue;
-      const opening = this.regulatedOpening(
-        slot.type,
-        slot.itemId,
-        slot.isUpper === true,
-        w / 4,
-        h - baseElevation,
-        baseElevation
-      );
-      const pc = -w / 2 + (p + 0.5) * (w / 4);
-      this.addOpeningFrame(pc, framingFrontZ, opening, studThick, studDepth, framingMat);
+    for (const opening of frontOpenings) {
+      this.addOpeningFrame(opening.x, framingFrontZ, opening, studThick, studDepth, framingMat);
     }
 
     // Rear Wall Studs cc 600 mm
@@ -1180,52 +1222,236 @@ export class HouseScene {
   }
 
   /**
-   * Module placement. The white mid-rail is the head line at 2.15 m.
-   * A door stands on the floor and stops under that line.
-   * A normal window uses a 0.90 m sill and the same head.
-   * An upper bay keeps the whole window above the rail.
-   * Nothing is allowed to straddle the rail.
+   * Opening size follows the panel it sits in.
+   * An upper panel is a wide, low bay, so its window is a landscape rectangle.
+   * A lower window fills the bay under the rail. A door stands on the floor.
+   * Catalog type changes glass and mullions; it does not override the fit.
    */
-  private regulatedOpening(
+  private fittedOpening(
     kind: 'door' | 'window',
     itemId: string | undefined,
     isUpper: boolean,
     panelWidth: number,
     panelHeight: number,
-    baseElev: number
+    panelBase: number
   ) {
-    const wallTop = baseElev + panelHeight;
-    const belt = baseElev + 2.15;
-    let winW = 1;
-    let wantedH = kind === 'door' ? 2.1 : 1.2;
-    if (kind === 'window') {
-      if (itemId === 'panorama') {
-        winW = 1.45;
-        wantedH = 1.6;
-      } else if (itemId === 'frost') {
-        winW = 0.62;
-        wantedH = 0.62;
-      } else if (itemId === 'sprojat') {
-        winW = 1.15;
-        wantedH = 1.15;
+    const side = 0.09;
+    const headBoard = 0.085;
+    const sillBoard = 0.065;
+    const edge = 0.045;
+    const winW = Math.max(0.46, panelWidth - side * 2 - edge * 2);
+    const centerY = panelBase + panelHeight / 2;
+
+    if (kind === 'door') {
+      const wanted = itemId === 'SVANSHALL' ? 1.6 : 1.0;
+      const doorW = Math.min(wanted, winW);
+      const doorH = Math.min(2.1, Math.max(1.7, panelHeight - headBoard - 0.06));
+      const sill = panelBase;
+      const head = sill + doorH;
+      return { winW: doorW, winH: doorH, winY: (sill + head) / 2 - centerY, sill, head };
+    }
+
+    let winH: number;
+    let sill: number;
+    if (isUpper) {
+      // Sit the head just under the fascia, the way the reference row does.
+      const gapAbove = 0.16;
+      const head = panelBase + panelHeight - gapAbove - headBoard;
+      const maxH = Math.max(0.28, head - (panelBase + sillBoard + 0.04));
+      winH = Math.min(maxH, winW * 0.42);
+      sill = head - winH;
+      const minSill = panelBase + sillBoard + 0.02;
+      if (sill < minSill) {
+        sill = minSill;
+        winH = Math.max(0.28, head - sill);
+      }
+    } else {
+      const sillFromBase = Math.min(0.85, panelHeight * 0.34);
+      const maxH = Math.max(0.4, panelHeight - headBoard - sillFromBase - 0.22);
+      winH = Math.min(maxH, Math.max(winW * 0.92, panelHeight * 0.42));
+      sill = panelBase + sillFromBase;
+    }
+    const head = sill + winH;
+    return { winW, winH, winY: (sill + head) / 2 - centerY, sill, head };
+  }
+
+  private frontOpenings(w: number, h: number, base: number) {
+    const fullH = h - base;
+    const lowerH = Math.min(2.15, fullH);
+    const split = fullH > 2.15 + 0.4 && !this.interiorCut();
+    const openings: { x: number; winW: number; winH: number; winY: number; sill: number; head: number }[] = [];
+    for (let p = 0; p < 4; p++) {
+      const panelW = w / 4;
+      const x = -w / 2 + (p + 0.5) * panelW;
+      const bands = split
+        ? [
+            { id: `front-${p}`, upper: false, panelH: lowerH, panelBase: base },
+            { id: `front-${p}u`, upper: true, panelH: fullH - lowerH, panelBase: base + lowerH }
+          ]
+        : [{ id: `front-${p}`, upper: false, panelH: fullH, panelBase: base }];
+      for (const band of bands) {
+        const slot = this.currentConfig.wallSlots[band.id];
+        if (!slot || (slot.type !== 'door' && slot.type !== 'window')) continue;
+        openings.push({
+          x,
+          ...this.fittedOpening(slot.type, slot.itemId, band.upper, panelW, band.panelH, band.panelBase)
+        });
       }
     }
-    winW = Math.min(winW, Math.max(0.4, panelWidth - 0.16));
+    return openings;
+  }
 
-    let sill = baseElev;
-    let head = Math.min(baseElev + 2.1, wallTop - 0.08);
-    if (kind === 'window' && isUpper) {
-      sill = belt + 0.08;
-      head = Math.min(sill + wantedH, wallTop - 0.1);
-    } else if (kind === 'window') {
-      sill = baseElev + 0.9;
-      head = Math.min(sill + wantedH, belt - 0.05);
+  private fillStudGaps(
+    x: number,
+    z: number,
+    base: number,
+    wallTop: number,
+    blocked: { sill: number; head: number }[],
+    studThick: number,
+    studDepth: number,
+    mat: THREE.Material
+  ) {
+    const spans = [...blocked].sort((a, b) => a.sill - b.sill);
+    let cursor = base + studThick;
+    const top = wallTop - studThick;
+    for (const span of spans) {
+      const gap = Math.min(span.sill, top) - cursor;
+      if (gap > 0.05) {
+        const stud = new THREE.Mesh(new THREE.BoxGeometry(studThick, gap, studDepth), mat);
+        stud.position.set(x, cursor + gap / 2, z);
+        stud.castShadow = true;
+        this.framingGroup.add(stud);
+      }
+      cursor = Math.max(cursor, span.head);
     }
-    if (head - sill < 0.4) head = Math.min(wallTop - 0.08, sill + 0.4);
+    const tail = top - cursor;
+    if (tail > 0.05) {
+      const stud = new THREE.Mesh(new THREE.BoxGeometry(studThick, tail, studDepth), mat);
+      stud.position.set(x, cursor + tail / 2, z);
+      stud.castShadow = true;
+      this.framingGroup.add(stud);
+    }
+  }
 
-    const winH = head - sill;
-    const winY = (sill + head) / 2 - (baseElev + panelHeight / 2);
-    return { winW, winH, winY, sill, head };
+  private addOpeningCasing(
+    parent: THREE.Group,
+    opening: { winW: number; winH: number; winY: number },
+    kind: 'door' | 'window',
+    material: THREE.Material
+  ) {
+    const { winW, winH, winY } = opening;
+    const side = kind === 'door' ? 0.1 : 0.09;
+    const headH = kind === 'door' ? 0.1 : 0.085;
+    const sillH = kind === 'door' ? 0 : 0.065;
+    const depth = 0.038;
+    const z = 0.032;
+    const sideTop = winY + winH / 2;
+    const sideBottom = winY - winH / 2 - sillH;
+    const sideH = sideTop - sideBottom;
+    const sideY = (sideTop + sideBottom) / 2;
+    const boards: { x: number; y: number; w: number; h: number; d: number; z: number }[] = [
+      { x: -(winW / 2 + side / 2), y: sideY, w: side, h: sideH, d: depth, z },
+      { x: winW / 2 + side / 2, y: sideY, w: side, h: sideH, d: depth, z },
+      { x: 0, y: winY + winH / 2 + headH / 2, w: winW + side * 2, h: headH, d: depth, z }
+    ];
+    if (kind === 'window') {
+      boards.push({
+        x: 0,
+        y: winY - winH / 2 - sillH / 2,
+        w: winW + side * 2 + 0.04,
+        h: sillH,
+        d: depth + 0.01,
+        z: z + 0.004
+      });
+    }
+    for (const board of boards) {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(board.w, board.h, board.d), material);
+      mesh.position.set(board.x, board.y, board.z);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.userData = { ...parent.userData, panelGroup: parent };
+      parent.add(mesh);
+      this.interactivePanels.push(mesh);
+    }
+  }
+
+  private cornerTrimSize() {
+    return { face: 0.098, thick: 0.028 };
+  }
+
+  /** Vertical wood boards covering each outside corner. The belt stops against them. */
+  private addCornerBoards(
+    w: number,
+    d: number,
+    h: number,
+    rearH: number,
+    baseElev: number,
+    material: THREE.Material
+  ) {
+    const { face, thick } = this.cornerTrimSize();
+    const corners = [
+      { x: -1, z: 1, top: h },
+      { x: 1, z: 1, top: h },
+      { x: -1, z: -1, top: rearH },
+      { x: 1, z: -1, top: rearH }
+    ];
+    for (const corner of corners) {
+      const top = corner.top + 0.03;
+      const height = top - baseElev;
+      const y = baseElev + height / 2;
+      const alongFront = new THREE.Mesh(new THREE.BoxGeometry(face, height, thick), material);
+      alongFront.position.set(corner.x * (w / 2 + thick - face / 2), y, corner.z * (d / 2 + thick / 2));
+      const alongSide = new THREE.Mesh(new THREE.BoxGeometry(thick, height, face), material);
+      alongSide.position.set(corner.x * (w / 2 + thick / 2), y, corner.z * (d / 2 - face / 2));
+      for (const board of [alongFront, alongSide]) {
+        board.castShadow = true;
+        board.receiveShadow = true;
+        this.wallsGroup.add(board);
+      }
+    }
+  }
+
+  private addSlopedCladding(
+    parent: THREE.Group,
+    panelWidth: number,
+    panelHeight: number,
+    slope: number,
+    claddingThick: number,
+    material: THREE.Material,
+    userData: Record<string, unknown>,
+    opening: { winW: number; winH: number; winY: number } | null
+  ) {
+    const halfW = panelWidth / 2;
+    const halfH = panelHeight / 2;
+    const topAt = (x: number) => halfH + x * slope;
+    const shape = new THREE.Shape();
+    shape.moveTo(-halfW, -halfH);
+    shape.lineTo(halfW, -halfH);
+    shape.lineTo(halfW, topAt(halfW));
+    shape.lineTo(-halfW, topAt(-halfW));
+    shape.closePath();
+    if (opening) {
+      const hole = new THREE.Path();
+      const left = -opening.winW / 2;
+      const right = opening.winW / 2;
+      const bottom = opening.winY - opening.winH / 2;
+      const top = opening.winY + opening.winH / 2;
+      hole.moveTo(left, bottom);
+      hole.lineTo(left, top);
+      hole.lineTo(right, top);
+      hole.lineTo(right, bottom);
+      hole.closePath();
+      shape.holes.push(hole);
+    }
+    const geo = new THREE.ExtrudeGeometry(shape, { depth: claddingThick, bevelEnabled: false });
+    geo.translate(0, 0, -claddingThick / 2);
+    const mesh = new THREE.Mesh(geo, material);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.userData = userData;
+    parent.add(mesh);
+    this.interactivePanels.push(mesh);
+    return mesh;
   }
 
   private addSolidCladding(
@@ -1304,78 +1530,77 @@ export class HouseScene {
     userData: Record<string, unknown>
   ) {
     const { winW, winH, winY } = opening;
-    const frameT = 0.045;
-    const frameD = 0.055;
+    const frameT = 0.032;
+    const frameD = 0.026;
     const frameMat = new THREE.MeshStandardMaterial({ color: '#f8fafc', roughness: 0.35 });
     const members: { x: number; y: number; w: number; h: number }[] = [
-      { x: -winW / 2 - frameT / 2, y: winY, w: frameT, h: winH + frameT * 2 },
-      { x: winW / 2 + frameT / 2, y: winY, w: frameT, h: winH + frameT * 2 },
-      { x: 0, y: winY + winH / 2 + frameT / 2, w: winW, h: frameT },
-      { x: 0, y: winY - winH / 2 - frameT / 2, w: winW, h: frameT }
+      { x: -(winW / 2 - frameT / 2), y: winY, w: frameT, h: winH },
+      { x: winW / 2 - frameT / 2, y: winY, w: frameT, h: winH },
+      { x: 0, y: winY + winH / 2 - frameT / 2, w: winW - frameT * 2, h: frameT },
+      { x: 0, y: winY - winH / 2 + frameT / 2, w: winW - frameT * 2, h: frameT }
     ];
     for (const member of members) {
       const frame = new THREE.Mesh(new THREE.BoxGeometry(member.w, member.h, frameD), frameMat);
-      frame.position.set(member.x, member.y, 0.01);
+      frame.position.set(member.x, member.y, 0.02);
       frame.castShadow = true;
       parent.add(frame);
+      this.markSelectable(frame, userData);
     }
 
     const frosted = windowId === 'frost';
+    const glassW = Math.max(0.2, winW - frameT * 2);
+    const glassH = Math.max(0.16, winH - frameT * 2);
     const glass = new THREE.Mesh(
-      new THREE.PlaneGeometry(winW, winH),
+      new THREE.PlaneGeometry(glassW, glassH),
       new THREE.MeshStandardMaterial({
-        color: frosted ? '#f1f5f9' : '#dbeafe',
+        color: frosted ? '#f1f5f9' : '#e3ddd4',
         transparent: true,
-        opacity: frosted ? 0.38 : 0.07,
-        roughness: frosted ? 0.55 : 0.04,
-        metalness: 0.04,
+        opacity: frosted ? 0.62 : 0.58,
+        roughness: frosted ? 0.55 : 0.12,
+        metalness: 0.08,
         side: THREE.DoubleSide,
         depthWrite: false
       })
     );
     glass.position.set(0, winY, 0.012);
     glass.renderOrder = 2;
-    glass.userData = userData;
     parent.add(glass);
-    this.interactivePanels.push(glass);
+    this.markSelectable(glass, userData);
 
     if (windowId === 'sprojat') {
       const mullionMat = new THREE.MeshStandardMaterial({ color: '#f8fafc', roughness: 0.35 });
-      const vertMullion = new THREE.Mesh(new THREE.BoxGeometry(0.028, winH, 0.03), mullionMat);
+      const vertMullion = new THREE.Mesh(new THREE.BoxGeometry(0.028, glassH, 0.03), mullionMat);
       vertMullion.position.set(0, winY, 0.02);
       parent.add(vertMullion);
-      const horizMullion = new THREE.Mesh(new THREE.BoxGeometry(winW, 0.028, 0.03), mullionMat);
+      this.markSelectable(vertMullion, userData);
+      const horizMullion = new THREE.Mesh(new THREE.BoxGeometry(glassW, 0.028, 0.03), mullionMat);
       horizMullion.position.set(0, winY, 0.02);
       parent.add(horizMullion);
+      this.markSelectable(horizMullion, userData);
     }
   }
 
-  private addDoorFeature(parent: THREE.Group, pw: number, ph: number, wt: number, doorId?: string) {
-    // Cutout opening simulation
-    const doorW = 1.0;
-    const doorH = 2.1;
-    const doorY = -ph / 2 + doorH / 2;
+  private markSelectable(mesh: THREE.Mesh, userData: Record<string, unknown>) {
+    mesh.userData = userData;
+    this.interactivePanels.push(mesh);
+  }
 
-    const frameT = 0.04;
-    const frameD = 0.06;
-    const frameMat = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.3 });
-    const frameMembers: { x: number; y: number; w: number; h: number }[] = [
-      { x: -doorW / 2 - frameT / 2, y: doorY, w: frameT, h: doorH + frameT },
-      { x: doorW / 2 + frameT / 2, y: doorY, w: frameT, h: doorH + frameT },
-      { x: 0, y: doorY + doorH / 2 + frameT / 2, w: doorW, h: frameT }
-    ];
-    for (const member of frameMembers) {
-      const frame = new THREE.Mesh(new THREE.BoxGeometry(member.w, member.h, frameD), frameMat);
-      frame.position.set(member.x, member.y, 0.01);
-      parent.add(frame);
-    }
+  private addDoorFeature(
+    parent: THREE.Group,
+    opening: { winW: number; winH: number; winY: number },
+    doorId: string | undefined,
+    userData: Record<string, unknown>
+  ) {
+    const doorW = opening.winW - 0.02;
+    const doorH = opening.winH - 0.012;
+    const doorY = opening.winY - 0.004;
 
     // Door leaf, with a real opening behind the glass so the room shows through.
-    const leafZ = wt / 2 + 0.02;
-    const leafD = 0.08;
-    const liteW = doorId === 'SVANSHALL' ? 0.72 : 0.16;
-    const liteH = doorId === 'SVANSHALL' ? 1.6 : 0.9;
-    const liteY = doorY + 0.25;
+    const leafZ = 0.02;
+    const leafD = 0.045;
+    const liteW = doorId === 'SVANSHALL' ? doorW * 0.72 : Math.min(0.16, doorW * 0.22);
+    const liteH = doorId === 'SVANSHALL' ? doorH * 0.72 : Math.min(0.9, doorH * 0.46);
+    const liteY = doorY + doorH * 0.08;
     const leafMat = new THREE.MeshStandardMaterial({ color: '#f8fafc', roughness: 0.35 });
     const leafParts: { x: number; y: number; w: number; h: number }[] = [
       { x: 0, y: (liteY + liteH / 2 + doorY + doorH / 2) / 2, w: doorW, h: doorY + doorH / 2 - (liteY + liteH / 2) },
@@ -1389,6 +1614,7 @@ export class HouseScene {
       leaf.position.set(part.x, part.y, leafZ);
       leaf.castShadow = true;
       parent.add(leaf);
+      this.markSelectable(leaf, userData);
     }
 
     const glass = new THREE.Mesh(
@@ -1406,17 +1632,26 @@ export class HouseScene {
     glass.position.set(0, liteY, leafZ + leafD / 2 + 0.004);
     glass.renderOrder = 2;
     parent.add(glass);
+    this.markSelectable(glass, userData);
 
     // Handle
     const handleGeo = new THREE.CylinderGeometry(0.012, 0.012, 0.12);
     const handleMat = new THREE.MeshStandardMaterial({ color: '#334155', metalness: 0.8, roughness: 0.2 });
     const handle = new THREE.Mesh(handleGeo, handleMat);
     handle.rotation.z = Math.PI / 2;
-    handle.position.set(0.38, doorY, wt / 2 + 0.09);
+    handle.position.set(doorW / 2 - 0.12, doorY, leafZ + leafD / 2 + 0.02);
     parent.add(handle);
+    this.markSelectable(handle, userData);
   }
 
-  private addGateFeature(parent: THREE.Group, pw: number, ph: number, wt: number, gateId?: string) {
+  private addGateFeature(
+    parent: THREE.Group,
+    pw: number,
+    ph: number,
+    wt: number,
+    gateId: string | undefined,
+    userData: Record<string, unknown>
+  ) {
     const gateW = pw * 0.9;
     const gateH = ph * 0.85;
     const gateY = -ph / 2 + gateH / 2;
@@ -1430,6 +1665,7 @@ export class HouseScene {
     const gateMesh = new THREE.Mesh(gateGeo, gateMat);
     gateMesh.position.set(0, gateY, 0);
     parent.add(gateMesh);
+    this.markSelectable(gateMesh, userData);
 
     // Sectional horizontal ribs
     for (let r = -gateH / 2 + 0.4; r < gateH / 2; r += 0.45) {
@@ -1438,6 +1674,7 @@ export class HouseScene {
       const rib = new THREE.Mesh(ribGeo, ribMat);
       rib.position.set(0, gateY + r, 0);
       parent.add(rib);
+      this.markSelectable(rib, userData);
     }
   }
 
@@ -1456,9 +1693,9 @@ export class HouseScene {
     } else if (roofType === 'flackt') {
       this.addShallowRoof(w, d, h, overhang, 2, roofMat, whiteTrimMat);
     } else {
-      // Pulpettak 8°. The slab, barge boards, and fascia share one rotated assembly
+      // Pulpettak. The slab, barge boards, and fascia share one rotated assembly
       // so each board meets the next at an edge instead of occupying the same face.
-      const angleRad = (8 * Math.PI) / 180;
+      const angleRad = PULPET_PITCH_RAD;
       const rearH = Math.max(h - Math.tan(angleRad) * d, 2.4);
       const yMid = (h + rearH) / 2;
       const roofThick = 0.1;
@@ -1475,40 +1712,62 @@ export class HouseScene {
       roofMesh.receiveShadow = true;
       assembly.add(roofMesh);
 
-      const bargeT = 0.028;
+      const fasciaT = 0.022;
+      const soffitT = 0.014;
+      const fasciaBottom = -roofThick / 2 - soffitT - 0.004;
+      const fasciaTop = roofThick / 2 - 0.008;
+      const fasciaH = fasciaTop - fasciaBottom;
+      const fasciaY = (fasciaBottom + fasciaTop) / 2;
+      const bargeT = 0.032;
       const bargeH = roofThick - 0.012;
-      const bargeGeo = new THREE.BoxGeometry(bargeT, bargeH, slopeLen);
-      const bargeY = -0.008;
+
+      const bargeGeo = new THREE.BoxGeometry(bargeT, fasciaH, slopeLen);
       const leftBarge = new THREE.Mesh(bargeGeo, whiteTrimMat);
-      leftBarge.position.set(-(roofW / 2 + bargeT / 2 + 0.001), bargeY, 0);
+      leftBarge.position.set(-(roofW / 2 + bargeT / 2 + 0.001), fasciaY, 0);
       leftBarge.castShadow = true;
       assembly.add(leftBarge);
       const rightBarge = new THREE.Mesh(bargeGeo, whiteTrimMat);
-      rightBarge.position.set(roofW / 2 + bargeT / 2 + 0.001, bargeY, 0);
+      rightBarge.position.set(roofW / 2 + bargeT / 2 + 0.001, fasciaY, 0);
       rightBarge.castShadow = true;
       assembly.add(rightBarge);
 
-      const fasciaT = 0.022;
-      const fasciaGeo = new THREE.BoxGeometry(roofW + bargeT * 2 + 0.004, bargeH, fasciaT);
+      const fasciaGeo = new THREE.BoxGeometry(roofW + bargeT * 2 + 0.004, fasciaH, fasciaT);
       const frontFascia = new THREE.Mesh(fasciaGeo, whiteTrimMat);
-      frontFascia.position.set(0, bargeY, slopeLen / 2 + fasciaT / 2 + 0.001);
+      frontFascia.position.set(0, fasciaY, slopeLen / 2 + fasciaT / 2 + 0.001);
       frontFascia.castShadow = true;
       assembly.add(frontFascia);
-      const rearFascia = new THREE.Mesh(fasciaGeo, whiteTrimMat);
-      rearFascia.position.set(0, bargeY, -(slopeLen / 2 + fasciaT / 2 + 0.001));
+      const rearFasciaGeo = new THREE.BoxGeometry(roofW + bargeT * 2 + 0.004, bargeH, fasciaT);
+      const rearFascia = new THREE.Mesh(rearFasciaGeo, whiteTrimMat);
+      rearFascia.position.set(0, -0.008, -(slopeLen / 2 + fasciaT / 2 + 0.001));
       rearFascia.castShadow = true;
       assembly.add(rearFascia);
 
-      const tailCount = 4;
-      const tailSpacing = (w - 0.6) / (tailCount - 1);
-      const tailGeo = new THREE.BoxGeometry(0.04, 0.09, overhang * 0.85);
-      const tailMat = new THREE.MeshStandardMaterial({ color: '#e4d2b4', roughness: 0.7 });
-      for (let t = 0; t < tailCount; t++) {
-        const tail = new THREE.Mesh(tailGeo, tailMat);
-        const localX = -w / 2 + 0.3 + t * tailSpacing;
-        tail.position.set(localX, -(roofThick / 2 + 0.05), slopeLen / 2 - overhang * 0.48);
-        tail.castShadow = true;
-        assembly.add(tail);
+      // White soffit closes the front overhang so the eave reads as the reference fascia.
+      const zFront = slopeLen / 2;
+      const zWall = (d / 2) / Math.cos(angleRad) - (roofThick / 2) * Math.tan(angleRad);
+      const soffitLen = Math.max(0.05, zFront - zWall);
+      const soffitMat = new THREE.MeshStandardMaterial({
+        color: '#f7f5f1',
+        roughness: 0.72,
+        emissive: '#f3f0ea',
+        emissiveIntensity: 0.45
+      });
+      const soffit = new THREE.Mesh(
+        new THREE.BoxGeometry(w + 0.02, soffitT, soffitLen),
+        soffitMat
+      );
+      soffit.position.set(0, -roofThick / 2 - soffitT / 2 - 0.001, (zFront + zWall) / 2);
+      soffit.receiveShadow = true;
+      assembly.add(soffit);
+
+      const sideReach = (roofW - w) / 2;
+      const sideSoffitLen = slopeLen - fasciaT * 2;
+      const sideSoffitGeo = new THREE.BoxGeometry(sideReach, soffitT, sideSoffitLen);
+      for (const sign of [-1, 1]) {
+        const sideSoffit = new THREE.Mesh(sideSoffitGeo, soffitMat);
+        sideSoffit.position.set(sign * (w / 2 + sideReach / 2), -roofThick / 2 - soffitT / 2 - 0.001, 0);
+        sideSoffit.receiveShadow = true;
+        assembly.add(sideSoffit);
       }
 
       this.roofGroup.add(assembly);
@@ -1665,7 +1924,7 @@ export class HouseScene {
         });
 
     const isPulpettak = this.currentConfig.roofType === 'pulpettak';
-    const angleRad = (8 * Math.PI) / 180;
+    const angleRad = PULPET_PITCH_RAD;
     const rearH = isPulpettak ? Math.max(h - Math.tan(angleRad) * d, 2.4) : h;
     const beamParent = ghost ? this.trussesGroup : this.framingGroup;
 
@@ -1676,13 +1935,23 @@ export class HouseScene {
 
     if (isPulpettak) {
       const slopeAngle = Math.atan2(h - rearH, d);
-      const slopeLen = Math.sqrt(Math.pow(d, 2) + Math.pow(h - rearH, 2)) + (ghost ? 0.7 : 0);
-      const rafterGeo = new THREE.BoxGeometry(rafterW, rafterH, slopeLen);
+      const span = Math.hypot(d, h - rearH);
+      // A short tail sticks out above the windows and carries the overhang.
+      const tail = ghost ? 0.45 : 0.22;
+      const depth = ghost ? 0.145 : 0.1;
+      const slopeLen = span + tail;
+      const rafterGeo = new THREE.BoxGeometry(rafterW, depth, slopeLen);
+      const shift = tail / 2;
+      const midY = (h + rearH) / 2 - depth / 2 - (ghost ? 0 : 0.016);
 
       for (let i = 0; i < count; i++) {
         const rx = -w / 2 + i * spacing;
         const rafter = new THREE.Mesh(rafterGeo, rafterMat);
-        rafter.position.set(rx, (h + rearH) / 2 - rafterH / 2 + (ghost ? 0.06 : -0.12), 0);
+        rafter.position.set(
+          rx,
+          midY + Math.sin(slopeAngle) * shift,
+          Math.cos(slopeAngle) * shift
+        );
         rafter.rotation.x = -slopeAngle;
         rafter.castShadow = !ghost;
         beamParent.add(rafter);
@@ -1743,7 +2012,7 @@ export class HouseScene {
     const timberWidth = 0.145; // 145 mm virkesbredd
 
     const isPulpettak = this.currentConfig.roofType === 'pulpettak';
-    const angleRad = (8 * Math.PI) / 180;
+    const angleRad = PULPET_PITCH_RAD;
     const rearH = isPulpettak ? Math.max(h - Math.tan(angleRad) * d, 2.4) : h;
 
     // C/C 1200 mm Swedish standard spacing across house width
@@ -1760,7 +2029,7 @@ export class HouseScene {
       const trussGroup = new THREE.Group();
       trussGroup.position.set(tx, 0, 0);
 
-      // 1. Överram (Top chord): follows 8° roof slope from front to rear
+      // 1. Överram (Top chord): follows the mono-pitch slope from front to rear
       const topChordGeo = new THREE.BoxGeometry(timberThick, timberWidth, slopeLen);
       const topChord = new THREE.Mesh(topChordGeo, trussMat);
       topChord.position.set(0, (h + rearH) / 2 - timberWidth / 2, 0);
@@ -2105,7 +2374,7 @@ export class HouseScene {
 
     // 4. Rear Height Dimension Line (for Pulpettak, matching Image 4)
     if (this.currentConfig.roofType === 'pulpettak') {
-      const angleRad = (8 * Math.PI) / 180;
+      const angleRad = PULPET_PITCH_RAD;
       const drop = Math.tan(angleRad) * d;
       const rearH = Math.max(h - drop, 2.4);
       const zRear = -d / 2;
@@ -2344,8 +2613,29 @@ export class HouseScene {
   }
 
   public updateConfig(config: Partial<SceneConfig>) {
+    const viewChanged =
+      (config.viewMode !== undefined && config.viewMode !== this.currentConfig.viewMode) ||
+      (config.loftView !== undefined && config.loftView !== this.currentConfig.loftView);
+    const cameraPosition = this.camera.position.clone();
+    const cameraTarget = this.controls.target.clone();
     Object.assign(this.currentConfig, config);
     this.rebuildScene();
+    if (!viewChanged) {
+      this.camera.position.copy(cameraPosition);
+      this.controls.target.copy(cameraTarget);
+      this.controls.update();
+    }
+  }
+
+  /** Move the green outline without rebuilding the house or moving the camera. */
+  public setSelectedSlot(slotId: string | null) {
+    this.currentConfig.selectedSlotId = slotId;
+    if (!slotId) {
+      this.updateHighlightBox(null);
+      return;
+    }
+    const mesh = this.interactivePanels.find((item) => item.userData.slotId === slotId);
+    this.updateHighlightBox(mesh ? this.boundsOf(mesh) : null);
   }
 
   public setViewMode(mode: 'utsida' | 'insida') {

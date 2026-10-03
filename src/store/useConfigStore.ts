@@ -107,7 +107,7 @@ export const SIZE_OPTIONS: SizeOption[] = [
     badge: 'Mest vald',
     width: 6040,
     depth: 3503,
-    height: 3503,
+    height: 5000,
     areaSqMeters: 29.9,
     basePrice: 103634,
     desc: '6040 × 3503 mm. Maximal bygglovsfri boendeyta.'
@@ -125,6 +125,18 @@ export const SIZE_OPTIONS: SizeOption[] = [
   }
 ];
 
+/** High-end wall height cannot exceed 5 m. Width and length stay within a buildable range. */
+export const BUILDING_LIMITS = {
+  width: { min: 3600, max: 12000 },
+  depth: { min: 2500, max: 10000 },
+  height: { min: 2400, max: 5000 }
+} as const;
+
+export type BuildingAxis = keyof typeof BUILDING_LIMITS;
+
+/** Mono-pitch roof. Kept in the 10–15° band so the high eave still drains. */
+export const PULPET_PITCH_DEG = 12;
+
 export type RoofCovering = 'felt' | 'metal' | 'tiles';
 
 export const ROOF_COVERINGS: { id: RoofCovering; priceDelta: number }[] = [
@@ -136,9 +148,9 @@ export const ROOF_COVERINGS: { id: RoofCovering; priceDelta: number }[] = [
 export const ROOF_OPTIONS: OptionItem[] = [
   {
     id: 'pulpettak',
-    name: 'Pulpettak 6°',
+    name: 'Pulpettak 12°',
     desc: 'Enkelt takfall, modernt uttryck och god vattenavrinning.',
-    spec: 'Papp / Plåt, 6° lutning',
+    spec: 'Papp / Plåt, 12° lutning',
     priceDelta: 0
   },
   {
@@ -296,6 +308,70 @@ export interface WallSlot {
   isUpper?: boolean;
 }
 
+const PANEL_COUNTS = { front: 4, back: 4, left: 3, right: 3 } as const;
+
+/** Lower bay plus a separate upper panel above the mid-rail. Upper panels take windows only. */
+export function createWallSlots(): Record<string, WallSlot> {
+  const slots: Record<string, WallSlot> = {};
+  (Object.keys(PANEL_COUNTS) as (keyof typeof PANEL_COUNTS)[]).forEach((wall) => {
+    for (let index = 0; index < PANEL_COUNTS[wall]; index += 1) {
+      const id = `${wall}-${index}`;
+      slots[id] = { id, wall, index, type: 'empty', canAcceptDoor: true };
+      const upperId = `${id}u`;
+      slots[upperId] = {
+        id: upperId,
+        wall,
+        index,
+        type: 'empty',
+        canAcceptDoor: false,
+        isUpper: true
+      };
+    }
+  });
+  slots['front-0'] = { ...slots['front-0'], type: 'door', itemId: 'STEHAG', canAcceptDoor: true };
+  for (let index = 0; index < PANEL_COUNTS.front; index += 1) {
+    const upperId = `front-${index}u`;
+    slots[upperId] = { ...slots[upperId], type: 'window', itemId: 'standard-single' };
+  }
+  return slots;
+}
+
+function mergeWallSlots(saved: Record<string, WallSlot> | undefined): Record<string, WallSlot> {
+  const slots = createWallSlots();
+  if (!saved) return slots;
+  for (const [id, slot] of Object.entries(saved)) {
+    if (!slot || typeof slot !== 'object') continue;
+    if (slot.isUpper && !id.endsWith('u')) {
+      const upperId = `${id}u`;
+      if (slots[upperId] && slot.type === 'window') {
+        slots[upperId] = {
+          ...slots[upperId],
+          type: 'window',
+          itemId: slot.itemId,
+          isUpper: true,
+          canAcceptDoor: false
+        };
+      }
+      slots[id] = {
+        ...slots[id],
+        type: slot.type === 'window' ? 'empty' : slot.type,
+        itemId: slot.type === 'window' ? undefined : slot.itemId,
+        isUpper: false,
+        canAcceptDoor: true
+      };
+      continue;
+    }
+    const upper = id.endsWith('u') || slot.isUpper === true;
+    slots[id] = {
+      ...slot,
+      id,
+      isUpper: upper,
+      canAcceptDoor: upper ? false : slot.canAcceptDoor !== false
+    };
+  }
+  return slots;
+}
+
 export const useConfigStore = defineStore('config', () => {
   const viewMode = ref<ViewMode>('utsida');
   const selectedCategory = ref<CategoryKey>('size');
@@ -314,6 +390,10 @@ export const useConfigStore = defineStore('config', () => {
   });
 
   const selectedSizeId = ref<string>('size-30');
+  const startingSize = SIZE_OPTIONS.find((size) => size.id === 'size-30') ?? SIZE_OPTIONS[2];
+  const buildingWidth = ref(startingSize.width);
+  const buildingDepth = ref(startingSize.depth);
+  const buildingHeight = ref(startingSize.height);
   const activeRoof = ref<string>('pulpettak');
   const roofCovering = ref<RoofCovering>('felt');
   const activeLoft = ref<string>('none');
@@ -328,22 +408,7 @@ export const useConfigStore = defineStore('config', () => {
   const activeGate = ref<string>('none');
 
   // Wall panel modular slots (matching Skånska Byggvaror reference layout)
-  const wallSlots = ref<Record<string, WallSlot>>({
-    'front-0': { id: 'front-0', wall: 'front', index: 0, type: 'door', itemId: 'STEHAG', canAcceptDoor: true },
-    'front-1': { id: 'front-1', wall: 'front', index: 1, type: 'empty', canAcceptDoor: true },
-    'front-2': { id: 'front-2', wall: 'front', index: 2, type: 'window', itemId: 'standard-single', canAcceptDoor: false, isUpper: true },
-    'front-3': { id: 'front-3', wall: 'front', index: 3, type: 'empty', canAcceptDoor: true },
-    'left-0': { id: 'left-0', wall: 'left', index: 0, type: 'empty', canAcceptDoor: true },
-    'left-1': { id: 'left-1', wall: 'left', index: 1, type: 'empty', canAcceptDoor: false, isUpper: true },
-    'left-2': { id: 'left-2', wall: 'left', index: 2, type: 'empty', canAcceptDoor: true },
-    'right-0': { id: 'right-0', wall: 'right', index: 0, type: 'empty', canAcceptDoor: true },
-    'right-1': { id: 'right-1', wall: 'right', index: 1, type: 'empty', canAcceptDoor: true },
-    'right-2': { id: 'right-2', wall: 'right', index: 2, type: 'empty', canAcceptDoor: true },
-    'back-0': { id: 'back-0', wall: 'back', index: 0, type: 'empty', canAcceptDoor: true },
-    'back-1': { id: 'back-1', wall: 'back', index: 1, type: 'empty', canAcceptDoor: true },
-    'back-2': { id: 'back-2', wall: 'back', index: 2, type: 'empty', canAcceptDoor: true },
-    'back-3': { id: 'back-3', wall: 'back', index: 3, type: 'empty', canAcceptDoor: true }
-  });
+  const wallSlots = ref<Record<string, WallSlot>>(createWallSlots());
 
   // History stacks for Undo / Redo
   const history = ref<string[]>([]);
@@ -352,6 +417,9 @@ export const useConfigStore = defineStore('config', () => {
   function saveSnapshot() {
     const snapshot = JSON.stringify({
       selectedSizeId: selectedSizeId.value,
+      buildingWidth: buildingWidth.value,
+      buildingDepth: buildingDepth.value,
+      buildingHeight: buildingHeight.value,
       activeRoof: activeRoof.value,
       roofCovering: roofCovering.value,
       activeLoft: activeLoft.value,
@@ -390,6 +458,10 @@ export const useConfigStore = defineStore('config', () => {
     try {
       const data = JSON.parse(snapshotStr);
       selectedSizeId.value = data.selectedSizeId;
+      const preset = SIZE_OPTIONS.find((size) => size.id === data.selectedSizeId) ?? SIZE_OPTIONS[2];
+      buildingWidth.value = clampMeasure('width', data.buildingWidth ?? preset.width);
+      buildingDepth.value = clampMeasure('depth', data.buildingDepth ?? preset.depth);
+      buildingHeight.value = clampMeasure('height', data.buildingHeight ?? preset.height);
       activeRoof.value = data.activeRoof;
       if (data.roofCovering === 'felt' || data.roofCovering === 'metal' || data.roofCovering === 'tiles') {
         roofCovering.value = data.roofCovering;
@@ -409,7 +481,7 @@ export const useConfigStore = defineStore('config', () => {
       if (data.activeWindow) activeWindow.value = data.activeWindow;
       if (data.activeGate) activeGate.value = data.activeGate;
       activeMaterial.value = data.activeMaterial;
-      wallSlots.value = data.wallSlots;
+      wallSlots.value = mergeWallSlots(data.wallSlots);
     } catch {
       // ignore parse error
     }
@@ -426,23 +498,32 @@ export const useConfigStore = defineStore('config', () => {
     return MATERIAL_OPTIONS.find((m) => m.id === activeMaterial.value) ?? MATERIAL_OPTIONS[0];
   });
 
-  const dimensions = computed(() => ({
-    width: currentSize.value.width,
-    depth: currentSize.value.depth,
-    height: currentSize.value.height,
-    areaSqMeters: currentSize.value.areaSqMeters
-  }));
+  const dimensions = computed(() => {
+    const preset = currentSize.value;
+    const width = buildingWidth.value;
+    const depth = buildingDepth.value;
+    const matchesFootprint = width === preset.width && depth === preset.depth;
+    const areaSqMeters = matchesFootprint
+      ? preset.areaSqMeters
+      : Math.round((width * depth) / 1e5) / 10;
+    return {
+      width,
+      depth,
+      height: buildingHeight.value,
+      areaSqMeters
+    };
+  });
 
   const roofPitchAngle = computed(() => {
     switch (activeRoof.value) {
       case 'pulpettak':
-        return 8;
+        return PULPET_PITCH_DEG;
       case 'sadeltak':
         return 22;
       case 'flackt':
         return 2;
       default:
-        return 8;
+        return PULPET_PITCH_DEG;
     }
   });
 
@@ -548,13 +629,40 @@ export const useConfigStore = defineStore('config', () => {
     selectedCategory.value = category;
   }
 
+  function clampMeasure(axis: BuildingAxis, value: number) {
+    const limit = BUILDING_LIMITS[axis];
+    if (!Number.isFinite(value)) {
+      if (axis === 'width') return buildingWidth.value;
+      if (axis === 'depth') return buildingDepth.value;
+      return buildingHeight.value;
+    }
+    return Math.round(Math.min(limit.max, Math.max(limit.min, value)));
+  }
+
+  function applyPresetSize(id: string) {
+    const preset = SIZE_OPTIONS.find((size) => size.id === id);
+    if (!preset) return;
+    buildingWidth.value = preset.width;
+    buildingDepth.value = preset.depth;
+    buildingHeight.value = preset.height;
+  }
+
   function selectSize(id: string) {
     selectedSizeId.value = id;
+    applyPresetSize(id);
     // Ensure selectedLoftSize is valid for this new size
     const available = availableLoftSizes.value;
     if (available.length > 0 && !available.some((s) => Math.abs(s.areaSqMeters - selectedLoftSize.value) < 0.1)) {
       selectedLoftSize.value = available[0].areaSqMeters;
     }
+    saveSnapshot();
+  }
+
+  function setBuildingMeasure(axis: BuildingAxis, value: number) {
+    const next = clampMeasure(axis, value);
+    if (axis === 'width') buildingWidth.value = next;
+    else if (axis === 'depth') buildingDepth.value = next;
+    else buildingHeight.value = next;
     saveSnapshot();
   }
 
@@ -734,6 +842,7 @@ export const useConfigStore = defineStore('config', () => {
     setViewMode,
     selectCategory,
     selectSize,
+    setBuildingMeasure,
     selectRoof,
     selectRoofCovering,
     selectLoft,

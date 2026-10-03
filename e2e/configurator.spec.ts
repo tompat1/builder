@@ -72,8 +72,8 @@ test.describe("3D Modular House Configurator", () => {
     await expect(page.locator("#dim-width")).toHaveText(/6040 mm/);
     await expect(page.locator("#dim-area")).toHaveText(/29.9 m²/);
 
-    // Roof angle annotation (8° for pulpettak)
-    await expect(page.locator("#dim-roof-angle")).toHaveText(/8°/);
+    // Roof angle annotation (12° for pulpettak)
+    await expect(page.locator("#dim-roof-angle")).toHaveText(/12°/);
   });
 
   test("interacts with wall slot panel to choose doors or windows", async ({ page, isMobile }) => {

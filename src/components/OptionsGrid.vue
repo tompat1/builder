@@ -24,7 +24,9 @@
           {{ t('category.activeSlot', { id: store.selectedSlotId.toUpperCase() }) }}
         </span>
       </div>
-      <span class="text-[11px] text-emerald-700">{{ t('category.placeHint') }}</span>
+      <span class="text-[11px] text-emerald-700">
+        {{ selectedSlotOccupied ? t('category.replaceHint') : t('category.placeHint') }}
+      </span>
     </div>
 
     <!-- Category Content: Size & Material -->
@@ -70,6 +72,26 @@
             </div>
           </button>
         </div>
+
+        <div class="grid grid-cols-3 gap-2 mt-3">
+          <label v-for="field in measureFields" :key="field.axis" class="block">
+            <span class="block text-[11px] font-semibold text-slate-600 mb-1">
+              {{ t(field.label) }}
+              <span class="font-medium text-slate-400">{{ t('category.unitMm') }}</span>
+            </span>
+            <input
+              type="number"
+              :id="`measure-${field.axis}`"
+              class="w-full text-xs font-semibold tabular-nums bg-white border border-slate-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-slate-900"
+              :min="BUILDING_LIMITS[field.axis].min"
+              :max="BUILDING_LIMITS[field.axis].max"
+              step="10"
+              :value="store.dimensions[field.axis]"
+              @change="commitMeasure(field.axis, $event)"
+            />
+          </label>
+        </div>
+        <p class="text-[11px] text-slate-500 mt-1.5">{{ t('category.heightHint') }}</p>
       </div>
 
       <!-- Material & Fasad Heading -->
@@ -148,9 +170,9 @@
               <text x="80" y="72" font-size="10" fill="currentColor" text-anchor="middle">2° funkis</text>
             </svg>
             <svg v-else class="w-full h-full text-slate-700" viewBox="0 0 160 80" fill="none">
-              <line x1="20" y1="24" x2="140" y2="48" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
-              <path d="M 25 26 L 25 60 L 135 60 L 135 48" stroke="currentColor" stroke-width="1.2" stroke-dasharray="3 3" />
-              <text x="80" y="72" font-size="10" fill="currentColor" text-anchor="middle">6° pulpettak</text>
+              <line x1="20" y1="16" x2="140" y2="48" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+              <path d="M 25 18 L 25 60 L 135 60 L 135 48" stroke="currentColor" stroke-width="1.2" stroke-dasharray="3 3" />
+              <text x="80" y="72" font-size="10" fill="currentColor" text-anchor="middle">12° pulpettak</text>
             </svg>
           </div>
 
@@ -678,6 +700,7 @@
 import { computed } from 'vue';
 import {
   useConfigStore,
+  BUILDING_LIMITS,
   MATERIAL_OPTIONS,
   SIZE_OPTIONS,
   ROOF_OPTIONS,
@@ -691,6 +714,18 @@ import { useLabels } from '../i18n';
 
 const store = useConfigStore();
 const { t, catalog, loftDesc, money, delta } = useLabels();
+
+const measureFields = [
+  { axis: 'width' as const, label: 'category.width' },
+  { axis: 'depth' as const, label: 'category.depth' },
+  { axis: 'height' as const, label: 'category.height' }
+];
+
+function commitMeasure(axis: 'width' | 'depth' | 'height', event: Event) {
+  const raw = Number((event.target as HTMLInputElement).value);
+  store.setBuildingMeasure(axis, raw);
+  (event.target as HTMLInputElement).value = String(store.dimensions[axis]);
+}
 
 const currentOptionsCount = computed(() => {
   switch (store.selectedCategory) {
@@ -709,6 +744,12 @@ const currentOptionsCount = computed(() => {
     default:
       return 0;
   }
+});
+
+const selectedSlotOccupied = computed(() => {
+  if (!store.selectedSlotId) return false;
+  const slot = store.wallSlots[store.selectedSlotId];
+  return !!slot && slot.type !== 'empty';
 });
 
 function isDoorActiveInSelectedSlot(doorId: string): boolean {

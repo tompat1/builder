@@ -35,6 +35,10 @@ onMounted(() => {
     // Wire raycast clicks & hover from 3D scene to store
     engine.onPanelClick = (slotId) => {
       store.selectSlot(slotId);
+      const slot = store.wallSlots[slotId];
+      if (slot?.type === 'door') store.selectCategory('doors');
+      else if (slot?.type === 'window') store.selectCategory('windows');
+      else if (slot?.type === 'gate') store.selectCategory('gates');
     };
 
     engine.onPanelHover = (slotId, x, y) => {
@@ -145,7 +149,7 @@ watch(
 watch(
   () => store.selectedSlotId,
   (slotId) => {
-    engine?.updateConfig({ selectedSlotId: slotId });
+    engine?.setSelectedSlot(slotId);
   }
 );
 

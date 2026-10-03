@@ -8,7 +8,7 @@
     >
       <div class="bg-slate-900/90 text-white backdrop-blur-md px-3.5 py-1.5 rounded-full shadow-lg border border-slate-700/60 flex items-center gap-2 text-xs font-semibold">
         <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-        <span>{{ t('slot.hover', { id: store.hoveredSlotId }) }}</span>
+        <span>{{ hoverText }}</span>
       </div>
     </div>
 
@@ -41,54 +41,63 @@
             +
           </div>
 
-          <!-- Quick Option Buttons -->
-          <button
-            v-if="store.selectedSlotCanAcceptDoor"
-            type="button"
-            id="btn-choose-door"
-            @click="openCategory('doors')"
-            :class="[
-              'flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl transition-all',
-              activeSlot.type === 'door'
-                ? 'bg-slate-900 text-white'
-                : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
-            ]"
-          >
-            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M4 21h16M5 21V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v17" />
-            </svg>
-            <span>{{ activeSlot.type === 'door' ? t('slot.door', { id: activeSlot.itemId }) : t('slot.chooseDoor') }}</span>
-          </button>
+          <template v-if="activeSlot.type !== 'empty'">
+            <span class="text-xs font-semibold text-slate-900 px-1 max-w-[9rem] truncate">{{ placedLabel }}</span>
+            <button
+              type="button"
+              id="btn-replace-slot"
+              @click="replacePlaced()"
+              class="text-xs font-semibold px-3 py-1.5 rounded-xl bg-slate-900 text-white hover:bg-slate-800"
+            >
+              {{ t('slot.replace') }}
+            </button>
+            <button
+              v-if="alternateCategory"
+              type="button"
+              id="btn-switch-slot-type"
+              @click="openCategory(alternateCategory)"
+              class="text-xs font-semibold px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800"
+            >
+              {{ alternateCategory === 'doors' ? t('slot.chooseDoor') : t('slot.chooseWindow') }}
+            </button>
+            <button
+              type="button"
+              id="btn-remove-slot-item"
+              @click="store.removeSlotItem(activeSlot.id)"
+              class="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 px-2 py-1.5 rounded-lg font-medium transition-colors"
+              :title="t('slot.clear')"
+            >
+              {{ t('slot.remove') }}
+            </button>
+          </template>
 
-          <button
-            type="button"
-            id="btn-choose-window"
-            @click="openCategory('windows')"
-            :class="[
-              'flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl transition-all',
-              activeSlot.type === 'window'
-                ? 'bg-slate-900 text-white'
-                : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
-            ]"
-          >
-            <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <rect x="3" y="3" width="18" height="18" rx="2" />
-              <path d="M12 3v18M3 12h18" />
-            </svg>
-            <span>{{ activeSlot.type === 'window' ? t('slot.window', { id: activeSlot.itemId }) : t('slot.chooseWindow') }}</span>
-          </button>
+          <template v-else>
+            <button
+              v-if="store.selectedSlotCanAcceptDoor"
+              type="button"
+              id="btn-choose-door"
+              @click="openCategory('doors')"
+              class="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800"
+            >
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 21h16M5 21V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v17" />
+              </svg>
+              <span>{{ t('slot.chooseDoor') }}</span>
+            </button>
 
-          <!-- Clear / Remove from slot -->
-          <button
-            v-if="activeSlot.type !== 'empty'"
-            type="button"
-            id="btn-remove-slot-item"
-            @click="store.removeSlotItem(activeSlot.id)"
-            class="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 px-2 py-1.5 rounded-lg font-medium transition-colors"
-            :title="t('slot.clear')"
-          >
-            {{ t('slot.remove') }}
-          </button>
+            <button
+              type="button"
+              id="btn-choose-window"
+              @click="openCategory('windows')"
+              class="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800"
+            >
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <path d="M12 3v18M3 12h18" />
+              </svg>
+              <span>{{ t('slot.chooseWindow') }}</span>
+            </button>
+          </template>
         </div>
 
         <!-- Next Panel Arrow Button -->
@@ -109,7 +118,7 @@
       <!-- Action Confirmation & Badge Row (Matching Skånska Byggvaror check/cross) -->
       <div class="flex items-center gap-2">
         <span class="text-[11px] font-semibold text-slate-700 bg-white/90 backdrop-blur-xs px-2.5 py-0.5 rounded-full border border-slate-200 shadow-2xs">
-          {{ t('slot.marked', { wall: `${activeSlot.wall.toUpperCase()}-${activeSlot.index + 1}` }) }}
+          {{ t('slot.marked', { wall: markedWall }) }}
         </span>
 
         <!-- Confirm Selection Button -->
@@ -145,7 +154,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { useConfigStore, type CategoryKey } from '../store/useConfigStore';
+import { DOORS_OPTIONS, GATES_OPTIONS, useConfigStore, WINDOWS_OPTIONS, type CategoryKey, type WallSlot } from '../store/useConfigStore';
 import { useLabels } from '../i18n';
 
 const store = useConfigStore();
@@ -155,11 +164,36 @@ const activeSlot = computed(() => {
   return store.selectedSlotId ? store.wallSlots[store.selectedSlotId] : null;
 });
 
+const markedWall = computed(() => {
+  const slot = activeSlot.value;
+  if (!slot) return '';
+  const name = `${slot.wall.toUpperCase()}-${slot.index + 1}`;
+  return slot.isUpper ? `${name} ${t('slot.upper')}` : name;
+});
+
+const placedLabel = computed(() => productName(activeSlot.value));
+
+const alternateCategory = computed((): CategoryKey | null => {
+  const slot = activeSlot.value;
+  if (!slot || slot.type === 'empty') return null;
+  if (slot.type === 'window' && store.selectedSlotCanAcceptDoor) return 'doors';
+  if (slot.type === 'door') return 'windows';
+  return null;
+});
+
+const hoverText = computed(() => {
+  const id = store.hoveredSlotId;
+  if (!id) return '';
+  const slot = store.wallSlots[id];
+  if (!slot || slot.type === 'empty') return t('slot.hover', { id });
+  return t('slot.hoverPlaced', { name: productName(slot) });
+});
+
 const overlayStyle = computed(() => {
   if (store.slotScreenPosition && store.slotScreenPosition.visible) {
     return {
-      left: `${store.slotScreenPosition.x}px`,
-      top: `${store.slotScreenPosition.y}px`,
+      left: `clamp(168px, ${store.slotScreenPosition.x}px, calc(100% - 168px))`,
+      top: `clamp(88px, ${store.slotScreenPosition.y}px, calc(100% - 72px))`,
       transform: 'translate(-50%, -50%)'
     };
   }
@@ -185,7 +219,20 @@ const hoverPromptStyle = computed(() => {
   };
 });
 
+function productName(slot: WallSlot | null) {
+  if (!slot || slot.type === 'empty') return '';
+  const list = slot.type === 'door' ? DOORS_OPTIONS : slot.type === 'window' ? WINDOWS_OPTIONS : GATES_OPTIONS;
+  return list.find((item) => item.id === slot.itemId)?.name ?? slot.itemId ?? '';
+}
+
 function openCategory(category: CategoryKey) {
   store.selectCategory(category);
+}
+
+function replacePlaced() {
+  const slot = activeSlot.value;
+  if (!slot || slot.type === 'empty') return;
+  const category: CategoryKey = slot.type === 'door' ? 'doors' : slot.type === 'window' ? 'windows' : 'gates';
+  openCategory(category);
 }
 </script>
