@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ -f package.json ]]; then
+  node -e '
+    const scripts = require("./package.json").scripts || {};
+    for (const name of ["test:gate", "build"]) {
+      if (!scripts[name]) {
+        console.error(`Missing required npm script: ${name}`);
+        process.exit(1);
+      }
+    }
+  '
+  npm run test:gate
+  npm run build
+elif [[ -x scripts/build-verified ]]; then
+  scripts/build-verified
+else
+  echo "No verified production build is configured. See directives/testing_and_deployment.md." >&2
+  exit 1
+fi

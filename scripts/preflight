@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+git diff --check
+git diff --cached --check
+
+for required_file in \
+  AGENTS.md \
+  .agents/AGENTS.md \
+  directives/README.md \
+  directives/testing_and_deployment.md \
+  .githooks/pre-commit \
+  .githooks/pre-push; do
+  if [[ ! -f "$required_file" ]]; then
+    echo "Missing required template file: $required_file" >&2
+    exit 1
+  fi
+done
+
+bash -n .githooks/pre-commit
+bash -n .githooks/pre-push
+bash -n execution/install-git-hooks.sh
+
+node -e '
+  const fs = require("fs");
+  const source = fs.readFileSync("directives/testing_and_deployment.md", "utf8");
+  const examples = [...source.matchAll(/```json\n([\s\S]*?)```/g)].map((match) => match[1]);
+  examples.forEach(JSON.parse);
+  if (examples.length !== 3) {
+    throw new Error(`Expected 3 JSON examples, found ${examples.length}`);
+  }
+'
