@@ -19,8 +19,17 @@ onMounted(() => {
       heightMm: store.dimensions.height,
       roofType: store.activeRoof as 'pulpettak' | 'sadeltak' | 'flackt',
       hasLoft: store.hasLoft,
-      viewMode: store.viewMode
+      viewMode: store.viewMode,
+      material: store.activeMaterial,
+      showDimensions: store.showDimensions,
+      selectedSlotId: store.selectedSlotId,
+      wallSlots: store.wallSlots
     });
+
+    // Wire raycast clicks from 3D scene to store
+    engine.onPanelClick = (slotId) => {
+      store.selectSlot(slotId);
+    };
   }
 });
 
@@ -29,10 +38,19 @@ watch(
   () => store.viewMode,
   (newMode) => {
     engine?.setViewMode(newMode);
+    engine?.updateConfig({ viewMode: newMode });
   }
 );
 
-// Watch architectural dimensions
+// Watch material
+watch(
+  () => store.activeMaterial,
+  (mat) => {
+    engine?.updateConfig({ material: mat });
+  }
+);
+
+// Watch dimensions
 watch(
   () => store.dimensions,
   (dims) => {
@@ -59,9 +77,24 @@ watch(
 watch(
   () => store.hasLoft,
   (loft) => {
-    engine?.updateConfig({
-      hasLoft: loft
-    });
+    engine?.updateConfig({ hasLoft: loft });
+  }
+);
+
+// Watch wall slots (doors, windows, gates placement)
+watch(
+  () => store.wallSlots,
+  (slots) => {
+    engine?.updateConfig({ wallSlots: slots });
+  },
+  { deep: true }
+);
+
+// Watch selected slot highlight
+watch(
+  () => store.selectedSlotId,
+  (slotId) => {
+    engine?.updateConfig({ selectedSlotId: slotId });
   }
 );
 
@@ -70,6 +103,8 @@ onBeforeUnmount(() => {
 });
 
 defineExpose({
-  getCanvas: () => engine?.getCanvas()
+  getCanvas: () => engine?.getCanvas(),
+  zoomIn: () => engine?.zoomIn(),
+  zoomOut: () => engine?.zoomOut()
 });
 </script>

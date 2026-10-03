@@ -5,14 +5,19 @@ test.describe("3D Modular House Configurator", () => {
     await page.goto("/");
   });
 
-  test("renders 3D canvas and header UI controls", async ({ page }) => {
+  test("renders 3D canvas and header UI controls with Skånska Byggvaror branding", async ({ page, isMobile }) => {
     // Canvas WebGL element rendered
     const canvas = page.locator("canvas");
     await expect(canvas).toBeVisible();
 
-    // Studio title & status badge
-    await expect(page.locator("text=MODULAR STUDIO")).toBeVisible();
-    await expect(page.locator("text=3D MVP")).toBeVisible();
+    // Brand title & quick-action buttons
+    if (!isMobile) {
+      await expect(page.locator("text=Skånska Byggvaror")).toBeVisible();
+    } else {
+      await expect(page.locator("text=SB")).toBeVisible();
+    }
+    await expect(page.locator("#toggle-utsida")).toBeVisible();
+    await expect(page.locator("#toggle-insida")).toBeVisible();
 
     // Initial View Mode: Utsida
     const utsidaBtn = page.locator("#toggle-utsida");
@@ -24,6 +29,65 @@ test.describe("3D Modular House Configurator", () => {
     await insidaBtn.click();
     await expect(insidaBtn).toHaveAttribute("aria-selected", "true");
     await expect(utsidaBtn).toHaveAttribute("aria-selected", "false");
+  });
+
+  test("supports material selection with Wood as default in the first right panel", async ({ page }) => {
+    // Ensure size category (first panel) is open
+    await page.locator("#category-size").click();
+    await expect(page.locator("text=Fasadmaterial & Kulör")).toBeVisible();
+
+    // Wood is default material
+    const woodBtn = page.locator("#material-wood");
+    await expect(woodBtn).toBeVisible();
+    await expect(page.locator("text=Vald: Obehandlad Gran")).toBeVisible();
+
+    // Select Faluröd
+    const falurodBtn = page.locator("#material-falurod");
+    await falurodBtn.scrollIntoViewIfNeeded();
+    await falurodBtn.click();
+    await expect(page.locator("text=Vald: Falu Rödfärg")).toBeVisible();
+  });
+
+  test("provides lower-left floating toolset with zoom, measure, and undo/redo", async ({ page }) => {
+    // Toolset buttons
+    const zoomInBtn = page.locator("#btn-tool-zoom-in");
+    const zoomOutBtn = page.locator("#btn-tool-zoom-out");
+    const measureBtn = page.locator("#btn-tool-measure");
+    const undoBtn = page.locator("#btn-tool-undo");
+    const redoBtn = page.locator("#btn-tool-redo");
+
+    await expect(zoomInBtn).toBeVisible();
+    await expect(zoomOutBtn).toBeVisible();
+    await expect(measureBtn).toBeVisible();
+    await expect(undoBtn).toBeVisible();
+    await expect(redoBtn).toBeVisible();
+
+    // Click zoom in and out
+    await zoomInBtn.click();
+    await zoomOutBtn.click();
+
+    // Toggle measurements
+    await measureBtn.click();
+    await measureBtn.click();
+  });
+
+  test("displays 3D architectural dimension annotations", async ({ page }) => {
+    // Width annotation
+    await expect(page.locator("#dim-width")).toHaveText(/6040 mm/);
+    await expect(page.locator("#dim-area")).toHaveText(/29.9 m²/);
+  });
+
+  test("interacts with wall slot panel to choose doors or windows", async ({ page }) => {
+    // Active slot overlay is visible
+    const chooseDoorBtn = page.locator("#btn-choose-door");
+    const chooseWinBtn = page.locator("#btn-choose-window");
+
+    await expect(chooseDoorBtn).toBeVisible();
+    await expect(chooseWinBtn).toBeVisible();
+
+    // Click Välj fönster switches to windows category
+    await chooseWinBtn.click();
+    await expect(page.locator("text=Fönsterpartier")).toBeVisible();
   });
 
   test("navigates through configuration categories and updates options", async ({ page }) => {

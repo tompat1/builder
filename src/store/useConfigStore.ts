@@ -2,7 +2,60 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 
 export type ViewMode = 'utsida' | 'insida';
-export type CategoryKey = 'size' | 'roof' | 'loft' | 'doors' | 'windows' | 'gates';
+export type CategoryKey = 'size' | 'roof' | 'loft' | 'doors' | 'windows' | 'gates' | 'extras';
+export type MaterialKey = 'wood' | 'falurod' | 'grey' | 'white' | 'black';
+
+export interface MaterialOption {
+  id: MaterialKey;
+  name: string;
+  badge: string;
+  colorHex: string;
+  desc: string;
+  priceDelta: number;
+}
+
+export const MATERIAL_OPTIONS: MaterialOption[] = [
+  {
+    id: 'wood',
+    name: 'Obehandlad Gran',
+    badge: 'Standard',
+    colorHex: '#e8d8be',
+    desc: 'Naturlig svensk granpanel med vacker synlig träådring.',
+    priceDelta: 0
+  },
+  {
+    id: 'falurod',
+    name: 'Falu Rödfärg',
+    badge: 'Klassisk',
+    colorHex: '#8b2522',
+    desc: 'Traditionell svensk slamfärg med vacker helmatt lyster.',
+    priceDelta: 5400
+  },
+  {
+    id: 'grey',
+    name: 'Skandinavisk Grå',
+    badge: 'Populär',
+    colorHex: '#64748b',
+    desc: 'Modern dämpad grå lasyr som harmonierar med naturen.',
+    priceDelta: 5900
+  },
+  {
+    id: 'white',
+    name: 'Tidlös Vit',
+    badge: 'Klassisk',
+    colorHex: '#f8fafc',
+    desc: 'Ljus och välkomnande täckmålad fasadpanel.',
+    priceDelta: 6200
+  },
+  {
+    id: 'black',
+    name: 'Arkitektsvart',
+    badge: 'Modern',
+    colorHex: '#1e293b',
+    desc: 'Stilren svart träpanel för samtida nordisk arkitektur.',
+    priceDelta: 6800
+  }
+];
 
 export interface SizeOption {
   id: string;
@@ -22,6 +75,7 @@ export interface OptionItem {
   desc: string;
   priceDelta: number;
   spec?: string;
+  imageUrl?: string;
 }
 
 export const SIZE_OPTIONS: SizeOption[] = [
@@ -53,7 +107,7 @@ export const SIZE_OPTIONS: SizeOption[] = [
     badge: 'Mest vald',
     width: 6040,
     depth: 3503,
-    height: 3100,
+    height: 3503,
     areaSqMeters: 29.9,
     basePrice: 103634,
     desc: '6040 × 3503 mm. Maximal bygglovsfri boendeyta.'
@@ -64,7 +118,7 @@ export const SIZE_OPTIONS: SizeOption[] = [
     badge: 'Större yta',
     width: 8000,
     depth: 5000,
-    height: 3400,
+    height: 3600,
     areaSqMeters: 40.0,
     basePrice: 145000,
     desc: '8000 × 5000 mm. Rymligt fritidshus med generösa rum.'
@@ -100,7 +154,7 @@ export const LOFT_OPTIONS: OptionItem[] = [
     id: 'none',
     name: 'Utan loft',
     desc: 'Full rymd öppet upp i nock för maximal luftighet.',
-    spec: 'Invändig takhöjd upp till 3,1 m',
+    spec: 'Invändig takhöjd upp till 3,5 m',
     priceDelta: 0
   },
   {
@@ -122,29 +176,29 @@ export const LOFT_OPTIONS: OptionItem[] = [
 export const DOORS_OPTIONS: OptionItem[] = [
   {
     id: 'STEHAG',
-    name: 'STEHAG Ytterdörr',
-    desc: 'Stabil slät dörr med smalt klarglas och rostfria beslag.',
+    name: 'STEHAG',
+    desc: 'Ytterdörr Stabil, slät m. klarglas, 10x21',
     spec: 'Mått 10×21, U-värde 0.8',
     priceDelta: 0
   },
   {
     id: 'FLENINGE',
-    name: 'FLENINGE Allmoge',
-    desc: 'Spårfräst traditionell ytterdörr med 6 spröjsade rutor.',
+    name: 'FLENINGE',
+    desc: 'Ytterdörr Stabil, spårfräst 6 rutor spröjs, 10x21',
     spec: 'Mått 10×21, 3-glas isoler',
     priceDelta: 2400
   },
   {
     id: 'SVANSHALL',
-    name: 'SVANSHALL Pardörr',
-    desc: 'Dubbeldörr med generösa glaspartier mot altan.',
+    name: 'SVANSHALL',
+    desc: 'Ytterdörr Stabil, helglasad pardörr, 16x21',
     spec: 'Mått 16×21, laminerat säkerhetsglas',
     priceDelta: 9800
   },
   {
     id: 'LERVIK',
-    name: 'LERVIK Minimalist',
-    desc: 'Arkitektritad slät dörr med vertikalt infällt ljusband.',
+    name: 'LERVIK',
+    desc: 'Ytterdörr Stabil, slät m. vertikalt glas, 10x21',
     spec: 'Mått 10×21, dold gångjärnskonstruktion',
     priceDelta: 3200
   }
@@ -198,16 +252,34 @@ export const GATES_OPTIONS: OptionItem[] = [
   },
   {
     id: 'overhead',
-    name: 'Takskjutport Motor',
-    desc: 'Isolerad takskjutport med fjärrstyrd elmotor och fotoceller.',
-    spec: 'Mått 25×21, 40mm polyuretanisolering',
+    name: 'Takskjutport Modern Spegel',
+    desc: 'Isolerad takskjutport med spegelmönster.',
+    spec: 'Mått 24×20, 40mm polyuretanisolering',
     priceDelta: 23600
+  },
+  {
+    id: 'overhead-flat',
+    name: 'Takskjutport Modern Slät',
+    desc: 'Slät modern takskjutport vit.',
+    spec: 'Mått 24×20, 40mm polyuretanisolering',
+    priceDelta: 24800
   }
 ];
+
+export interface WallSlot {
+  id: string;
+  wall: 'front' | 'back' | 'left' | 'right';
+  index: number;
+  type: 'empty' | 'door' | 'window' | 'gate';
+  itemId?: string;
+}
 
 export const useConfigStore = defineStore('config', () => {
   const viewMode = ref<ViewMode>('utsida');
   const selectedCategory = ref<CategoryKey>('size');
+  const activeMaterial = ref<MaterialKey>('wood');
+  const showDimensions = ref<boolean>(true);
+  const selectedSlotId = ref<string | null>('front-1');
 
   const selectedSizeId = ref<string>('size-30');
   const activeRoof = ref<string>('pulpettak');
@@ -216,8 +288,84 @@ export const useConfigStore = defineStore('config', () => {
   const activeWindow = ref<string>('standard-single');
   const activeGate = ref<string>('none');
 
+  // Wall panel modular slots
+  const wallSlots = ref<Record<string, WallSlot>>({
+    'front-0': { id: 'front-0', wall: 'front', index: 0, type: 'empty' },
+    'front-1': { id: 'front-1', wall: 'front', index: 1, type: 'door', itemId: 'STEHAG' },
+    'front-2': { id: 'front-2', wall: 'front', index: 2, type: 'window', itemId: 'standard-single' },
+    'front-3': { id: 'front-3', wall: 'front', index: 3, type: 'empty' },
+    'left-0': { id: 'left-0', wall: 'left', index: 0, type: 'empty' },
+    'left-1': { id: 'left-1', wall: 'left', index: 1, type: 'empty' },
+    'left-2': { id: 'left-2', wall: 'left', index: 2, type: 'empty' },
+    'right-0': { id: 'right-0', wall: 'right', index: 0, type: 'empty' },
+    'right-1': { id: 'right-1', wall: 'right', index: 1, type: 'empty' },
+    'right-2': { id: 'right-2', wall: 'right', index: 2, type: 'empty' },
+    'back-0': { id: 'back-0', wall: 'back', index: 0, type: 'empty' },
+    'back-1': { id: 'back-1', wall: 'back', index: 1, type: 'empty' },
+    'back-2': { id: 'back-2', wall: 'back', index: 2, type: 'empty' },
+    'back-3': { id: 'back-3', wall: 'back', index: 3, type: 'empty' }
+  });
+
+  // History stacks for Undo / Redo
+  const history = ref<string[]>([]);
+  const historyIndex = ref<number>(-1);
+
+  function saveSnapshot() {
+    const snapshot = JSON.stringify({
+      selectedSizeId: selectedSizeId.value,
+      activeRoof: activeRoof.value,
+      activeLoft: activeLoft.value,
+      activeDoor: activeDoor.value,
+      activeWindow: activeWindow.value,
+      activeGate: activeGate.value,
+      activeMaterial: activeMaterial.value,
+      wallSlots: wallSlots.value
+    });
+    // Truncate forward history if we were in the middle
+    history.value = history.value.slice(0, historyIndex.value + 1);
+    history.value.push(snapshot);
+    historyIndex.value = history.value.length - 1;
+  }
+
+  function undo() {
+    if (historyIndex.value > 0) {
+      historyIndex.value--;
+      applySnapshot(history.value[historyIndex.value]);
+    }
+  }
+
+  function redo() {
+    if (historyIndex.value < history.value.length - 1) {
+      historyIndex.value++;
+      applySnapshot(history.value[historyIndex.value]);
+    }
+  }
+
+  function applySnapshot(snapshotStr: string) {
+    try {
+      const data = JSON.parse(snapshotStr);
+      selectedSizeId.value = data.selectedSizeId;
+      activeRoof.value = data.activeRoof;
+      activeLoft.value = data.activeLoft;
+      if (data.activeDoor) activeDoor.value = data.activeDoor;
+      if (data.activeWindow) activeWindow.value = data.activeWindow;
+      if (data.activeGate) activeGate.value = data.activeGate;
+      activeMaterial.value = data.activeMaterial;
+      wallSlots.value = data.wallSlots;
+    } catch {
+      // ignore parse error
+    }
+  }
+
+  // Initial snapshot
+  saveSnapshot();
+
   const currentSize = computed(() => {
     return SIZE_OPTIONS.find((s) => s.id === selectedSizeId.value) ?? SIZE_OPTIONS[2];
+  });
+
+  const currentMaterial = computed(() => {
+    return MATERIAL_OPTIONS.find((m) => m.id === activeMaterial.value) ?? MATERIAL_OPTIONS[0];
   });
 
   const dimensions = computed(() => ({
@@ -232,20 +380,30 @@ export const useConfigStore = defineStore('config', () => {
   const totalPriceSek = computed(() => {
     let total = currentSize.value.basePrice;
 
+    // Material price
+    total += currentMaterial.value.priceDelta;
+
+    // Roof price
     const roof = ROOF_OPTIONS.find((r) => r.id === activeRoof.value);
     if (roof) total += roof.priceDelta;
 
+    // Loft price
     const loft = LOFT_OPTIONS.find((l) => l.id === activeLoft.value);
     if (loft) total += loft.priceDelta;
 
-    const door = DOORS_OPTIONS.find((d) => d.id === activeDoor.value);
-    if (door) total += door.priceDelta;
-
-    const windowOpt = WINDOWS_OPTIONS.find((w) => w.id === activeWindow.value);
-    if (windowOpt) total += windowOpt.priceDelta;
-
-    const gate = GATES_OPTIONS.find((g) => g.id === activeGate.value);
-    if (gate) total += gate.priceDelta;
+    // Wall slots (doors, windows, gates)
+    Object.values(wallSlots.value).forEach((slot) => {
+      if (slot.type === 'door' && slot.itemId) {
+        const d = DOORS_OPTIONS.find((opt) => opt.id === slot.itemId);
+        if (d) total += d.priceDelta;
+      } else if (slot.type === 'window' && slot.itemId) {
+        const w = WINDOWS_OPTIONS.find((opt) => opt.id === slot.itemId);
+        if (w) total += w.priceDelta;
+      } else if (slot.type === 'gate' && slot.itemId) {
+        const g = GATES_OPTIONS.find((opt) => opt.id === slot.itemId);
+        if (g) total += g.priceDelta;
+      }
+    });
 
     return total;
   });
@@ -264,31 +422,66 @@ export const useConfigStore = defineStore('config', () => {
 
   function selectSize(id: string) {
     selectedSizeId.value = id;
+    saveSnapshot();
   }
 
   function selectRoof(id: string) {
     activeRoof.value = id;
+    saveSnapshot();
   }
 
   function selectLoft(id: string) {
     activeLoft.value = id;
+    saveSnapshot();
   }
 
   function selectDoor(id: string) {
     activeDoor.value = id;
+    saveSnapshot();
   }
 
   function selectWindow(id: string) {
     activeWindow.value = id;
+    saveSnapshot();
   }
 
   function selectGate(id: string) {
     activeGate.value = id;
+    saveSnapshot();
+  }
+
+  function selectMaterial(id: MaterialKey) {
+    activeMaterial.value = id;
+    saveSnapshot();
+  }
+
+  function selectSlot(slotId: string | null) {
+    selectedSlotId.value = slotId;
+  }
+
+  function assignSlotItem(slotId: string, type: 'empty' | 'door' | 'window' | 'gate', itemId?: string) {
+    if (wallSlots.value[slotId]) {
+      wallSlots.value[slotId].type = type;
+      wallSlots.value[slotId].itemId = itemId;
+      saveSnapshot();
+    }
+  }
+
+  function removeSlotItem(slotId: string) {
+    assignSlotItem(slotId, 'empty', undefined);
+  }
+
+  function toggleDimensions() {
+    showDimensions.value = !showDimensions.value;
   }
 
   return {
     viewMode,
     selectedCategory,
+    activeMaterial,
+    selectedSlotId,
+    showDimensions,
+    wallSlots,
     selectedSizeId,
     activeRoof,
     activeLoft,
@@ -296,6 +489,7 @@ export const useConfigStore = defineStore('config', () => {
     activeWindow,
     activeGate,
     currentSize,
+    currentMaterial,
     dimensions,
     hasLoft,
     totalPriceSek,
@@ -307,6 +501,13 @@ export const useConfigStore = defineStore('config', () => {
     selectLoft,
     selectDoor,
     selectWindow,
-    selectGate
+    selectGate,
+    selectMaterial,
+    selectSlot,
+    assignSlotItem,
+    removeSlotItem,
+    toggleDimensions,
+    undo,
+    redo
   };
 });

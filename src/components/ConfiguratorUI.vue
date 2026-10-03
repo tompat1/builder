@@ -1,18 +1,31 @@
 <template>
   <div class="pointer-events-none absolute inset-0 flex flex-col justify-between p-3 md:p-6 z-10 overflow-hidden">
     <!-- Top Header Bar -->
-    <HeaderBar @next-step="isExportOpen = true" />
+    <HeaderBar @open-export="isExportOpen = true" />
 
-    <!-- Desktop Sidebar & Mobile Bottom Sheet -->
+    <!-- 3D Dimension Overlay -->
+    <DimensionOverlay />
+
+    <!-- In-Scene Wall Panel Interaction Overlay -->
+    <PanelSlotOverlay />
+
+    <!-- Lower-Left Toolset (Zoom +, Zoom -, Ruler, Undo, Redo) -->
+    <ToolSet
+      @zoom-in="$emit('zoom-in')"
+      @zoom-out="$emit('zoom-out')"
+    />
+
+    <!-- Right Sidebar / Mobile Bottom Sheet -->
     <aside
-      class="pointer-events-auto bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-slate-200/80 transition-all duration-300 flex flex-col justify-between mt-auto w-full md:w-[410px] md:absolute md:right-6 md:top-24 md:bottom-6 max-h-[60vh] md:max-h-[calc(100vh-7.5rem)]"
-      :class="isMobileCollapsed ? 'h-auto max-h-[140px]' : 'h-[60vh] md:h-auto'"
+      class="pointer-events-auto bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-slate-200/80 transition-all duration-300 flex flex-col justify-between mt-auto w-full md:w-[410px] md:absolute md:right-6 md:top-24 md:bottom-6 max-h-[62vh] md:max-h-[calc(100vh-7.5rem)] z-20"
+      :class="isMobileCollapsed ? 'h-auto max-h-[140px]' : 'h-[62vh] md:h-auto'"
       aria-label="Konfigurationspanel"
     >
-      <!-- Mobile Drawer Drag & Collapse Header -->
+      <!-- Mobile Drawer Drag Handle & Collapse Header -->
       <div class="md:hidden flex items-center justify-between px-4 py-2 border-b border-slate-100 bg-slate-50/80 rounded-t-2xl">
         <div class="flex items-center gap-2">
           <span class="w-8 h-1 bg-slate-300 rounded-full mx-auto block"></span>
+          <span class="text-xs font-bold text-slate-700">Börja anpassa din byggnad</span>
         </div>
         <button
           type="button"
@@ -23,31 +36,38 @@
         </button>
       </div>
 
+      <!-- Main Panel Title (Desktop) -->
+      <div class="hidden md:block px-5 pt-4 pb-2 border-b border-slate-100">
+        <h2 class="text-base font-extrabold text-slate-900 tracking-tight">
+          Börja anpassa din byggnad
+        </h2>
+      </div>
+
       <!-- Main Scrollable Panel Content -->
       <div v-show="!isMobileCollapsed" class="p-4 md:p-5 overflow-y-auto space-y-4 flex-1">
         <!-- Step Navigation Bar -->
         <CategoryNav />
 
-        <!-- Dynamic Category Options Grid -->
+        <!-- Dynamic Category & Material Options Grid -->
         <OptionsGrid />
 
-        <!-- Embedded AI Assistant Command Box -->
+        <!-- Embedded AI Architect Assistant -->
         <AIAssistantBar />
       </div>
 
-      <!-- Footer Quick Summary -->
+      <!-- Footer Quick Status Summary -->
       <div class="p-3 md:p-4 bg-slate-50/90 border-t border-slate-100 rounded-b-2xl flex items-center justify-between">
         <div class="flex items-center gap-2">
-          <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-          <span class="text-xs text-slate-600 font-medium">
-            {{ store.currentSize.name }} • {{ store.dimensions.areaSqMeters }} m²
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-2xs"></span>
+          <span class="text-xs text-slate-700 font-semibold">
+            {{ store.currentSize.name }} • {{ store.currentMaterial.name }}
           </span>
         </div>
 
         <button
           type="button"
           @click="isExportOpen = true"
-          class="text-xs font-semibold text-slate-700 hover:text-slate-900 flex items-center gap-1 hover:underline p-1"
+          class="text-xs font-bold text-slate-700 hover:text-slate-900 flex items-center gap-1 hover:underline p-1"
         >
           <span>Exportera</span>
           <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -59,7 +79,7 @@
       </div>
     </aside>
 
-    <!-- Export Pipeline Modal -->
+    <!-- Export Modal -->
     <ExportModal :is-open="isExportOpen" @close="isExportOpen = false" />
   </div>
 </template>
@@ -72,8 +92,16 @@ import CategoryNav from './CategoryNav.vue';
 import OptionsGrid from './OptionsGrid.vue';
 import AIAssistantBar from './AIAssistantBar.vue';
 import ExportModal from './ExportModal.vue';
+import ToolSet from './ToolSet.vue';
+import DimensionOverlay from './DimensionOverlay.vue';
+import PanelSlotOverlay from './PanelSlotOverlay.vue';
 
 const store = useConfigStore();
 const isExportOpen = ref(false);
 const isMobileCollapsed = ref(false);
+
+defineEmits<{
+  (e: 'zoom-in'): void;
+  (e: 'zoom-out'): void;
+}>();
 </script>
