@@ -14,14 +14,17 @@
     "test:e2e:ui": "playwright test --ui",
     "test:gate": "npm run typecheck && npm run lint && npm test && npm run test:e2e",
     "build": "bash scripts/build-verified.sh",
-    "build:bundle": "node -e 'console.log(\"Bundle verification passed: no production bundle configured yet.\")'"
+    "build:bundle": "node -e 'console.log(\"Bundle verification passed: no production bundle configured yet.\")'",
+    "preview": "wrangler dev",
+    "deploy": "npm run build && wrangler deploy"
   },
   "devDependencies": {
-    "@eslint/js": "^9.22.0",
+    "@eslint/js": "^9.21.0",
     "@playwright/test": "^1.63.0",
     "@types/node": "^22.13.10",
-    "eslint": "^9.22.0",
-    "globals": "^17.14.0",
-    "typescript": "^5.8.2"
+    "eslint": "^9.21.0",
+    "globals": "^17.13.0",
+    "typescript": "^5.8.2",
+    "wrangler": "^4.147.0"
   }
 }
