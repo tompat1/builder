@@ -9,6 +9,7 @@ import { handleContent } from './content.js';
 import { SELECTION_PAGES } from './catalog.js';
 import { handleResources, resourcePages } from './resources.js';
 import { handleSources } from './sources.js';
+import { handleRender } from './render.js';
 import { parseEntryId, readPayload } from './select.js';
 
 interface Env {
@@ -78,6 +79,10 @@ export default {
 
     if (url.pathname === '/api/health') {
       return json({ status: 'ok', ai: Boolean(env.AI), accounts: Boolean(env.DB) }, 200, headers);
+    }
+
+    if (url.pathname === '/api/render') {
+      return handleRender(request, env, headers);
     }
 
     if (url.pathname !== '/api/ask' || request.method !== 'POST') {

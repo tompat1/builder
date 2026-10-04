@@ -92,21 +92,96 @@
         </svg>
         <span class="tool-tip"><Cms k="tools.redo" /></span>
       </button>
+
+      <div class="w-px h-7 bg-slate-200/60 my-auto"></div>
+
+      <button
+        type="button"
+        id="btn-tool-fullscreen"
+        @click="toggleFullscreen"
+        :class="[
+          'group relative w-12 h-12 rounded-xl flex items-center justify-center transition-colors',
+          fullscreen
+            ? 'bg-slate-900 text-white shadow-2xs'
+            : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
+        ]"
+        :aria-label="fullscreen ? t('tools.exitFullscreen') : t('tools.fullscreen')"
+        :aria-pressed="fullscreen"
+      >
+        <svg v-if="fullscreen" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="4 14 10 14 10 20" />
+          <polyline points="20 10 14 10 14 4" />
+          <line x1="14" y1="10" x2="21" y2="3" />
+          <line x1="3" y1="21" x2="10" y2="14" />
+        </svg>
+        <svg v-else class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="15 3 21 3 21 9" />
+          <polyline points="9 21 3 21 3 15" />
+          <line x1="21" y1="3" x2="14" y2="10" />
+          <line x1="3" y1="21" x2="10" y2="14" />
+        </svg>
+        <span class="tool-tip"><Cms :k="fullscreen ? 'tools.exitFullscreen' : 'tools.fullscreen'" /></span>
+      </button>
+
+      <button
+        type="button"
+        id="btn-tool-reset-view"
+        @click="$emit('reset-view')"
+        class="group relative w-12 h-12 rounded-xl flex items-center justify-center text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+        :aria-label="t('tools.resetView')"
+      >
+        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 7V5a2 2 0 0 1 2-2h2" />
+          <path d="M17 3h2a2 2 0 0 1 2 2v2" />
+          <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
+          <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+        <span class="tool-tip"><Cms k="tools.resetView" /></span>
+      </button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { useConfigStore } from '../store/useConfigStore';
 import { useLabels } from '../i18n';
 import Cms from './Cms.vue';
 
 const store = useConfigStore();
 const { t } = useLabels();
+const fullscreen = ref(false);
+
+function syncFullscreen() {
+  fullscreen.value = document.fullscreenElement != null;
+}
+
+async function toggleFullscreen() {
+  try {
+    if (document.fullscreenElement) {
+      await document.exitFullscreen();
+      return;
+    }
+    await document.documentElement.requestFullscreen();
+  } catch {
+    fullscreen.value = document.fullscreenElement != null;
+  }
+}
+
+onMounted(() => {
+  syncFullscreen();
+  document.addEventListener('fullscreenchange', syncFullscreen);
+});
+
+onBeforeUnmount(() => {
+  document.removeEventListener('fullscreenchange', syncFullscreen);
+});
 
 defineEmits<{
   (e: 'zoom-in'): void;
   (e: 'zoom-out'): void;
+  (e: 'reset-view'): void;
 }>();
 </script>
 

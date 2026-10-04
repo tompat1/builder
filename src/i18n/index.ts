@@ -153,7 +153,10 @@ const sv = {
     zoomOut: 'Zooma ut',
     measure: 'Visa måttsättning',
     undo: 'Ångra',
-    redo: 'Gör om'
+    redo: 'Gör om',
+    fullscreen: 'Helskärm',
+    exitFullscreen: 'Lämna helskärm',
+    resetView: 'Återställ vy'
   },
   dims: {
     pitch: 'Taklutning',
@@ -208,6 +211,28 @@ const sv = {
     air: 'Hur stor är luftspalten?',
     wall: 'Hur är ytterväggen uppbyggd?',
     permit: 'Behövs bygglov?'
+  },
+  houseImport: {
+    title: 'AI-husimport',
+    picture: 'Bild från idé',
+    pictureBody: 'Ladda upp foton eller en skiss och skriv en mening. Du får en bild tillbaka. Kunskapsbasen kan styra formuleringen mot vägg, tak och skiva. 3D-huset ändras inte.',
+    photos: 'Foton eller skiss',
+    four: 'Högst fyra bilder.',
+    prompt: 'Prompt',
+    promptHint: 'Ett rött hus med stående panel och pulpettak',
+    show: 'Visa bild',
+    working: 'Skapar bilden…',
+    pictureNote: 'Det här är en bild, inte huset i 3D-vyn.',
+    steered: 'Kunskapsbasen:',
+    failed: 'Bilden kunde inte skapas.',
+    drawing: 'Ritning till 3D',
+    drawingBody: 'En PDF med mått sätter bredd, djup, höjd, tak och öppningar på det rektangulära huset.',
+    pdf: 'PDF-ritning',
+    read: 'Läs ritning',
+    reading: 'Läser ritningen…',
+    applied: 'Huset följer de mått som gick att läsa.',
+    empty: 'Ritningen har inga läsbara mått, så huset är oförändrat.',
+    bigPdf: 'PDF-filen är för stor.'
   },
   price: {
     included: 'Ingår',
@@ -363,7 +388,10 @@ const en = {
     zoomOut: 'Zoom out',
     measure: 'Show dimensions',
     undo: 'Undo',
-    redo: 'Redo'
+    redo: 'Redo',
+    fullscreen: 'Fullscreen',
+    exitFullscreen: 'Exit fullscreen',
+    resetView: 'Reset view'
   },
   dims: {
     pitch: 'Roof pitch',
@@ -418,6 +446,28 @@ const en = {
     air: 'How big is the air gap?',
     wall: 'How is the outer wall built?',
     permit: 'Does it need a permit?'
+  },
+  houseImport: {
+    title: 'AI house import',
+    picture: 'Picture from an idea',
+    pictureBody: 'Upload photos or a sketch and write a sentence. You get a picture back. The knowledge base can steer the wording toward the wall, roof, and board. The 3D house stays as it is.',
+    photos: 'Photos or a sketch',
+    four: 'Up to four pictures.',
+    prompt: 'Prompt',
+    promptHint: 'A red house with standing boards and a mono-pitch roof',
+    show: 'Show picture',
+    working: 'Making the picture…',
+    pictureNote: 'This is a picture, not the house in the 3D view.',
+    steered: 'Knowledge base:',
+    failed: 'The picture could not be made.',
+    drawing: 'Drawing to 3D',
+    drawingBody: 'A PDF with measurements sets the width, depth, height, roof, and openings on the rectangular house.',
+    pdf: 'PDF drawing',
+    read: 'Read drawing',
+    reading: 'Reading the drawing…',
+    applied: 'The house follows the measurements that could be read.',
+    empty: 'The drawing has no readable measurements, so the house is unchanged.',
+    bigPdf: 'The PDF is too large.'
   },
   price: {
     included: 'Included',

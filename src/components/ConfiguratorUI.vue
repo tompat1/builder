@@ -16,6 +16,7 @@
     <ToolSet
       @zoom-in="$emit('zoom-in')"
       @zoom-out="$emit('zoom-out')"
+      @reset-view="$emit('reset-view')"
     />
 
     <!-- Right Sidebar / Mobile Bottom Sheet -->
@@ -50,6 +51,8 @@
 
       <!-- Main Scrollable Panel Content -->
       <div v-show="!isMobileCollapsed" class="p-4 md:p-5 overflow-y-auto space-y-4 flex-1">
+        <HouseImport />
+
         <!-- Step Navigation Bar -->
         <CategoryNav />
 
@@ -97,6 +100,7 @@ import HeaderBar from './HeaderBar.vue';
 import CategoryNav from './CategoryNav.vue';
 import OptionsGrid from './OptionsGrid.vue';
 import AIAssistantBar from './AIAssistantBar.vue';
+import HouseImport from './HouseImport.vue';
 import ExportModal from './ExportModal.vue';
 import ToolSet from './ToolSet.vue';
 import DimensionOverlay from './DimensionOverlay.vue';
@@ -119,5 +123,6 @@ watch(
 defineEmits<{
   (e: 'zoom-in'): void;
   (e: 'zoom-out'): void;
+  (e: 'reset-view'): void;
 }>();
 </script>

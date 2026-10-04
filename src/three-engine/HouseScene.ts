@@ -2810,6 +2810,11 @@ export class HouseScene {
     this.controls.update();
   }
 
+  /** Return the camera to the starting frame for the current view. */
+  public resetView() {
+    this.applyViewMode();
+  }
+
   public zoomIn() {
     const dir = new THREE.Vector3();
     this.camera.getWorldDirection(dir);

@@ -9,6 +9,7 @@
     <ConfiguratorUI
       @zoom-in="canvasRef?.zoomIn()"
       @zoom-out="canvasRef?.zoomOut()"
+      @reset-view="canvasRef?.resetView()"
     />
   </main>
 </template>

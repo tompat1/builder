@@ -173,6 +173,7 @@ onBeforeUnmount(() => {
 defineExpose({
   getCanvas: () => engine?.getCanvas(),
   zoomIn: () => engine?.zoomIn(),
-  zoomOut: () => engine?.zoomOut()
+  zoomOut: () => engine?.zoomOut(),
+  resetView: () => engine?.resetView()
 });
 </script>
