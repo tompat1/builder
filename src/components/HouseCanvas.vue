@@ -166,6 +166,20 @@ watch(
   }
 );
 
+// Watch fullscreen mode
+watch(
+  () => store.isFullscreen,
+  (isFull) => {
+    if (isFull) {
+      store.selectSlot(null);
+    }
+    engine?.updateConfig({ isFullscreen: isFull });
+    setTimeout(() => {
+      window.dispatchEvent(new Event('resize'));
+    }, 50);
+  }
+);
+
 onBeforeUnmount(() => {
   engine?.destroy();
 });

@@ -5,14 +5,14 @@
 
     <!-- 3D Scene In-Canvas Overlays (Aligned with the 3D Canvas Area) -->
     <div
-      class="pointer-events-none absolute inset-0 z-10 overflow-hidden transition-all duration-300"
-      :class="store.isFullscreen ? 'right-0 md:right-0' : 'md:right-[434px]'"
+      class="pointer-events-none absolute inset-0 z-10 overflow-hidden transition-all duration-300 md:right-[434px]"
+      :style="{ right: store.isFullscreen ? '0px' : undefined }"
     >
       <!-- 3D Dimension Overlay -->
       <DimensionOverlay />
 
-      <!-- In-Scene Wall Panel Interaction Overlay -->
-      <PanelSlotOverlay />
+      <!-- In-Scene Wall Panel Interaction Overlay (disabled in fullscreen mode) -->
+      <PanelSlotOverlay v-if="!store.isFullscreen" />
     </div>
 
     <!-- Lower-Left Toolset (Zoom +, Zoom -, Ruler, Undo, Redo) -->

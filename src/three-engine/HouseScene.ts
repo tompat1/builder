@@ -25,6 +25,7 @@ export interface SceneConfig {
   showDimensions: boolean;
   selectedSlotId: string | null;
   wallSlots: Record<string, WallSlot>;
+  isFullscreen?: boolean;
 }
 
 export class HouseScene {
@@ -585,6 +586,12 @@ export class HouseScene {
 
   private setupRaycasting() {
     this.container.addEventListener('pointermove', (e) => {
+      if (this.currentConfig.isFullscreen) {
+        this.container.style.cursor = 'default';
+        this.updateHoverBox(null);
+        this.onPanelHover?.(null, 0, 0);
+        return;
+      }
       const rect = this.container.getBoundingClientRect();
       this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
@@ -625,6 +632,7 @@ export class HouseScene {
     });
 
     this.container.addEventListener('pointerdown', (e) => {
+      if (this.currentConfig.isFullscreen) return;
       const rect = this.container.getBoundingClientRect();
       this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
@@ -2766,6 +2774,11 @@ export class HouseScene {
     const cameraPosition = this.camera.position.clone();
     const cameraTarget = this.controls.target.clone();
     Object.assign(this.currentConfig, config);
+    if (config.isFullscreen) {
+      this.currentConfig.selectedSlotId = null;
+      this.updateHighlightBox(null);
+      this.updateHoverBox(null);
+    }
     this.rebuildScene();
     if (!viewChanged) {
       this.camera.position.copy(cameraPosition);
