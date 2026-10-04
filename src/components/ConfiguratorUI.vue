@@ -13,6 +13,8 @@
 
       <!-- In-Scene Wall Panel Interaction Overlay (disabled in fullscreen mode) -->
       <PanelSlotOverlay v-if="!store.isFullscreen" />
+
+      <HouseNotes />
     </div>
 
     <!-- Lower-Left Toolset (Zoom +, Zoom -, Ruler, Undo, Redo) -->
@@ -109,6 +111,7 @@ import ExportModal from './ExportModal.vue';
 import ToolSet from './ToolSet.vue';
 import DimensionOverlay from './DimensionOverlay.vue';
 import PanelSlotOverlay from './PanelSlotOverlay.vue';
+import HouseNotes from './HouseNotes.vue';
 import Cms from './Cms.vue';
 
 const store = useConfigStore();

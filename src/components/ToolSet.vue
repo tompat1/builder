@@ -129,6 +129,33 @@
 
       <button
         type="button"
+        id="btn-tool-notes"
+        @click="store.toggleNotes()"
+        :class="[
+          'group relative w-12 h-12 rounded-xl flex items-center justify-center transition-colors',
+          store.showNotes
+            ? 'bg-slate-900 text-white shadow-2xs'
+            : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
+        ]"
+        :aria-label="t('notes.tool')"
+        :aria-pressed="store.showNotes"
+      >
+        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M6 4.5h9.5L19 8v11.5H6z" />
+          <path d="M15 4.5V8h4" />
+          <path d="M8.5 12h7" />
+          <path d="M8.5 15.5h5" />
+        </svg>
+        <span
+          v-if="store.notes.length && !store.showNotes"
+          class="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-[#8a6a2f]"
+          aria-hidden="true"
+        ></span>
+        <span class="tool-tip"><Cms k="notes.tool" /></span>
+      </button>
+
+      <button
+        type="button"
         id="btn-tool-reset-view"
         @click="$emit('reset-view')"
         class="group relative w-12 h-12 rounded-xl flex items-center justify-center text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-colors"

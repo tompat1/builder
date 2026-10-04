@@ -1,5 +1,12 @@
 import { defineStore } from 'pinia';
 import { ref, computed, reactive } from 'vue';
+import {
+  acceptNotes,
+  freshNote,
+  linkFromValue,
+  NOTE_LIMIT,
+  type HouseNote
+} from '../notes/board';
 
 export type ViewMode = 'utsida' | 'insida';
 export type CategoryKey = 'size' | 'roof' | 'loft' | 'doors' | 'windows' | 'gates' | 'extras';
@@ -425,6 +432,11 @@ export const useConfigStore = defineStore('config', () => {
   // Wall panel modular slots (matching Skånska Byggvaror reference layout)
   const wallSlots = ref<Record<string, WallSlot>>(createWallSlots());
 
+  const notes = ref<HouseNote[]>([]);
+  const showNotes = ref(false);
+  const activeNoteId = ref<string | null>(null);
+  const noteAnchors = ref<Record<string, { x: number; y: number; visible: boolean }>>({});
+
   // History stacks for Undo / Redo
   const history = ref<string[]>([]);
   const historyIndex = ref<number>(-1);
@@ -449,7 +461,8 @@ export const useConfigStore = defineStore('config', () => {
       activeMaterial: activeMaterial.value,
       panelOrientation: panelOrientation.value,
       claddingSizeId: claddingSizeId.value,
-      wallSlots: wallSlots.value
+      wallSlots: wallSlots.value,
+      notes: notes.value
     };
   }
 
@@ -510,6 +523,8 @@ export const useConfigStore = defineStore('config', () => {
         ? data.claddingSizeId
         : '22x145';
       wallSlots.value = mergeWallSlots(data.wallSlots);
+      notes.value = acceptNotes(data.notes);
+      if (notes.value.length) showNotes.value = true;
     } catch {
       // ignore parse error
     }
@@ -785,6 +800,87 @@ export const useConfigStore = defineStore('config', () => {
     selectedSlotId.value = slotId;
   }
 
+  function commitHouse() {
+    const next = JSON.stringify(houseState());
+    if (history.value[historyIndex.value] === next) return;
+    saveSnapshot();
+  }
+
+  function noteById(id: string) {
+    return notes.value.find((note) => note.id === id);
+  }
+
+  function replaceNote(id: string, patch: Partial<HouseNote>) {
+    const current = noteById(id);
+    if (!current) return;
+    const [next] = acceptNotes([{ ...current, ...patch, id: current.id }]);
+    if (!next) return;
+    notes.value = notes.value.map((note) => (note.id === id ? next : note));
+  }
+
+  function addNote() {
+    if (notes.value.length >= NOTE_LIMIT) return null;
+    const id = `note_${crypto.randomUUID().replaceAll('-', '').slice(0, 16)}`;
+    notes.value = [...notes.value, freshNote(notes.value.length, id)];
+    showNotes.value = true;
+    activeNoteId.value = id;
+    commitHouse();
+    return id;
+  }
+
+  function removeNote(id: string) {
+    if (!noteById(id)) return;
+    notes.value = notes.value.filter((note) => note.id !== id);
+    if (activeNoteId.value === id) activeNoteId.value = null;
+    commitHouse();
+  }
+
+  function setNoteText(id: string, text: string) {
+    replaceNote(id, { text });
+  }
+
+  function setNoteLink(id: string, value: string) {
+    const link = linkFromValue(value);
+    replaceNote(id, { link });
+    if (link.kind === 'slot') selectSlot(link.slotId);
+    activeNoteId.value = id;
+    commitHouse();
+  }
+
+  function moveNote(id: string, place: { x?: number; y?: number; offsetX?: number; offsetY?: number }) {
+    replaceNote(id, place);
+  }
+
+  function commitNotes() {
+    commitHouse();
+  }
+
+  function toggleNotes() {
+    if (showNotes.value) {
+      showNotes.value = false;
+      return;
+    }
+    showNotes.value = true;
+    if (!notes.value.length) addNote();
+  }
+
+  function setNoteAnchors(next: Record<string, { x: number; y: number; visible: boolean }>) {
+    const current = noteAnchors.value;
+    const keys = Object.keys(next);
+    const sameKeys = keys.length === Object.keys(current).length && keys.every((key) => current[key]);
+    if (sameKeys) {
+      const moved = keys.some((key) => {
+        const before = current[key];
+        const after = next[key];
+        return Math.abs(before.x - after.x) >= 0.5
+          || Math.abs(before.y - after.y) >= 0.5
+          || before.visible !== after.visible;
+      });
+      if (!moved) return;
+    }
+    noteAnchors.value = next;
+  }
+
   function assignSlotItem(slotId: string, type: 'empty' | 'door' | 'window' | 'gate', itemId?: string) {
     const slot = wallSlots.value[slotId];
     if (!slot) return;
@@ -926,6 +1022,18 @@ export const useConfigStore = defineStore('config', () => {
     undo,
     redo,
     exportHouse,
-    importHouse
+    importHouse,
+    notes,
+    showNotes,
+    activeNoteId,
+    noteAnchors,
+    addNote,
+    removeNote,
+    setNoteText,
+    setNoteLink,
+    moveNote,
+    commitNotes,
+    toggleNotes,
+    setNoteAnchors
   };
 });

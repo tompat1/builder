@@ -6,10 +6,20 @@
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue';
 import { HouseScene } from '../three-engine/HouseScene';
 import { useConfigStore } from '../store/useConfigStore';
+import { noteTargetId } from '../notes/board';
 
 const canvasContainer = ref<HTMLElement | null>(null);
 const store = useConfigStore();
 let engine: HouseScene | null = null;
+
+function noteTargetIds() {
+  if (!store.showNotes) return [];
+  return [...new Set(
+    store.notes
+      .map((note) => noteTargetId(note.link))
+      .filter((id): id is string => Boolean(id))
+  )];
+}
 
 onMounted(() => {
   if (canvasContainer.value) {
@@ -60,6 +70,11 @@ onMounted(() => {
     engine.onDimensionLabels = (labels) => {
       store.setDimensionLabels(labels);
     };
+
+    engine.onNoteAnchors = (anchors) => {
+      store.setNoteAnchors(anchors);
+    };
+    engine.setNoteTargets(noteTargetIds());
 
     if (typeof window !== 'undefined') {
       (window as any).__houseScene = engine;
@@ -156,6 +171,13 @@ watch(
     engine?.updateConfig({ wallSlots: slots });
   },
   { deep: true }
+);
+
+watch(
+  () => noteTargetIds().join('|'),
+  (key) => {
+    engine?.setNoteTargets(key ? key.split('|') : []);
+  }
 );
 
 // Watch selected slot highlight

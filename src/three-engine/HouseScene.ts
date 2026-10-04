@@ -60,7 +60,11 @@ export class HouseScene {
   public onPanelHover?: (slotId: string | null, screenX: number, screenY: number) => void;
   public onSlotScreenPositionUpdate?: (pos: { x: number; y: number; visible: boolean; slotId: string }) => void;
   public onDimensionLabels?: (labels: Record<string, { x: number; y: number; visible: boolean }>) => void;
+  public onNoteAnchors?: (anchors: Record<string, { x: number; y: number; visible: boolean }>) => void;
   private dimensionAnchors = new Map<string, THREE.Vector3>();
+  private noteTargets: string[] = [];
+  private notePoint = new THREE.Vector3();
+  private noteBox = new THREE.Box3();
 
   constructor(container: HTMLElement, initialConfig?: Partial<SceneConfig>) {
     this.container = container;
@@ -2787,6 +2791,49 @@ export class HouseScene {
     }
   }
 
+  /** Parts a paper note can follow. Stored without rebuilding the house. */
+  public setNoteTargets(ids: string[]) {
+    this.noteTargets = ids;
+  }
+
+  private anchorFor(id: string) {
+    const w = this.currentConfig.widthMm / 1000;
+    const d = this.currentConfig.depthMm / 1000;
+    const h = this.currentConfig.heightMm / 1000;
+    const mid = Math.max((h - 0.25) * 0.45, 0.8);
+    if (id === 'roof') return this.notePoint.set(0, h + 0.35, 0);
+    if (id === 'floor') return this.notePoint.set(0, 0.4, 0);
+    if (id === 'loft') {
+      if (!this.currentConfig.hasLoft) return null;
+      return this.notePoint.set(0, h * 0.72, 0);
+    }
+    if (id === 'wall-front') return this.notePoint.set(0, mid, d / 2);
+    if (id === 'wall-back') return this.notePoint.set(0, mid, -d / 2);
+    if (id === 'wall-left') return this.notePoint.set(-w / 2, mid, 0);
+    if (id === 'wall-right') return this.notePoint.set(w / 2, mid, 0);
+    if (id.startsWith('slot:')) {
+      const mesh = this.interactivePanels.find((item) => item.userData.slotId === id.slice(5));
+      if (!mesh) return null;
+      this.noteBox.setFromObject(mesh);
+      if (this.noteBox.isEmpty()) return null;
+      return this.noteBox.getCenter(this.notePoint);
+    }
+    return null;
+  }
+
+  private publishNoteAnchors() {
+    if (!this.onNoteAnchors) return;
+    const anchors: Record<string, { x: number; y: number; visible: boolean }> = {};
+    for (const id of this.noteTargets) {
+      const point = this.anchorFor(id);
+      const occlude = id.startsWith('wall-') || id.startsWith('slot:');
+      anchors[id] = point
+        ? this.projectAnchor(point, occlude)
+        : { x: 0, y: 0, visible: false };
+    }
+    this.onNoteAnchors(anchors);
+  }
+
   /** Move the green outline without rebuilding the house or moving the camera. */
   public setSelectedSlot(slotId: string | null) {
     this.currentConfig.selectedSlotId = slotId;
@@ -2851,6 +2898,7 @@ export class HouseScene {
     this.controls.update();
     this.renderer.render(this.scene, this.camera);
     this.publishDimensionLabels();
+    this.publishNoteAnchors();
 
     // Update screen coordinates of selected panel for dynamic overlay tracking
     if (this.currentConfig.selectedSlotId && this.onSlotScreenPositionUpdate) {
