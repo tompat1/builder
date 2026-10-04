@@ -115,7 +115,7 @@ function toggle() {
 }
 const user = ref<AccountUser | null>(null);
 watch(user, (value) => session.setUser(value), { immediate: true });
-const login = ref('tompat1');
+const login = ref('');
 const password = ref('');
 const current = ref('');
 const nextPassword = ref('');
