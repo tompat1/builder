@@ -3,7 +3,7 @@
     <!-- 3D Canvas Area (Spans full width in fullscreen mode, otherwise leaves space for sidebar on desktop) -->
     <div
       class="absolute inset-0 z-0 transition-all duration-300"
-      :class="store.isFullscreen ? 'right-0' : 'md:right-[434px]'"
+      :class="store.isFullscreen ? 'right-0 md:right-0' : 'md:right-[434px]'"
     >
       <HouseCanvas ref="canvasRef" />
     </div>
