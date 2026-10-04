@@ -13,7 +13,7 @@
     "binding": "AI"
   },
   "vars": {
-    "ALLOWED_ORIGINS": "http://localhost:5173",
+    "ALLOWED_ORIGINS": "http://localhost:5173,https://builder.rynell.app,https://builder.rynell.org",
     "ADMIN_LOGINS": "tompat1"
   },
   "d1_databases": [
