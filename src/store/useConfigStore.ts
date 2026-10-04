@@ -148,11 +148,12 @@ export type BuildingAxis = keyof typeof BUILDING_LIMITS;
 /** Mono-pitch roof. Kept in the 10–15° band so the high eave still drains. */
 export const PULPET_PITCH_DEG = 12;
 
-export type RoofCovering = 'felt' | 'metal' | 'tiles';
+export type RoofCovering = 'felt' | 'metal' | 'tiles' | 'shingles';
 
 export const ROOF_COVERINGS: { id: RoofCovering; priceDelta: number }[] = [
   { id: 'felt', priceDelta: 0 },
   { id: 'metal', priceDelta: 6400 },
+  { id: 'shingles', priceDelta: 5200 },
   { id: 'tiles', priceDelta: 9800 }
 ];
 
@@ -469,6 +470,9 @@ export const useConfigStore = defineStore('config', () => {
     }
   }
 
+  const canUndo = computed(() => historyIndex.value > 0);
+  const canRedo = computed(() => historyIndex.value < history.value.length - 1);
+
   function applySnapshot(snapshotStr: string) {
     try {
       const data = JSON.parse(snapshotStr);
@@ -478,7 +482,7 @@ export const useConfigStore = defineStore('config', () => {
       buildingDepth.value = clampMeasure('depth', data.buildingDepth ?? preset.depth);
       buildingHeight.value = clampMeasure('height', data.buildingHeight ?? preset.height);
       activeRoof.value = data.activeRoof;
-      if (data.roofCovering === 'felt' || data.roofCovering === 'metal' || data.roofCovering === 'tiles') {
+      if (ROOF_COVERINGS.some((item) => item.id === data.roofCovering)) {
         roofCovering.value = data.roofCovering;
       }
       if (typeof data.hasLoft === 'boolean') {
@@ -899,6 +903,8 @@ export const useConfigStore = defineStore('config', () => {
     assignSlotItem,
     removeSlotItem,
     toggleDimensions,
+    canUndo,
+    canRedo,
     undo,
     redo
   };

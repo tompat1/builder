@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { PULPET_PITCH_DEG, type MaterialKey, type WallSlot, type LoftPlacement, type LoftCount, type PanelOrientation } from '../store/useConfigStore';
+import { PULPET_PITCH_DEG, type MaterialKey, type WallSlot, type LoftPlacement, type LoftCount, type PanelOrientation, type RoofCovering } from '../store/useConfigStore';
 
 const PULPET_PITCH_RAD = (PULPET_PITCH_DEG * Math.PI) / 180;
 
@@ -9,7 +9,7 @@ export interface SceneConfig {
   depthMm: number;
   heightMm: number;
   roofType: 'pulpettak' | 'sadeltak' | 'flackt';
-  roofCovering: 'felt' | 'metal' | 'tiles';
+  roofCovering: RoofCovering;
   hasLoft: boolean;
   loftPlacement?: LoftPlacement;
   loftAreaSqMeters?: number;
@@ -402,6 +402,43 @@ export class HouseScene {
     return texture;
   }
 
+  /** Overlapping asphalt tabs. Square cuts and a dark course shadow, so they do not read as concrete tiles. */
+  private createRoofShingleTexture(): THREE.CanvasTexture {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = '#2c2824';
+    ctx.fillRect(0, 0, 256, 256);
+
+    const tabW = 64;
+    const course = 48;
+    const rows = Math.ceil(256 / course) + 1;
+    for (let row = 0; row < rows; row++) {
+      const offset = row % 2 === 0 ? 0 : tabW / 2;
+      const y = row * course;
+      for (let col = -1; col < 6; col++) {
+        const x = col * tabW + offset;
+        const tone = (row + col) % 3 === 0 ? '#5a4b3e' : (row + col) % 3 === 1 ? '#4d4036' : '#43382f';
+        ctx.fillStyle = tone;
+        ctx.fillRect(x + 2, y + 2, tabW - 4, course - 4);
+        ctx.fillStyle = 'rgba(255, 236, 210, 0.08)';
+        ctx.fillRect(x + 2, y + 2, tabW - 4, 3);
+        ctx.fillStyle = '#1c1815';
+        ctx.fillRect(x, y + course - 10, tabW, 10);
+        ctx.fillRect(x + tabW - 2, y, 2, course);
+      }
+    }
+
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(3, 4);
+    texture.anisotropy = 8;
+    return texture;
+  }
+
   private roofSurfaceMaterial(): THREE.MeshStandardMaterial {
     const covering = this.currentConfig.roofCovering;
     if (covering === 'metal') {
@@ -416,6 +453,13 @@ export class HouseScene {
         map: this.createRoofTileTexture(),
         roughness: 0.86,
         metalness: 0.04
+      });
+    }
+    if (covering === 'shingles') {
+      return new THREE.MeshStandardMaterial({
+        map: this.createRoofShingleTexture(),
+        roughness: 0.9,
+        metalness: 0.02
       });
     }
     return new THREE.MeshStandardMaterial({
@@ -693,7 +737,7 @@ export class HouseScene {
     this.buildModularWall('back', 4, w, d, h, wallThick, exteriorMat, trimMat, casingMat);
     this.buildModularWall('left', 3, w, d, h, wallThick, exteriorMat, trimMat, casingMat);
     this.buildModularWall('right', 3, w, d, h, wallThick, exteriorMat, trimMat, casingMat);
-    if (!this.interiorCut()) this.addBeltFlashing(w, d, h, trimMat);
+    if (!this.interiorCut()) this.addBeltFlashing(w, d, h);
     if (!this.interiorCut()) {
       const rearTop = this.currentConfig.roofType === 'pulpettak'
         ? Math.max(h - Math.tan(PULPET_PITCH_RAD) * d, 2.4)
@@ -955,29 +999,91 @@ export class HouseScene {
     return 2.15;
   }
 
-  /** White metal belt on each wall, stopping against the vertical corner boards. */
-  private addBeltFlashing(w: number, d: number, wallTop: number, trimMat: THREE.Material) {
+  /** Rolled white metal: fine horizontal ribs, a bright top edge, a darker drip. */
+  private createBeltMetalTexture(): THREE.CanvasTexture {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 64;
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = '#f7f8f9';
+    ctx.fillRect(0, 0, 256, 64);
+    for (let y = 2; y < 60; y += 2) {
+      ctx.fillStyle = y % 4 === 0 ? 'rgba(198, 206, 214, 0.45)' : 'rgba(255, 255, 255, 0.85)';
+      ctx.fillRect(0, y, 256, 1);
+    }
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, 256, 4);
+    ctx.fillStyle = '#d8dee4';
+    ctx.fillRect(0, 58, 256, 6);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.ClampToEdgeWrapping;
+    texture.repeat.set(10, 1);
+    texture.anisotropy = 8;
+    return texture;
+  }
+
+  /**
+   * White metal belt on each wall. It stands off the cladding like the reference
+   * flashing: a tall ribbed face, a lit top edge, and a drip that shades the boards.
+   * It stops against the vertical corner boards.
+   */
+  private addBeltFlashing(w: number, d: number, wallTop: number) {
     const y = 0.25 + this.beltRise(wallTop);
-    const height = 0.055;
+    const faceH = 0.11;
+    const proj = 0.036;
+    const standOff = 0.008;
     const { face, thick } = this.cornerTrimSize();
     const inset = face - thick;
-    const frontLen = w - inset * 2;
-    const sideLen = d - face * 2;
-    const frontZ = d / 2 + thick / 2;
-    const sideX = w / 2 + thick / 2;
-    const boards: [number, number, number, number, number, number][] = [
-      [frontLen, height, thick, 0, y, frontZ],
-      [frontLen, height, thick, 0, y, -frontZ],
-      [thick, height, sideLen, -sideX, y, 0],
-      [thick, height, sideLen, sideX, y, 0]
-    ];
-    for (const [sx, sy, sz, px, py, pz] of boards) {
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), trimMat);
-      mesh.position.set(px, py, pz);
+    const faceMat = new THREE.MeshStandardMaterial({
+      map: this.createBeltMetalTexture(),
+      color: '#ffffff',
+      roughness: 0.46,
+      metalness: 0.12
+    });
+    const lipMat = new THREE.MeshStandardMaterial({
+      color: '#ffffff',
+      roughness: 0.24,
+      metalness: 0.2
+    });
+    const shadeMat = new THREE.MeshStandardMaterial({
+      color: '#1c1915',
+      transparent: true,
+      opacity: 0.22,
+      roughness: 1,
+      depthWrite: false
+    });
+
+    const add = (size: [number, number, number], pos: [number, number, number], material: THREE.Material) => {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(...size), material);
+      mesh.position.set(...pos);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       this.wallsGroup.add(mesh);
-    }
+    };
+
+    const place = (length: number, axis: 'x' | 'z', sign: number, claddingOuter: number) => {
+      const center = claddingOuter + sign * (standOff + proj / 2);
+      const lip = center + sign * (proj / 2 + 0.006);
+      const shade = claddingOuter + sign * 0.004;
+      if (axis === 'z') {
+        add([length, faceH, proj], [0, y, center], faceMat);
+        add([length, 0.01, proj + 0.012], [0, y + faceH / 2 - 0.004, center + sign * 0.006], lipMat);
+        add([length, 0.016, 0.018], [0, y - faceH / 2 + 0.006, lip], lipMat);
+        add([length, 0.03, 0.004], [0, y - faceH / 2 - 0.012, shade], shadeMat);
+      } else {
+        add([proj, faceH, length], [center, y, 0], faceMat);
+        add([proj + 0.012, 0.01, length], [center + sign * 0.006, y + faceH / 2 - 0.004, 0], lipMat);
+        add([0.018, 0.016, length], [lip, y - faceH / 2 + 0.006, 0], lipMat);
+        add([0.004, 0.03, length], [shade, y - faceH / 2 - 0.012, 0], shadeMat);
+      }
+    };
+
+    place(w - inset * 2, 'z', 1, d / 2);
+    place(w - inset * 2, 'z', -1, -d / 2);
+    place(d - face * 2, 'x', -1, -w / 2);
+    place(d - face * 2, 'x', 1, w / 2);
   }
 
   /** Rise of the roof along a side wall, in metres of height per metre of local panel X. */
@@ -1239,6 +1345,101 @@ export class HouseScene {
       rightStud.castShadow = true;
       this.framingGroup.add(rightStud);
     }
+
+    // 4. Noggings (kortlingar): 45×145 laid flat between the studs.
+    // Alternate bays are staggered by one stud thickness so each end can be nailed through the stud.
+    const halfStud = studThick / 2;
+    const frontXs = [framingLeftX];
+    for (let s = 1; s < frontStudCount; s++) frontXs.push(-w / 2 + 0.05 + s * frontSpacing);
+    frontXs.push(framingRightX);
+    const frontSolids = frontXs.map((x) => ({ from: x - halfStud, to: x + halfStud, top: h - studThick }));
+    const backSolids = frontXs.map((x) => ({ from: x - halfStud, to: x + halfStud, top: rearH - studThick }));
+    const sideSolids: { from: number; to: number; top: number }[] = [
+      { from: framingFrontZ - studDepth / 2, to: framingFrontZ + studDepth / 2, top: h - studThick }
+    ];
+    for (let s = 1; s < sideStudCount; s++) {
+      const sz = d / 2 - 0.025 - studDepth - s * sideSpacing;
+      const progress = (d / 2 - sz) / d;
+      const curH = h - progress * (h - rearH);
+      sideSolids.push({ from: sz - halfStud, to: sz + halfStud, top: curH - studThick });
+    }
+    sideSolids.push({
+      from: framingBackZ - studDepth / 2,
+      to: framingBackZ + studDepth / 2,
+      top: rearH - studThick
+    });
+
+    this.addNoggings(this.gapsBetween(frontSolids), 'x', framingFrontZ, baseElevation, studThick, studDepth, framingMat, frontOpenings);
+    this.addNoggings(this.gapsBetween(backSolids), 'x', framingBackZ, baseElevation, studThick, studDepth, framingMat);
+    this.addNoggings(this.gapsBetween(sideSolids), 'z', framingLeftX, baseElevation, studThick, studDepth, framingMat);
+    this.addNoggings(this.gapsBetween(sideSolids), 'z', framingRightX, baseElevation, studThick, studDepth, framingMat);
+  }
+
+  /** Clear spans between stud faces, limited by the lower of the two studs. */
+  private gapsBetween(solids: { from: number; to: number; top: number }[]) {
+    const sorted = [...solids].sort((a, b) => a.from - b.from);
+    const gaps: { from: number; to: number; top: number }[] = [];
+    for (let i = 0; i < sorted.length - 1; i++) {
+      const from = sorted[i].to;
+      const to = sorted[i + 1].from;
+      if (to - from < 0.08) continue;
+      gaps.push({ from, to, top: Math.min(sorted[i].top, sorted[i + 1].top) });
+    }
+    return gaps;
+  }
+
+  private addNoggings(
+    gaps: { from: number; to: number; top: number }[],
+    axis: 'x' | 'z',
+    fixed: number,
+    baseElevation: number,
+    studThick: number,
+    studDepth: number,
+    mat: THREE.Material,
+    openings: { x: number; winW: number; sill: number; head: number }[] = []
+  ) {
+    const rowPitch = 1.2;
+    const floor = baseElevation + studThick;
+    gaps.forEach((gap, bay) => {
+      const length = gap.to - gap.from - 0.004;
+      if (length < 0.08) return;
+      let row = 0;
+      for (let y = floor + rowPitch; y + studThick / 2 < gap.top - 0.01; y += rowPitch, row += 1) {
+        const stagger = (bay + row) % 2 === 1 ? studThick : 0;
+        let centerY = y + stagger;
+        if (centerY + studThick / 2 > gap.top - 0.008) centerY = y;
+        if (centerY - studThick / 2 < floor + 0.02) continue;
+        if (axis === 'x' && this.noggingHitsOpening(gap.from, gap.to, centerY, studThick, openings)) continue;
+        const mesh = new THREE.Mesh(
+          axis === 'x'
+            ? new THREE.BoxGeometry(length, studThick, studDepth)
+            : new THREE.BoxGeometry(studDepth, studThick, length),
+          mat
+        );
+        const mid = (gap.from + gap.to) / 2;
+        mesh.position.set(axis === 'x' ? mid : fixed, centerY, axis === 'z' ? mid : fixed);
+        mesh.castShadow = true;
+        this.framingGroup.add(mesh);
+      }
+    });
+  }
+
+  private noggingHitsOpening(
+    from: number,
+    to: number,
+    centerY: number,
+    studThick: number,
+    openings: { x: number; winW: number; sill: number; head: number }[]
+  ) {
+    const y0 = centerY - studThick / 2;
+    const y1 = centerY + studThick / 2;
+    return openings.some((opening) => {
+      const left = opening.x - opening.winW / 2 - studThick;
+      const right = opening.x + opening.winW / 2 + studThick;
+      const frameBottom = opening.sill > 0.4 ? opening.sill - studThick : opening.sill;
+      const frameTop = opening.head + studThick * 2;
+      return to > left && from < right && y1 > frameBottom && y0 < frameTop;
+    });
   }
 
 

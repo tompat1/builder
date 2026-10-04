@@ -1,0 +1,7 @@
+interface ImportMetaEnv {
+  readonly VITE_CLOUDFLARE_WORKER_URL?: string;
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}

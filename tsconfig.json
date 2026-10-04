@@ -35,6 +35,7 @@
     ".agent",
     ".agents",
     ".gemini",
-    ".impeccable"
+    ".impeccable",
+    "workers"
   ]
 }

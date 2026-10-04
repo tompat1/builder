@@ -17,7 +17,9 @@
     "build": "bash scripts/build-verified.sh",
     "build:bundle": "vite build",
     "preview": "vite preview",
-    "deploy": "npm run build && wrangler deploy"
+    "deploy": "npm run build && wrangler deploy",
+    "worker:dev": "wrangler dev --config workers/wrangler.jsonc",
+    "worker:deploy": "wrangler deploy --config workers/wrangler.jsonc"
   },
   "dependencies": {
     "pinia": "^2.3.1",

@@ -250,7 +250,7 @@
 
       <div class="pt-1">
         <p class="text-xs font-bold text-slate-900 mb-2">{{ t('category.covering') }}</p>
-        <div class="grid grid-cols-3 gap-2">
+        <div class="grid grid-cols-2 gap-2">
           <button
             v-for="cover in ROOF_COVERINGS"
             :key="cover.id"
@@ -266,7 +266,7 @@
           >
             <span
               class="block h-8 rounded-md mb-2 border border-slate-200"
-              :class="cover.id === 'felt' ? 'bg-slate-700' : cover.id === 'metal' ? 'bg-slate-400' : 'bg-stone-500'"
+              :class="coveringSwatch[cover.id]"
             ></span>
             <span class="block text-xs font-bold text-slate-900">{{ t('category.' + cover.id) }}</span>
             <span class="block text-[10px] text-slate-500 mt-0.5">{{ t('category.' + cover.id + 'Body') }}</span>
@@ -766,6 +766,7 @@ import {
   SIZE_OPTIONS,
   ROOF_OPTIONS,
   ROOF_COVERINGS,
+  type RoofCovering,
   LOFT_OPTIONS,
   DOORS_OPTIONS,
   WINDOWS_OPTIONS,
@@ -775,6 +776,13 @@ import { useLabels } from '../i18n';
 
 const store = useConfigStore();
 const { t, catalog, loftDesc, money, delta } = useLabels();
+
+const coveringSwatch: Record<RoofCovering, string> = {
+  felt: 'bg-slate-700',
+  metal: 'bg-slate-400',
+  shingles: 'bg-[#5c4638]',
+  tiles: 'bg-stone-500'
+};
 
 const panelOrientations = [
   { id: 'staende' as const, label: 'category.standing' },
