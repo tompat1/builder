@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { PAGE_KEYWORDS, rankEntries } from '../src/knowledge/match.js';
 import { SELECTION_PAGES } from '../workers/catalog.js';
 import { acceptResource } from '../workers/resources.js';
+import { acceptSource } from '../workers/sources.js';
 import { parseEntryId, readPayload } from '../workers/select.js';
 
 const pages = Object.entries(PAGE_KEYWORDS).map(([id, keywords]) => ({ id, keywords }));
@@ -62,6 +63,13 @@ test('an admin page gets a safe id and can be found by its words', () => {
     { id: row.id, keywords: row.keywords }
   ], 'Hur läggs syllpapp?');
   assert.equal(ranked[0].entry.id, 'extra-syllpapp');
+});
+
+test('a reference site must be a plain https address', () => {
+  assert.equal(acceptSource('https://www.traguiden.se'), 'https://www.traguiden.se/');
+  assert.equal(acceptSource({ url: 'https://www.traguiden.se/utvandigt/' }), 'https://www.traguiden.se/utvandigt/');
+  assert.equal(acceptSource('http://example.com'), null);
+  assert.equal(acceptSource('https://user:secret@example.com'), null);
 });
 
 test('live Cloudflare worker chooses a page', { skip: process.env.KNOWLEDGE_WORKER_LIVE !== '1' }, async () => {

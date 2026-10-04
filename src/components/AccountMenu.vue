@@ -100,6 +100,26 @@
             </li>
           </ul>
         </form>
+        <form
+          v-if="user.role === 'admin'"
+          class="mt-3 space-y-1.5 border-t border-slate-200 pt-3"
+          @submit.prevent="addSource"
+        >
+          <p class="font-bold text-slate-900">{{ t('account.references') }}</p>
+          <label class="sr-only" for="reference-url">{{ t('account.references') }}</label>
+          <input id="reference-url" v-model="referenceUrl" type="url" placeholder="https://" class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-slate-900" />
+          <button type="submit" class="w-full rounded-lg bg-slate-900 px-3 py-1.5 font-semibold text-white hover:bg-slate-800 disabled:opacity-50" :disabled="referenceBusy">
+            {{ t('account.referenceAdd') }}
+          </button>
+          <ul v-if="sources.items.length" class="space-y-1 pt-1">
+            <li v-for="site in sources.items" :key="site" class="flex items-center justify-between gap-2">
+              <a :href="site" target="_blank" rel="noopener noreferrer" class="truncate font-semibold text-slate-800 underline underline-offset-2">{{ site }}</a>
+              <button type="button" class="shrink-0 font-semibold text-slate-500 hover:text-slate-900" @click="removeSource(site)">
+                {{ t('account.resourceRemove') }}
+              </button>
+            </li>
+          </ul>
+        </form>
         <button type="button" class="mt-2 w-full rounded-lg px-3 py-1.5 font-semibold text-slate-600 hover:bg-slate-50" @click="signOut">
           {{ t('account.logout') }}
         </button>
@@ -114,6 +134,7 @@ import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useLabels } from '../i18n';
 import { useResourceStore } from '../store/useResourceStore';
 import { useSessionStore } from '../store/useSessionStore';
+import { useSourceStore } from '../store/useSourceStore';
 import {
   accountMe,
   beginGithubLogin,
@@ -128,6 +149,7 @@ import {
 const { t } = useLabels();
 const session = useSessionStore();
 const resources = useResourceStore();
+const sources = useSourceStore();
 const open = ref(false);
 const buttonEl = ref<HTMLButtonElement | null>(null);
 const panelStyle = ref({ top: '64px', left: '12px' });
@@ -154,6 +176,8 @@ const resourceBody = ref('');
 const resourceKeywords = ref('');
 const resourceLink = ref('');
 const resourceBusy = ref(false);
+const referenceUrl = ref('');
+const referenceBusy = ref(false);
 
 const initial = computed(() => (user.value?.login || 'B').slice(0, 1).toUpperCase());
 
@@ -276,6 +300,30 @@ async function removeResource(id: string) {
     await resources.remove(id);
   } catch (caught) {
     showError(caught instanceof Error ? caught.message : 'bad_resource');
+  }
+}
+
+async function addSource() {
+  error.value = '';
+  notice.value = '';
+  referenceBusy.value = true;
+  try {
+    await sources.add(referenceUrl.value);
+    referenceUrl.value = '';
+    notice.value = t('account.referenceSaved');
+  } catch (caught) {
+    showError(caught instanceof Error ? caught.message : 'bad_link');
+  } finally {
+    referenceBusy.value = false;
+  }
+}
+
+async function removeSource(url: string) {
+  error.value = '';
+  try {
+    await sources.remove(url);
+  } catch (caught) {
+    showError(caught instanceof Error ? caught.message : 'bad_link');
   }
 }
 

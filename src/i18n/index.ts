@@ -60,7 +60,10 @@ const sv = {
     resourceRemove: 'Ta bort',
     resourceSaved: 'Sidan finns i kunskapsbasen.',
     badResource: 'Skriv en rubrik och ett svar.',
-    badLink: 'Källan ska vara en https-länk.'
+    badLink: 'Källan ska vara en https-länk.',
+    references: 'Referenssidor',
+    referenceAdd: 'Spara',
+    referenceSaved: 'Adressen är sparad.'
   },
   panel: {
     label: 'Konfigurationspanel',
@@ -267,7 +270,10 @@ const en = {
     resourceRemove: 'Remove',
     resourceSaved: 'The page is in the knowledge base.',
     badResource: 'Write a title and an answer.',
-    badLink: 'The source must be an https link.'
+    badLink: 'The source must be an https link.',
+    references: 'Reference sites',
+    referenceAdd: 'Save',
+    referenceSaved: 'The address is saved.'
   },
   panel: {
     label: 'Configuration panel',

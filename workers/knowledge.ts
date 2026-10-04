@@ -8,6 +8,7 @@ import { handleAccounts, sessionUser } from './accounts.js';
 import { handleContent } from './content.js';
 import { SELECTION_PAGES } from './catalog.js';
 import { handleResources, resourcePages } from './resources.js';
+import { handleSources } from './sources.js';
 import { parseEntryId, readPayload } from './select.js';
 
 interface Env {
@@ -69,6 +70,10 @@ export default {
 
     if (url.pathname === '/api/resources' || url.pathname.startsWith('/api/resources/')) {
       return handleResources(request, env, headers, sessionUser);
+    }
+
+    if (url.pathname === '/api/sources') {
+      return handleSources(request, env, headers, sessionUser);
     }
 
     if (url.pathname === '/api/health') {
