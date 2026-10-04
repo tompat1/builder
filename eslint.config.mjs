@@ -14,7 +14,8 @@ export default [
       ".cursor/",
       ".impeccable/",
       "test-results/",
-      "playwright-report/"
+      "playwright-report/",
+      "**/.wrangler/**"
     ]
   },
   js.configs.recommended,

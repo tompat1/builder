@@ -757,9 +757,6 @@ export class HouseScene {
     // 6. Exposed Roof Rafters (Taksparrar cc 600)
     this.buildRafters(w, d, h, wallThick);
 
-    // 6b. Prefabricated Roof Trusses (Takstolar: Prefabricerad fackverkstakstol C/C 1200 mm)
-    this.buildTrusses(w, d, h, wallThick);
-
     // 7. Loft Construction
     if (this.currentConfig.hasLoft) {
       this.buildLoft(w, d, h, wallThick);
@@ -2218,86 +2215,6 @@ export class HouseScene {
         rearRafter.castShadow = !ghost;
         beamParent.add(rearRafter);
       }
-    }
-  }
-
-  // --- Prefabricerad Fackverkstakstol C/C 1200 mm (Takstol med transparent visning i Insida-vy) ---
-  private buildTrusses(w: number, d: number, h: number, wt: number) {
-    // The loft cutaway draws one set of ghost beams from buildRafters.
-    if (this.loftCutaway()) return;
-
-    // Prefabricerad fackverkstakstol C/C 1200 mm
-    // Virke: 45 x 145 mm C24 konstruktionsvirke
-    // Renderas semi-transparent så att inredning, loft och väggar inte döljs i Insida-läget
-    const trussMat = new THREE.MeshStandardMaterial({
-      color: '#ffffff',
-      transparent: true,
-      opacity: 0.28,
-      roughness: 0.35,
-      depthWrite: false,
-      side: THREE.DoubleSide
-    });
-
-    const timberThick = 0.045; // 45 mm virkestjocklek
-    const timberWidth = 0.145; // 145 mm virkesbredd
-
-    const isPulpettak = this.currentConfig.roofType === 'pulpettak';
-    const angleRad = PULPET_PITCH_RAD;
-    const rearH = isPulpettak ? Math.max(h - Math.tan(angleRad) * d, 2.4) : h;
-
-    // C/C 1200 mm Swedish standard spacing across house width
-    const spanW = w - wt * 2;
-    const trussCount = Math.max(3, Math.floor(spanW / 1.2) + 1);
-    const spacing = spanW / (trussCount - 1);
-
-    const spanD = d - wt * 2;
-    const slopeLen = Math.sqrt(Math.pow(spanD, 2) + Math.pow(h - rearH, 2));
-    const slopeAngle = Math.atan2(h - rearH, spanD);
-
-    for (let i = 0; i < trussCount; i++) {
-      const tx = -w / 2 + wt + i * spacing;
-      const trussGroup = new THREE.Group();
-      trussGroup.position.set(tx, 0, 0);
-
-      // 1. Överram (Top chord): follows the mono-pitch slope from front to rear
-      const topChordGeo = new THREE.BoxGeometry(timberThick, timberWidth, slopeLen);
-      const topChord = new THREE.Mesh(topChordGeo, trussMat);
-      topChord.position.set(0, (h + rearH) / 2 - timberWidth / 2, 0);
-      topChord.rotation.x = -slopeAngle;
-      trussGroup.add(topChord);
-
-      // 2. Underram (Bottom tie chord): horizontal tie beam at ceiling height
-      const bottomChordGeo = new THREE.BoxGeometry(timberThick, timberWidth, spanD);
-      const bottomChord = new THREE.Mesh(bottomChordGeo, trussMat);
-      bottomChord.position.set(0, rearH - timberWidth / 2, 0);
-      trussGroup.add(bottomChord);
-
-      // 3. Lodrät stolpe vid framvägg (Front vertical king strut)
-      const frontPostH = h - rearH;
-      if (frontPostH > 0.1) {
-        const frontPostGeo = new THREE.BoxGeometry(timberThick, frontPostH, timberWidth);
-        const frontPost = new THREE.Mesh(frontPostGeo, trussMat);
-        frontPost.position.set(0, rearH + frontPostH / 2 - timberWidth / 2, spanD / 2 - timberWidth / 2);
-        trussGroup.add(frontPost);
-      }
-
-      // 4. Fackverksstag (Diagonal web members - triangulation)
-      const midY = (h + rearH) / 2 - timberWidth / 2;
-      const diagLen = Math.hypot(spanD / 2, midY - rearH);
-      const diagAngle = Math.atan2(midY - rearH, spanD / 2);
-      const diagGeo = new THREE.BoxGeometry(timberThick, timberWidth * 0.75, diagLen);
-
-      const diag1 = new THREE.Mesh(diagGeo, trussMat);
-      diag1.position.set(0, (rearH + midY) / 2, -spanD / 4);
-      diag1.rotation.x = -diagAngle;
-      trussGroup.add(diag1);
-
-      const diag2 = new THREE.Mesh(diagGeo, trussMat);
-      diag2.position.set(0, (rearH + midY) / 2, spanD / 4);
-      diag2.rotation.x = diagAngle;
-      trussGroup.add(diag2);
-
-      this.trussesGroup.add(trussGroup);
     }
   }
 
