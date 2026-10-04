@@ -55,7 +55,7 @@ export async function verifyPassword(password, stored) {
   return sameBytes(actual, expected);
 }
 
-/** Admin GitHub logins, comma-separated. Anyone else is refused. */
+/** Admin logins, comma-separated. Anyone else can still have an account. */
 export function adminRole(login, adminLogins) {
   const name = String(login ?? '').trim().toLowerCase();
   if (!name) return null;

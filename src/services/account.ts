@@ -61,6 +61,17 @@ export async function beginGithubLogin() {
   window.location.assign(data.url);
 }
 
+export async function registerAccount(login: string, password: string, name: string) {
+  const { response, data } = await accountFetch('/api/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ login, password, name })
+  });
+  if (!response.ok || !data.token || !data.user) throw new Error(data.error || 'bad_name');
+  saveSession(data.token);
+  return data.user;
+}
+
 export async function loginWithPassword(login: string, password: string) {
   const { response, data } = await accountFetch('/api/auth/login', {
     method: 'POST',

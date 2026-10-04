@@ -47,13 +47,42 @@
           </svg>
           {{ t('account.github') }}
         </button>
-        <form class="space-y-1.5" @submit.prevent="passwordLogin">
+        <div class="mb-2 flex gap-1 rounded-lg bg-slate-100 p-0.5">
+          <button
+            type="button"
+            class="flex-1 rounded-md px-2 py-1 font-semibold"
+            :class="mode === 'login' ? 'bg-white text-slate-900' : 'text-slate-600'"
+            @click="chooseMode('login')"
+          >
+            {{ t('account.login') }}
+          </button>
+          <button
+            type="button"
+            class="flex-1 rounded-md px-2 py-1 font-semibold"
+            :class="mode === 'register' ? 'bg-white text-slate-900' : 'text-slate-600'"
+            @click="chooseMode('register')"
+          >
+            {{ t('account.register') }}
+          </button>
+        </div>
+        <form v-if="mode === 'login'" class="space-y-1.5" @submit.prevent="passwordLogin">
           <label class="block font-semibold text-slate-600" for="account-login">{{ t('account.loginName') }}</label>
           <input id="account-login" v-model="login" autocomplete="username" class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-slate-900" />
           <label class="block font-semibold text-slate-600" for="account-password">{{ t('account.password') }}</label>
           <input id="account-password" v-model="password" type="password" autocomplete="current-password" class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-slate-900" />
           <button type="submit" class="w-full rounded-lg border border-slate-200 px-3 py-1.5 font-semibold text-slate-800 hover:bg-slate-50">
             {{ t('account.passwordLogin') }}
+          </button>
+        </form>
+        <form v-else class="space-y-1.5" @submit.prevent="onRegister">
+          <label class="block font-semibold text-slate-600" for="account-register-name">{{ t('account.displayName') }}</label>
+          <input id="account-register-name" v-model="displayName" autocomplete="name" class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-slate-900" />
+          <label class="block font-semibold text-slate-600" for="account-register-login">{{ t('account.loginName') }}</label>
+          <input id="account-register-login" v-model="login" autocomplete="username" class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-slate-900" />
+          <label class="block font-semibold text-slate-600" for="account-register-password">{{ t('account.password') }}</label>
+          <input id="account-register-password" v-model="password" type="password" autocomplete="new-password" class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-slate-900" />
+          <button id="account-register-submit" type="submit" class="w-full rounded-lg bg-slate-900 px-3 py-1.5 font-semibold text-white hover:bg-slate-800">
+            {{ t('account.register') }}
           </button>
         </form>
       </template>
@@ -141,6 +170,7 @@ import {
   beginGithubLogin,
   loginWithPassword,
   logoutAccount,
+  registerAccount,
   saveAvatar,
   savePassword,
   takeSessionFromHash,
@@ -179,7 +209,9 @@ function openLogin() {
 defineExpose({ openLogin });
 const user = ref<AccountUser | null>(null);
 watch(user, (value) => session.setUser(value), { immediate: true });
+const mode = ref<'login' | 'register'>('login');
 const login = ref('');
+const displayName = ref('');
 const password = ref('');
 const current = ref('');
 const nextPassword = ref('');
@@ -199,6 +231,8 @@ const messages: Record<string, string> = {
   github: 'account.githubMissing',
   origin: 'account.origin',
   bad_login: 'account.badLogin',
+  bad_name: 'account.badName',
+  taken: 'account.taken',
   sign_in: 'account.signIn',
   short_password: 'account.tooShort',
   bad_current: 'account.badCurrent',
@@ -250,6 +284,24 @@ async function github() {
 
 function houseAlreadyKept() {
   return Boolean(localStorage.getItem('builder.house'));
+}
+
+function chooseMode(next: 'login' | 'register') {
+  mode.value = next;
+  error.value = '';
+  notice.value = '';
+}
+
+async function onRegister() {
+  error.value = '';
+  notice.value = '';
+  try {
+    user.value = await registerAccount(login.value, password.value, displayName.value);
+    password.value = '';
+    displayName.value = '';
+  } catch (caught) {
+    showError(caught instanceof Error ? caught.message : 'bad_name');
+  }
 }
 
 async function passwordLogin() {

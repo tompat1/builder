@@ -1,7 +1,7 @@
 /**
- * Admin accounts on the knowledge worker.
- * GitHub is the login that creates the session. A password can be set afterwards.
- * Avatars live in R2. Rows live in D1. The inline editor comes later.
+ * Accounts on the knowledge worker.
+ * A visitor registers with a name and a password. GitHub can sign in the same way
+ * once the worker has client keys. Names in ADMIN_LOGINS are admins.
  */
 import { adminRole, hashPassword, verifyPassword } from './password.js';
 import { openState, randomToken, signState, tokenHash } from './state.js';
@@ -135,6 +135,9 @@ async function routeAccounts(request, env, headers) {
   const missing = requireDb(env, headers);
   if (missing && url.pathname !== '/api/auth/avatar') return missing;
 
+  if (url.pathname === '/api/auth/register' && request.method === 'POST') {
+    return register(request, env, headers);
+  }
   if (url.pathname === '/api/auth/github' && request.method === 'POST') {
     return beginGithub(request, env, headers);
   }
@@ -161,6 +164,45 @@ async function routeAccounts(request, env, headers) {
     return readAvatar(env, headers, avatar[1]);
   }
   return json({ error: 'Not found' }, 404, headers);
+}
+
+/** A new account: a short login and a password of at least 10 characters. */
+export function acceptAccount(body) {
+  const login = String(body?.login ?? '').trim();
+  const password = String(body?.password ?? '');
+  const nameRaw = String(body?.name ?? '').trim().replace(/\s+/g, ' ');
+  if (!/^[A-Za-z0-9][A-Za-z0-9_-]{1,31}$/.test(login)) return { error: 'bad_name' };
+  if (password.length < 10 || password.length > 200) return { error: 'short_password' };
+  return { login, password, name: (nameRaw || login).slice(0, 80) };
+}
+
+async function register(request, env, headers) {
+  let body = {};
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: 'Expected JSON' }, 400, headers);
+  }
+  const account = acceptAccount(body);
+  if (account.error) return json({ error: account.error }, 400, headers);
+  const now = new Date().toISOString();
+  const id = `usr_${crypto.randomUUID().replaceAll('-', '')}`;
+  const role = adminRole(account.login, env.ADMIN_LOGINS) ? 'admin' : 'member';
+  try {
+    await env.DB.prepare(
+      `INSERT INTO users (id, github_login, name, role, password_hash, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    ).bind(id, account.login, account.name, role, await hashPassword(account.password), now, now).run();
+  } catch (error) {
+    const message = String(error && error.message ? error.message : error);
+    if (/unique/i.test(message)) return json({ error: 'taken' }, 409, headers);
+    throw error;
+  }
+  const row = await env.DB.prepare('SELECT * FROM users WHERE id = ?').bind(id).first();
+  const session = await startSession(env, id, headers);
+  return json({ token: session.token, user: publicUser(row, new URL(request.url).origin) }, 200, headers, {
+    'Set-Cookie': session.cookie
+  });
 }
 
 async function beginGithub(request, env, headers) {
@@ -207,7 +249,8 @@ async function finishGithub(request, env) {
   });
   const tokenBody = await tokenResponse.json().catch(() => ({}));
   const profile = tokenBody.access_token ? await githubProfile(tokenBody.access_token) : null;
-  if (!profile?.login || !adminRole(profile.login, env.ADMIN_LOGINS)) return fail('denied');
+  if (!profile?.login) return fail('denied');
+  const role = adminRole(profile.login, env.ADMIN_LOGINS) ? 'admin' : 'member';
 
   const now = new Date().toISOString();
   const existing = await env.DB.prepare('SELECT * FROM users WHERE github_login = ? OR github_id = ?').bind(profile.login, profile.id).first();
@@ -215,15 +258,15 @@ async function finishGithub(request, env) {
   if (existing) {
     await env.DB.prepare(
       `UPDATE users
-       SET github_id = ?, github_login = ?, email = ?, name = ?, github_avatar = ?, role = 'admin', updated_at = ?
+       SET github_id = ?, github_login = ?, email = ?, name = ?, github_avatar = ?, role = ?, updated_at = ?
        WHERE id = ?`
-    ).bind(profile.id, profile.login, profile.email, profile.name, profile.avatar, now, existing.id).run();
+    ).bind(profile.id, profile.login, profile.email, profile.name, profile.avatar, role, now, existing.id).run();
   } else {
     userId = `usr_${crypto.randomUUID().replaceAll('-', '')}`;
     await env.DB.prepare(
       `INSERT INTO users (id, github_id, github_login, email, name, role, github_avatar, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, 'admin', ?, ?, ?)`
-    ).bind(userId, profile.id, profile.login, profile.email, profile.name, profile.avatar, now, now).run();
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).bind(userId, profile.id, profile.login, profile.email, profile.name, role, profile.avatar, now, now).run();
   }
   const session = await startSession(env, userId, {});
   return new Response(null, {
@@ -247,7 +290,7 @@ async function passwordLogin(request, env, headers) {
   const row = login
     ? await env.DB.prepare('SELECT * FROM users WHERE github_login = ?').bind(login).first()
     : null;
-  if (!row?.password_hash || !adminRole(row.github_login, env.ADMIN_LOGINS)) {
+  if (!row?.password_hash) {
     await hashPassword(password || 'missing');
     return json({ error: 'bad_login' }, 401, headers);
   }
@@ -275,7 +318,7 @@ async function me(request, env, headers) {
 
 async function setPassword(request, env, headers) {
   const row = await userFromToken(env, readToken(request));
-  if (!row || row.role !== 'admin') return json({ error: 'sign_in' }, 401, headers);
+  if (!row) return json({ error: 'sign_in' }, 401, headers);
   let body = {};
   try {
     body = await request.json();
@@ -298,7 +341,7 @@ async function setPassword(request, env, headers) {
 
 async function uploadAvatar(request, env, headers) {
   const row = await userFromToken(env, readToken(request));
-  if (!row || row.role !== 'admin') return json({ error: 'sign_in' }, 401, headers);
+  if (!row) return json({ error: 'sign_in' }, 401, headers);
   const type = (request.headers.get('Content-Type') ?? '').split(';')[0].trim().toLowerCase();
   if (!AVATAR_TYPES.has(type)) return json({ error: 'bad_image' }, 400, headers);
   const bytes = new Uint8Array(await request.arrayBuffer());
