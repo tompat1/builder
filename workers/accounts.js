@@ -180,7 +180,6 @@ async function beginGithub(request, env, headers) {
   const auth = new URL('https://github.com/login/oauth/authorize');
   auth.searchParams.set('client_id', env.GITHUB_CLIENT_ID);
   auth.searchParams.set('redirect_uri', redirectUri);
-  auth.searchParams.set('scope', 'read:user user:email');
   auth.searchParams.set('state', state);
   return json({ url: auth.toString() }, 200, headers);
 }

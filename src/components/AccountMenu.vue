@@ -132,6 +132,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useLabels } from '../i18n';
+import { useConfigStore } from '../store/useConfigStore';
 import { useResourceStore } from '../store/useResourceStore';
 import { useSessionStore } from '../store/useSessionStore';
 import { useSourceStore } from '../store/useSourceStore';
@@ -145,8 +146,10 @@ import {
   takeSessionFromHash,
   type AccountUser
 } from '../services/account';
+import { keepHouseForLogin } from '../services/houseSave';
 
 const { t } = useLabels();
+const config = useConfigStore();
 const session = useSessionStore();
 const resources = useResourceStore();
 const sources = useSourceStore();
@@ -154,15 +157,26 @@ const open = ref(false);
 const buttonEl = ref<HTMLButtonElement | null>(null);
 const panelStyle = ref({ top: '64px', left: '12px' });
 
-function toggle() {
-  open.value = !open.value;
+function placePanel() {
   const rect = buttonEl.value?.getBoundingClientRect();
-  if (!open.value || !rect) return;
+  if (!rect) return;
   panelStyle.value = {
     top: `${rect.bottom + 8}px`,
     left: `${Math.max(12, rect.right - 320)}px`
   };
 }
+
+function toggle() {
+  open.value = !open.value;
+  if (open.value) placePanel();
+}
+
+function openLogin() {
+  open.value = true;
+  placePanel();
+}
+
+defineExpose({ openLogin });
 const user = ref<AccountUser | null>(null);
 watch(user, (value) => session.setUser(value), { immediate: true });
 const login = ref('');
@@ -226,11 +240,16 @@ onMounted(async () => {
 
 async function github() {
   error.value = '';
+  keepHouseForLogin(config.exportHouse(), config.canUndo || houseAlreadyKept());
   try {
     await beginGithubLogin();
   } catch (caught) {
     showError(caught instanceof Error ? caught.message : 'github');
   }
+}
+
+function houseAlreadyKept() {
+  return Boolean(localStorage.getItem('builder.house'));
 }
 
 async function passwordLogin() {

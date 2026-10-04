@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { deflateSync } from 'node:zlib';
 import { extractPdfText, hasMeasures, readDrawing } from '../src/import/drawing.js';
-import { renderPrompt } from '../workers/render.js';
+import { fitImageSize } from '../src/import/imageSize.js';
+import { renderPrompt, revisePrompt } from '../workers/render.js';
 
 test('a labelled drawing sets the rectangular house', () => {
   const reading = readDrawing('Bredd 6040 mm Djup 3500 mm Höjd 4200 mm pulpettak takpapp pardörr fönster');
@@ -64,4 +65,25 @@ test('the picture prompt keeps the idea and a short knowledge note', () => {
   assert.match(prompt, /Luftspalten är minst 25 mm/);
   assert.match(prompt, /Follow the uploaded photos/);
   assert.equal(renderPrompt('   ', 'fakta', 0), '');
+});
+
+test('a correction revises the previous picture', () => {
+  const prompt = revisePrompt('  Taket ska vara platt  ', 'Ett hus med papptak');
+  assert.match(prompt, /Taket ska vara platt/);
+  assert.match(prompt, /previous picture/);
+  assert.match(prompt, /follow the change/);
+  assert.match(prompt, /Ett hus med papptak/);
+  assert.equal(revisePrompt('   ', 'hus'), '');
+});
+
+test('reference photos stay inside the picture model size', () => {
+  const wide = fitImageSize(4000, 200);
+  const small = fitImageSize(64, 48);
+  const photo = fitImageSize(3000, 2000);
+  for (const size of [wide, small, photo]) {
+    assert.ok(size.width >= 64 && size.height >= 64);
+    assert.ok(size.width <= 480 && size.height <= 480);
+  }
+  assert.equal(photo.width, 480);
+  assert.equal(small.height, 64);
 });

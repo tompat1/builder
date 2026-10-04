@@ -1,6 +1,8 @@
-/** Picture from a prompt and up to four reference images. The result is a picture. */
+/** Picture from a prompt and up to five reference images. The result is a picture. */
 
 const MODEL = '@cf/black-forest-labs/flux-2-klein-4b';
+const IMAGE_LIMIT = 5;
+const MODEL_IMAGES = 4;
 const DATA_URL = /^data:image\/(png|jpeg|jpg|webp);base64,([A-Za-z0-9+/=\s]+)$/;
 
 function json(body, status, headers) {
@@ -15,18 +17,33 @@ export function renderPrompt(prompt, facts, imageCount) {
   if (!idea) return '';
   const note = String(facts ?? '').replace(/\s+/g, ' ').trim().slice(0, 360);
   const parts = [
-    'Photoreal exterior of a small Swedish timber house, standing on a lawn, daylight.',
-    idea
+    'Photoreal exterior of a small Swedish timber house, standing on a lawn, daylight.'
   ];
   if (note) parts.push(`Build facts: ${note}`);
+  parts.push(idea);
   if (imageCount > 0) parts.push('Follow the uploaded photos and sketches.');
+  parts.push('If the sentence names a roof shape or a material, follow the sentence.');
   return parts.join(' ');
+}
+
+/** A follow-up instruction edits the previous picture. Image 0 is that picture. */
+export function revisePrompt(change, original) {
+  const fix = String(change ?? '').replace(/\s+/g, ' ').trim().slice(0, 500);
+  if (!fix) return '';
+  const idea = String(original ?? '').replace(/\s+/g, ' ').trim().slice(0, 400);
+  return [
+    'Revise image 0, which is the previous picture of the house.',
+    'Keep the house, the setting, and every part this change does not mention.',
+    'Where this change disagrees with image 0, follow the change and redraw that part.',
+    `Apply this change: ${fix}.`,
+    idea ? `The first request was: ${idea}.` : ''
+  ].filter(Boolean).join(' ');
 }
 
 export function decodeImages(images) {
   if (!Array.isArray(images)) return [];
   const blobs = [];
-  for (const item of images.slice(0, 4)) {
+  for (const item of images.slice(0, IMAGE_LIMIT)) {
     if (typeof item !== 'string' || item.length > 280000) continue;
     const match = item.match(DATA_URL);
     if (!match) continue;
@@ -113,8 +130,10 @@ export async function handleRender(request, env, headers) {
     return json({ error: 'render' }, 400, headers);
   }
 
-  const images = decodeImages(body?.images);
-  const prompt = renderPrompt(body?.prompt, body?.facts, images.length);
+  const images = decodeImages(body?.images).slice(0, MODEL_IMAGES);
+  const prompt = body?.revision
+    ? revisePrompt(body?.prompt, body?.original)
+    : renderPrompt(body?.prompt, body?.facts, images.length);
   if (!prompt) return json({ error: 'render' }, 400, headers);
 
   const form = new FormData();
@@ -134,9 +153,30 @@ export async function handleRender(request, env, headers) {
       }
     });
     const bytes = await pictureBytes(result);
-    if (!bytes || bytes.length < 32) return json({ error: 'render' }, 502, headers);
+    if (!bytes || bytes.length < 32) {
+      console.error(`render empty ${shape(result)}`);
+      return json({ error: 'render' }, 502, headers);
+    }
     return json({ image: `data:${mime(bytes)};base64,${bytesToBase64(bytes)}` }, 200, headers);
-  } catch {
+  } catch (error) {
+    console.error(`render fail ${safe(error)}`);
     return json({ error: 'render' }, 502, headers);
   }
+}
+
+function shape(result) {
+  if (result == null) return 'null';
+  if (typeof result === 'string') return `string ${result.length}`;
+  if (result instanceof Uint8Array) return `bytes ${result.length}`;
+  if (result instanceof ArrayBuffer) return `buffer ${result.byteLength}`;
+  if (typeof Response !== 'undefined' && result instanceof Response) return `response ${result.status}`;
+  if (typeof result.getReader === 'function') return 'stream';
+  if (typeof result === 'object') return `object ${Object.keys(result).slice(0, 6).join(',')}`;
+  return typeof result;
+}
+
+function safe(error) {
+  return String(error && error.message ? error.message : error || 'unknown')
+    .replace(/[0-9a-f]{16,}/gi, '[id]')
+    .slice(0, 240);
 }

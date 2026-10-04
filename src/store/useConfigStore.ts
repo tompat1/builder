@@ -429,8 +429,8 @@ export const useConfigStore = defineStore('config', () => {
   const history = ref<string[]>([]);
   const historyIndex = ref<number>(-1);
 
-  function saveSnapshot() {
-    const snapshot = JSON.stringify({
+  function houseState() {
+    return {
       selectedSizeId: selectedSizeId.value,
       buildingWidth: buildingWidth.value,
       buildingDepth: buildingDepth.value,
@@ -450,7 +450,11 @@ export const useConfigStore = defineStore('config', () => {
       panelOrientation: panelOrientation.value,
       claddingSizeId: claddingSizeId.value,
       wallSlots: wallSlots.value
-    });
+    };
+  }
+
+  function saveSnapshot() {
+    const snapshot = JSON.stringify(houseState());
     // Truncate forward history if we were in the middle
     history.value = history.value.slice(0, historyIndex.value + 1);
     history.value.push(snapshot);
@@ -509,6 +513,17 @@ export const useConfigStore = defineStore('config', () => {
     } catch {
       // ignore parse error
     }
+  }
+
+  function exportHouse() {
+    return houseState();
+  }
+
+  function importHouse(data: unknown) {
+    applySnapshot(JSON.stringify(data));
+    const snapshot = JSON.stringify(houseState());
+    history.value = [snapshot];
+    historyIndex.value = 0;
   }
 
   // Initial snapshot
@@ -909,6 +924,8 @@ export const useConfigStore = defineStore('config', () => {
     canUndo,
     canRedo,
     undo,
-    redo
+    redo,
+    exportHouse,
+    importHouse
   };
 });

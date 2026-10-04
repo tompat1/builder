@@ -25,7 +25,7 @@
         <button
           type="button"
           id="btn-save-project"
-          @click="showSaveNotice"
+          @click="saveProject"
           class="flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors p-1"
         >
           <svg class="w-4 h-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
@@ -119,7 +119,7 @@
 
     <!-- Price and Action Cluster -->
     <div class="flex items-center gap-2 md:gap-5 shrink-0">
-      <AccountMenu />
+      <AccountMenu ref="accountMenu" />
       <button
         v-if="session.user?.role === 'admin'"
         type="button"
@@ -194,17 +194,28 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { onMounted, ref, watch } from 'vue';
 import { useConfigStore } from '../store/useConfigStore';
 import { useContentStore } from '../store/useContentStore';
 import { useSessionStore } from '../store/useSessionStore';
 import { applyLocale, useLabels } from '../i18n';
+import { sessionToken } from '../services/account';
+import {
+  clearHousePending,
+  housePending,
+  loadRemoteHouse,
+  markHousePending,
+  readLocalHouse,
+  saveRemoteHouse,
+  writeLocalHouse
+} from '../services/houseSave';
 import AccountMenu from './AccountMenu.vue';
 import Cms from './Cms.vue';
 
 const store = useConfigStore();
 const content = useContentStore();
 const session = useSessionStore();
+const accountMenu = ref<{ openLogin: () => void } | null>(null);
 const { t, locale, catalog, money, delta } = useLabels();
 const showPriceBreakdown = ref(false);
 
@@ -221,9 +232,60 @@ function langButtonClass(active: boolean) {
   ];
 }
 
-function showSaveNotice() {
-  alert(t('header.saved'));
+async function uploadHouse() {
+  await saveRemoteHouse(store.exportHouse());
 }
+
+async function saveProject() {
+  const config = store.exportHouse();
+  writeLocalHouse(config);
+  if (!session.user) {
+    markHousePending();
+    accountMenu.value?.openLogin();
+    alert(t('header.savedLocal'));
+    return;
+  }
+  try {
+    await uploadHouse();
+    alert(t('header.saved'));
+  } catch {
+    markHousePending();
+    alert(t('header.saveFailed'));
+  }
+}
+
+onMounted(async () => {
+  const local = readLocalHouse();
+  if (local) store.importHouse(local);
+  if (!sessionToken()) return;
+  if (housePending()) {
+    try {
+      await uploadHouse();
+    } catch {
+      return;
+    }
+    return;
+  }
+  if (local) return;
+  try {
+    const remote = await loadRemoteHouse();
+    if (remote) {
+      store.importHouse(remote);
+      writeLocalHouse(remote);
+    }
+  } catch {
+    clearHousePending();
+  }
+});
+
+watch(() => session.user, async (user) => {
+  if (!user || !housePending()) return;
+  try {
+    await uploadHouse();
+  } catch {
+    // The browser copy remains until the next save.
+  }
+});
 
 async function toggleEdit() {
   if (!content.editing) {

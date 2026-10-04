@@ -10,6 +10,7 @@ import { SELECTION_PAGES } from './catalog.js';
 import { handleResources, resourcePages } from './resources.js';
 import { handleSources } from './sources.js';
 import { handleRender } from './render.js';
+import { handleHouse } from './house.js';
 import { parseEntryId, readPayload } from './select.js';
 
 interface Env {
@@ -83,6 +84,10 @@ export default {
 
     if (url.pathname === '/api/render') {
       return handleRender(request, env, headers);
+    }
+
+    if (url.pathname === '/api/house') {
+      return handleHouse(request, env, headers, sessionUser);
     }
 
     if (url.pathname !== '/api/ask' || request.method !== 'POST') {

@@ -1,6 +1,11 @@
 /** Ask the worker for a picture. The 3D house is left alone. */
 
-export async function requestHousePicture(prompt: string, images: string[], facts: string): Promise<string> {
+export async function requestHousePicture(
+  prompt: string,
+  images: string[],
+  facts: string,
+  revision?: { original: string }
+): Promise<string> {
   const base = import.meta.env.VITE_CLOUDFLARE_WORKER_URL
     || 'https://builder-knowledge.thomasrynell.workers.dev';
   const controller = new AbortController();
@@ -9,7 +14,13 @@ export async function requestHousePicture(prompt: string, images: string[], fact
     const response = await fetch(`${base.replace(/\/$/, '')}/api/render`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, images, facts }),
+      body: JSON.stringify({
+        prompt,
+        images,
+        facts,
+        revision: Boolean(revision),
+        original: revision?.original ?? ''
+      }),
       signal: controller.signal
     });
     if (!response.ok) throw new Error('render');
