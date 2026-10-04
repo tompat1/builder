@@ -1,5 +1,9 @@
 <template>
-  <div class="pointer-events-auto absolute top-20 left-3 md:top-auto md:bottom-6 md:left-6 flex flex-col gap-2 z-20" :aria-label="t('tools.label')">
+  <div
+    class="pointer-events-auto absolute transition-all duration-300 flex flex-col gap-2 z-20"
+    :class="store.isFullscreen ? 'top-6 left-6 md:top-auto md:bottom-6 md:left-6' : 'top-20 left-3 md:top-auto md:bottom-6 md:left-6'"
+    :aria-label="t('tools.label')"
+  >
     <!-- Top Button Pair: Zoom In / Zoom Out -->
     <div class="w-fit self-start bg-white/95 backdrop-blur-md rounded-2xl shadow-md border border-slate-200/80 p-1.5 flex flex-col gap-1">
       <button
@@ -101,14 +105,14 @@
         @click="toggleFullscreen"
         :class="[
           'group relative w-12 h-12 rounded-xl flex items-center justify-center transition-colors',
-          fullscreen
+          store.isFullscreen
             ? 'bg-slate-900 text-white shadow-2xs'
             : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
         ]"
-        :aria-label="fullscreen ? t('tools.exitFullscreen') : t('tools.fullscreen')"
-        :aria-pressed="fullscreen"
+        :aria-label="store.isFullscreen ? t('tools.exitFullscreen') : t('tools.fullscreen')"
+        :aria-pressed="store.isFullscreen"
       >
-        <svg v-if="fullscreen" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <svg v-if="store.isFullscreen" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <polyline points="4 14 10 14 10 20" />
           <polyline points="20 10 14 10 14 4" />
           <line x1="14" y1="10" x2="21" y2="3" />
@@ -120,7 +124,7 @@
           <line x1="21" y1="3" x2="14" y2="10" />
           <line x1="3" y1="21" x2="10" y2="14" />
         </svg>
-        <span class="tool-tip"><Cms :k="fullscreen ? 'tools.exitFullscreen' : 'tools.fullscreen'" /></span>
+        <span class="tool-tip"><Cms :k="store.isFullscreen ? 'tools.exitFullscreen' : 'tools.fullscreen'" /></span>
       </button>
 
       <button
@@ -151,10 +155,13 @@ import Cms from './Cms.vue';
 
 const store = useConfigStore();
 const { t } = useLabels();
-const fullscreen = ref(false);
 
 function syncFullscreen() {
-  fullscreen.value = document.fullscreenElement != null;
+  const isFull = document.fullscreenElement != null;
+  store.setIsFullscreen(isFull);
+  setTimeout(() => {
+    window.dispatchEvent(new Event('resize'));
+  }, 50);
 }
 
 async function toggleFullscreen() {
@@ -165,7 +172,7 @@ async function toggleFullscreen() {
     }
     await document.documentElement.requestFullscreen();
   } catch {
-    fullscreen.value = document.fullscreenElement != null;
+    syncFullscreen();
   }
 }
 

@@ -1,10 +1,13 @@
 <template>
   <div class="pointer-events-none absolute inset-0 flex flex-col justify-between p-3 md:p-6 z-10 overflow-hidden">
     <!-- Top Header Bar -->
-    <HeaderBar @open-export="isExportOpen = true" />
+    <HeaderBar v-show="!store.isFullscreen" @open-export="isExportOpen = true" />
 
     <!-- 3D Scene In-Canvas Overlays (Aligned with the 3D Canvas Area) -->
-    <div class="pointer-events-none absolute inset-0 md:right-[434px] z-10 overflow-hidden">
+    <div
+      class="pointer-events-none absolute inset-0 z-10 overflow-hidden transition-all duration-300"
+      :class="store.isFullscreen ? 'right-0' : 'md:right-[434px]'"
+    >
       <!-- 3D Dimension Overlay -->
       <DimensionOverlay />
 
@@ -21,6 +24,7 @@
 
     <!-- Right Sidebar / Mobile Bottom Sheet -->
     <aside
+      v-show="!store.isFullscreen"
       class="pointer-events-auto bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-slate-200/80 transition-all duration-300 flex flex-col justify-between mt-auto w-full md:w-[410px] md:absolute md:right-6 md:top-24 md:bottom-6 max-h-[62vh] md:max-h-[calc(100vh-7.5rem)] z-40"
       :class="isMobileCollapsed ? 'h-auto max-h-[140px]' : 'h-[62vh] md:h-auto'"
       :aria-label="t('panel.label')"

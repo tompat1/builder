@@ -390,6 +390,7 @@ export const useConfigStore = defineStore('config', () => {
   const activeMaterial = ref<MaterialKey>('wood');
   const panelOrientation = ref<PanelOrientation>('staende');
   const claddingSizeId = ref<CladdingSizeId>('22x145');
+  const isFullscreen = ref<boolean>(false);
   const showDimensions = ref<boolean>(true);
   const selectedSlotId = ref<string | null>(null);
   const hoveredSlotId = ref<string | null>(null);
@@ -903,6 +904,8 @@ export const useConfigStore = defineStore('config', () => {
     assignSlotItem,
     removeSlotItem,
     toggleDimensions,
+    isFullscreen,
+    setIsFullscreen: (val: boolean) => { isFullscreen.value = val; },
     canUndo,
     canRedo,
     undo,

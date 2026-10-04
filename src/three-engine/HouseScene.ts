@@ -93,7 +93,7 @@ export class HouseScene {
       0.1,
       1000
     );
-    this.camera.position.set(11, 7.5, 14);
+    this.camera.position.set(0, 3.2, 13.5);
 
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
@@ -114,7 +114,7 @@ export class HouseScene {
     this.controls.maxPolarAngle = Math.PI / 2 - 0.02;
     this.controls.minDistance = 3.5;
     this.controls.maxDistance = 35;
-    this.controls.target.set(0, 1.5, 0);
+    this.controls.target.set(0, 2.2, 0);
 
     this.setupLighting();
 
@@ -2804,8 +2804,8 @@ export class HouseScene {
     } else {
       this.roofGroup.visible = true;
       this.trussesGroup.visible = false;
-      this.camera.position.set(11, 7.5, 14);
-      this.controls.target.set(0, 1.5, 0);
+      this.camera.position.set(0, 3.2, 13.5);
+      this.controls.target.set(0, 2.2, 0);
     }
     this.controls.update();
   }
