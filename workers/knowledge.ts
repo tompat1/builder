@@ -4,6 +4,7 @@
  * (https://github.com/tompat1/motkarta): Workers AI only chooses a page id.
  * The sentence, diagram, and links stay in src/knowledge/hub.ts.
  */
+import { handleAccounts } from './accounts.js';
 import { SELECTION_PAGES } from './catalog.js';
 import { parseEntryId, readPayload } from './select.js';
 
@@ -11,7 +12,13 @@ interface Env {
   AI: {
     run: (model: string, input: Record<string, unknown>) => Promise<unknown>;
   };
+  DB?: D1Database;
+  AVATARS?: R2Bucket;
   ALLOWED_ORIGINS?: string;
+  ADMIN_LOGINS?: string;
+  SESSION_SECRET?: string;
+  GITHUB_CLIENT_ID?: string;
+  GITHUB_CLIENT_SECRET?: string;
 }
 
 const PAGES = SELECTION_PAGES;
@@ -26,9 +33,10 @@ function corsHeaders(request: Request, env: Env): HeadersInit {
   const ok = allowed.includes(origin);
   return {
     'Access-Control-Allow-Origin': ok ? origin : allowed[0] ?? 'http://localhost:5173',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
     Vary: 'Origin',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Credentials': 'true',
     'Access-Control-Max-Age': '86400'
   };
 }
@@ -49,8 +57,12 @@ export default {
       return new Response(null, { headers });
     }
 
+    if (url.pathname.startsWith('/api/auth')) {
+      return handleAccounts(request, env, headers);
+    }
+
     if (url.pathname === '/api/health') {
-      return json({ status: 'ok', ai: Boolean(env.AI) }, 200, headers);
+      return json({ status: 'ok', ai: Boolean(env.AI), accounts: Boolean(env.DB) }, 200, headers);
     }
 
     if (url.pathname !== '/api/ask' || request.method !== 'POST') {

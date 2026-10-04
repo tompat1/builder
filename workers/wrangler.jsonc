@@ -13,6 +13,15 @@
     "binding": "AI"
   },
   "vars": {
-    "ALLOWED_ORIGINS": "http://localhost:5173"
-  }
+    "ALLOWED_ORIGINS": "http://localhost:5173",
+    "ADMIN_LOGINS": "tompat1"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "builder-accounts",
+      "database_id": "135d233d-0a83-44da-9df3-708989296ce5",
+      "migrations_dir": "migrations"
+    }
+  ]
 }

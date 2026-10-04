@@ -119,6 +119,7 @@
 
     <!-- Price and Action Cluster -->
     <div class="flex items-center gap-2 md:gap-5 shrink-0">
+      <AccountMenu />
       <div class="flex items-center gap-1 text-right">
         <div>
           <span class="hidden md:block text-[10px] uppercase font-bold text-slate-400 leading-none">{{ t('header.total') }}</span>
@@ -186,6 +187,7 @@
 import { ref } from 'vue';
 import { useConfigStore } from '../store/useConfigStore';
 import { applyLocale, useLabels } from '../i18n';
+import AccountMenu from './AccountMenu.vue';
 
 const store = useConfigStore();
 const { t, locale, catalog, money, delta } = useLabels();
