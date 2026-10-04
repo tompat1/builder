@@ -161,6 +161,7 @@ const sv = {
     belt: 'Var sitter blecket?',
     cladding: 'Vilken panel är standard?',
     air: 'Hur stor är luftspalten?',
+    wall: 'Hur är ytterväggen uppbyggd?',
     permit: 'Behövs bygglov?'
   },
   price: {
@@ -326,6 +327,7 @@ const en = {
     belt: 'Where is the metal belt?',
     cladding: 'Which board is standard?',
     air: 'How big is the air gap?',
+    wall: 'How is the outer wall built?',
     permit: 'Does it need a permit?'
   },
   price: {

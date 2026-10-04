@@ -112,7 +112,7 @@ let requestId = 0;
 
 const lang = computed<KnowledgeLang>(() => (locale.value === 'en' ? 'en' : 'sv'));
 
-const prompts = computed(() => [t('ai.belt'), t('ai.cladding'), t('ai.air'), t('ai.permit')]);
+const prompts = computed(() => [t('ai.belt'), t('ai.cladding'), t('ai.air'), t('ai.wall'), t('ai.permit')]);
 
 function copy(value: Record<KnowledgeLang, string>) {
   return value[lang.value];

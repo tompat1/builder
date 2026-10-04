@@ -34,6 +34,27 @@
       <text x="80" y="60" font-size="10" fill="currentColor" text-anchor="middle">25 mm</text>
     </template>
 
+    <template v-else-if="figure === 'section'">
+      <rect x="18" y="10" width="14" height="36" stroke="currentColor" stroke-width="1.2" />
+      <rect x="34" y="10" width="5" height="36" stroke="currentColor" stroke-width="1.2" />
+      <rect x="41" y="10" width="40" height="36" stroke="currentColor" stroke-width="1.2" />
+      <path d="M49 10 V46 M61 10 V46 M73 10 V46" stroke="currentColor" stroke-width="0.8" />
+      <rect x="83" y="10" width="5" height="36" stroke="currentColor" stroke-width="1.2" />
+      <rect x="90" y="10" width="8" height="36" stroke="currentColor" stroke-width="1.2" />
+      <rect x="100" y="10" width="16" height="36" stroke="currentColor" stroke-width="1.4" />
+      <text x="25" y="58" font-size="8" fill="currentColor" text-anchor="middle">OSB</text>
+      <text x="61" y="58" font-size="8" fill="currentColor" text-anchor="middle">145</text>
+      <text x="108" y="58" font-size="8" fill="currentColor" text-anchor="middle">22×145</text>
+    </template>
+
+    <template v-else-if="figure === 'packs'">
+      <path d="M22 28 L52 16 L82 28 V50 H22 Z" stroke="currentColor" stroke-width="1.3" />
+      <path d="M96 34 H138 V50 H96 Z" stroke="currentColor" stroke-width="1.3" />
+      <path d="M96 34 L117 22 L138 34" stroke="currentColor" stroke-width="1.3" />
+      <text x="52" y="60" font-size="8" fill="currentColor" text-anchor="middle">skal</text>
+      <text x="117" y="60" font-size="8" fill="currentColor" text-anchor="middle">nyckel</text>
+    </template>
+
     <template v-else-if="figure === 'pier'">
       <path d="M24 46 H136" stroke="currentColor" stroke-width="1.4" />
       <rect x="48" y="22" width="10" height="24" stroke="currentColor" stroke-width="1.4" />

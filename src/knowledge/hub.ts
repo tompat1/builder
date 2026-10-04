@@ -1,8 +1,9 @@
 import { BUILDING_LIMITS, PULPET_PITCH_DEG, ROOF_COVERINGS } from '../store/useConfigStore';
+import { PAGE_KEYWORDS, rankEntries } from './match.js';
 
 export type KnowledgeLang = 'sv' | 'en';
 
-export type KnowledgeFigure = 'height' | 'pitch' | 'belt' | 'cladding' | 'covering' | 'permit' | 'door' | 'layers' | 'pier';
+export type KnowledgeFigure = 'height' | 'pitch' | 'belt' | 'cladding' | 'covering' | 'permit' | 'door' | 'layers' | 'pier' | 'section' | 'packs';
 
 export type KnowledgeApply = 'size' | 'pulpet' | 'cladding' | 'roof' | 'shingles' | 'loft' | 'door';
 
@@ -49,7 +50,7 @@ export function knowledgeEntries(): KnowledgeEntry[] {
   return [
     {
       id: 'height',
-      keywords: ['höjd', 'height', '5 meter', '5 m', '5000', 'högsta', 'high end', 'eave'],
+      keywords: PAGE_KEYWORDS.height,
       title: text('Höjd, högst 5 meter', 'Height, 5 metres at most'),
       body: text(
         `Höjden i det här huset är den höga sidan, och den stannar vid ${maxHeight.toLocaleString('sv-SE')} mm. Fältet går inte högre. På ett pulpettak är framväggen den höga sidan och bakväggen följer takfallet.`,
@@ -61,7 +62,7 @@ export function knowledgeEntries(): KnowledgeEntry[] {
     },
     {
       id: 'pitch',
-      keywords: ['lutning', 'taklutning', 'pulpet', 'pitch', '12°', '12 grader', 'mono', 'sadeltak', 'gable', 'tak', 'roof'],
+      keywords: PAGE_KEYWORDS.pitch,
       title: text(`Pulpettak ${PULPET_PITCH_DEG}°`, `Mono-pitch ${PULPET_PITCH_DEG}°`),
       body: text(
         `Pulpettaket lutar ${PULPET_PITCH_DEG}°, mitt i spannet 10–15° så att den höga sidan fortfarande avvattnas. På huset som är 3 503 mm djupt och 5 000 mm högt blir bakväggen cirka 4 255 mm. Sadeltaket är 22° och det flacka taket 2°.`,
@@ -73,7 +74,7 @@ export function knowledgeEntries(): KnowledgeEntry[] {
     },
     {
       id: 'belt',
-      keywords: ['bleck', 'vattbräda', 'vattbrada', 'midjebleck', 'flashing', 'metal plate', 'vita plåten', 'white metal', 'belt'],
+      keywords: PAGE_KEYWORDS.belt,
       title: text('Det vita blecket', 'The white metal belt'),
       body: text(
         'På en fasad som är 4,5 m eller högre sitter det vita blecket 2,70 m över marken, i linje med bjälklaget mellan våningarna. Spannet är 2,4–3,0 m. Blecket stannar mot hörnbrädorna, står ut från panelen och har en droppkant under.',
@@ -85,7 +86,7 @@ export function knowledgeEntries(): KnowledgeEntry[] {
     },
     {
       id: 'cladding',
-      keywords: ['panel', 'cladding', 'stående', 'staende', 'liggande', '22x145', '145', 'board', 'dimension', 'ytterpanel'],
+      keywords: PAGE_KEYWORDS.cladding,
       title: text('Panel, standard 22×145', 'Cladding, standard 22×145'),
       body: text(
         'Standard är stående ytterpanel 22×145 mm. Du kan också välja 22×95, 22×120 eller 22×170 mm, stående eller liggande. Brädorna i 3D-vyn följer valet.',
@@ -97,7 +98,7 @@ export function knowledgeEntries(): KnowledgeEntry[] {
     },
     {
       id: 'covering',
-      keywords: ['shingel', 'shingle', 'takpapp', 'takbeklädnad', 'roof covering', 'betongpanna', 'papp', 'felt', 'tiles', 'plåttak'],
+      keywords: PAGE_KEYWORDS.covering,
       title: text('Takbeklädnad', 'Roof covering'),
       body: text(
         `Takpapp ingår. Takshingel är överlappande asfalt, ${shingles}. Plåt med stående fals är ${metal}. Betongpannor är ${tiles}.`,
@@ -109,7 +110,7 @@ export function knowledgeEntries(): KnowledgeEntry[] {
     },
     {
       id: 'permit',
-      keywords: ['bygglov', 'attefall', 'friggebod', 'lov', 'permit', 'anmälan', 'anmalan', 'komplement', 'detail plan', 'detaljplan'],
+      keywords: PAGE_KEYWORDS.permit,
       title: text('Bygglov och storlek', 'Permit and size'),
       body: text(
         'Korten i katalogen använder fortfarande de äldre namnen friggebod och attefallshus. Sedan 1 december 2025 beskriver Boverket i stället lovfri komplementbyggnad och komplementbostadshus. Inom detaljplan är en lovfri komplementbyggnad högst 30,0 m² och taknocken högst 4,0 m. Utanför detaljplan är gränserna 50,0 m² och 4,5 m. Det här huset kan ritas 5 m högt, vilket är över den lovfria nockhöjden. Kommunen avgör tomten.',
@@ -130,7 +131,7 @@ export function knowledgeEntries(): KnowledgeEntry[] {
     },
     {
       id: 'loft',
-      keywords: ['loft', 'sovloft', 'sleeping loft', 'trappa'],
+      keywords: PAGE_KEYWORDS.loft,
       title: text('Sovloft', 'Sleeping loft'),
       body: text(
         'Ett sovloft slås på under Loft. Det lägger till en trappa i furu och ett räcke. Sadeltak är det tak som brukar paras med loft.',
@@ -142,7 +143,7 @@ export function knowledgeEntries(): KnowledgeEntry[] {
     },
     {
       id: 'door',
-      keywords: ['dubbeldörr', 'svanshall', 'pardörr', 'double door', 'dörr', 'door'],
+      keywords: PAGE_KEYWORDS.door,
       title: text('Pardörren SVANSHALL', 'The SVANSHALL double door'),
       body: text(
         'SVANSHALL är pardörren i katalogen. Öppna Dörrar och klicka på en väggpanel i 3D-vyn för att placera den.',
@@ -154,7 +155,7 @@ export function knowledgeEntries(): KnowledgeEntry[] {
     },
     {
       id: 'panel-air',
-      keywords: ['luftspalt', 'tva steg', 'tvasteg', 'two-step', 'air gap', 'vindskydd', '300 mm', 'over mark', 'ovan mark'],
+      keywords: PAGE_KEYWORDS['panel-air'],
       title: text('Luftspalt bakom panelen', 'Air gap behind the cladding'),
       body: text(
         'Svenskt Trä bygger ytterpanelen med en luftad baksida. Spalten mot det vattenavvisande vindskyddet ska vara minst 25 mm, och spik eller skruv får inte gå igenom vindskyddet. Panelen avslutas 300 mm över mark. Stående brädor som måste skarvas görs det över ett droppbleck, med minst 25 mm mellan bleck och brädände.',
@@ -175,7 +176,7 @@ export function knowledgeEntries(): KnowledgeEntry[] {
     },
     {
       id: 'panel-wood',
-      keywords: ['lockpanel', 'gran', 'g4-2', 'g4', 'spruce', '22x170', '170 mm', 'overlapp', 'overlap', 'falsad', 'spontad'],
+      keywords: PAGE_KEYWORDS['panel-wood'],
       title: text('Panelvirke och profiler', 'Cladding timber and profiles'),
       body: text(
         'Utvändig panel är i regel gran, sort G4-2 eller bättre, med målfuktkvot högst 16 %. Lockpanel är den vanligaste stående typen. Bottenbrädor i den beskrivningen är 22×145–170 och lockbrädor 22×120–145, med minst 20 mm överlapp, och lockbrädan spikas inte genom bottenbrädan. Spontad, falsad och liggande profilerad panel hålls högst 145 mm bred och minst 22 mm tjock.',
@@ -196,7 +197,7 @@ export function knowledgeEntries(): KnowledgeEntry[] {
     },
     {
       id: 'panel-paint',
-      keywords: ['grundmala', 'grundmalning', 'cmp', 'certifierad malad', 'fuktkvot', 'moisture', 'slamfarg', 'falu', 'paint', 'malning'],
+      keywords: PAGE_KEYWORDS['panel-paint'],
       title: text('Grundmålning och CMP', 'Priming and certified painted cladding'),
       body: text(
         'Brädor som ska täckmålas eller laseras grundmålas innan de sätts upp, så att omålade springor inte syns när träet krymper. Måla inte när fuktkvoten är över 16 %. Certifierad Målad Panel i klass CMP-G behöver två strykningar till, och CMP-G/M behöver en.',
@@ -217,7 +218,7 @@ export function knowledgeEntries(): KnowledgeEntry[] {
     },
     {
       id: 'attefall-shell',
-      keywords: ['attefallshuset', 'c14', 'konstruktionsvirke', '22x120', 'angspärr', 'plastfolie', 'ac 350', 'gl30', 'limtra', 'glulam', 'year-round'],
+      keywords: PAGE_KEYWORDS['attefall-shell'],
       title: text('Attefallshusets stomme', 'The Attefall house shell'),
       body: text(
         'Svenskt Träs Attefallshus, uppdaterat 24 januari 2022, är ritat av Tyréns som ett isolerat hus med loft. Konstruktionsvirket är C14 där inget annat anges. Fasadexemplet är stående spontad panel 22×120 på liggande spikläkt 34×70, c 600. Åldersbeständig plastfolie används när huset värms till cirka 18 °C året runt. Annars räcker vindpapp AC 350. Loftbjälklaget i ritningen är limträ 90×405 GL30c. Guidens bygglovsregler är de äldre attefallsreglerna. Aktuella gränser står på Boverkets sida.',
@@ -238,7 +239,7 @@ export function knowledgeEntries(): KnowledgeEntry[] {
     },
     {
       id: 'roof-deck',
-      keywords: ['underlagspont', 'underlagsspont', 'underlagspapp', 'raspönt', 'raspont', 'vindduk', 'takstol', '23x95', 'insektsnat', 'roof deck', 'sarking'],
+      keywords: PAGE_KEYWORDS['roof-deck'],
       title: text('Yttertakets underlag', 'The roof deck'),
       body: text(
         'I Attefallshusets tak läggs vindduk klass W1 på takstolarna, sedan luftningsreglar 45×45 och underlagsspont 23×95 med den rillade sidan ner. Första brädan sticker ner 20 mm utanför luftningsreglarna. Underlagspappen läggs så snart inbrädningen är klar, och ett insektsnät täcker den 45 mm höga luftspalten ovanför ytterväggen.',
@@ -255,7 +256,7 @@ export function knowledgeEntries(): KnowledgeEntry[] {
     },
     {
       id: 'piers',
-      keywords: ['plint', 'grundlaggning', 'tjale', 'frost', 'ntr/a', 'ntr/ab', 'syll', '500 mm', 'pier', 'foundation'],
+      keywords: PAGE_KEYWORDS.piers,
       title: text('Plintgrund och träskydd', 'Pier foundation and timber treatment'),
       body: text(
         'I Attefallshusets plintplan räcker cirka 500 mm djup i sand och grus. I lera och matjord ökas djupet mot tjäle. Bjälklagets underkant ligger 100 mm över mark i den detaljen. Tryckimpregnerat trä i klass NTR/A används i mark och i syll på plint. Oskyddat trä ovan mark är NTR/AB.',
@@ -273,19 +274,49 @@ export function knowledgeEntries(): KnowledgeEntry[] {
         }
       ],
       apply: 'size'
+    },
+    {
+      id: 'shell-wall',
+      keywords: PAGE_KEYWORDS['shell-wall'],
+      title: text('Ytterväggens skikt', 'The outer wall layers'),
+      body: text(
+        'Svenska Skalhus beskriver ytterväggen inifrån och ut: OSB-skiva, plastfolie, 145 mm stenull mellan reglar 45×145, vindduk, läkt och grundmålad ytterpanel 22×145. Golvbjälkarna är 45×220 med 215 mm isolering och en trossbotten under. Takets isolering är 190 mm. En plastsyll ligger mot grunden. OSB-skivan kan levereras lös, så att elen dras bakom den.',
+        'Svenska Skalhus describes the outer wall from the inside out: an OSB board, a vapour film, 145 mm of stone wool between 45×145 studs, a wind fabric, battens, and primed cladding 22×145. The floor joists are 45×220 with 215 mm of insulation and a soffit board underneath. The roof insulation is 190 mm. A plastic sole plate sits against the foundation. The OSB board can be delivered loose, so the wiring goes behind it.'
+      ),
+      figure: 'section',
+      links: [
+        {
+          label: text('Attefallshus Modern, Svenska Skalhus', 'Attefall house Modern, Svenska Skalhus'),
+          href: 'https://svenskaskalhus.se/attefallshus/modern-fullhojd/'
+        },
+        {
+          label: text('Attefallshus, Svenska Skalhus', 'Attefall houses, Svenska Skalhus'),
+          href: 'https://svenskaskalhus.se/attefallshus/'
+        }
+      ],
+      apply: 'cladding'
+    },
+    {
+      id: 'delivery',
+      keywords: PAGE_KEYWORDS.delivery,
+      title: text('Skalhus och nyckelfärdigt', 'Shell house and turnkey'),
+      body: text(
+        'Ett skalhus från Svenska Skalhus kommer färdigt på utsidan, med underlagspapp, grundmålad fasad, 3-glasfönster och ytterdörr. Inne finns isolering, OSB, vit innertaksskiva och elrör i taket. Kök och badrum görs på plats. Huset lyfts på i ett stycke, eller som väggelement om kranen inte når. Husverket använder nyckelfärdigt för ett hus som är klart inne, ute och i inkopplingarna. Deras elementhus är färdiga väggar och takkassetter, och insidan färdigställs sedan. De rekommenderar isolerad grund när nocken ska hålla sig inom 4 m från mark, och plint på berg. Under bottenbjälklaget sitter en Cembrit Windstopper Extreme. I deras beskrivning placeras huset minst 4,5 m från tomtgräns, närmare om grannen lämnar skriftligt medgivande.',
+        'A shell house from Svenska Skalhus arrives finished on the outside, with underlay felt, a primed facade, triple glazing, and an entrance door. Inside there is insulation, OSB, a white ceiling board, and electrical conduits in the ceiling. The kitchen and bathroom are finished on site. The house is craned on in one piece, or as wall elements if the crane cannot reach. Husverket uses turnkey for a house that is finished inside, outside, and in its connections. Their element house is finished walls and roof cassettes, and the inside is completed afterwards. They recommend an insulated foundation when the ridge must stay within 4 m of the ground, and piers on rock. A Cembrit Windstopper Extreme sits under the ground floor. In their description the house is placed at least 4.5 m from the boundary, closer if the neighbour gives written consent.'
+      ),
+      figure: 'packs',
+      links: [
+        {
+          label: text('Attefallshus, Svenska Skalhus', 'Attefall houses, Svenska Skalhus'),
+          href: 'https://svenskaskalhus.se/attefallshus/'
+        },
+        {
+          label: text('Attefallshus 25–50 m², Husverket', 'Attefall houses 25–50 m², Husverket'),
+          href: 'https://husverket.se/hus/attefallshus/'
+        }
+      ]
     }
   ];
-}
-
-function fold(value: string) {
-  return value
-    .toLowerCase()
-    .replace(/å/g, 'a')
-    .replace(/ä/g, 'a')
-    .replace(/ö/g, 'o')
-    .replace(/[^a-z0-9° ]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
 }
 
 export interface KnowledgeHit {
@@ -295,18 +326,7 @@ export interface KnowledgeHit {
 
 /** Best matching page, or null when the hub has nothing for the question. */
 export function askKnowledge(query: string): KnowledgeHit | null {
-  const folded = fold(query);
-  if (!folded) return null;
-
-  const scored = knowledgeEntries()
-    .map((entry) => {
-      const hits = entry.keywords.filter((keyword) => folded.includes(fold(keyword)));
-      const score = hits.reduce((sum, keyword) => sum + fold(keyword).length, 0);
-      return { entry, score };
-    })
-    .filter((item) => item.score > 0)
-    .sort((a, b) => b.score - a.score);
-
+  const scored = rankEntries(knowledgeEntries(), query);
   const best = scored[0];
   if (!best) return null;
   return {
