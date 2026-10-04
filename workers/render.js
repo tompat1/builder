@@ -1,7 +1,6 @@
-/** Picture from a prompt and up to five reference images. The result is a picture. */
+/** Picture from a prompt. The model accepts four reference images. */
 
 const MODEL = '@cf/black-forest-labs/flux-2-klein-4b';
-const IMAGE_LIMIT = 5;
 const MODEL_IMAGES = 4;
 const DATA_URL = /^data:image\/(png|jpeg|jpg|webp);base64,([A-Za-z0-9+/=\s]+)$/;
 
@@ -43,7 +42,7 @@ export function revisePrompt(change, original) {
 export function decodeImages(images) {
   if (!Array.isArray(images)) return [];
   const blobs = [];
-  for (const item of images.slice(0, IMAGE_LIMIT)) {
+  for (const item of images.slice(0, MODEL_IMAGES)) {
     if (typeof item !== 'string' || item.length > 280000) continue;
     const match = item.match(DATA_URL);
     if (!match) continue;
@@ -130,7 +129,7 @@ export async function handleRender(request, env, headers) {
     return json({ error: 'render' }, 400, headers);
   }
 
-  const images = decodeImages(body?.images).slice(0, MODEL_IMAGES);
+  const images = decodeImages(body?.images);
   const prompt = body?.revision
     ? revisePrompt(body?.prompt, body?.original)
     : renderPrompt(body?.prompt, body?.facts, images.length);

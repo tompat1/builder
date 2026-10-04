@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { deflateSync } from 'node:zlib';
 import { extractPdfImages, extractPdfText, hasMeasures, readDrawing } from '../src/import/drawing.js';
 import { fitImageSize } from '../src/import/imageSize.js';
-import { renderPrompt, revisePrompt } from '../workers/render.js';
+import { decodeImages, renderPrompt, revisePrompt } from '../workers/render.js';
 
 test('a labelled drawing sets the rectangular house', () => {
   const reading = readDrawing('Bredd 6040 mm Djup 3500 mm Höjd 4200 mm pulpettak takpapp pardörr fönster');
@@ -153,6 +153,12 @@ test('a correction revises the previous picture', () => {
   assert.match(prompt, /follow the change/);
   assert.match(prompt, /Ett hus med papptak/);
   assert.equal(revisePrompt('   ', 'hus'), '');
+});
+
+test('the picture model receives at most four reference images', () => {
+  const image = `data:image/png;base64,${Buffer.alloc(40, 7).toString('base64')}`;
+  assert.equal(decodeImages([image, image, image, image, image]).length, 4);
+  assert.equal(decodeImages([image, image]).length, 2);
 });
 
 test('reference photos stay inside the picture model size', () => {

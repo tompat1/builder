@@ -149,6 +149,7 @@ const store = useConfigStore();
 const { t, locale, catalog } = useLabels();
 
 const PHOTO_LIMIT = 5;
+const MODEL_IMAGES = 4;
 
 const prompt = ref('');
 const photos = ref<File[]>([]);
@@ -174,7 +175,9 @@ function onPhotos(event: Event) {
   const input = event.target as HTMLInputElement;
   const files = [...(input.files ?? [])].filter((file) => /^image\/(png|jpeg|webp)$/.test(file.type));
   photos.value = files.slice(0, PHOTO_LIMIT);
-  photoNote.value = files.length > PHOTO_LIMIT ? t('houseImport.five') : '';
+  if (files.length > PHOTO_LIMIT) photoNote.value = t('houseImport.five');
+  else if (photos.value.length > MODEL_IMAGES) photoNote.value = t('houseImport.modelFour');
+  else photoNote.value = '';
   clearThumbs();
   thumbs.value = photos.value.map((file) => URL.createObjectURL(file));
 }
@@ -245,7 +248,7 @@ async function showPicture() {
     const facts = hit ? hit.entry.body[lang].slice(0, 360) : '';
     factTitle.value = hit ? hit.entry.title[lang] : '';
     const images: string[] = [];
-    for (const file of photos.value) images.push(await shrink(file));
+    for (const file of photos.value.slice(0, MODEL_IMAGES)) images.push(await shrink(file));
     picture.value = await requestHousePicture(idea, images, facts);
     revision.value = '';
   } catch {
@@ -263,9 +266,10 @@ async function revisePicture() {
   try {
     const images = [await shrinkDataUrl(picture.value)];
     for (const file of photos.value) {
-      if (images.length >= PHOTO_LIMIT) break;
+      if (images.length >= MODEL_IMAGES) break;
       images.push(await shrink(file));
     }
+    if (photos.value.length + 1 > MODEL_IMAGES) photoNote.value = t('houseImport.modelFour');
     picture.value = await requestHousePicture(change, images, '', { original: prompt.value.trim() });
   } catch {
     pictureError.value = true;
