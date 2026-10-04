@@ -50,7 +50,17 @@ const sv = {
     signIn: 'Logga in först.',
     origin: 'Den här sidan får inte starta en inloggning.',
     storage: 'Kontolagret är inte kopplat.',
-    denied: 'Det GitHub-kontot är inte admin.'
+    denied: 'Det GitHub-kontot är inte admin.',
+    resources: 'Kunskap',
+    resourceTitle: 'Rubrik',
+    resourceBody: 'Svar',
+    resourceKeywords: 'Ord, kommaseparerade',
+    resourceLink: 'Källa, https',
+    resourceAdd: 'Lägg till sida',
+    resourceRemove: 'Ta bort',
+    resourceSaved: 'Sidan finns i kunskapsbasen.',
+    badResource: 'Skriv en rubrik och ett svar.',
+    badLink: 'Källan ska vara en https-länk.'
   },
   panel: {
     label: 'Konfigurationspanel',
@@ -247,7 +257,17 @@ const en = {
     signIn: 'Sign in first.',
     origin: 'This site cannot start a login.',
     storage: 'Account storage is not connected.',
-    denied: 'That GitHub account is not an admin.'
+    denied: 'That GitHub account is not an admin.',
+    resources: 'Knowledge',
+    resourceTitle: 'Title',
+    resourceBody: 'Answer',
+    resourceKeywords: 'Words, comma separated',
+    resourceLink: 'Source, https',
+    resourceAdd: 'Add page',
+    resourceRemove: 'Remove',
+    resourceSaved: 'The page is in the knowledge base.',
+    badResource: 'Write a title and an answer.',
+    badLink: 'The source must be an https link.'
   },
   panel: {
     label: 'Configuration panel',

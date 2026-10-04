@@ -117,7 +117,7 @@
 import { computed, nextTick, ref } from 'vue';
 import { useConfigStore } from '../store/useConfigStore';
 import { useLabels } from '../i18n';
-import { askKnowledge, knowledgeEntries, type KnowledgeApply, type KnowledgeEntry, type KnowledgeHit, type KnowledgeLang } from '../knowledge/hub';
+import { allKnowledgeEntries, askKnowledge, type KnowledgeApply, type KnowledgeEntry, type KnowledgeHit, type KnowledgeLang } from '../knowledge/hub';
 import { askKnowledgeWorker } from '../services/knowledgeWorker';
 import KnowledgeFigure from './KnowledgeFigure.vue';
 import CmsImage from './CmsImage.vue';
@@ -157,7 +157,7 @@ function ask(query: string) {
   askKnowledgeWorker(next, lang.value).then((entryId) => {
     if (id !== requestId) return;
     asking.value = false;
-    const entry = entryId ? knowledgeEntries().find((item) => item.id === entryId) : undefined;
+    const entry = entryId ? allKnowledgeEntries().find((item) => item.id === entryId) : undefined;
     if (!entry) return;
     hit.value = { entry, related: found?.related.filter((item) => item.id !== entry.id) ?? [] };
     viaWorker.value = true;

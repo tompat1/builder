@@ -75,6 +75,11 @@
       <circle cx="88" cy="34" r="1.4" fill="currentColor" />
     </template>
 
+    <template v-else-if="figure === 'note'">
+      <rect x="48" y="10" width="64" height="44" rx="2" stroke="currentColor" stroke-width="1.4" />
+      <path d="M60 24 H100 M60 32 H100 M60 40 H88" stroke="currentColor" stroke-width="1.2" />
+    </template>
+
     <template v-else>
       <rect x="28" y="16" width="46" height="32" stroke="currentColor" stroke-width="1.4" />
       <rect x="86" y="12" width="46" height="36" stroke="currentColor" stroke-width="1.4" />

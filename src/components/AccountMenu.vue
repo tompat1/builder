@@ -18,7 +18,7 @@
     <Teleport to="body">
     <div
       v-if="open"
-      class="fixed z-50 w-72 rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-700 shadow-xl"
+      class="fixed z-50 max-h-[min(32rem,70vh)] w-80 overflow-y-auto rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-700 shadow-xl"
       :style="panelStyle"
     >
       <div class="mb-2 flex items-center justify-between">
@@ -74,6 +74,32 @@
             {{ t('account.savePassword') }}
           </button>
         </form>
+        <form
+          v-if="user.role === 'admin'"
+          class="mt-3 space-y-1.5 border-t border-slate-200 pt-3"
+          @submit.prevent="addResource"
+        >
+          <p class="font-bold text-slate-900">{{ t('account.resources') }}</p>
+          <label class="block font-semibold text-slate-600" for="resource-title">{{ t('account.resourceTitle') }}</label>
+          <input id="resource-title" v-model="resourceTitle" class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-slate-900" />
+          <label class="block font-semibold text-slate-600" for="resource-body">{{ t('account.resourceBody') }}</label>
+          <textarea id="resource-body" v-model="resourceBody" rows="3" class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-slate-900"></textarea>
+          <label class="block font-semibold text-slate-600" for="resource-keywords">{{ t('account.resourceKeywords') }}</label>
+          <input id="resource-keywords" v-model="resourceKeywords" class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-slate-900" />
+          <label class="block font-semibold text-slate-600" for="resource-link">{{ t('account.resourceLink') }}</label>
+          <input id="resource-link" v-model="resourceLink" type="url" class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-slate-900" />
+          <button type="submit" class="w-full rounded-lg bg-slate-900 px-3 py-1.5 font-semibold text-white hover:bg-slate-800 disabled:opacity-50" :disabled="resourceBusy">
+            {{ t('account.resourceAdd') }}
+          </button>
+          <ul v-if="resources.items.length" class="space-y-1 pt-1">
+            <li v-for="item in resources.items" :key="item.id" class="flex items-center justify-between gap-2">
+              <span class="truncate text-slate-800">{{ item.title }}</span>
+              <button type="button" class="shrink-0 font-semibold text-slate-500 hover:text-slate-900" @click="removeResource(item.id)">
+                {{ t('account.resourceRemove') }}
+              </button>
+            </li>
+          </ul>
+        </form>
         <button type="button" class="mt-2 w-full rounded-lg px-3 py-1.5 font-semibold text-slate-600 hover:bg-slate-50" @click="signOut">
           {{ t('account.logout') }}
         </button>
@@ -86,6 +112,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useLabels } from '../i18n';
+import { useResourceStore } from '../store/useResourceStore';
 import { useSessionStore } from '../store/useSessionStore';
 import {
   accountMe,
@@ -100,6 +127,7 @@ import {
 
 const { t } = useLabels();
 const session = useSessionStore();
+const resources = useResourceStore();
 const open = ref(false);
 const buttonEl = ref<HTMLButtonElement | null>(null);
 const panelStyle = ref({ top: '64px', left: '12px' });
@@ -110,7 +138,7 @@ function toggle() {
   if (!open.value || !rect) return;
   panelStyle.value = {
     top: `${rect.bottom + 8}px`,
-    left: `${Math.max(12, rect.right - 288)}px`
+    left: `${Math.max(12, rect.right - 320)}px`
   };
 }
 const user = ref<AccountUser | null>(null);
@@ -121,6 +149,11 @@ const current = ref('');
 const nextPassword = ref('');
 const error = ref('');
 const notice = ref('');
+const resourceTitle = ref('');
+const resourceBody = ref('');
+const resourceKeywords = ref('');
+const resourceLink = ref('');
+const resourceBusy = ref(false);
 
 const initial = computed(() => (user.value?.login || 'B').slice(0, 1).toUpperCase());
 
@@ -135,6 +168,8 @@ const messages: Record<string, string> = {
   big_image: 'account.bigImage',
   storage: 'account.storage',
   denied: 'account.denied',
+  bad_resource: 'account.badResource',
+  bad_link: 'account.badLink',
   state: 'account.denied',
   code: 'account.denied'
 };
@@ -158,7 +193,7 @@ onMounted(async () => {
       open.value = true;
       await nextTick();
       const rect = buttonEl.value?.getBoundingClientRect();
-      if (rect) panelStyle.value = { top: `${rect.bottom + 8}px`, left: `${Math.max(12, rect.right - 288)}px` };
+      if (rect) panelStyle.value = { top: `${rect.bottom + 8}px`, left: `${Math.max(12, rect.right - 320)}px` };
     }
   } catch {
     user.value = null;
@@ -209,6 +244,38 @@ async function onAvatar(event: Event) {
     notice.value = t('account.saved');
   } catch (caught) {
     showError(caught instanceof Error ? caught.message : 'bad_image');
+  }
+}
+
+async function addResource() {
+  error.value = '';
+  notice.value = '';
+  resourceBusy.value = true;
+  try {
+    await resources.add({
+      title: resourceTitle.value,
+      body: resourceBody.value,
+      keywords: resourceKeywords.value,
+      linkHref: resourceLink.value
+    });
+    resourceTitle.value = '';
+    resourceBody.value = '';
+    resourceKeywords.value = '';
+    resourceLink.value = '';
+    notice.value = t('account.resourceSaved');
+  } catch (caught) {
+    showError(caught instanceof Error ? caught.message : 'bad_resource');
+  } finally {
+    resourceBusy.value = false;
+  }
+}
+
+async function removeResource(id: string) {
+  error.value = '';
+  try {
+    await resources.remove(id);
+  } catch (caught) {
+    showError(caught instanceof Error ? caught.message : 'bad_resource');
   }
 }
 

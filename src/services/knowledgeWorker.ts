@@ -1,10 +1,10 @@
-import { knowledgeEntries, type KnowledgeLang } from '../knowledge/hub';
+import { allKnowledgeEntries, type KnowledgeLang } from '../knowledge/hub';
 
 /** Ask the Cloudflare Worker which page fits. Returns null when it cannot choose. */
 export async function askKnowledgeWorker(question: string, lang: KnowledgeLang): Promise<string | null> {
   const base = import.meta.env.VITE_CLOUDFLARE_WORKER_URL
     || 'https://builder-knowledge.thomasrynell.workers.dev';
-  const known = new Set(knowledgeEntries().map((entry) => entry.id));
+  const known = new Set(allKnowledgeEntries().map((entry) => entry.id));
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 20000);

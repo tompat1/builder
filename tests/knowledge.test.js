@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PAGE_KEYWORDS, rankEntries } from '../src/knowledge/match.js';
 import { SELECTION_PAGES } from '../workers/catalog.js';
+import { acceptResource } from '../workers/resources.js';
 import { parseEntryId, readPayload } from '../workers/select.js';
 
 const pages = Object.entries(PAGE_KEYWORDS).map(([id, keywords]) => ({ id, keywords }));
@@ -43,6 +44,24 @@ test('Workers AI contributes a page id, not the sentence', () => {
   assert.equal(parseEntryId(readPayload({ response: { entryId: 'sofa' } }), known), null);
   assert.equal(parseEntryId(readPayload({ response: 'The metal sits at 2.70 m.' }), known), null);
   assert.equal(parseEntryId(readPayload(null), known), null);
+});
+
+test('an admin page gets a safe id and can be found by its words', () => {
+  const row = acceptResource({
+    title: 'Syllpapp',
+    body: 'Syllpappen ligger under syllen och stoppar fukt från plinten.',
+    keywords: 'syllpapp, fukt',
+    linkHref: 'https://www.traguiden.se/'
+  });
+  assert.equal(row.id, 'extra-syllpapp');
+  assert.deepEqual(row.keywords, ['syllpapp', 'fukt']);
+  assert.equal(acceptResource({ title: 'A', body: 'För kort.' }), null);
+  assert.equal(acceptResource({ title: 'Syllpapp', body: 'Ett svar som räcker.', linkHref: 'http://example.com' }), null);
+  const ranked = rankEntries([
+    { id: 'permit', keywords: ['bygglov'] },
+    { id: row.id, keywords: row.keywords }
+  ], 'Hur läggs syllpapp?');
+  assert.equal(ranked[0].entry.id, 'extra-syllpapp');
 });
 
 test('live Cloudflare worker chooses a page', { skip: process.env.KNOWLEDGE_WORKER_LIVE !== '1' }, async () => {

@@ -7,6 +7,7 @@
 import { handleAccounts, sessionUser } from './accounts.js';
 import { handleContent } from './content.js';
 import { SELECTION_PAGES } from './catalog.js';
+import { handleResources, resourcePages } from './resources.js';
 import { parseEntryId, readPayload } from './select.js';
 
 interface Env {
@@ -34,7 +35,7 @@ function corsHeaders(request: Request, env: Env): HeadersInit {
   const ok = allowed.includes(origin);
   return {
     'Access-Control-Allow-Origin': ok ? origin : allowed[0] ?? 'http://localhost:5173',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
     Vary: 'Origin',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Allow-Credentials': 'true',
@@ -66,6 +67,10 @@ export default {
       return handleContent(request, env, headers, sessionUser);
     }
 
+    if (url.pathname === '/api/resources' || url.pathname.startsWith('/api/resources/')) {
+      return handleResources(request, env, headers, sessionUser);
+    }
+
     if (url.pathname === '/api/health') {
       return json({ status: 'ok', ai: Boolean(env.AI), accounts: Boolean(env.DB) }, 200, headers);
     }
@@ -87,7 +92,10 @@ export default {
       return json({ entryId: null }, 200, headers);
     }
 
-    const known = new Set(PAGES.map((page) => page.id));
+    const extra = await resourcePages(env);
+    const seen = new Set(PAGES.map((page) => page.id));
+    const pages = [...PAGES, ...extra.filter((page) => !seen.has(page.id))];
+    const known = new Set(pages.map((page) => page.id));
     try {
       const result = await env.AI.run(MODEL, {
         messages: [
@@ -103,7 +111,7 @@ export default {
           },
           {
             role: 'user',
-            content: JSON.stringify({ language: lang, pages: PAGES, question })
+            content: JSON.stringify({ language: lang, pages, question })
           }
         ],
         temperature: 0,

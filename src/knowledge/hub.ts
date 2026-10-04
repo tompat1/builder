@@ -1,9 +1,10 @@
 import { BUILDING_LIMITS, PULPET_PITCH_DEG, ROOF_COVERINGS } from '../store/useConfigStore';
+import { addedResources } from './added';
 import { PAGE_KEYWORDS, rankEntries } from './match.js';
 
 export type KnowledgeLang = 'sv' | 'en';
 
-export type KnowledgeFigure = 'height' | 'pitch' | 'belt' | 'cladding' | 'covering' | 'permit' | 'door' | 'layers' | 'pier' | 'section' | 'packs' | 'board';
+export type KnowledgeFigure = 'height' | 'pitch' | 'belt' | 'cladding' | 'covering' | 'permit' | 'door' | 'layers' | 'pier' | 'section' | 'packs' | 'board' | 'note';
 
 export type KnowledgeApply = 'size' | 'pulpet' | 'cladding' | 'roof' | 'shingles' | 'loft' | 'door';
 
@@ -344,9 +345,13 @@ export interface KnowledgeHit {
   related: KnowledgeEntry[];
 }
 
+export function allKnowledgeEntries(): KnowledgeEntry[] {
+  return [...knowledgeEntries(), ...addedResources()];
+}
+
 /** Best matching page, or null when the hub has nothing for the question. */
 export function askKnowledge(query: string): KnowledgeHit | null {
-  const scored = rankEntries(knowledgeEntries(), query);
+  const scored = rankEntries(allKnowledgeEntries(), query);
   const best = scored[0];
   if (!best) return null;
   return {
