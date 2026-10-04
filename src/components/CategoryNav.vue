@@ -65,7 +65,7 @@
       </span>
 
       <span class="text-[11px] font-medium tracking-tight whitespace-nowrap">
-        {{ t(`nav.${cat.id}`) }}
+        <Cms :k="`nav.${cat.id}`" />
       </span>
     </button>
   </nav>
@@ -74,6 +74,7 @@
 <script setup lang="ts">
 import { useConfigStore, type CategoryKey } from '../store/useConfigStore';
 import { useLabels } from '../i18n';
+import Cms from './Cms.vue';
 
 const store = useConfigStore();
 const { t } = useLabels();

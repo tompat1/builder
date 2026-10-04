@@ -15,7 +15,7 @@
           <line x1="11" y1="8" x2="11" y2="14" />
           <line x1="8" y1="11" x2="14" y2="11" />
         </svg>
-        <span class="tool-tip">{{ t('tools.zoomIn') }}</span>
+        <span class="tool-tip"><Cms k="tools.zoomIn" /></span>
       </button>
 
       <div class="h-px bg-slate-100 mx-1"></div>
@@ -32,7 +32,7 @@
           <line x1="21" y1="21" x2="16.65" y2="16.65" />
           <line x1="8" y1="11" x2="14" y2="11" />
         </svg>
-        <span class="tool-tip">{{ t('tools.zoomOut') }}</span>
+        <span class="tool-tip"><Cms k="tools.zoomOut" /></span>
       </button>
     </div>
 
@@ -56,7 +56,7 @@
           <path d="m11.5 9.5 2-2" />
           <path d="m8.5 6.5 2-2" />
         </svg>
-        <span class="tool-tip">{{ t('tools.measure') }}</span>
+        <span class="tool-tip"><Cms k="tools.measure" /></span>
       </button>
 
       <div class="w-px h-7 bg-slate-200/60 my-auto"></div>
@@ -74,7 +74,7 @@
           <polyline points="1 4 1 10 7 10" />
           <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
         </svg>
-        <span class="tool-tip">{{ t('tools.undo') }}</span>
+        <span class="tool-tip"><Cms k="tools.undo" /></span>
       </button>
 
       <!-- Redo -->
@@ -90,7 +90,7 @@
           <polyline points="23 4 23 10 17 10" />
           <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
         </svg>
-        <span class="tool-tip">{{ t('tools.redo') }}</span>
+        <span class="tool-tip"><Cms k="tools.redo" /></span>
       </button>
     </div>
   </div>
@@ -99,6 +99,7 @@
 <script setup lang="ts">
 import { useConfigStore } from '../store/useConfigStore';
 import { useLabels } from '../i18n';
+import Cms from './Cms.vue';
 
 const store = useConfigStore();
 const { t } = useLabels();

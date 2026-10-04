@@ -26,7 +26,7 @@
       <span class="text-xs font-black text-slate-900 leading-none">
         {{ store.roofPitchAngle }}°
       </span>
-      <span class="text-[10px] text-slate-500 font-semibold hidden md:inline">{{ t('dims.pitch') }}</span>
+      <span class="text-[10px] text-slate-500 font-semibold hidden md:inline"><Cms k="dims.pitch" /></span>
     </div>
 
     <div
@@ -37,7 +37,7 @@
       <span class="block text-xs font-bold text-slate-900 leading-none">
         {{ store.dimensions.height }} mm
       </span>
-      <span class="block text-[9px] text-slate-500 font-medium">{{ t('dims.frontWall') }}</span>
+      <span class="block text-[9px] text-slate-500 font-medium"><Cms k="dims.frontWall" /></span>
     </div>
 
     <div
@@ -49,7 +49,8 @@
         {{ store.activeRoof === 'pulpettak' ? store.rearHeight : store.dimensions.height }} mm
       </span>
       <span class="block text-[9px] text-slate-500 font-medium">
-        {{ store.activeRoof === 'pulpettak' ? t('dims.rearWall') : t('dims.overall') }}
+        <Cms v-if="store.activeRoof === 'pulpettak'" k="dims.rearWall" />
+        <Cms v-else k="dims.overall" />
       </span>
     </div>
 
@@ -62,7 +63,7 @@
       <span class="block text-xs font-bold text-slate-900 leading-none">
         {{ store.innerCeilingHeight }} mm
       </span>
-      <span class="block text-[10px] text-slate-500 font-medium">{{ t('dims.ceiling') }}</span>
+      <span class="block text-[10px] text-slate-500 font-medium"><Cms k="dims.ceiling" /></span>
     </div>
   </div>
 </template>
@@ -70,6 +71,7 @@
 <script setup lang="ts">
 import { useConfigStore } from '../store/useConfigStore';
 import { useLabels } from '../i18n';
+import Cms from './Cms.vue';
 
 const store = useConfigStore();
 const { t } = useLabels();

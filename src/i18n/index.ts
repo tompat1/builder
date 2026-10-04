@@ -1,4 +1,5 @@
 import { createI18n, useI18n } from 'vue-i18n';
+import { useContentStore } from '../store/useContentStore';
 
 export type AppLocale = 'sv' | 'en';
 
@@ -21,6 +22,10 @@ const sv = {
     loftExtra: 'Sovloft tillval',
     totalVat: 'Totalt inkl. moms',
     saved: 'Projektet har sparats i webbläsarens lokala minne.'
+  },
+  cms: {
+    edit: 'Redigera',
+    done: 'Klar'
   },
   account: {
     login: 'Logga in',
@@ -214,6 +219,10 @@ const en = {
     loftExtra: 'Sleeping loft',
     totalVat: 'Total incl. VAT',
     saved: 'The project was saved in this browser.'
+  },
+  cms: {
+    edit: 'Edit',
+    done: 'Done'
   },
   account: {
     login: 'Sign in',
@@ -561,7 +570,14 @@ export function applyLocale(next: AppLocale) {
 }
 
 export function useLabels() {
-  const { t, te, locale } = useI18n();
+  const { t: translate, te, locale } = useI18n();
+  const content = useContentStore();
+
+  function t(key: string, named?: Record<string, unknown>) {
+    const base = named ? String(translate(key, named)) : String(translate(key));
+    if (named) return base;
+    return content.text(`${locale.value}:${key}`, base);
+  }
 
   function catalog(id: string, field: 'name' | 'desc' | 'spec' | 'badge', fallback: string) {
     const key = `catalog.${id}.${field}`;

@@ -28,7 +28,7 @@
       <div class="md:hidden flex items-center justify-between px-4 py-2 border-b border-slate-100 bg-slate-50/80 rounded-t-2xl">
         <div class="flex items-center gap-2">
           <span class="w-8 h-1 bg-slate-300 rounded-full mx-auto block"></span>
-          <span class="text-xs font-bold text-slate-700">{{ t('panel.title') }}</span>
+          <span class="text-xs font-bold text-slate-700"><Cms k="panel.title" /></span>
         </div>
         <button
           type="button"
@@ -36,14 +36,15 @@
           @click="isMobileCollapsed = !isMobileCollapsed"
           class="text-xs font-semibold text-slate-600 hover:text-slate-900 py-1 px-2 rounded-lg"
         >
-          {{ isMobileCollapsed ? t('panel.show') : t('panel.hide') }}
+          <Cms v-if="isMobileCollapsed" k="panel.show" />
+          <Cms v-else k="panel.hide" />
         </button>
       </div>
 
       <!-- Main Panel Title (Desktop) -->
       <div class="hidden md:block px-5 pt-4 pb-2 border-b border-slate-100">
         <h2 class="text-base font-extrabold text-slate-900 tracking-tight">
-          {{ t('panel.title') }}
+          <Cms k="panel.title" />
         </h2>
       </div>
 
@@ -64,7 +65,7 @@
         <div class="flex items-center gap-2">
           <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-2xs"></span>
           <span class="text-xs text-slate-700 font-semibold">
-            {{ catalog(store.currentSize.id, 'name', store.currentSize.name) }} • {{ catalog(store.currentMaterial.id, 'name', store.currentMaterial.name) }}
+            <Cms :k="`catalog.${store.currentSize.id}.name`" :fallback="store.currentSize.name" /> • <Cms :k="`catalog.${store.currentMaterial.id}.name`" :fallback="store.currentMaterial.name" />
           </span>
         </div>
 
@@ -73,7 +74,7 @@
           @click="isExportOpen = true"
           class="text-xs font-bold text-slate-700 hover:text-slate-900 flex items-center gap-1 hover:underline p-1"
         >
-          <span>{{ t('panel.export') }}</span>
+          <span><Cms k="panel.export" /></span>
           <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
             <polyline points="7 10 12 15 17 10" />
@@ -100,9 +101,10 @@ import ExportModal from './ExportModal.vue';
 import ToolSet from './ToolSet.vue';
 import DimensionOverlay from './DimensionOverlay.vue';
 import PanelSlotOverlay from './PanelSlotOverlay.vue';
+import Cms from './Cms.vue';
 
 const store = useConfigStore();
-const { t, catalog } = useLabels();
+const { t } = useLabels();
 const isExportOpen = ref(false);
 const isMobileCollapsed = ref(false);
 

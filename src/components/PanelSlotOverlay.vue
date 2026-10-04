@@ -49,7 +49,7 @@
               @click="replacePlaced()"
               class="text-xs font-semibold px-3 py-1.5 rounded-xl bg-slate-900 text-white hover:bg-slate-800"
             >
-              {{ t('slot.replace') }}
+              <Cms k="slot.replace" />
             </button>
             <button
               v-if="alternateCategory"
@@ -58,7 +58,8 @@
               @click="openCategory(alternateCategory)"
               class="text-xs font-semibold px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800"
             >
-              {{ alternateCategory === 'doors' ? t('slot.chooseDoor') : t('slot.chooseWindow') }}
+              <Cms v-if="alternateCategory === 'doors'" k="slot.chooseDoor" />
+              <Cms v-else k="slot.chooseWindow" />
             </button>
             <button
               type="button"
@@ -67,7 +68,7 @@
               class="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 px-2 py-1.5 rounded-lg font-medium transition-colors"
               :title="t('slot.clear')"
             >
-              {{ t('slot.remove') }}
+              <Cms k="slot.remove" />
             </button>
           </template>
 
@@ -82,7 +83,7 @@
               <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M4 21h16M5 21V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v17" />
               </svg>
-              <span>{{ t('slot.chooseDoor') }}</span>
+              <span><Cms k="slot.chooseDoor" /></span>
             </button>
 
             <button
@@ -95,7 +96,7 @@
                 <rect x="3" y="3" width="18" height="18" rx="2" />
                 <path d="M12 3v18M3 12h18" />
               </svg>
-              <span>{{ t('slot.chooseWindow') }}</span>
+              <span><Cms k="slot.chooseWindow" /></span>
             </button>
           </template>
         </div>
@@ -156,6 +157,7 @@
 import { computed } from 'vue';
 import { DOORS_OPTIONS, GATES_OPTIONS, useConfigStore, WINDOWS_OPTIONS, type CategoryKey, type WallSlot } from '../store/useConfigStore';
 import { useLabels } from '../i18n';
+import Cms from './Cms.vue';
 
 const store = useConfigStore();
 const { t } = useLabels();

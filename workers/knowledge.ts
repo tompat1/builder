@@ -4,7 +4,8 @@
  * (https://github.com/tompat1/motkarta): Workers AI only chooses a page id.
  * The sentence, diagram, and links stay in src/knowledge/hub.ts.
  */
-import { handleAccounts } from './accounts.js';
+import { handleAccounts, sessionUser } from './accounts.js';
+import { handleContent } from './content.js';
 import { SELECTION_PAGES } from './catalog.js';
 import { parseEntryId, readPayload } from './select.js';
 
@@ -59,6 +60,10 @@ export default {
 
     if (url.pathname.startsWith('/api/auth')) {
       return handleAccounts(request, env, headers);
+    }
+
+    if (url.pathname === '/api/content') {
+      return handleContent(request, env, headers, sessionUser);
     }
 
     if (url.pathname === '/api/health') {

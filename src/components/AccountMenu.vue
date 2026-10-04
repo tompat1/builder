@@ -84,8 +84,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useLabels } from '../i18n';
+import { useSessionStore } from '../store/useSessionStore';
 import {
   accountMe,
   beginGithubLogin,
@@ -98,6 +99,7 @@ import {
 } from '../services/account';
 
 const { t } = useLabels();
+const session = useSessionStore();
 const open = ref(false);
 const buttonEl = ref<HTMLButtonElement | null>(null);
 const panelStyle = ref({ top: '64px', left: '12px' });
@@ -112,6 +114,7 @@ function toggle() {
   };
 }
 const user = ref<AccountUser | null>(null);
+watch(user, (value) => session.setUser(value), { immediate: true });
 const login = ref('tompat1');
 const password = ref('');
 const current = ref('');

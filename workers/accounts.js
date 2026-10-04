@@ -64,6 +64,10 @@ function publicUser(row, origin) {
   };
 }
 
+export async function sessionUser(request, env) {
+  return userFromToken(env, readToken(request));
+}
+
 async function userFromToken(env, token) {
   if (!token) return null;
   const hash = await tokenHash(token);

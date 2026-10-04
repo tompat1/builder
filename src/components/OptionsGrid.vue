@@ -4,9 +4,9 @@
     <div class="flex items-center justify-between">
       <div>
         <h3 class="text-sm font-bold text-slate-900 tracking-tight">
-          {{ t(`category.${store.selectedCategory}Title`) }}
+          <Cms :k="`category.${store.selectedCategory}Title`" />
         </h3>
-        <p class="text-xs text-slate-500">{{ t('category.hint') }}</p>
+        <p class="text-xs text-slate-500"><Cms k="category.hint" /></p>
       </div>
       <span class="text-[11px] font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
         {{ t('category.options', { count: currentOptionsCount }) }}
@@ -25,7 +25,8 @@
         </span>
       </div>
       <span class="text-[11px] text-emerald-700">
-        {{ selectedSlotOccupied ? t('category.replaceHint') : t('category.placeHint') }}
+        <Cms v-if="selectedSlotOccupied" k="category.replaceHint" />
+        <Cms v-else k="category.placeHint" />
       </span>
     </div>
 
@@ -33,7 +34,7 @@
     <template v-if="store.selectedCategory === 'size'">
       <!-- Size Options -->
       <div>
-        <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">{{ t('category.measures') }}</h4>
+        <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2"><Cms k="category.measures" /></h4>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           <button
             v-for="size in SIZE_OPTIONS"
@@ -48,7 +49,8 @@
                 : 'border-slate-200/90 bg-white hover:border-slate-300 hover:bg-slate-50/40'
             ]"
           >
-            <div class="w-full h-16 bg-slate-100/80 rounded-lg mb-2 flex items-center justify-center p-1.5 relative overflow-hidden">
+            <CmsImage :k="`picture.size.${size.id}`" class="mb-2 h-16 w-full">
+            <div class="w-full h-16 bg-slate-100/80 rounded-lg flex items-center justify-center p-1.5 relative overflow-hidden">
               <svg class="w-full h-full text-slate-700" viewBox="0 0 160 80" fill="none">
                 <rect x="25" y="10" width="110" height="60" rx="2" stroke="currentColor" stroke-width="2" stroke-dasharray="4 2" />
                 <rect x="30" y="15" width="100" height="50" fill="currentColor" fill-opacity="0.08" stroke="currentColor" stroke-width="1.5" />
@@ -57,18 +59,19 @@
                 </text>
               </svg>
               <span class="absolute top-1.5 right-1.5 text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/90 text-slate-700 shadow-2xs border border-slate-200/60">
-                {{ catalog(size.id, 'badge', size.badge) }}
+                <Cms :k="`catalog.${size.id}.badge`" :fallback="size.badge" />
               </span>
             </div>
+            </CmsImage>
 
             <div>
               <div class="flex items-center justify-between">
-                <p class="text-xs font-bold text-slate-900">{{ catalog(size.id, 'name', size.name) }}</p>
+                <p class="text-xs font-bold text-slate-900"><Cms :k="`catalog.${size.id}.name`" :fallback="size.name" /></p>
                 <span class="text-xs font-extrabold text-slate-900 tabular-nums">
                   {{ money(size.basePrice) }}
                 </span>
               </div>
-              <p class="text-[11px] text-slate-500 mt-0.5 leading-snug">{{ catalog(size.id, 'desc', size.desc) }}</p>
+              <p class="text-[11px] text-slate-500 mt-0.5 leading-snug"><Cms :k="`catalog.${size.id}.desc`" :fallback="size.desc" /></p>
             </div>
           </button>
         </div>
@@ -76,8 +79,8 @@
         <div class="grid grid-cols-3 gap-2 mt-3">
           <label v-for="field in measureFields" :key="field.axis" class="block">
             <span class="block text-[11px] font-semibold text-slate-600 mb-1">
-              {{ t(field.label) }}
-              <span class="font-medium text-slate-400">{{ t('category.unitMm') }}</span>
+              <Cms :k="field.label" />
+              <span class="font-medium text-slate-400"><Cms k="category.unitMm" /></span>
             </span>
             <input
               type="number"
@@ -91,13 +94,13 @@
             />
           </label>
         </div>
-        <p class="text-[11px] text-slate-500 mt-1.5">{{ t('category.heightHint') }}</p>
+        <p class="text-[11px] text-slate-500 mt-1.5"><Cms k="category.heightHint" /></p>
       </div>
 
       <!-- Material & Fasad Heading -->
       <div class="pt-3 border-t border-slate-200/70">
         <div class="flex items-center justify-between mb-2">
-          <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider">{{ t('category.facade') }}</h4>
+          <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider"><Cms k="category.facade" /></h4>
           <span class="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60">
             {{ t('category.selected', { name: catalog(store.currentMaterial.id, 'name', store.currentMaterial.name) }) }}
           </span>
@@ -118,6 +121,7 @@
             ]"
           >
             <!-- Material Color Swatch -->
+            <CmsImage :k="`picture.material.${mat.id}`" class="h-8 w-8 shrink-0">
             <div
               class="w-8 h-8 rounded-lg shrink-0 border border-slate-300 shadow-xs flex items-center justify-center relative overflow-hidden"
               :style="{ backgroundColor: mat.colorHex }"
@@ -127,21 +131,22 @@
                 <polyline points="20 6 9 17 4 12" />
               </svg>
             </div>
+            </CmsImage>
 
             <div class="min-w-0 flex-1">
               <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-slate-900 truncate">{{ catalog(mat.id, 'name', mat.name) }}</span>
+                <span class="text-xs font-bold text-slate-900 truncate"><Cms :k="`catalog.${mat.id}.name`" :fallback="mat.name" /></span>
                 <span class="text-[11px] font-semibold text-slate-500 tabular-nums">
                   {{ delta(mat.priceDelta) }}
                 </span>
               </div>
-              <p class="text-[10px] text-slate-500 truncate">{{ catalog(mat.id, 'desc', mat.desc) }}</p>
+              <p class="text-[10px] text-slate-500 truncate"><Cms :k="`catalog.${mat.id}.desc`" :fallback="mat.desc" /></p>
             </div>
           </button>
         </div>
 
         <div class="mt-4 pt-3 border-t border-slate-200/70">
-          <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2">{{ t('category.cladding') }}</h4>
+          <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2"><Cms k="category.cladding" /></h4>
           <div class="grid grid-cols-2 gap-2">
             <button
               v-for="orientation in panelOrientations"
@@ -156,7 +161,8 @@
                   : 'border-slate-200 bg-white hover:border-slate-300'
               ]"
             >
-              <svg class="w-full h-8 text-slate-700 mb-1" viewBox="0 0 120 32" fill="none" aria-hidden="true">
+              <CmsImage :k="`picture.panel.${orientation.id}`" class="mb-1 h-8 w-full">
+              <svg class="w-full h-8 text-slate-700" viewBox="0 0 120 32" fill="none" aria-hidden="true">
                 <template v-if="orientation.id === 'staende'">
                   <path
                     v-for="x in [8, 28, 48, 68, 88, 108]"
@@ -176,7 +182,8 @@
                   />
                 </template>
               </svg>
-              <span class="block text-xs font-bold text-slate-900">{{ t(orientation.label) }}</span>
+              </CmsImage>
+              <span class="block text-xs font-bold text-slate-900"><Cms :k="orientation.label" /></span>
             </button>
           </div>
           <div class="grid grid-cols-2 gap-2 mt-2">
@@ -194,10 +201,10 @@
               ]"
             >
               <span class="block text-xs font-bold text-slate-900 tabular-nums">{{ size.thickness }}×{{ size.width }} mm</span>
-              <span v-if="size.id === '22x145'" class="block text-[10px] font-semibold text-slate-500">{{ t('category.standardBoard') }}</span>
+              <span v-if="size.id === '22x145'" class="block text-[10px] font-semibold text-slate-500"><Cms k="category.standardBoard" /></span>
             </button>
           </div>
-          <p class="text-[11px] text-slate-500 mt-1.5">{{ t('category.claddingHint') }}</p>
+          <p class="text-[11px] text-slate-500 mt-1.5"><Cms k="category.claddingHint" /></p>
         </div>
       </div>
     </template>
@@ -218,7 +225,8 @@
               : 'border-slate-200/90 bg-white hover:border-slate-300 hover:bg-slate-50/40'
           ]"
         >
-          <div class="w-full h-20 bg-slate-100/80 rounded-lg mb-2 flex items-center justify-center p-2 relative overflow-hidden">
+          <CmsImage :k="`picture.roof.${roof.id}`" class="mb-2 h-20 w-full">
+          <div class="w-full h-20 bg-slate-100/80 rounded-lg flex items-center justify-center p-2 relative overflow-hidden">
             <svg v-if="roof.id === 'sadeltak'" class="w-full h-full text-slate-700" viewBox="0 0 160 80" fill="none">
               <path d="M 20 60 L 80 18 L 140 60" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
               <line x1="20" y1="60" x2="140" y2="60" stroke="currentColor" stroke-width="1.5" stroke-dasharray="3 3" />
@@ -235,21 +243,22 @@
               <text x="80" y="72" font-size="10" fill="currentColor" text-anchor="middle">12° pulpettak</text>
             </svg>
           </div>
+          </CmsImage>
 
           <div>
             <div class="flex items-center justify-between">
-              <p class="text-xs font-bold text-slate-900">{{ catalog(roof.id, 'name', roof.name) }}</p>
+              <p class="text-xs font-bold text-slate-900"><Cms :k="`catalog.${roof.id}.name`" :fallback="roof.name" /></p>
               <span class="text-xs font-extrabold text-slate-900 tabular-nums">
                 {{ delta(roof.priceDelta) }}
               </span>
             </div>
-            <p class="text-[11px] text-slate-500 mt-0.5">{{ catalog(roof.id, 'spec', roof.spec ?? '') }}</p>
+            <p class="text-[11px] text-slate-500 mt-0.5"><Cms :k="`catalog.${roof.id}.spec`" :fallback="roof.spec ?? ''" /></p>
           </div>
         </button>
       </div>
 
       <div class="pt-1">
-        <p class="text-xs font-bold text-slate-900 mb-2">{{ t('category.covering') }}</p>
+        <p class="text-xs font-bold text-slate-900 mb-2"><Cms k="category.covering" /></p>
         <div class="grid grid-cols-2 gap-2">
           <button
             v-for="cover in ROOF_COVERINGS"
@@ -264,12 +273,14 @@
                 : 'border-slate-200/90 bg-white hover:border-slate-300'
             ]"
           >
-            <span
-              class="block h-8 rounded-md mb-2 border border-slate-200"
-              :class="coveringSwatch[cover.id]"
-            ></span>
-            <span class="block text-xs font-bold text-slate-900">{{ t('category.' + cover.id) }}</span>
-            <span class="block text-[10px] text-slate-500 mt-0.5">{{ t('category.' + cover.id + 'Body') }}</span>
+            <CmsImage :k="`picture.cover.${cover.id}`" class="mb-2 h-8 w-full">
+              <span
+                class="block h-8 rounded-md border border-slate-200"
+                :class="coveringSwatch[cover.id]"
+              ></span>
+            </CmsImage>
+            <span class="block text-xs font-bold text-slate-900"><Cms :k="`category.${cover.id}`" /></span>
+            <span class="block text-[10px] text-slate-500 mt-0.5"><Cms :k="`category.${cover.id}Body`" /></span>
             <span class="block text-[11px] font-semibold text-slate-500 tabular-nums mt-1">{{ delta(cover.priceDelta) }}</span>
           </button>
         </div>
@@ -284,10 +295,10 @@
           <div class="flex items-start justify-between gap-4">
             <div class="min-w-0 flex-1">
               <label for="option-sleeping" class="text-sm font-bold text-slate-900 block cursor-pointer">
-                {{ t('category.addLoft') }}
+                <Cms k="category.addLoft" />
               </label>
               <p class="text-xs text-slate-500 leading-relaxed mt-1">
-                {{ t('category.addLoftBody') }}
+                <Cms k="category.addLoftBody" />
               </p>
             </div>
 
@@ -303,7 +314,7 @@
                 store.hasLoft ? 'bg-emerald-800' : 'bg-slate-200'
               ]"
             >
-              <span class="sr-only">{{ t('category.toggleLoft') }}</span>
+              <span class="sr-only"><Cms k="category.toggleLoft" /></span>
               <span
                 :class="[
                   'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out',
@@ -328,7 +339,7 @@
                   : 'border-b-2 border-transparent text-slate-400 hover:text-slate-600'
               ]"
             >
-              {{ t('category.plan') }}
+              <Cms k="category.plan" />
             </button>
             <button
               type="button"
@@ -340,7 +351,7 @@
                   : 'border-b-2 border-transparent text-slate-400 hover:text-slate-600'
               ]"
             >
-              {{ t('category.floor') }}
+              <Cms k="category.floor" />
             </button>
           </div>
 
@@ -363,7 +374,7 @@
                   <svg v-if="store.loftCount === 'ett'" class="w-3.5 h-3.5 text-emerald-800" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
-                  {{ t('category.oneLoft') }}
+                  <Cms k="category.oneLoft" />
                 </button>
                 <button
                   type="button"
@@ -379,14 +390,14 @@
                   <svg v-if="store.loftCount === 'tva'" class="w-3.5 h-3.5 text-emerald-800" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
-                  {{ t('category.twoLofts') }}
+                  <Cms k="category.twoLofts" />
                 </button>
               </div>
             </div>
 
             <!-- 2. Placering (Vänster / Höger) -->
             <div v-if="store.loftCount === 'ett'">
-              <h5 class="text-xs font-bold text-slate-800 mb-2">{{ t('category.placement') }}</h5>
+              <h5 class="text-xs font-bold text-slate-800 mb-2"><Cms k="category.placement" /></h5>
               <div class="flex gap-2">
                 <button
                   type="button"
@@ -402,7 +413,7 @@
                   <svg v-if="store.loftPlacement === 'vanster'" class="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
-                  {{ t('category.left') }}
+                  <Cms k="category.left" />
                 </button>
                 <button
                   type="button"
@@ -418,7 +429,7 @@
                   <svg v-if="store.loftPlacement === 'hoger'" class="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
-                  {{ t('category.right') }}
+                  <Cms k="category.right" />
                 </button>
               </div>
             </div>
@@ -426,7 +437,7 @@
             <!-- 3. Storlek (10,95 m², 16,43 m², 21,9 m², 27,38 m²) -->
             <div>
               <div class="flex items-center justify-between mb-2">
-                <h5 class="text-xs font-bold text-slate-800">{{ t('category.size') }}</h5>
+                <h5 class="text-xs font-bold text-slate-800"><Cms k="category.size" /></h5>
                 <span class="text-[11px] text-slate-500">
                   {{ t('category.buildingArea', { area: store.currentSize.areaSqMeters }) }}
                 </span>
@@ -474,7 +485,7 @@
                       Math.abs(store.selectedLoftSize - loftSize.areaSqMeters) < 0.1 ? 'text-emerald-100' : 'text-slate-500'
                     ]"
                   >
-                    {{ loftDesc(loftSize.descId, loftSize.desc) }}
+                    <Cms :k="`loftSize.${loftSize.descId}`" :fallback="loftSize.desc" />
                   </span>
                 </button>
               </div>
@@ -482,7 +493,7 @@
 
             <!-- 4. Lofttrappa / Stege -->
             <div class="pt-1">
-              <h5 class="text-xs font-bold text-slate-800 mb-2">{{ t('category.stair') }}</h5>
+              <h5 class="text-xs font-bold text-slate-800 mb-2"><Cms k="category.stair" /></h5>
               <div
                 @click="store.toggleLoftStair()"
                 class="p-3 rounded-xl border border-slate-200/90 bg-white hover:border-slate-300 cursor-pointer flex items-center justify-between transition-all"
@@ -501,12 +512,12 @@
                     </svg>
                   </div>
                   <div>
-                    <span class="text-xs font-bold text-slate-900 block">{{ t('category.stairName') }}</span>
-                    <span class="text-[11px] text-slate-500">{{ t('category.stairBody') }}</span>
+                    <span class="text-xs font-bold text-slate-900 block"><Cms k="category.stairName" /></span>
+                    <span class="text-[11px] text-slate-500"><Cms k="category.stairBody" /></span>
                   </div>
                 </div>
                 <span class="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded">
-                  {{ t('price.included') }}
+                  <Cms k="price.included" />
                 </span>
               </div>
             </div>
@@ -514,25 +525,25 @@
 
           <!-- Golv Tab Content -->
           <div v-else class="space-y-2.5 pt-1">
-            <h5 class="text-xs font-bold text-slate-800">{{ t('category.floorFinish') }}</h5>
+            <h5 class="text-xs font-bold text-slate-800"><Cms k="category.floorFinish" /></h5>
             <div class="grid grid-cols-1 gap-2">
               <button
                 type="button"
                 class="p-2.5 rounded-lg border border-emerald-800 bg-emerald-50/50 text-left flex items-center justify-between"
               >
                 <div>
-                  <span class="text-xs font-bold text-emerald-950 block">{{ t('category.floorSpruce') }}</span>
-                  <span class="text-[11px] text-emerald-800">{{ t('category.floorSpruceBody') }}</span>
+                  <span class="text-xs font-bold text-emerald-950 block"><Cms k="category.floorSpruce" /></span>
+                  <span class="text-[11px] text-emerald-800"><Cms k="category.floorSpruceBody" /></span>
                 </div>
-                <span class="text-xs font-bold text-emerald-900">{{ t('price.included') }}</span>
+                <span class="text-xs font-bold text-emerald-900"><Cms k="price.included" /></span>
               </button>
               <button
                 type="button"
                 class="p-2.5 rounded-lg border border-slate-200 bg-white hover:border-slate-300 text-left flex items-center justify-between"
               >
                 <div>
-                  <span class="text-xs font-bold text-slate-900 block">{{ t('category.floorPine') }}</span>
-                  <span class="text-[11px] text-slate-500">{{ t('category.floorPineBody') }}</span>
+                  <span class="text-xs font-bold text-slate-900 block"><Cms k="category.floorPine" /></span>
+                  <span class="text-[11px] text-slate-500"><Cms k="category.floorPineBody" /></span>
                 </div>
                 <span class="text-xs font-semibold text-slate-600">{{ delta(1800) }}</span>
               </button>
@@ -541,8 +552,8 @@
                 class="p-2.5 rounded-lg border border-slate-200 bg-white hover:border-slate-300 text-left flex items-center justify-between"
               >
                 <div>
-                  <span class="text-xs font-bold text-slate-900 block">{{ t('category.floorBoard') }}</span>
-                  <span class="text-[11px] text-slate-500">{{ t('category.floorBoardBody') }}</span>
+                  <span class="text-xs font-bold text-slate-900 block"><Cms k="category.floorBoard" /></span>
+                  <span class="text-[11px] text-slate-500"><Cms k="category.floorBoardBody" /></span>
                 </div>
                 <span class="text-xs font-semibold text-slate-600">{{ delta(900) }}</span>
               </button>
@@ -570,19 +581,19 @@
           type="button"
           class="text-xs font-bold pb-2 border-b-2 border-emerald-700 text-slate-900"
         >
-          {{ t('category.singleDoors') }}
+          <Cms k="category.singleDoors" />
         </button>
         <button
           type="button"
           class="text-xs font-semibold pb-2 border-b-2 border-transparent text-slate-400 hover:text-slate-600"
         >
-          {{ t('category.doubleDoors') }}
+          <Cms k="category.doubleDoors" />
         </button>
       </div>
 
       <!-- Door Series Selector -->
       <div class="flex items-center justify-between bg-slate-50 p-2 rounded-xl border border-slate-200/80 mb-2">
-        <span class="text-xs font-bold text-slate-700">{{ t('category.series') }}</span>
+        <span class="text-xs font-bold text-slate-700"><Cms k="category.series" /></span>
         <select class="text-xs font-semibold bg-white border border-slate-300 rounded-lg px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-slate-900">
           <option>{{ t('category.seriesStabil') }}</option>
           <option>{{ t('category.seriesModern') }}</option>
@@ -597,10 +608,10 @@
         class="py-3 px-4 bg-amber-50 rounded-xl border border-amber-200/90 text-center space-y-1 mb-2 animate-fade-in"
       >
         <p class="text-xs font-bold text-amber-900 leading-snug">
-          {{ t('category.doorBlocked') }}
+          <Cms k="category.doorBlocked" />
         </p>
         <p class="text-[11px] text-amber-700">
-          {{ t('category.doorBlockedHint') }}
+          <Cms k="category.doorBlockedHint" />
         </p>
       </div>
 
@@ -618,7 +629,8 @@
               : 'border-slate-200/90 bg-white hover:border-slate-300 hover:bg-slate-50/40'
           ]"
         >
-          <div class="w-full h-24 bg-slate-100/80 rounded-lg mb-2 flex items-center justify-center p-2 relative overflow-hidden">
+          <CmsImage :k="`picture.door.${door.id}`" class="mb-2 h-24 w-full">
+          <div class="w-full h-24 bg-slate-100/80 rounded-lg flex items-center justify-center p-2 relative overflow-hidden">
             <svg class="w-full h-full text-slate-700" viewBox="0 0 160 80" fill="none">
               <rect x="62" y="8" width="36" height="64" rx="1" stroke="currentColor" stroke-width="2" />
               <circle cx="92" cy="42" r="1.5" fill="currentColor" />
@@ -641,15 +653,16 @@
               </template>
             </svg>
           </div>
+          </CmsImage>
 
           <div>
             <div class="flex items-center justify-between">
-              <p class="text-xs font-bold text-slate-900">{{ catalog(door.id, 'name', door.name) }}</p>
+              <p class="text-xs font-bold text-slate-900"><Cms :k="`catalog.${door.id}.name`" :fallback="door.name" /></p>
               <span class="text-xs font-extrabold text-slate-900 tabular-nums">
                 {{ delta(door.priceDelta) }}
               </span>
             </div>
-            <p class="text-[11px] text-slate-500 mt-0.5">{{ catalog(door.id, 'desc', door.desc) }}</p>
+            <p class="text-[11px] text-slate-500 mt-0.5"><Cms :k="`catalog.${door.id}.desc`" :fallback="door.desc" /></p>
           </div>
         </button>
       </div>
@@ -671,7 +684,8 @@
               : 'border-slate-200/90 bg-white hover:border-slate-300 hover:bg-slate-50/40'
           ]"
         >
-          <div class="w-full h-20 bg-slate-100/80 rounded-lg mb-2 flex items-center justify-center p-2 relative overflow-hidden">
+          <CmsImage :k="`picture.window.${win.id}`" class="mb-2 h-20 w-full">
+          <div class="w-full h-20 bg-slate-100/80 rounded-lg flex items-center justify-center p-2 relative overflow-hidden">
             <svg class="w-full h-full text-slate-700" viewBox="0 0 160 80" fill="none">
               <rect x="55" y="16" width="50" height="48" rx="1" stroke="currentColor" stroke-width="2" />
               <template v-if="win.id === 'panorama'">
@@ -690,15 +704,16 @@
               </template>
             </svg>
           </div>
+          </CmsImage>
 
           <div>
             <div class="flex items-center justify-between">
-              <p class="text-xs font-bold text-slate-900">{{ catalog(win.id, 'name', win.name) }}</p>
+              <p class="text-xs font-bold text-slate-900"><Cms :k="`catalog.${win.id}.name`" :fallback="win.name" /></p>
               <span class="text-xs font-extrabold text-slate-900 tabular-nums">
                 {{ delta(win.priceDelta) }}
               </span>
             </div>
-            <p class="text-[11px] text-slate-500 mt-0.5">{{ catalog(win.id, 'spec', win.spec ?? '') }}</p>
+            <p class="text-[11px] text-slate-500 mt-0.5"><Cms :k="`catalog.${win.id}.spec`" :fallback="win.spec ?? ''" /></p>
           </div>
         </button>
       </div>
@@ -720,7 +735,8 @@
               : 'border-slate-200/90 bg-white hover:border-slate-300 hover:bg-slate-50/40'
           ]"
         >
-          <div class="w-full h-20 bg-slate-100/80 rounded-lg mb-2 flex items-center justify-center p-2 relative overflow-hidden">
+          <CmsImage :k="`picture.gate.${gate.id === 'none' ? 'gate-none' : gate.id}`" class="mb-2 h-20 w-full">
+          <div class="w-full h-20 bg-slate-100/80 rounded-lg flex items-center justify-center p-2 relative overflow-hidden">
             <svg class="w-full h-full text-slate-700" viewBox="0 0 160 80" fill="none">
               <rect x="45" y="14" width="70" height="52" rx="1" stroke="currentColor" stroke-width="2" />
               <template v-if="gate.id.includes('overhead')">
@@ -740,15 +756,16 @@
               </template>
             </svg>
           </div>
+          </CmsImage>
 
           <div>
             <div class="flex items-center justify-between">
-              <p class="text-xs font-bold text-slate-900">{{ catalog(gate.id === 'none' ? 'gate-none' : gate.id, 'name', gate.name) }}</p>
+              <p class="text-xs font-bold text-slate-900"><Cms :k="`catalog.${gate.id === 'none' ? 'gate-none' : gate.id}.name`" :fallback="gate.name" /></p>
               <span class="text-xs font-extrabold text-slate-900 tabular-nums">
                 {{ delta(gate.priceDelta) }}
               </span>
             </div>
-            <p class="text-[11px] text-slate-500 mt-0.5">{{ catalog(gate.id === 'none' ? 'gate-none' : gate.id, 'spec', gate.spec ?? '') }}</p>
+            <p class="text-[11px] text-slate-500 mt-0.5"><Cms :k="`catalog.${gate.id === 'none' ? 'gate-none' : gate.id}.spec`" :fallback="gate.spec ?? ''" /></p>
           </div>
         </button>
       </div>
@@ -758,6 +775,8 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import Cms from './Cms.vue';
+import CmsImage from './CmsImage.vue';
 import {
   useConfigStore,
   BUILDING_LIMITS,
@@ -775,7 +794,7 @@ import {
 import { useLabels } from '../i18n';
 
 const store = useConfigStore();
-const { t, catalog, loftDesc, money, delta } = useLabels();
+const { t, catalog, money, delta } = useLabels();
 
 const coveringSwatch: Record<RoofCovering, string> = {
   felt: 'bg-slate-700',
