@@ -41,11 +41,29 @@
 
     <div v-if="hit" ref="answerEl" class="mt-3 rounded-xl border border-slate-200 bg-white p-3" aria-live="polite">
       <p class="text-xs font-bold text-slate-900">{{ copy(hit.entry.title) }}</p>
+      <div class="mt-1.5 flex flex-wrap items-center gap-1.5">
+        <span class="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-700">
+          <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+          </svg>
+          {{ t('ai.base') }}
+        </span>
+        <span
+          v-if="viaWorker"
+          class="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-800"
+          :title="t('ai.workers')"
+        >
+          <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z" />
+          </svg>
+          {{ t('ai.model') }}
+        </span>
+      </div>
       <div class="mt-2 rounded-lg bg-slate-100/80 px-2">
         <KnowledgeFigure :figure="hit.entry.figure" />
       </div>
       <p class="text-[11px] text-slate-600 leading-relaxed mt-2">{{ copy(hit.entry.body) }}</p>
-      <p v-if="viaWorker" class="text-[11px] text-slate-500 mt-1">{{ t('ai.workers') }}</p>
 
       <div v-if="hit.entry.links.length" class="mt-2">
         <p class="text-[11px] font-semibold text-slate-600">{{ t('ai.sources') }}</p>

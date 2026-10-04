@@ -79,5 +79,10 @@ export const SELECTION_PAGES = [
     id: 'delivery',
     title: 'Skalhus och nyckelfärdigt / Shell house and turnkey',
     summary: 'A shell arrives finished outside and insulated inside. Turnkey, as Husverket uses the word, is finished inside, outside, and connected. Insulated slab when the ridge must stay at 4 m; piers on rock.'
+  },
+  {
+    id: 'inner-board',
+    title: 'OSB bakom gipsen / OSB behind the plasterboard',
+    summary: 'For an ordinary dry interior wall behind plasterboard, OSB is the cheaper board. Plywood holds screws better for heavy loads such as kitchen cabinets. Neither board is a vapour barrier, and the plasterboard stays for fire and sound.'
   }
 ];

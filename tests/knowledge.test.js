@@ -20,6 +20,7 @@ test('local concierge picks a stored page and does not guess', () => {
   assert.equal(best('Hur är ytterväggen uppbyggd?'), 'shell-wall');
   assert.equal(best('Vad ingår i ett skalhus?'), 'delivery');
   assert.equal(best('Vad betyder nyckelfärdigt?'), 'delivery');
+  assert.equal(best('Vilken skiva är bäst och billigast för innerväggar bakom gipset?'), 'inner-board');
   assert.equal(best('Vilken färg har soffan?'), null);
   assert.equal(best('   '), null);
 });

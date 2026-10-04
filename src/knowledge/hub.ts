@@ -3,7 +3,7 @@ import { PAGE_KEYWORDS, rankEntries } from './match.js';
 
 export type KnowledgeLang = 'sv' | 'en';
 
-export type KnowledgeFigure = 'height' | 'pitch' | 'belt' | 'cladding' | 'covering' | 'permit' | 'door' | 'layers' | 'pier' | 'section' | 'packs';
+export type KnowledgeFigure = 'height' | 'pitch' | 'belt' | 'cladding' | 'covering' | 'permit' | 'door' | 'layers' | 'pier' | 'section' | 'packs' | 'board';
 
 export type KnowledgeApply = 'size' | 'pulpet' | 'cladding' | 'roof' | 'shingles' | 'loft' | 'door';
 
@@ -313,6 +313,26 @@ export function knowledgeEntries(): KnowledgeEntry[] {
         {
           label: text('Attefallshus 25–50 m², Husverket', 'Attefall houses 25–50 m², Husverket'),
           href: 'https://husverket.se/hus/attefallshus/'
+        }
+      ]
+    },
+    {
+      id: 'inner-board',
+      keywords: PAGE_KEYWORDS['inner-board'],
+      title: text('OSB bakom gipsen', 'OSB behind the plasterboard'),
+      body: text(
+        'För en vanlig torr innervägg bakom gips är OSB den billigare skivan. En jämförelse uppdaterad i augusti 2026 sätter 11–12 mm för normal upphängning och 15 mm när lasten är tyngre eller reglarna sitter glest. Plywood håller skruv bättre, särskilt i kanterna, och väljs ofta till köksskåp och vägghängd toalett. OSB räcker för normala laster i torra rum, sväller mer i kanten om den blir fuktig, och är inte en ångspärr. Gipsen utanpå behövs för brand och ljud. Recoma, som tillverkar en egen skiva av återvunnet förpackningsavfall, skriver samma sak om priset: OSB är billigare än plywood, och plywood har bättre skruvhåll.',
+        'For an ordinary dry interior wall behind plasterboard, OSB is the cheaper board. A comparison updated in August 2026 uses 11–12 mm for ordinary fixing and 15 mm when the load is heavier or the studs are widely spaced. Plywood holds screws better, especially at the edges, and is often chosen for kitchen cabinets and a wall-hung toilet. OSB is enough for ordinary loads in dry rooms, swells more at the edge if it gets damp, and is not a vapour barrier. The plasterboard on the room side is there for fire and sound. Recoma, which makes its own board from recycled packaging, says the same about price: OSB is cheaper than plywood, and plywood holds screws better.'
+      ),
+      figure: 'board',
+      links: [
+        {
+          label: text('OSB, plywood och alternativ, Recoma', 'OSB, plywood and alternatives, Recoma'),
+          href: 'https://se.recoma.com/articles/alternativ-till-osb-och-plywood'
+        },
+        {
+          label: text('OSB eller plywood i väggar', 'OSB or plywood in walls'),
+          href: 'https://byggfirma-hagersten.se/blogg/osb-eller-plywood-i-vaggar-jamforelse-av-hallfasthet-och-pris/'
         }
       ]
     }

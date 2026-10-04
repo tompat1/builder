@@ -16,7 +16,8 @@ export const PAGE_KEYWORDS = {
   'roof-deck': ['underlagspont', 'underlagsspont', 'underlagspapp', 'raspönt', 'raspont', 'vindduk', 'takstol', '23x95', 'insektsnat', 'roof deck', 'sarking'],
   piers: ['plint', 'grundlaggning', 'tjale', 'frost', 'ntr/a', 'ntr/ab', 'syll', '500 mm', 'pier', 'foundation'],
   'shell-wall': ['ytterväggen', 'yttervagg', 'uppbyggd', 'osb', 'stenull', 'stone wool', '45x220', 'plastsyll', 'trossbotten', '215 mm', '190 mm', 'outer wall'],
-  delivery: ['skalhus', 'nyckelfärdigt', 'nyckelfardigt', 'turnkey', 'shell house', 'elementhus', 'kranlyft', 'cembrit', 'windstopper', 'entreprenadpaket', 'prefab']
+  delivery: ['skalhus', 'nyckelfärdigt', 'nyckelfardigt', 'turnkey', 'shell house', 'elementhus', 'kranlyft', 'cembrit', 'windstopper', 'entreprenadpaket', 'prefab'],
+  'inner-board': ['innervägg', 'innervagg', 'gips', 'gipset', 'plywood', 'billigast', 'väggskiva', 'vaggskiva', 'plasterboard', 'cheapest board', 'skruvhåll', 'skruvhall', 'bakom gips']
 };
 
 export function fold(value) {

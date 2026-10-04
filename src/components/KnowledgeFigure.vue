@@ -55,6 +55,13 @@
       <text x="117" y="60" font-size="8" fill="currentColor" text-anchor="middle">nyckel</text>
     </template>
 
+    <template v-else-if="figure === 'board'">
+      <rect x="48" y="14" width="28" height="34" stroke="currentColor" stroke-width="1.4" />
+      <rect x="84" y="14" width="28" height="34" stroke="currentColor" stroke-width="1.4" />
+      <text x="62" y="58" font-size="8" fill="currentColor" text-anchor="middle">OSB</text>
+      <text x="98" y="58" font-size="8" fill="currentColor" text-anchor="middle">gips</text>
+    </template>
+
     <template v-else-if="figure === 'pier'">
       <path d="M24 46 H136" stroke="currentColor" stroke-width="1.4" />
       <rect x="48" y="22" width="10" height="24" stroke="currentColor" stroke-width="1.4" />
