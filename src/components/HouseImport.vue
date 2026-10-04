@@ -140,7 +140,8 @@ import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { DOORS_OPTIONS, ROOF_OPTIONS, useConfigStore, WINDOWS_OPTIONS } from '../store/useConfigStore';
 import { useLabels } from '../i18n';
 import { askKnowledge } from '../knowledge/hub';
-import { extractPdfText, hasMeasures, readDrawing, type DrawingReading } from '../import/drawing.js';
+import { extractPdfImages, extractPdfText, hasMeasures, readDrawing, type DrawingReading } from '../import/drawing.js';
+import { readImageText } from '../import/drawingOcr';
 import { fitImageSize } from '../import/imageSize.js';
 import { requestHousePicture } from '../services/houseRender';
 
@@ -312,8 +313,17 @@ async function readPdf() {
       drawingStatus.value = t('houseImport.bigPdf');
       return;
     }
-    const text = await extractPdfText(new Uint8Array(await file.arrayBuffer()));
-    const reading = readDrawing(text);
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    let text = await extractPdfText(bytes);
+    let reading = readDrawing(text);
+    if (!hasMeasures(reading)) {
+      const images = extractPdfImages(bytes);
+      if (images.length) {
+        drawingStatus.value = t('houseImport.readingPicture');
+        text = `${text}\n${await readImageText(images)}`;
+        reading = readDrawing(text);
+      }
+    }
     if (!hasMeasures(reading)) {
       drawingStatus.value = t('houseImport.empty');
       return;

@@ -239,6 +239,7 @@ const sv = {
     pdf: 'PDF-ritning',
     read: 'Läs ritning',
     reading: 'Läser ritningen…',
+    readingPicture: 'Läser måtten i ritningens bilder…',
     applied: 'Huset följer de mått som gick att läsa.',
     empty: 'Ritningen har inga läsbara mått, så huset är oförändrat.',
     bigPdf: 'PDF-filen är för stor.'
@@ -483,6 +484,7 @@ const en = {
     pdf: 'PDF drawing',
     read: 'Read drawing',
     reading: 'Reading the drawing…',
+    readingPicture: 'Reading the measurements in the drawing pictures…',
     applied: 'The house follows the measurements that could be read.',
     empty: 'The drawing has no readable measurements, so the house is unchanged.',
     bigPdf: 'The PDF is too large.'

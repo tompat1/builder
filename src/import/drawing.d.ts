@@ -18,3 +18,5 @@ export function readDrawing(text: string): DrawingReading;
 export function hasMeasures(reading: DrawingReading): boolean;
 
 export function extractPdfText(data: Uint8Array | ArrayBuffer): Promise<string>;
+
+export function extractPdfImages(data: Uint8Array | ArrayBuffer, limit?: number): Uint8Array[];

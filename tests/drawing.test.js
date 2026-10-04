@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { deflateSync } from 'node:zlib';
-import { extractPdfText, hasMeasures, readDrawing } from '../src/import/drawing.js';
+import { extractPdfImages, extractPdfText, hasMeasures, readDrawing } from '../src/import/drawing.js';
 import { fitImageSize } from '../src/import/imageSize.js';
 import { renderPrompt, revisePrompt } from '../workers/render.js';
 
@@ -39,6 +39,85 @@ test('a pair of measurements is enough, and a sheet with no numbers changes noth
   assert.equal(hasMeasures(blank), false);
   assert.equal(blank.roof, null);
   assert.equal(blank.door, null);
+});
+
+test('a pictured sheet still keeps a separate measurement line', async () => {
+  const picture = new Uint8Array(1200);
+  picture[0] = 0xff;
+  picture[1] = 0xd8;
+  picture.set(new TextEncoder().encode('(9999 mm)'), 20);
+  const sentence = '(Bredd 6040 mm Djup 3500 mm Hojd 4200 mm)';
+  const compressed = deflateSync(Buffer.from(sentence));
+  const pictureHead = new TextEncoder().encode('1 0 obj\n<< /Subtype /Image /Filter /DCTDecode /Length 1200 >>\nstream\n');
+  const textHead = new TextEncoder().encode('\nendstream\nendobj\n2 0 obj\n<< /Filter /FlateDecode /Length 8 >>\nstream\n');
+  const tail = new TextEncoder().encode('\nendstream\nendobj\n%%EOF');
+  const bytes = new Uint8Array(pictureHead.length + picture.length + textHead.length + compressed.length + tail.length);
+  let offset = 0;
+  bytes.set(pictureHead, offset);
+  offset += pictureHead.length;
+  bytes.set(picture, offset);
+  offset += picture.length;
+  bytes.set(textHead, offset);
+  offset += textHead.length;
+  bytes.set(compressed, offset);
+  offset += compressed.length;
+  bytes.set(tail, offset);
+
+  const text = await extractPdfText(bytes);
+  assert.match(text, /6040/);
+  assert.doesNotMatch(text, /9999/);
+  assert.equal(extractPdfImages(bytes).length, 1);
+});
+
+test('a building area and its side measures set the rectangle', () => {
+  const reading = readDrawing(`R= RÅGLAS FÖNSTER
+7500
+4000
+3878
+4000
+2475
+25°
+BYGGNADSAREA (BYA)30.0 m²`);
+  assert.equal(reading.width, 7500);
+  assert.equal(reading.depth, 4000);
+  assert.equal(reading.height, 4000);
+  assert.equal(reading.roof, null);
+  assert.equal(reading.window, null);
+});
+
+test('font codes in a drawing become the measurement text', async () => {
+  const cmap = '1 beginbfchar <0001> <0037> <0002> <0035> <0003> <0030> endbfchar';
+  const content = 'BT /F1 12 Tf [<0001><0002><0003><0003>] TJ ET';
+  const pdf = `%PDF-1.4
+1 0 obj
+<< /Font << /F1 2 0 R >> >>
+endobj
+2 0 obj
+<< /ToUnicode 3 0 R /Type /Font >>
+endobj
+3 0 obj
+<< /Length ${cmap.length} >>
+stream
+${cmap}
+endstream
+endobj
+4 0 obj
+<< /Length ${content.length} >>
+stream
+${content}
+endstream
+endobj
+`;
+  const text = await extractPdfText(new TextEncoder().encode(pdf));
+  assert.match(text, /7500/);
+});
+
+test('a title block in metres sets the rectangular house', () => {
+  const reading = readDrawing('BYGGNADSMÅTT: 10,0 x 3,0 meter\nTAKHÖJD: 3,7 meter\nTAK: 27°');
+  assert.equal(reading.width, 10000);
+  assert.equal(reading.depth, 3000);
+  assert.equal(reading.height, 3700);
+  assert.equal(reading.roof, null);
 });
 
 test('a compressed PDF still yields the measurement text', async () => {
