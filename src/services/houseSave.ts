@@ -1,9 +1,22 @@
-/** The house kept in this browser, and the copy on the signed-in account. */
+/** Named houses kept on the signed-in account, plus one local copy of the open design. */
 
 import { sessionToken, workerBase } from './account';
 
 const HOUSE_KEY = 'builder.house';
 const PENDING_KEY = 'builder.house.pending';
+
+export interface SavedHouse {
+  id: string;
+  name: string;
+  createdAt: string;
+  createdBy: string;
+  config?: unknown;
+}
+
+export interface PendingHouse {
+  name: string;
+  config: unknown;
+}
 
 export function readLocalHouse(): unknown | null {
   try {
@@ -20,12 +33,29 @@ export function writeLocalHouse(config: unknown) {
   localStorage.setItem(HOUSE_KEY, JSON.stringify(config));
 }
 
-export function markHousePending() {
-  localStorage.setItem(PENDING_KEY, '1');
+export function markHousePending(name: string, config: unknown) {
+  const pending: PendingHouse = { name, config };
+  localStorage.setItem(PENDING_KEY, JSON.stringify(pending));
+}
+
+export function readPendingHouse(): PendingHouse | null {
+  const raw = localStorage.getItem(PENDING_KEY);
+  if (!raw) return null;
+  if (raw === '1') {
+    const config = readLocalHouse();
+    return config ? { name: '', config } : null;
+  }
+  try {
+    const data = JSON.parse(raw) as PendingHouse;
+    if (!data || typeof data.name !== 'string' || !data.config || typeof data.config !== 'object') return null;
+    return data;
+  } catch {
+    return null;
+  }
 }
 
 export function housePending() {
-  return localStorage.getItem(PENDING_KEY) === '1';
+  return readPendingHouse() != null;
 }
 
 export function clearHousePending() {
@@ -38,27 +68,43 @@ export function keepHouseForLogin(config: unknown, changed: boolean) {
   writeLocalHouse(config);
 }
 
-async function houseFetch(method: 'GET' | 'PUT', config?: unknown) {
+async function houseFetch(path: string, method: 'GET' | 'POST' | 'DELETE', body?: unknown) {
   const headers = new Headers();
   const token = sessionToken();
   if (token) headers.set('Authorization', `Bearer ${token}`);
-  if (method === 'PUT') headers.set('Content-Type', 'application/json');
-  const response = await fetch(`${workerBase()}/api/house`, {
+  if (body) headers.set('Content-Type', 'application/json');
+  const response = await fetch(`${workerBase()}${path}`, {
     method,
     headers,
-    body: method === 'PUT' ? JSON.stringify({ config }) : undefined
+    body: body ? JSON.stringify(body) : undefined
   });
-  const data = await response.json().catch(() => ({})) as { config?: unknown; error?: string };
+  const data = await response.json().catch(() => ({})) as {
+    houses?: SavedHouse[];
+    house?: SavedHouse;
+    error?: string;
+  };
   if (!response.ok) throw new Error(data.error || 'house');
   return data;
 }
 
-export async function saveRemoteHouse(config: unknown) {
-  await houseFetch('PUT', config);
-  clearHousePending();
+export async function listHouses() {
+  const data = await houseFetch('/api/houses', 'GET');
+  return Array.isArray(data.houses) ? data.houses : [];
 }
 
-export async function loadRemoteHouse() {
-  const data = await houseFetch('GET');
-  return data.config && typeof data.config === 'object' ? data.config : null;
+export async function saveNamedHouse(name: string, config: unknown) {
+  const data = await houseFetch('/api/houses', 'POST', { name, config });
+  clearHousePending();
+  if (!data.house) throw new Error('house');
+  return data.house;
+}
+
+export async function openNamedHouse(id: string) {
+  const data = await houseFetch(`/api/houses/${encodeURIComponent(id)}`, 'GET');
+  if (!data.house?.config || typeof data.house.config !== 'object') throw new Error('house');
+  return data.house;
+}
+
+export async function removeNamedHouse(id: string) {
+  await houseFetch(`/api/houses/${encodeURIComponent(id)}`, 'DELETE');
 }

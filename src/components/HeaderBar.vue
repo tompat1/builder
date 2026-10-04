@@ -21,11 +21,12 @@
       <div class="h-6 w-px bg-slate-200 hidden md:block"></div>
 
       <!-- Action Quick-links -->
-      <div class="hidden md:flex items-center gap-3">
+      <div class="flex items-center gap-3">
         <button
           type="button"
           id="btn-save-project"
-          @click="saveProject"
+          :aria-expanded="housesOpen"
+          @click="toggleHouses"
           class="flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors p-1"
         >
           <svg class="w-4 h-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
@@ -40,7 +41,7 @@
           type="button"
           id="btn-open-blueprint"
           @click="$emit('open-export')"
-          class="flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors p-1"
+          class="hidden md:flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors p-1"
         >
           <svg class="w-4 h-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -163,6 +164,8 @@
     </div>
   </header>
 
+  <SavedHouses :open="housesOpen" @close="housesOpen = false" @sign-in="accountMenu?.openLogin()" />
+
   <!-- Price Breakdown Flyout Modal -->
   <div
     v-if="showPriceBreakdown"
@@ -194,28 +197,21 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, watch } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useConfigStore } from '../store/useConfigStore';
 import { useContentStore } from '../store/useContentStore';
 import { useSessionStore } from '../store/useSessionStore';
 import { applyLocale, useLabels } from '../i18n';
-import { sessionToken } from '../services/account';
-import {
-  clearHousePending,
-  housePending,
-  loadRemoteHouse,
-  markHousePending,
-  readLocalHouse,
-  saveRemoteHouse,
-  writeLocalHouse
-} from '../services/houseSave';
+import { readLocalHouse } from '../services/houseSave';
 import AccountMenu from './AccountMenu.vue';
+import SavedHouses from './SavedHouses.vue';
 import Cms from './Cms.vue';
 
 const store = useConfigStore();
 const content = useContentStore();
 const session = useSessionStore();
 const accountMenu = ref<{ openLogin: () => void } | null>(null);
+const housesOpen = ref(false);
 const { t, locale, catalog, money, delta } = useLabels();
 const showPriceBreakdown = ref(false);
 
@@ -232,59 +228,13 @@ function langButtonClass(active: boolean) {
   ];
 }
 
-async function uploadHouse() {
-  await saveRemoteHouse(store.exportHouse());
+function toggleHouses() {
+  housesOpen.value = !housesOpen.value;
 }
 
-async function saveProject() {
-  const config = store.exportHouse();
-  writeLocalHouse(config);
-  if (!session.user) {
-    markHousePending();
-    accountMenu.value?.openLogin();
-    alert(t('header.savedLocal'));
-    return;
-  }
-  try {
-    await uploadHouse();
-    alert(t('header.saved'));
-  } catch {
-    markHousePending();
-    alert(t('header.saveFailed'));
-  }
-}
-
-onMounted(async () => {
+onMounted(() => {
   const local = readLocalHouse();
   if (local) store.importHouse(local);
-  if (!sessionToken()) return;
-  if (housePending()) {
-    try {
-      await uploadHouse();
-    } catch {
-      return;
-    }
-    return;
-  }
-  if (local) return;
-  try {
-    const remote = await loadRemoteHouse();
-    if (remote) {
-      store.importHouse(remote);
-      writeLocalHouse(remote);
-    }
-  } catch {
-    clearHousePending();
-  }
-});
-
-watch(() => session.user, async (user) => {
-  if (!user || !housePending()) return;
-  try {
-    await uploadHouse();
-  } catch {
-    // The browser copy remains until the next save.
-  }
 });
 
 async function toggleEdit() {

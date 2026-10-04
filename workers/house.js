@@ -1,12 +1,19 @@
-/** One saved house per signed-in user. */
+/** Named houses for a signed-in user. Each save keeps its own time and author. */
 
 const LIMIT = 100_000;
+const LIST_LIMIT = 24;
 
 function json(body, status, headers) {
   return new Response(JSON.stringify(body), {
     status,
     headers: { ...headers, 'Content-Type': 'application/json' }
   });
+}
+
+export function acceptHouseName(value) {
+  const name = String(value ?? '').trim().replace(/\s+/g, ' ');
+  if (!name || name.length > 80) return null;
+  return name;
 }
 
 export function acceptHouse(body) {
@@ -22,34 +29,77 @@ export function acceptHouse(body) {
   return text;
 }
 
+function summary(row) {
+  return {
+    id: row.id,
+    name: row.name,
+    createdAt: row.created_at,
+    createdBy: row.created_by
+  };
+}
+
+function houseId(pathname) {
+  if (!pathname.startsWith('/api/houses/')) return '';
+  const id = decodeURIComponent(pathname.slice('/api/houses/'.length));
+  return /^hus_[a-f0-9]{32}$/.test(id) ? id : '';
+}
+
 export async function handleHouse(request, env, headers, sessionUser) {
   if (!env.DB) return json({ error: 'storage' }, 503, headers);
   const user = await sessionUser(request, env);
   if (!user) return json({ error: 'sign_in' }, 401, headers);
 
-  if (request.method === 'GET') {
-    const row = await env.DB.prepare('SELECT config FROM houses WHERE user_id = ?').bind(user.id).first();
-    if (!row?.config) return json({ config: null }, 200, headers);
-    try {
-      return json({ config: JSON.parse(row.config) }, 200, headers);
-    } catch {
-      return json({ config: null }, 200, headers);
-    }
+  const url = new URL(request.url);
+  const id = houseId(url.pathname);
+  const listing = url.pathname === '/api/houses';
+
+  if (request.method === 'GET' && listing) {
+    const rows = await env.DB.prepare(
+      `SELECT id, name, created_at, created_by FROM saved_houses
+       WHERE user_id = ? ORDER BY created_at DESC LIMIT ?`
+    ).bind(user.id, LIST_LIMIT).all();
+    return json({ houses: (rows.results ?? []).map(summary) }, 200, headers);
   }
 
-  if (request.method !== 'PUT') return json({ error: 'house' }, 405, headers);
-  let body;
-  try {
-    body = await request.json();
-  } catch {
-    return json({ error: 'house' }, 400, headers);
+  if (request.method === 'GET' && id) {
+    const row = await env.DB.prepare(
+      `SELECT id, name, created_at, created_by, config FROM saved_houses
+       WHERE id = ? AND user_id = ?`
+    ).bind(id, user.id).first();
+    if (!row) return json({ error: 'house' }, 404, headers);
+    let config = null;
+    try {
+      config = JSON.parse(row.config);
+    } catch {
+      config = null;
+    }
+    return json({ house: { ...summary(row), config } }, 200, headers);
   }
-  const config = acceptHouse(body);
-  if (!config) return json({ error: 'house' }, 400, headers);
-  const now = new Date().toISOString();
-  await env.DB.prepare(
-    `INSERT INTO houses (user_id, config, updated_at) VALUES (?, ?, ?)
-     ON CONFLICT(user_id) DO UPDATE SET config = excluded.config, updated_at = excluded.updated_at`
-  ).bind(user.id, config, now).run();
-  return json({ ok: true }, 200, headers);
+
+  if (request.method === 'POST' && listing) {
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return json({ error: 'house' }, 400, headers);
+    }
+    const name = acceptHouseName(body?.name);
+    const config = acceptHouse(body);
+    if (!name || !config) return json({ error: 'house' }, 400, headers);
+    const now = new Date().toISOString();
+    const createdBy = String(user.name || user.login || '').slice(0, 80);
+    const savedId = `hus_${crypto.randomUUID().replaceAll('-', '')}`;
+    await env.DB.prepare(
+      `INSERT INTO saved_houses (id, user_id, name, config, created_at, created_by)
+       VALUES (?, ?, ?, ?, ?, ?)`
+    ).bind(savedId, user.id, name, config, now, createdBy).run();
+    return json({ house: { id: savedId, name, createdAt: now, createdBy } }, 200, headers);
+  }
+
+  if (request.method === 'DELETE' && id) {
+    await env.DB.prepare('DELETE FROM saved_houses WHERE id = ? AND user_id = ?').bind(id, user.id).run();
+    return json({ ok: true }, 200, headers);
+  }
+
+  return json({ error: 'house' }, 405, headers);
 }

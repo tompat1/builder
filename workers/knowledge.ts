@@ -86,7 +86,7 @@ export default {
       return handleRender(request, env, headers);
     }
 
-    if (url.pathname === '/api/house') {
+    if (url.pathname === '/api/houses' || url.pathname.startsWith('/api/houses/')) {
       return handleHouse(request, env, headers, sessionUser);
     }
 

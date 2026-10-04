@@ -23,7 +23,18 @@ const sv = {
     totalVat: 'Totalt inkl. moms',
     saved: 'Huset är sparat på ditt konto.',
     savedLocal: 'Huset är sparat i den här webbläsaren. Logga in om det ska följa med till kontot.',
-    saveFailed: 'Huset kunde inte sparas.'
+    saveFailed: 'Huset kunde inte sparas.',
+    houses: 'Sparade hus',
+    houseName: 'Namn på huset',
+    houseSave: 'Spara huset',
+    houseEmpty: 'Inga sparade hus ännu.',
+    houseBy: 'Skapad av {name}',
+    houseRemove: 'Ta bort',
+    houseNeedName: 'Skriv ett namn på huset.',
+    houseNeedAccount: 'Logga in för att spara huset på kontot.',
+    houseOpened: 'Huset är öppnat.',
+    houseSaved: 'Huset är sparat.',
+    houseClose: 'Stäng'
   },
   cms: {
     edit: 'Redigera',
@@ -273,7 +284,18 @@ const en = {
     totalVat: 'Total incl. VAT',
     saved: 'The house is saved on your account.',
     savedLocal: 'The house is saved in this browser. Sign in to keep it on your account.',
-    saveFailed: 'The house could not be saved.'
+    saveFailed: 'The house could not be saved.',
+    houses: 'Saved houses',
+    houseName: 'House name',
+    houseSave: 'Save this house',
+    houseEmpty: 'No saved houses yet.',
+    houseBy: 'Created by {name}',
+    houseRemove: 'Remove',
+    houseNeedName: 'Write a name for the house.',
+    houseNeedAccount: 'Sign in to save the house on the account.',
+    houseOpened: 'The house is open.',
+    houseSaved: 'The house is saved.',
+    houseClose: 'Close'
   },
   cms: {
     edit: 'Edit',
