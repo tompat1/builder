@@ -66,30 +66,6 @@
         @input="onText(item.note, $event)"
         @blur="store.commitNotes()"
       ></textarea>
-      <label class="link-label" :for="`note-link-${item.note.id}`">{{ t('notes.link') }}</label>
-      <select
-        :id="`note-link-${item.note.id}`"
-        class="link"
-        :value="linkToValue(item.note.link)"
-        @change="onLink(item.note, $event)"
-      >
-        <optgroup :label="t('notes.house')">
-          <option value="board">{{ t('notes.board') }}</option>
-          <option value="roof">{{ t('notes.roof') }}</option>
-          <option value="floor">{{ t('notes.floor') }}</option>
-          <option value="loft">{{ t('notes.loft') }}</option>
-          <option value="wall:front">{{ t('notes.wallFront') }}</option>
-          <option value="wall:back">{{ t('notes.wallBack') }}</option>
-          <option value="wall:left">{{ t('notes.wallLeft') }}</option>
-          <option value="wall:right">{{ t('notes.wallRight') }}</option>
-        </optgroup>
-        <optgroup v-for="wall in walls" :key="wall" :label="t(wallLabel[wall])">
-          <option v-for="slot in slotsFor(wall)" :key="slot.id" :value="`slot:${slot.id}`">
-            {{ t('notes.panel', { band: slot.isUpper ? t('notes.upper') : t('notes.lower'), n: slot.index + 1 }) }}
-          </option>
-        </optgroup>
-      </select>
-      <p v-if="item.linked && !item.tracking" class="hint">{{ t('notes.hidden') }}</p>
       <span class="fold" aria-hidden="true"></span>
     </article>
 
@@ -113,25 +89,12 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useConfigStore } from '../store/useConfigStore';
 import { useLabels } from '../i18n';
-import {
-  linkToValue,
-  noteTargetId,
-  NOTE_LIMIT,
-  type HouseNote,
-  type NoteWall
-} from '../notes/board';
+import { noteTargetId, NOTE_LIMIT, type HouseNote } from '../notes/board';
 
 const store = useConfigStore();
 const { t } = useLabels();
 const board = ref<HTMLElement | null>(null);
 const boardSize = ref({ w: 1, h: 1 });
-const walls: NoteWall[] = ['front', 'back', 'left', 'right'];
-const wallLabel: Record<NoteWall, string> = {
-  front: 'notes.wallFront',
-  back: 'notes.wallBack',
-  left: 'notes.wallLeft',
-  right: 'notes.wallRight'
-};
 
 let observer: ResizeObserver | null = null;
 let dragging: string | null = null;
@@ -150,12 +113,6 @@ function tilt(id: string) {
   let sum = 0;
   for (const char of id) sum += char.charCodeAt(0);
   return ((sum % 5) - 2) * 0.7;
-}
-
-function slotsFor(wall: NoteWall) {
-  return Object.values(store.wallSlots)
-    .filter((slot) => slot.wall === wall)
-    .sort((a, b) => a.index - b.index || Number(Boolean(a.isUpper)) - Number(Boolean(b.isUpper)));
 }
 
 function layout(note: HouseNote) {
@@ -198,13 +155,9 @@ function onText(note: HouseNote, event: Event) {
   store.setNoteText(note.id, (event.target as HTMLTextAreaElement).value);
 }
 
-function onLink(note: HouseNote, event: Event) {
-  store.setNoteLink(note.id, (event.target as HTMLSelectElement).value);
-}
-
 function onDown(event: PointerEvent, note: HouseNote) {
   const target = event.target as HTMLElement;
-  if (target.closest('textarea, select, .remove')) return;
+  if (target.closest('textarea, .remove')) return;
   dragging = note.id;
   store.activeNoteId = note.id;
   const noteEl = (event.currentTarget as HTMLElement).closest('article') ?? (event.currentTarget as HTMLElement);
@@ -353,7 +306,6 @@ onBeforeUnmount(() => observer?.disconnect());
 .remove:hover,
 .move:focus-visible,
 .remove:focus-visible,
-.link:focus-visible,
 .writing:focus-visible,
 .add-note:focus-visible {
   outline: 2px solid var(--ink);
@@ -386,41 +338,12 @@ onBeforeUnmount(() => observer?.disconnect());
   color: var(--ink);
 }
 
-.link-label {
-  display: block;
-  margin-top: 0.45rem;
-  color: var(--muted);
-  font-size: 0.65rem;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-}
-
-.link {
-  display: block;
-  width: 100%;
-  margin-top: 0.2rem;
-  min-height: 1.75rem;
-  border: 0;
-  border-radius: 0.25rem;
-  background: var(--field);
-  color: var(--ink);
-  font: inherit;
-  font-size: 0.72rem;
-  font-weight: 700;
-  padding: 0.2rem 0.35rem;
-}
-
-.hint,
 .empty,
 .limit {
   color: var(--muted);
   font-size: 0.68rem;
   font-weight: 700;
   line-height: 1.35;
-}
-
-.hint {
-  margin-top: 0.4rem;
 }
 
 .fold {
