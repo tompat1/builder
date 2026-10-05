@@ -13,6 +13,28 @@ export function resourceSlug(title) {
   return slug ? `extra-${slug}` : null;
 }
 
+const LINK_LIMIT = 2000;
+
+/** A source link was sent, and it is not an https address we can store. */
+export function linkRejected(value) {
+  const raw = String(value ?? '').trim();
+  if (!raw) return false;
+  return !acceptLink(raw);
+}
+
+function acceptLink(value) {
+  if (!value || value.length > LINK_LIMIT) return '';
+  let parsed;
+  try {
+    parsed = new URL(value);
+  } catch {
+    return '';
+  }
+  if (parsed.protocol !== 'https:' || !parsed.hostname || parsed.username || parsed.password) return '';
+  if (parsed.href.length > LINK_LIMIT) return '';
+  return parsed.href;
+}
+
 export function acceptResource(input) {
   const title = String(input?.title ?? '').trim();
   const body = String(input?.body ?? '').trim();
@@ -29,15 +51,10 @@ export function acceptResource(input) {
     keywords = title.split(/\s+/).map((item) => item.trim()).filter((item) => item.length > 2).slice(0, 8);
   }
   if (!keywords.length || keywords.some((item) => item.length > 40)) return null;
-  let linkHref = String(input?.linkHref ?? '').trim();
-  let linkLabel = String(input?.linkLabel ?? '').trim().slice(0, 120);
-  if (linkHref) {
-    if (!/^https:\/\/\S+$/i.test(linkHref) || linkHref.length > 400) return null;
-    if (!linkLabel) linkLabel = title;
-  } else {
-    linkHref = '';
-    linkLabel = '';
-  }
+  const supplied = String(input?.linkHref ?? '').trim();
+  const linkHref = supplied ? acceptLink(supplied) : '';
+  if (supplied && !linkHref) return null;
+  const linkLabel = linkHref ? (String(input?.linkLabel ?? '').trim().slice(0, 120) || title) : '';
   return { id, title, body, keywords, linkLabel, linkHref };
 }
 
@@ -133,8 +150,7 @@ async function createResource(request, env, headers, sessionUser) {
   }
   const row = acceptResource(body);
   if (!row) {
-    const href = String(body?.linkHref ?? '').trim();
-    const code = href && !/^https:\/\/\S+$/i.test(href) ? 'bad_link' : 'bad_resource';
+    const code = linkRejected(body?.linkHref) ? 'bad_link' : 'bad_resource';
     return new Response(JSON.stringify({ error: code }), {
       status: 400,
       headers: { ...headers, 'Content-Type': 'application/json' }

@@ -58,6 +58,20 @@ test('an admin page gets a safe id and can be found by its words', () => {
   assert.deepEqual(row.keywords, ['syllpapp', 'fukt']);
   assert.equal(acceptResource({ title: 'A', body: 'För kort.' }), null);
   assert.equal(acceptResource({ title: 'Syllpapp', body: 'Ett svar som räcker.', linkHref: 'http://example.com' }), null);
+  const search = `https://www.google.com/search?q=${'standardmatt+'.repeat(40)}`;
+  const found = acceptResource({
+    title: 'Finns det några standardmått som är mer ekonomiska',
+    body: 'Ja, det finns tydliga geometriska principer och standardmått som gör ett hus mer ekonomiskt att bygga.',
+    keywords: '',
+    linkHref: search
+  });
+  assert.equal(found.linkHref, search);
+  assert.ok(found.keywords.includes('standardmått'));
+  assert.equal(acceptResource({
+    title: 'Syllpapp',
+    body: 'Ett svar som räcker.',
+    linkHref: `https://example.com/${'a'.repeat(2000)}`
+  }), null);
   const ranked = rankEntries([
     { id: 'permit', keywords: ['bygglov'] },
     { id: row.id, keywords: row.keywords }
