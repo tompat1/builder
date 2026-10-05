@@ -108,16 +108,16 @@
       <input
         id="import-pdf"
         type="file"
-        accept="application/pdf,.pdf"
+        accept="application/pdf,.pdf,image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp"
         class="block w-full text-[11px] text-slate-700 file:mr-2 file:rounded-lg file:border-0 file:bg-slate-100 file:px-2.5 file:py-1.5 file:text-[11px] file:font-semibold file:text-slate-800"
-        @change="onPdf"
+        @change="onDrawing"
       />
       <button
         id="import-drawing"
         type="button"
         class="bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white text-xs font-semibold px-3 py-2 rounded-xl"
-        :disabled="drawingBusy || !pdfFile"
-        @click="readPdf"
+        :disabled="drawingBusy || !drawingFile"
+        @click="readDrawingFile"
       >
         {{ drawingBusy ? t('houseImport.reading') : t('houseImport.read') }}
       </button>
@@ -149,7 +149,7 @@ import { DOORS_OPTIONS, ROOF_OPTIONS, useConfigStore, WINDOWS_OPTIONS } from '..
 import { useLabels } from '../i18n';
 import { askKnowledge } from '../knowledge/hub';
 import { extractPdfImages, extractPdfText, hasMeasures, readDrawing, type DrawingReading } from '../import/drawing.js';
-import { readImageText } from '../import/drawingOcr';
+import { readDrawingImage, readImageText } from '../import/drawingOcr';
 import { fitImageSize } from '../import/imageSize.js';
 import { requestHousePicture } from '../services/houseRender';
 
@@ -170,7 +170,7 @@ const revision = ref('');
 const pictureBusy = ref(false);
 const pictureError = ref(false);
 
-const pdfFile = ref<File | null>(null);
+const drawingFile = ref<File | null>(null);
 const drawingBusy = ref(false);
 const drawingStatus = ref('');
 
@@ -190,10 +190,17 @@ function onPhotos(event: Event) {
   thumbs.value = photos.value.map((file) => URL.createObjectURL(file));
 }
 
-function onPdf(event: Event) {
+function drawingKind(file: File) {
+  const name = file.name.toLowerCase();
+  if (file.type === 'application/pdf' || name.endsWith('.pdf')) return 'pdf';
+  if (/^image\/(png|jpeg|webp)$/.test(file.type) || /\.(png|jpe?g|webp)$/.test(name)) return 'image';
+  return '';
+}
+
+function onDrawing(event: Event) {
   const input = event.target as HTMLInputElement;
   const file = input.files?.[0] ?? null;
-  pdfFile.value = file && (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) ? file : null;
+  drawingFile.value = file && drawingKind(file) ? file : null;
   drawingStatus.value = '';
 }
 
@@ -315,8 +322,8 @@ function applyReading(reading: DrawingReading) {
   }
 }
 
-async function readPdf() {
-  const file = pdfFile.value;
+async function readDrawingFile() {
+  const file = drawingFile.value;
   if (!file || drawingBusy.value) return;
   drawingBusy.value = true;
   drawingStatus.value = '';
@@ -325,15 +332,21 @@ async function readPdf() {
       drawingStatus.value = t('houseImport.bigPdf');
       return;
     }
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    let text = await extractPdfText(bytes);
-    let reading = readDrawing(text);
-    if (!hasMeasures(reading)) {
-      const images = extractPdfImages(bytes);
-      if (images.length) {
-        drawingStatus.value = t('houseImport.readingPicture');
-        text = `${text}\n${await readImageText(images)}`;
-        reading = readDrawing(text);
+    let reading: DrawingReading = readDrawing('');
+    if (drawingKind(file) === 'image') {
+      drawingStatus.value = t('houseImport.readingPicture');
+      reading = readDrawing(await readDrawingImage(file));
+    } else {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      let text = await extractPdfText(bytes);
+      reading = readDrawing(text);
+      if (!hasMeasures(reading)) {
+        const images = extractPdfImages(bytes);
+        if (images.length) {
+          drawingStatus.value = t('houseImport.readingPicture');
+          text = `${text}\n${await readImageText(images)}`;
+          reading = readDrawing(text);
+        }
       }
     }
     if (!hasMeasures(reading)) {

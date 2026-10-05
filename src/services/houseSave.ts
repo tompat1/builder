@@ -10,6 +10,7 @@ export interface SavedHouse {
   name: string;
   createdAt: string;
   createdBy: string;
+  thumb?: string;
   config?: unknown;
 }
 

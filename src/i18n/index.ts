@@ -275,14 +275,14 @@ const sv = {
     steered: 'Kunskapsbasen:',
     failed: 'Bilden kunde inte skapas.',
     drawing: 'Ritning till 3D',
-    drawingBody: 'En PDF med mått sätter bredd, djup, höjd, tak och öppningar på det rektangulära huset.',
-    pdf: 'PDF-ritning',
+    drawingBody: 'En PDF eller en bild med mått sätter bredd, djup, höjd, tak och öppningar på det rektangulära huset.',
+    pdf: 'PDF eller bild',
     read: 'Läs ritning',
     reading: 'Läser ritningen…',
     readingPicture: 'Läser måtten i ritningens bilder…',
     applied: 'Huset följer de mått som gick att läsa.',
     empty: 'Ritningen har inga läsbara mått, så huset är oförändrat.',
-    bigPdf: 'PDF-filen är för stor.'
+    bigPdf: 'Filen är för stor.'
   },
   price: {
     included: 'Ingår',
@@ -560,14 +560,14 @@ const en = {
     steered: 'Knowledge base:',
     failed: 'The picture could not be made.',
     drawing: 'Drawing to 3D',
-    drawingBody: 'A PDF with measurements sets the width, depth, height, roof, and openings on the rectangular house.',
-    pdf: 'PDF drawing',
+    drawingBody: 'A PDF or a picture with measurements sets the width, depth, height, roof, and openings on the rectangular house.',
+    pdf: 'PDF or picture',
     read: 'Read drawing',
     reading: 'Reading the drawing…',
     readingPicture: 'Reading the measurements in the drawing pictures…',
     applied: 'The house follows the measurements that could be read.',
     empty: 'The drawing has no readable measurements, so the house is unchanged.',
-    bigPdf: 'The PDF is too large.'
+    bigPdf: 'The file is too large.'
   },
   price: {
     included: 'Included',

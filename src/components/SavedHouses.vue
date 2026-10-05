@@ -39,12 +39,22 @@
         <li v-for="house in houses" :key="house.id" class="flex items-start gap-2">
           <button
             type="button"
-            class="min-w-0 flex-1 rounded-lg px-1 py-1 text-left hover:bg-slate-50"
+            class="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-1 py-1 text-left hover:bg-slate-50"
             @click="openHouse(house.id)"
           >
-            <span class="block truncate font-semibold text-slate-900">{{ house.name }}</span>
-            <span class="block text-[10px] text-slate-500">
-              {{ stamp(house.createdAt) }} · {{ t('header.houseBy', { name: house.createdBy }) }}
+            <span class="h-12 w-16 shrink-0 overflow-hidden rounded-md bg-slate-100">
+              <img
+                v-if="house.thumb"
+                :src="house.thumb"
+                alt=""
+                class="h-full w-full object-cover"
+              />
+            </span>
+            <span class="min-w-0">
+              <span class="block truncate font-semibold text-slate-900">{{ house.name }}</span>
+              <span class="block text-[10px] text-slate-500">
+                {{ stamp(house.createdAt) }} · {{ t('header.houseBy', { name: house.createdBy }) }}
+              </span>
             </span>
           </button>
           <button
@@ -79,6 +89,7 @@ import {
   writeLocalHouse,
   type SavedHouse
 } from '../services/houseSave';
+import { captureHouseThumb, forgetHouseThumb, houseThumb, rememberHouseThumb } from '../services/houseThumb';
 
 const props = defineProps<{ open: boolean }>();
 const emit = defineEmits<{
@@ -120,7 +131,10 @@ async function refresh() {
     houses.value = [];
     return;
   }
-  houses.value = await listHouses();
+  houses.value = (await listHouses()).map((house) => ({
+    ...house,
+    thumb: house.thumb || houseThumb(house.id)
+  }));
 }
 
 async function save() {
@@ -132,9 +146,11 @@ async function save() {
     return;
   }
   const config = store.exportHouse();
+  const thumb = captureHouseThumb();
   writeLocalHouse(config);
   if (!session.user) {
     markHousePending(title, config);
+    if (thumb) rememberHouseThumb('pending', thumb);
     error.value = t('header.houseNeedAccount');
     emit('sign-in');
     return;
@@ -142,9 +158,10 @@ async function save() {
   busy.value = true;
   try {
     const saved = await saveNamedHouse(title, config);
+    if (thumb) rememberHouseThumb(saved.id, thumb);
     name.value = '';
     notice.value = t('header.houseSaved');
-    houses.value = [saved, ...houses.value.filter((house) => house.id !== saved.id)].slice(0, 24);
+    houses.value = [{ ...saved, thumb }, ...houses.value.filter((house) => house.id !== saved.id)].slice(0, 24);
   } catch {
     error.value = t('header.saveFailed');
   } finally {
@@ -172,6 +189,7 @@ async function remove(id: string) {
   error.value = '';
   try {
     await removeNamedHouse(id);
+    forgetHouseThumb(id);
     houses.value = houses.value.filter((house) => house.id !== id);
   } catch {
     error.value = t('header.saveFailed');
@@ -182,7 +200,12 @@ async function uploadPending() {
   const pending = readPendingHouse();
   if (!pending?.name || !session.user) return;
   try {
-    await saveNamedHouse(pending.name, pending.config);
+    const saved = await saveNamedHouse(pending.name, pending.config);
+    const thumb = houseThumb('pending');
+    if (thumb) {
+      rememberHouseThumb(saved.id, thumb);
+      forgetHouseThumb('pending');
+    }
     clearHousePending();
     name.value = '';
     error.value = '';

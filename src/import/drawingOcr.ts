@@ -28,15 +28,30 @@ function bands(bitmap: ImageBitmap) {
   return slices;
 }
 
-export async function readImageText(images: Uint8Array[]) {
-  if (!images.length || typeof createImageBitmap !== 'function') return '';
+const OCR_SIDE = 2400;
+
+async function limitBitmap(bitmap: ImageBitmap) {
+  const long = Math.max(bitmap.width, bitmap.height);
+  if (long <= OCR_SIDE) return bitmap;
+  const scale = OCR_SIDE / long;
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+  canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+  const context = canvas.getContext('2d');
+  if (!context) return bitmap;
+  context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  return createImageBitmap(canvas);
+}
+
+async function textFromBitmaps(bitmaps: ImageBitmap[]) {
+  if (!bitmaps.length || typeof createImageBitmap !== 'function') return '';
   const { createWorker, PSM } = await import('tesseract.js');
   const worker = await createWorker('eng');
   try {
     await worker.setParameters({ tessedit_pageseg_mode: PSM.SPARSE_TEXT });
     const parts: string[] = [];
-    for (const bytes of images) {
-      const bitmap = await createImageBitmap(new Blob([bytes as BlobPart], { type: 'image/jpeg' }));
+    for (const bitmap of bitmaps) {
       const slices = bands(bitmap);
       bitmap.close();
       for (const canvas of slices) {
@@ -49,4 +64,20 @@ export async function readImageText(images: Uint8Array[]) {
   } finally {
     await worker.terminate();
   }
+}
+
+export async function readImageText(images: Uint8Array[]) {
+  if (!images.length || typeof createImageBitmap !== 'function') return '';
+  const bitmaps: ImageBitmap[] = [];
+  for (const bytes of images) {
+    bitmaps.push(await createImageBitmap(new Blob([bytes as BlobPart], { type: 'image/jpeg' })));
+  }
+  return textFromBitmaps(bitmaps);
+}
+
+/** A photo or scan of a drawing, rather than a PDF. */
+export async function readDrawingImage(file: Blob) {
+  if (typeof createImageBitmap !== 'function') return '';
+  const bitmap = await limitBitmap(await createImageBitmap(file));
+  return textFromBitmaps([bitmap]);
 }
