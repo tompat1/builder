@@ -3,6 +3,21 @@
 const MODEL = '@cf/black-forest-labs/flux-2-klein-4b';
 const MODEL_IMAGES = 4;
 const DATA_URL = /^data:image\/(png|jpeg|jpg|webp);base64,([A-Za-z0-9+/=\s]+)$/;
+const FIGURE = /\b(?:women|woman|womans|girls?|boys?|lad(?:y|ies)|people|persons?|humans?|couples?|kids?|children|child|bab(?:y|ies)|guys?|bikinis?|swimsuits?|swimwear|lingerie|nudes?|naked|topless|kiss(?:ing|es|ed)?|portraits?|selfies?|sexy|erotic|kvinnor|kvinna|tjejer|tjej|flickor|flicka|pojkar|pojke|killar|kille|personer|människor|människa|barn|bebisar|bebis|männen|mannen|karlar|karl|män|bikini|kyssande|kyssas|kyssar|kysste|kyss|nakna|naken|badkläder|underkläder)\b/i;
+const HOUSE_ONLY = 'Show only the house. No people, faces, bodies, or animals.';
+
+/** Keep roof, colour, and material wording. Drop any clause that asks for a person. */
+export function houseWording(prompt) {
+  const idea = String(prompt ?? '').replace(/\s+/g, ' ').trim().slice(0, 500);
+  if (!idea || !FIGURE.test(idea)) return idea;
+  const kept = idea
+    .split(/\s*(?:,|;|\.|\band\b|\boch\b|\bwith\b|\bmed\b|\bplus\b)\s*/i)
+    .map((part) => part.trim())
+    .filter((part) => part && !FIGURE.test(part));
+  const wording = kept.join(', ').replace(/\s+/g, ' ').trim();
+  if (!wording || FIGURE.test(wording)) return '';
+  return wording;
+}
 
 function json(body, status, headers) {
   return new Response(JSON.stringify(body), {
@@ -12,30 +27,35 @@ function json(body, status, headers) {
 }
 
 export function renderPrompt(prompt, facts, imageCount) {
-  const idea = String(prompt ?? '').replace(/\s+/g, ' ').trim().slice(0, 500);
-  if (!idea) return '';
+  const raw = String(prompt ?? '').replace(/\s+/g, ' ').trim();
+  if (!raw) return '';
+  const idea = houseWording(raw);
   const note = String(facts ?? '').replace(/\s+/g, ' ').trim().slice(0, 360);
   const parts = [
     'Photoreal exterior of a small Swedish timber house, standing on a lawn, daylight.'
   ];
   if (note) parts.push(`Build facts: ${note}`);
-  parts.push(idea);
-  if (imageCount > 0) parts.push('Follow the uploaded photos and sketches.');
-  parts.push('If the sentence names a roof shape or a material, follow the sentence.');
+  if (idea) parts.push(idea);
+  if (imageCount > 0) parts.push('Follow the uploaded photos and sketches for the house only.');
+  parts.push('If the sentence names a roof shape, a colour, or a material, follow the sentence.');
+  parts.push(HOUSE_ONLY);
   return parts.join(' ');
 }
 
 /** A follow-up instruction edits the previous picture. Image 0 is that picture. */
 export function revisePrompt(change, original) {
-  const fix = String(change ?? '').replace(/\s+/g, ' ').trim().slice(0, 500);
+  const raw = String(change ?? '').replace(/\s+/g, ' ').trim();
+  if (!raw) return '';
+  const fix = houseWording(raw) || (FIGURE.test(raw) ? 'Show only the house.' : '');
   if (!fix) return '';
-  const idea = String(original ?? '').replace(/\s+/g, ' ').trim().slice(0, 400);
+  const idea = houseWording(original).slice(0, 400);
   return [
     'Revise image 0, which is the previous picture of the house.',
-    'Keep the house, the setting, and every part this change does not mention.',
+    'Keep the house and every architectural part this change does not mention.',
     'Where this change disagrees with image 0, follow the change and redraw that part.',
     `Apply this change: ${fix}.`,
-    idea ? `The first request was: ${idea}.` : ''
+    idea ? `The first request was: ${idea}.` : '',
+    HOUSE_ONLY
   ].filter(Boolean).join(' ');
 }
 

@@ -256,7 +256,7 @@ const sv = {
   houseImport: {
     title: 'AI-husimport',
     picture: 'Bild från idé',
-    pictureBody: 'Ladda upp foton eller en skiss och skriv en mening. Du får en bild tillbaka. Kunskapsbasen kan styra formuleringen mot vägg, tak och skiva. 3D-huset ändras inte.',
+    pictureBody: 'Ladda upp foton eller en skiss och skriv en mening. Du får en bild av huset tillbaka. Personer tas inte med. Kunskapsbasen kan styra formuleringen mot vägg, tak och skiva. 3D-huset ändras inte.',
     photos: 'Foton eller skiss',
     five: 'Högst fem bilder.',
     modelFour: 'Modellen tar högst fyra bilder. En rättning räknar den förra bilden som en av dem.',
@@ -541,7 +541,7 @@ const en = {
   houseImport: {
     title: 'AI house import',
     picture: 'Picture from an idea',
-    pictureBody: 'Upload photos or a sketch and write a sentence. You get a picture back. The knowledge base can steer the wording toward the wall, roof, and board. The 3D house stays as it is.',
+    pictureBody: 'Upload photos or a sketch and write a sentence. You get a picture of the house back. People are left out. The knowledge base can steer the wording toward the wall, roof, and board. The 3D house stays as it is.',
     photos: 'Photos or a sketch',
     five: 'Up to five pictures.',
     modelFour: 'The model takes four pictures at most. A revision counts the previous picture as one of them.',

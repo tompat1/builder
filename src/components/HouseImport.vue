@@ -53,7 +53,15 @@
       </div>
       <p v-if="pictureError" class="text-[11px] font-semibold text-red-700" role="status">{{ t('houseImport.failed') }}</p>
       <figure v-if="picture" class="space-y-2">
-        <img id="import-picture-result" :src="picture" :alt="t('houseImport.pictureNote')" class="w-full rounded-lg border border-slate-200" />
+        <button
+          id="import-picture-result"
+          type="button"
+          class="block w-full rounded-lg overflow-hidden border border-slate-200 cursor-zoom-in focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+          :aria-label="t('houseImport.enlarge')"
+          @click="preview = picture"
+        >
+          <img :src="picture" :alt="t('houseImport.pictureNote')" class="w-full" />
+        </button>
         <div class="flex items-center gap-2">
           <button
             id="import-picture-download"
@@ -129,7 +137,7 @@
         >
           {{ t('houseImport.closePreview') }}
         </button>
-        <img :src="preview" alt="" class="max-h-[85vh] max-w-[90vw] rounded-xl" />
+        <img :src="preview" :alt="preview === picture ? t('houseImport.pictureNote') : ''" class="max-h-[85vh] max-w-[90vw] rounded-xl" />
       </div>
     </Teleport>
   </section>

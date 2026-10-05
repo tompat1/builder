@@ -146,13 +146,32 @@ test('the picture prompt keeps the idea and a short knowledge note', () => {
   assert.equal(renderPrompt('   ', 'fakta', 0), '');
 });
 
+test('a picture prompt keeps the house and drops people', () => {
+  const prompt = renderPrompt(
+    'a red house with two women in bikinis kissing on a beach',
+    '',
+    0
+  );
+  assert.match(prompt, /a red house/);
+  assert.match(prompt, /Show only the house/);
+  assert.doesNotMatch(prompt, /women|bikini|kiss|beach/i);
+  const onlyPeople = renderPrompt('two women kissing on a beach', 'Falu red cladding.', 0);
+  assert.match(onlyPeople, /Swedish timber house/);
+  assert.match(onlyPeople, /Falu red cladding/);
+  assert.doesNotMatch(onlyPeople, /women|kiss|beach/i);
+});
+
 test('a correction revises the previous picture', () => {
   const prompt = revisePrompt('  Taket ska vara platt  ', 'Ett hus med papptak');
   assert.match(prompt, /Taket ska vara platt/);
   assert.match(prompt, /previous picture/);
   assert.match(prompt, /follow the change/);
   assert.match(prompt, /Ett hus med papptak/);
+  assert.match(prompt, /Show only the house/);
   assert.equal(revisePrompt('   ', 'hus'), '');
+  const cleaned = revisePrompt('add two women kissing', 'a red house with a woman on the steps');
+  assert.match(cleaned, /Show only the house/);
+  assert.doesNotMatch(cleaned, /women|woman|kiss/i);
 });
 
 test('the picture model receives at most four reference images', () => {
