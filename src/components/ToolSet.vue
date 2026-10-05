@@ -89,28 +89,72 @@
       </button>
     </div>
 
-    <!-- Bottom Button Row: Measure / Undo / Redo / Notes -->
+    <!-- Bottom Button Row: Ruler toolbox / Undo / Redo / Notes -->
     <div class="bg-white/95 backdrop-blur-md rounded-2xl shadow-md border border-slate-200/80 p-1.5 flex items-center gap-1">
-      <button
-        type="button"
-        id="btn-tool-measure"
-        @click="store.toggleDimensions()"
-        :class="[
-          'group relative w-12 h-12 rounded-xl flex items-center justify-center transition-colors',
-          store.showDimensions
-            ? 'bg-slate-900 text-white shadow-2xs'
-            : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
-        ]"
-        :aria-label="t('tools.measure')"
-      >
-        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.41 2.41 0 0 1 0-3.4l2.6-2.6a2.41 2.41 0 0 1 3.4 0Z" />
-          <path d="m14.5 12.5 2-2" />
-          <path d="m11.5 9.5 2-2" />
-          <path d="m8.5 6.5 2-2" />
-        </svg>
-        <span class="tool-tip"><Cms k="tools.measure" /></span>
-      </button>
+      <div ref="rulerBox" class="relative">
+        <div
+          id="ruler-tools"
+          class="absolute bottom-[calc(100%+8px)] z-30 origin-bottom-left transition-all duration-200 ease-out"
+          :class="rulerOpen ? 'left-16 opacity-100' : 'pointer-events-none left-0 opacity-0'"
+          :inert="!rulerOpen"
+          :aria-hidden="!rulerOpen"
+        >
+          <div class="bg-white/95 backdrop-blur-md rounded-2xl shadow-md border border-slate-200/80 p-1.5 flex items-center gap-1">
+            <button
+              type="button"
+              id="btn-tool-tape"
+              @click="store.toggleMeasure()"
+              :class="toolButton(store.measuring)"
+              :aria-label="t('tools.tape')"
+              :aria-pressed="store.measuring"
+            >
+              <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4.5 9.5h8a3.5 3.5 0 0 1 0 7H7.5" />
+                <circle cx="8" cy="13" r="1.2" />
+                <path d="M12.5 13H20" />
+                <path d="M15.5 11v4" />
+                <path d="M18 11.5v3" />
+              </svg>
+              <span class="tool-tip"><Cms k="tools.tape" /></span>
+            </button>
+            <div class="w-px h-7 bg-slate-200/60"></div>
+            <button
+              type="button"
+              id="btn-tool-dimensions"
+              @click="store.toggleDimensions()"
+              :class="toolButton(store.showDimensions)"
+              :aria-label="t('tools.dimensions')"
+              :aria-pressed="store.showDimensions"
+            >
+              <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 12h16" />
+                <path d="M7 8.5 4 12l3 3.5" />
+                <path d="M17 8.5 20 12l-3 3.5" />
+                <path d="M4 9v6" />
+                <path d="M20 9v6" />
+              </svg>
+              <span class="tool-tip"><Cms k="tools.dimensions" /></span>
+            </button>
+          </div>
+        </div>
+        <button
+          type="button"
+          id="btn-tool-measure"
+          @click="rulerOpen = !rulerOpen"
+          :class="toolButton(rulerOpen || store.measuring)"
+          :aria-label="t('tools.ruler')"
+          :aria-expanded="rulerOpen"
+          aria-controls="ruler-tools"
+        >
+          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21.3 15.3a2.4 2.4 0 0 1 0 3.4l-2.6 2.6a2.4 2.4 0 0 1-3.4 0L2.7 8.7a2.41 2.41 0 0 1 0-3.4l2.6-2.6a2.41 2.41 0 0 1 3.4 0Z" />
+            <path d="m14.5 12.5 2-2" />
+            <path d="m11.5 9.5 2-2" />
+            <path d="m8.5 6.5 2-2" />
+          </svg>
+          <span class="tool-tip"><Cms k="tools.ruler" /></span>
+        </button>
+      </div>
 
       <div class="w-px h-7 bg-slate-200/60 my-auto"></div>
 
@@ -186,6 +230,28 @@ import Cms from './Cms.vue';
 
 const store = useConfigStore();
 const { t } = useLabels();
+const rulerOpen = ref(false);
+const rulerBox = ref<HTMLElement | null>(null);
+
+function toolButton(active: boolean) {
+  return [
+    'group relative w-12 h-12 rounded-xl flex items-center justify-center transition-colors',
+    active
+      ? 'bg-slate-900 text-white shadow-2xs'
+      : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
+  ];
+}
+
+function onDocumentPointerDown(event: PointerEvent) {
+  if (!rulerOpen.value) return;
+  const target = event.target;
+  if (target instanceof Node && rulerBox.value?.contains(target)) return;
+  rulerOpen.value = false;
+}
+
+function onKey(event: KeyboardEvent) {
+  if (event.key === 'Escape') rulerOpen.value = false;
+}
 
 function syncFullscreen() {
   const isFull = document.fullscreenElement != null;
@@ -210,10 +276,14 @@ async function toggleFullscreen() {
 onMounted(() => {
   syncFullscreen();
   document.addEventListener('fullscreenchange', syncFullscreen);
+  document.addEventListener('pointerdown', onDocumentPointerDown);
+  document.addEventListener('keydown', onKey);
 });
 
 onBeforeUnmount(() => {
   document.removeEventListener('fullscreenchange', syncFullscreen);
+  document.removeEventListener('pointerdown', onDocumentPointerDown);
+  document.removeEventListener('keydown', onKey);
 });
 
 defineEmits<{

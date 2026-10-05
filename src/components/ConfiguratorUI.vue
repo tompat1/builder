@@ -10,6 +10,7 @@
     >
       <!-- 3D Dimension Overlay -->
       <DimensionOverlay />
+      <MeasureRuler />
 
       <!-- In-Scene Wall Panel Interaction Overlay (disabled in fullscreen mode) -->
       <PanelSlotOverlay v-if="!store.isFullscreen" />
@@ -110,6 +111,7 @@ import HouseImport from './HouseImport.vue';
 import ExportModal from './ExportModal.vue';
 import ToolSet from './ToolSet.vue';
 import DimensionOverlay from './DimensionOverlay.vue';
+import MeasureRuler from './MeasureRuler.vue';
 import PanelSlotOverlay from './PanelSlotOverlay.vue';
 import HouseNotes from './HouseNotes.vue';
 import Cms from './Cms.vue';

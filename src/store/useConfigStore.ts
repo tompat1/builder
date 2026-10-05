@@ -5,8 +5,10 @@ import {
   freshNote,
   linkFromValue,
   NOTE_LIMIT,
+  parseNotePin,
   type HouseNote
 } from '../notes/board';
+import { nextMeasure, type MeasurePoint } from '../measure/length';
 
 export type ViewMode = 'utsida' | 'insida';
 export type CategoryKey = 'size' | 'roof' | 'loft' | 'doors' | 'windows' | 'gates' | 'extras';
@@ -436,6 +438,8 @@ export const useConfigStore = defineStore('config', () => {
   const showNotes = ref(false);
   const activeNoteId = ref<string | null>(null);
   const noteAnchors = ref<Record<string, { x: number; y: number; visible: boolean }>>({});
+  const noteCamera = ref('');
+  const notePlanes = ref<Record<string, { transform: string; visible: boolean }>>({});
 
   // History stacks for Undo / Redo
   const history = ref<string[]>([]);
@@ -850,8 +854,13 @@ export const useConfigStore = defineStore('config', () => {
     replaceNote(id, place);
   }
 
-  function setNotePin(id: string, pin: { x: number; y: number; z: number } | null) {
-    replaceNote(id, { pin });
+  function setNotePin(id: string, pin: { x: number; y: number; z: number; nx?: number; ny?: number; nz?: number } | null) {
+    replaceNote(id, { pin: pin ? parseNotePin(pin) : null });
+  }
+
+  function setNotePlanes(camera: string, planes: Record<string, { transform: string; visible: boolean }>) {
+    noteCamera.value = camera;
+    notePlanes.value = planes;
   }
 
   function commitNotes() {
@@ -899,6 +908,64 @@ export const useConfigStore = defineStore('config', () => {
 
   function toggleDimensions() {
     showDimensions.value = !showDimensions.value;
+  }
+
+  const measuring = ref(false);
+  const measureStart = ref<MeasurePoint | null>(null);
+  const measureEnd = ref<MeasurePoint | null>(null);
+  const measureCursor = ref<MeasurePoint | null>(null);
+  const measureScreen = reactive({
+    start: { x: 0, y: 0, visible: false },
+    end: { x: 0, y: 0, visible: false }
+  });
+
+  function clearMeasure() {
+    measureStart.value = null;
+    measureEnd.value = null;
+    measureCursor.value = null;
+    measureScreen.start.visible = false;
+    measureScreen.end.visible = false;
+  }
+
+  function toggleMeasure() {
+    measuring.value = !measuring.value;
+    clearMeasure();
+  }
+
+  function placeMeasurePoint(point: MeasurePoint) {
+    if (!measuring.value) return;
+    const next = nextMeasure(measureStart.value, measureEnd.value, point);
+    measureStart.value = next.start;
+    measureEnd.value = next.end;
+    measureCursor.value = next.end ? null : point;
+  }
+
+  function setMeasureCursor(point: MeasurePoint | null) {
+    if (!measuring.value || measureEnd.value) return;
+    measureCursor.value = point;
+  }
+
+  function setMeasureScreen(next: {
+    start: { x: number; y: number; visible: boolean };
+    end: { x: number; y: number; visible: boolean };
+  } | null) {
+    const start = next?.start ?? { x: 0, y: 0, visible: false };
+    const end = next?.end ?? { x: 0, y: 0, visible: false };
+    for (const [current, value] of [
+      [measureScreen.start, start],
+      [measureScreen.end, end]
+    ] as const) {
+      if (
+        Math.abs(current.x - value.x) < 0.5 &&
+        Math.abs(current.y - value.y) < 0.5 &&
+        current.visible === value.visible
+      ) {
+        continue;
+      }
+      current.x = value.x;
+      current.y = value.y;
+      current.visible = value.visible;
+    }
   }
 
   const selectedSlotCanAcceptDoor = computed(() => {
@@ -1018,6 +1085,15 @@ export const useConfigStore = defineStore('config', () => {
     assignSlotItem,
     removeSlotItem,
     toggleDimensions,
+    measuring,
+    measureStart,
+    measureEnd,
+    measureCursor,
+    measureScreen,
+    toggleMeasure,
+    placeMeasurePoint,
+    setMeasureCursor,
+    setMeasureScreen,
     isFullscreen,
     setIsFullscreen: (val: boolean) => { isFullscreen.value = val; },
     canUndo,
@@ -1030,6 +1106,9 @@ export const useConfigStore = defineStore('config', () => {
     showNotes,
     activeNoteId,
     noteAnchors,
+    noteCamera,
+    notePlanes,
+    setNotePlanes,
     addNote,
     removeNote,
     setNoteText,

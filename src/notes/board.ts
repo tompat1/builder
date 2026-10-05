@@ -15,11 +15,14 @@ export type NoteLink =
   | { kind: 'wall'; wall: NoteWall }
   | { kind: 'slot'; slotId: string };
 
-/** A point on the house, in metres. The note stays on this spot as the view moves. */
+/** A point on the house, in metres, and the facing of the panel it sticks to. */
 export interface NotePin {
   x: number;
   y: number;
   z: number;
+  nx?: number;
+  ny?: number;
+  nz?: number;
 }
 
 export interface HouseNote {
@@ -84,11 +87,20 @@ export function parseNotePin(value: unknown): NotePin | null {
   const y = Number(pin.y);
   const z = Number(pin.z);
   if (![x, y, z].every((item) => Number.isFinite(item))) return null;
-  return {
+  const stuck: NotePin = {
     x: clamp(x, -20, 20, 0),
     y: clamp(y, -20, 20, 0),
     z: clamp(z, -20, 20, 0)
   };
+  const nx = Number((pin as { nx?: unknown }).nx);
+  const ny = Number((pin as { ny?: unknown }).ny);
+  const nz = Number((pin as { nz?: unknown }).nz);
+  if ([nx, ny, nz].every((item) => Number.isFinite(item)) && nx * nx + ny * ny + nz * nz > 0.25) {
+    stuck.nx = clamp(nx, -1, 1, 0);
+    stuck.ny = clamp(ny, -1, 1, 0);
+    stuck.nz = clamp(nz, -1, 1, 1);
+  }
+  return stuck;
 }
 
 export function acceptNotes(value: unknown): HouseNote[] {

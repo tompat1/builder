@@ -19,55 +19,100 @@
       </g>
     </svg>
 
-    <article
-      v-for="item in placed"
-      :id="`note-${item.note.id}`"
-      :key="item.note.id"
-      class="note pointer-events-auto absolute w-44"
-      :class="[`note-${item.note.color}`, { 'note-active': store.activeNoteId === item.note.id, 'note-away': !item.shown }]"
-      :style="{ left: `${item.left}px`, top: `${item.top}px`, '--tilt': `${tilt(item.note.id)}deg`, zIndex: store.activeNoteId === item.note.id ? 3 : 1 }"
-      @pointerdown="onDown($event, item.note)"
-      @pointermove="onMove($event, item.note)"
-      @pointerup="onUp(item.note)"
-      @pointercancel="onUp(item.note)"
-    >
-      <span class="tape" aria-hidden="true"></span>
-      <div class="note-bar">
-        <button
-          type="button"
-          class="move"
-          :aria-label="t('notes.move')"
-          @pointerdown.stop="onDown($event, item.note)"
+    <div id="note-loose" class="pointer-events-none absolute inset-0">
+      <article
+        v-for="item in loose"
+        :id="`note-${item.note.id}`"
+        :key="item.note.id"
+        class="note pointer-events-auto absolute w-44"
+        :class="[`note-${item.note.color}`, { 'note-active': store.activeNoteId === item.note.id }]"
+        :style="{ left: `${item.left}px`, top: `${item.top}px`, '--tilt': `${tilt(item.note.id)}deg`, zIndex: store.activeNoteId === item.note.id ? 3 : 1 }"
+        @pointerdown="onDown($event, item.note)"
+        @pointermove="onMove($event, item.note)"
+        @pointerup="onUp(item.note)"
+        @pointercancel="onUp(item.note)"
+      >
+        <span class="tape" aria-hidden="true"></span>
+        <div class="note-bar">
+          <button type="button" class="move" :aria-label="t('notes.move')" @pointerdown.stop="onDown($event, item.note)">
+            <svg viewBox="0 0 24 8" fill="currentColor" aria-hidden="true">
+              <circle cx="4" cy="2" r="1.1" />
+              <circle cx="10" cy="2" r="1.1" />
+              <circle cx="16" cy="2" r="1.1" />
+              <circle cx="4" cy="6" r="1.1" />
+              <circle cx="10" cy="6" r="1.1" />
+              <circle cx="16" cy="6" r="1.1" />
+            </svg>
+          </button>
+          <button type="button" class="remove" :aria-label="t('notes.remove')" @click="store.removeNote(item.note.id)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M6 6 L18 18 M18 6 L6 18" />
+            </svg>
+          </button>
+        </div>
+        <label class="sr-only" :for="`note-text-${item.note.id}`">{{ t('notes.write') }}</label>
+        <textarea
+          :id="`note-text-${item.note.id}`"
+          class="writing"
+          :value="item.note.text"
+          :placeholder="t('notes.placeholder')"
+          maxlength="240"
+          rows="4"
+          spellcheck="true"
+          @input="onText(item.note, $event)"
+          @blur="store.commitNotes()"
+        ></textarea>
+        <span class="fold" aria-hidden="true"></span>
+      </article>
+    </div>
+    <div class="note-view">
+      <div id="note-camera" class="note-camera" :style="{ transform: store.noteCamera }">
+        <article
+          v-for="item in stuck"
+          :id="`note-${item.note.id}`"
+          :key="item.note.id"
+          class="note note-stuck pointer-events-auto absolute w-44"
+          :class="[`note-${item.note.color}`, { 'note-active': store.activeNoteId === item.note.id, 'note-away': !item.shown }]"
+          :style="{ left: '0px', top: '0px', transform: item.transform, zIndex: store.activeNoteId === item.note.id ? 3 : 1 }"
+          @pointerdown="onDown($event, item.note)"
+          @pointermove="onMove($event, item.note)"
+          @pointerup="onUp(item.note)"
+          @pointercancel="onUp(item.note)"
         >
-          <svg viewBox="0 0 24 8" fill="currentColor" aria-hidden="true">
-            <circle cx="4" cy="2" r="1.1" />
-            <circle cx="10" cy="2" r="1.1" />
-            <circle cx="16" cy="2" r="1.1" />
-            <circle cx="4" cy="6" r="1.1" />
-            <circle cx="10" cy="6" r="1.1" />
-            <circle cx="16" cy="6" r="1.1" />
-          </svg>
-        </button>
-        <button type="button" class="remove" :aria-label="t('notes.remove')" @click="store.removeNote(item.note.id)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <path d="M6 6 L18 18 M18 6 L6 18" />
-          </svg>
-        </button>
+          <span class="tape" aria-hidden="true"></span>
+          <div class="note-bar">
+            <button type="button" class="move" :aria-label="t('notes.move')" @pointerdown.stop="onDown($event, item.note)">
+              <svg viewBox="0 0 24 8" fill="currentColor" aria-hidden="true">
+                <circle cx="4" cy="2" r="1.1" />
+                <circle cx="10" cy="2" r="1.1" />
+                <circle cx="16" cy="2" r="1.1" />
+                <circle cx="4" cy="6" r="1.1" />
+                <circle cx="10" cy="6" r="1.1" />
+                <circle cx="16" cy="6" r="1.1" />
+              </svg>
+            </button>
+            <button type="button" class="remove" :aria-label="t('notes.remove')" @click="store.removeNote(item.note.id)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M6 6 L18 18 M18 6 L6 18" />
+              </svg>
+            </button>
+          </div>
+          <label class="sr-only" :for="`note-text-${item.note.id}`">{{ t('notes.write') }}</label>
+          <textarea
+            :id="`note-text-${item.note.id}`"
+            class="writing"
+            :value="item.note.text"
+            :placeholder="t('notes.placeholder')"
+            maxlength="240"
+            rows="4"
+            spellcheck="true"
+            @input="onText(item.note, $event)"
+            @blur="store.commitNotes()"
+          ></textarea>
+          <span class="fold" aria-hidden="true"></span>
+        </article>
       </div>
-      <label class="sr-only" :for="`note-text-${item.note.id}`">{{ t('notes.write') }}</label>
-      <textarea
-        :id="`note-text-${item.note.id}`"
-        class="writing"
-        :value="item.note.text"
-        :placeholder="t('notes.placeholder')"
-        maxlength="240"
-        rows="4"
-        spellcheck="true"
-        @input="onText(item.note, $event)"
-        @blur="store.commitNotes()"
-      ></textarea>
-      <span class="fold" aria-hidden="true"></span>
-    </article>
+    </div>
 
     <div class="pointer-events-auto absolute left-3 top-32 z-10 flex flex-col items-start gap-2">
       <button
@@ -118,23 +163,15 @@ function tilt(id: string) {
 function layout(note: HouseNote) {
   const width = Math.max(board.value?.clientWidth || boardSize.value.w, 1);
   const height = Math.max(board.value?.clientHeight || boardSize.value.h, 1);
-  const pinned = Boolean(note.pin) && dragging !== note.id;
-  const pinAnchor = pinned ? store.noteAnchors[note.id] : undefined;
-  if (pinned && pinAnchor?.visible) {
+  if (note.pin) {
+    const plane = store.notePlanes[note.id];
     return {
-      left: pinAnchor.x - 88,
-      top: pinAnchor.y - 72,
+      left: 0,
+      top: 0,
       tracking: false,
-      shown: true,
-      anchor: null
-    };
-  }
-  if (pinned) {
-    return {
-      left: (note.x / 100) * width,
-      top: (note.y / 100) * height,
-      tracking: false,
-      shown: !pinAnchor,
+      stuck: true,
+      transform: plane?.transform ?? 'none',
+      shown: Boolean(plane?.visible),
       anchor: null
     };
   }
@@ -153,12 +190,16 @@ function layout(note: HouseNote) {
     left: Math.min(maxX, Math.max(8, leftRaw)),
     top: Math.min(maxY, Math.max(8, topRaw)),
     tracking,
+    stuck: false,
+    transform: '',
     shown: true,
     anchor: tracking ? anchor : null
   };
 }
 
 const placed = computed(() => store.notes.map((note) => ({ note, ...layout(note) })));
+const stuck = computed(() => placed.value.filter((item) => item.stuck));
+const loose = computed(() => placed.value.filter((item) => !item.stuck));
 
 const lines = computed(() => placed.value.flatMap((item) => {
   if (!item.tracking || !item.anchor) return [];
@@ -184,18 +225,25 @@ function onDown(event: PointerEvent, note: HouseNote) {
   const rect = noteEl.getBoundingClientRect();
   grabX = event.clientX - rect.left;
   grabY = event.clientY - rect.top;
-  if (note.pin && board.value) {
-    const boardRect = board.value.getBoundingClientRect();
-    store.moveNote(note.id, {
-      x: ((rect.left - boardRect.left) / boardRect.width) * 100,
-      y: ((rect.top - boardRect.top) / boardRect.height) * 100
-    });
-  }
   noteEl.setPointerCapture(event.pointerId);
+}
+
+function houseUnder(clientX: number, clientY: number) {
+  const scene = (window as unknown as {
+    __houseScene?: {
+      housePointAt?: (x: number, y: number) => { x: number; y: number; z: number; nx?: number; ny?: number; nz?: number } | null;
+    };
+  }).__houseScene;
+  return scene?.housePointAt?.(clientX, clientY) ?? null;
 }
 
 function onMove(event: PointerEvent, note: HouseNote) {
   if (dragging !== note.id || !board.value) return;
+  if (note.pin) {
+    const point = houseUnder(event.clientX, event.clientY);
+    if (point) store.setNotePin(note.id, point);
+    return;
+  }
   const rect = board.value.getBoundingClientRect();
   const x = event.clientX - rect.left - grabX;
   const y = event.clientY - rect.top - grabY;
@@ -213,13 +261,10 @@ function onMove(event: PointerEvent, note: HouseNote) {
 function onUp(note: HouseNote) {
   if (dragging !== note.id) return;
   dragging = null;
-  if (note.link.kind === 'board') {
+  if (!note.pin && note.link.kind === 'board') {
     const article = document.getElementById(`note-${note.id}`);
     const rect = article?.getBoundingClientRect();
-    const scene = (window as unknown as { __houseScene?: { housePointAt?: (x: number, y: number) => { x: number; y: number; z: number } | null } }).__houseScene;
-    const point = rect && scene?.housePointAt
-      ? scene.housePointAt(rect.left + rect.width / 2, rect.top + rect.height / 2)
-      : null;
+    const point = rect ? houseUnder(rect.left + rect.width / 2, rect.top + rect.height / 2) : null;
     store.setNotePin(note.id, point);
   }
   store.commitNotes();
@@ -282,6 +327,26 @@ onBeforeUnmount(() => observer?.disconnect());
 .note-away {
   visibility: hidden;
   pointer-events: none;
+}
+
+.note-view {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  transform-origin: 0 0;
+}
+
+.note-camera {
+  position: absolute;
+  inset: 0;
+  transform-style: preserve-3d;
+  pointer-events: none;
+}
+
+.note-stuck {
+  margin: 0;
+  animation: none;
 }
 
 .note-moss {

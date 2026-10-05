@@ -82,6 +82,19 @@ onMounted(() => {
     engine.onNoteAnchors = (anchors) => {
       store.setNoteAnchors(anchors);
     };
+    engine.onNotePlanes = (camera, planes) => {
+      store.setNotePlanes(camera, planes);
+    };
+
+    engine.onMeasurePick = (point) => {
+      store.placeMeasurePoint(point);
+    };
+    engine.onMeasureCursor = (point) => {
+      store.setMeasureCursor(point);
+    };
+    engine.onMeasureScreen = (screen) => {
+      store.setMeasureScreen(screen);
+    };
     engine.setNoteTargets(noteTargetIds());
     syncNotePins();
 
@@ -92,6 +105,21 @@ onMounted(() => {
 });
 
 // Watch show dimensions toggle
+watch(
+  () => [
+    store.measuring,
+    store.measureStart,
+    store.measureEnd,
+    store.measureCursor
+  ],
+  () => {
+    const start = store.measureStart;
+    const end = store.measureEnd ?? (store.measuring ? store.measureCursor : null);
+    engine?.setMeasureMode(store.measuring, Boolean(start && store.measureEnd));
+    engine?.setMeasureLine(start, start && end ? end : null);
+  }
+);
+
 watch(
   () => store.showDimensions,
   (show) => {
@@ -190,7 +218,7 @@ watch(
 );
 
 watch(
-  () => store.notes.map((note) => (note.pin ? `${note.id}:${note.pin.x},${note.pin.y},${note.pin.z}` : '')).join('|')
+  () => store.notes.map((note) => (note.pin ? `${note.id}:${note.pin.x},${note.pin.y},${note.pin.z},${note.pin.nx ?? ''},${note.pin.ny ?? ''},${note.pin.nz ?? ''}` : '')).join('|')
     + (store.showNotes ? ':on' : ':off'),
   () => syncNotePins()
 );

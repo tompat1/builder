@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { PULPET_PITCH_DEG, type MaterialKey, type WallSlot, type LoftPlacement, type LoftCount, type PanelOrientation, type RoofCovering } from '../store/useConfigStore';
+import { inferNoteNormal, noteAxes, noteCameraTransform, noteSheetTransform, noteTiltRadians, NOTE_SURFACE_SCALE } from '../notes/surface';
 
 const PULPET_PITCH_RAD = (PULPET_PITCH_DEG * Math.PI) / 180;
 
@@ -61,9 +62,24 @@ export class HouseScene {
   public onSlotScreenPositionUpdate?: (pos: { x: number; y: number; visible: boolean; slotId: string }) => void;
   public onDimensionLabels?: (labels: Record<string, { x: number; y: number; visible: boolean }>) => void;
   public onNoteAnchors?: (anchors: Record<string, { x: number; y: number; visible: boolean }>) => void;
+  public onNotePlanes?: (camera: string, planes: Record<string, { transform: string; visible: boolean }>) => void;
+  public onMeasurePick?: (point: { x: number; y: number; z: number }) => void;
+  public onMeasureCursor?: (point: { x: number; y: number; z: number } | null) => void;
+  public onMeasureScreen?: (screen: {
+    start: { x: number; y: number; visible: boolean };
+    end: { x: number; y: number; visible: boolean };
+  } | null) => void;
+  private measuring = false;
+  private measureDown: { x: number; y: number } | null = null;
+  private measureFrom: THREE.Vector3 | null = null;
+  private measureTo: THREE.Vector3 | null = null;
+  private measureFromPoint = new THREE.Vector3();
+  private measureToPoint = new THREE.Vector3();
   private dimensionAnchors = new Map<string, THREE.Vector3>();
   private noteTargets: string[] = [];
-  private notePins: { id: string; x: number; y: number; z: number }[] = [];
+  private notePins: { id: string; x: number; y: number; z: number; nx?: number; ny?: number; nz?: number }[] = [];
+  private notePose = new THREE.Object3D();
+  private noteBasis = new THREE.Matrix4();
   private notePoint = new THREE.Vector3();
   private noteBox = new THREE.Box3();
   private pickMouse = new THREE.Vector2();
@@ -592,6 +608,13 @@ export class HouseScene {
 
   private setupRaycasting() {
     this.container.addEventListener('pointermove', (e) => {
+      if (this.measuring) {
+        this.onMeasureCursor?.(this.housePointAt(e.clientX, e.clientY));
+        this.container.style.cursor = 'crosshair';
+        this.updateHoverBox(null);
+        this.onPanelHover?.(null, 0, 0);
+        return;
+      }
       if (this.currentConfig.isFullscreen) {
         this.container.style.cursor = 'default';
         this.updateHoverBox(null);
@@ -638,6 +661,10 @@ export class HouseScene {
     });
 
     this.container.addEventListener('pointerdown', (e) => {
+      if (this.measuring) {
+        this.measureDown = e.button === 0 ? { x: e.clientX, y: e.clientY } : null;
+        return;
+      }
       if (this.currentConfig.isFullscreen) return;
       const rect = this.container.getBoundingClientRect();
       this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
@@ -656,6 +683,19 @@ export class HouseScene {
           this.onPanelClick?.(slotId, e.clientX, e.clientY);
         }
       }
+    });
+
+    this.container.addEventListener('pointerup', (e) => {
+      if (!this.measuring || e.button !== 0 || !this.measureDown) return;
+      const moved = Math.hypot(e.clientX - this.measureDown.x, e.clientY - this.measureDown.y);
+      this.measureDown = null;
+      if (moved > 6) return;
+      const point = this.housePointAt(e.clientX, e.clientY);
+      if (point) this.onMeasurePick?.(point);
+    });
+
+    this.container.addEventListener('pointercancel', () => {
+      this.measureDown = null;
     });
   }
 
@@ -2799,8 +2839,46 @@ export class HouseScene {
   }
 
   /** World points a paper note sticks to. */
-  public setNotePins(pins: { id: string; x: number; y: number; z: number }[]) {
+  public setNotePins(pins: { id: string; x: number; y: number; z: number; nx?: number; ny?: number; nz?: number }[]) {
     this.notePins = pins;
+  }
+
+  /** Arm the ruler. Orbit stays available once both ends are chosen. */
+  public setMeasureMode(active: boolean, allowOrbit: boolean) {
+    this.measuring = active;
+    const placing = active && !allowOrbit;
+    this.controls.mouseButtons.LEFT = placing ? null : THREE.MOUSE.ROTATE;
+    this.controls.touches.ONE = placing ? null : THREE.TOUCH.ROTATE;
+    if (!active) {
+      this.measureDown = null;
+      this.container.style.cursor = 'default';
+    }
+  }
+
+  /** World ends of the ruler band. The second point can be the pointer while it stretches. */
+  public setMeasureLine(
+    from: { x: number; y: number; z: number } | null,
+    to: { x: number; y: number; z: number } | null
+  ) {
+    if (!from || !to) {
+      this.measureFrom = null;
+      this.measureTo = null;
+      return;
+    }
+    this.measureFrom = this.measureFromPoint.set(from.x, from.y, from.z);
+    this.measureTo = this.measureToPoint.set(to.x, to.y, to.z);
+  }
+
+  private publishMeasure() {
+    if (!this.onMeasureScreen) return;
+    if (!this.measureFrom || !this.measureTo) {
+      this.onMeasureScreen(null);
+      return;
+    }
+    this.onMeasureScreen({
+      start: this.projectAnchor(this.measureFrom, false),
+      end: this.projectAnchor(this.measureTo, false)
+    });
   }
 
   /** The house surface under a screen point, or nothing when the point is on the empty canvas. */
@@ -2822,10 +2900,21 @@ export class HouseScene {
     });
     if (!hit) return null;
     const point = hit.point;
+    const facing = { x: 0, y: 0, z: 1 };
+    if (hit.face) {
+      this.notePoint.copy(hit.face.normal).transformDirection(hit.object.matrixWorld);
+      if (this.notePoint.dot(this.raycaster.ray.direction) > 0) this.notePoint.negate();
+      facing.x = Math.round(this.notePoint.x * 1000) / 1000;
+      facing.y = Math.round(this.notePoint.y * 1000) / 1000;
+      facing.z = Math.round(this.notePoint.z * 1000) / 1000;
+    }
     return {
       x: Math.round(point.x * 1000) / 1000,
       y: Math.round(point.y * 1000) / 1000,
-      z: Math.round(point.z * 1000) / 1000
+      z: Math.round(point.z * 1000) / 1000,
+      nx: facing.x,
+      ny: facing.y,
+      nz: facing.z
     };
   }
 
@@ -2868,6 +2957,63 @@ export class HouseScene {
       anchors[pin.id] = this.projectAnchor(this.notePoint.set(pin.x, pin.y, pin.z), true);
     }
     this.onNoteAnchors(anchors);
+  }
+
+  /** Lay each stuck note flat on its panel and match the WebGL camera. */
+  private publishNotePlanes() {
+    if (!this.onNotePlanes) return;
+    if (!this.notePins.length) {
+      this.onNotePlanes('', {});
+      return;
+    }
+    this.camera.updateMatrixWorld();
+    const width = this.container.clientWidth;
+    const height = this.container.clientHeight;
+    const fov = this.camera.projectionMatrix.elements[5] * (height / 2);
+    const camera = noteCameraTransform(this.camera.matrixWorldInverse.elements, fov, width, height);
+    const house = {
+      widthM: this.currentConfig.widthMm / 1000,
+      depthM: this.currentConfig.depthMm / 1000,
+      heightM: this.currentConfig.heightMm / 1000
+    };
+    const planes: Record<string, { transform: string; visible: boolean }> = {};
+    for (const pin of this.notePins) {
+      const stored = pin.nx !== undefined && pin.ny !== undefined && pin.nz !== undefined
+        ? { x: pin.nx, y: pin.ny, z: pin.nz }
+        : inferNoteNormal(pin, house);
+      const axes = noteAxes(stored);
+      this.noteBasis.makeBasis(
+        this.notePoint.set(axes.right.x, axes.right.y, axes.right.z),
+        new THREE.Vector3(axes.up.x, axes.up.y, axes.up.z),
+        new THREE.Vector3(axes.face.x, axes.face.y, axes.face.z)
+      );
+      this.notePose.position.set(pin.x, pin.y, pin.z).addScaledVector(
+        new THREE.Vector3(axes.face.x, axes.face.y, axes.face.z),
+        0.012
+      );
+      this.notePose.quaternion.setFromRotationMatrix(this.noteBasis);
+      this.notePose.scale.setScalar(NOTE_SURFACE_SCALE);
+      this.notePose.rotateZ(noteTiltRadians(pin.id));
+      this.notePose.updateMatrixWorld(true);
+      const towardCamera = this.camera.position.clone().sub(this.notePose.position);
+      const facing = towardCamera.dot(new THREE.Vector3(axes.face.x, axes.face.y, axes.face.z)) > 0.15;
+      const projected = this.notePose.position.clone().project(this.camera);
+      planes[pin.id] = {
+        transform: noteSheetTransform(this.notePose.matrixWorld.elements),
+        visible: facing && projected.z < 1 && !this.noteBlocked(this.notePose.position)
+      };
+    }
+    this.onNotePlanes(camera, planes);
+  }
+
+  private noteBlocked(point: THREE.Vector3) {
+    const direction = point.clone().sub(this.camera.position);
+    const distance = direction.length();
+    if (distance < 0.2) return false;
+    direction.normalize();
+    this.labelRaycaster.set(this.camera.position, direction);
+    this.labelRaycaster.far = Math.max(distance - 0.15, 0.01);
+    return this.labelRaycaster.intersectObjects([this.wallsGroup, this.roofGroup], true).length > 0;
   }
 
   /** Move the green outline without rebuilding the house or moving the camera. */
@@ -2935,6 +3081,8 @@ export class HouseScene {
     this.renderer.render(this.scene, this.camera);
     this.publishDimensionLabels();
     this.publishNoteAnchors();
+    this.publishNotePlanes();
+    this.publishMeasure();
 
     // Update screen coordinates of selected panel for dynamic overlay tracking
     if (this.currentConfig.selectedSlotId && this.onSlotScreenPositionUpdate) {

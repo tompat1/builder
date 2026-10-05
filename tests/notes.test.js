@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { acceptNotes, linkFromValue, linkToValue, noteTargetId, parseNotePin } from '../src/notes/board.ts';
+import { inferNoteNormal, noteAxes } from '../src/notes/surface.ts';
 
 test('a note keeps its writing and a link to one part of the house', () => {
   const notes = acceptNotes([
@@ -47,4 +48,22 @@ test('a link value names the board or one house part', () => {
   assert.deepEqual(linkFromValue('slot:roof'), { kind: 'board' });
   assert.equal(noteTargetId({ kind: 'board' }), null);
   assert.equal(noteTargetId({ kind: 'loft' }), 'loft');
+});
+
+test('a stuck note keeps the facing of the panel', () => {
+  const pin = parseNotePin({ x: 0.25, y: 1.4, z: 1.75, nx: 0, ny: 0, nz: 1 });
+  assert.deepEqual(pin, { x: 0.25, y: 1.4, z: 1.75, nx: 0, ny: 0, nz: 1 });
+  const unfaced = parseNotePin({ x: 0.25, y: 1.4, z: 1.75, nx: 0, ny: 0, nz: 0 });
+  assert.deepEqual(unfaced, { x: 0.25, y: 1.4, z: 1.75 });
+});
+
+test('a sheet on the front wall faces outward and stands upright', () => {
+  const axes = noteAxes({ x: 0, y: 0, z: 1 });
+  assert.deepEqual(axes.right, { x: 1, y: 0, z: 0 });
+  assert.deepEqual(axes.up, { x: 0, y: 1, z: 0 });
+  assert.deepEqual(axes.face, { x: 0, y: 0, z: 1 });
+  assert.deepEqual(
+    inferNoteNormal({ x: 0, y: 2, z: 1.74 }, { widthM: 6.04, depthM: 3.503, heightM: 5 }),
+    { x: 0, y: 0, z: 1 }
+  );
 });
