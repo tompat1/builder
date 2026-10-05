@@ -123,7 +123,7 @@
     </div>
 
     <div v-else-if="miss" ref="answerEl" class="mt-2" aria-live="polite">
-      <p class="text-[11px] text-slate-500 leading-relaxed"><Cms k="ai.miss" /></p>
+      <p v-if="!web" class="text-[11px] text-slate-500 leading-relaxed"><Cms k="ai.miss" /></p>
       <div v-if="passages.length" class="mt-2 space-y-1.5">
         <p class="text-[11px] font-semibold text-slate-600">{{ t('ai.passages') }}</p>
         <article v-for="(passage, index) in passages" :key="`${passage.url}-${index}`" class="rounded-lg bg-slate-50 px-2 py-1.5">
@@ -139,6 +139,21 @@
         </article>
       </div>
     </div>
+
+    <div v-if="web" ref="webEl" class="mt-2 rounded-xl border border-slate-200 bg-white p-3">
+      <p class="text-[11px] font-semibold text-slate-600">{{ t('ai.web') }}</p>
+      <p class="mt-1 text-[11px] text-slate-600 leading-relaxed">{{ web.answer }}</p>
+      <ul v-if="web.sources.length" class="mt-1.5 space-y-1">
+        <li v-for="source in web.sources" :key="source.url">
+          <a
+            :href="source.url"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-[11px] font-semibold text-slate-800 underline underline-offset-2"
+          >{{ source.title }}</a>
+        </li>
+      </ul>
+    </div>
   </div>
 </template>
 
@@ -147,7 +162,7 @@ import { computed, nextTick, ref } from 'vue';
 import { useConfigStore } from '../store/useConfigStore';
 import { useLabels } from '../i18n';
 import { allKnowledgeEntries, askKnowledge, type KnowledgeApply, type KnowledgeEntry, type KnowledgeHit, type KnowledgeLang } from '../knowledge/hub';
-import { askKnowledgeWorker, type RetrievedPassage } from '../services/knowledgeWorker';
+import { askKnowledgeWorker, type RetrievedPassage, type WebAnswer } from '../services/knowledgeWorker';
 import KnowledgeFigure from './KnowledgeFigure.vue';
 import CmsImage from './CmsImage.vue';
 import Cms from './Cms.vue';
@@ -162,6 +177,8 @@ const answerEl = ref<HTMLElement | null>(null);
 const viaWorker = ref(false);
 const asking = ref(false);
 const passages = ref<RetrievedPassage[]>([]);
+const web = ref<WebAnswer | null>(null);
+const webEl = ref<HTMLElement | null>(null);
 let requestId = 0;
 
 const lang = computed<KnowledgeLang>(() => (locale.value === 'en' ? 'en' : 'sv'));
@@ -195,6 +212,7 @@ function ask(query: string) {
   appliedId.value = null;
   viaWorker.value = false;
   passages.value = [];
+  web.value = null;
   const found = askKnowledge(next);
   hit.value = found;
   miss.value = !found;
@@ -204,6 +222,7 @@ function ask(query: string) {
     if (id !== requestId) return;
     asking.value = false;
     passages.value = result.passages;
+    web.value = result.web;
     const entry = result.entryId ? allKnowledgeEntries().find((item) => item.id === result.entryId) : undefined;
     if (!entry) {
       reveal();
@@ -219,7 +238,7 @@ function ask(query: string) {
 }
 
 function reveal() {
-  nextTick(() => answerEl.value?.scrollIntoView({ block: 'center' }));
+  nextTick(() => (webEl.value ?? answerEl.value)?.scrollIntoView({ block: 'center' }));
 }
 
 function openEntry(entry: KnowledgeEntry) {
@@ -228,6 +247,7 @@ function openEntry(entry: KnowledgeEntry) {
   appliedId.value = null;
   customPrompt.value = copy(entry.title);
   viaWorker.value = false;
+  web.value = null;
   asking.value = false;
   reveal();
 }

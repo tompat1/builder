@@ -12,11 +12,13 @@ import { handleSources } from './sources.js';
 import { handleRender } from './render.js';
 import { handleHouse } from './house.js';
 import { parseEntryId, readPayload } from './select.js';
-import { indexCatalog, indexPendingResources, indexPendingSources, searchPassages } from './passages.js';
+import { coversQuestion, indexCatalog, indexPendingResources, indexPendingSources, searchPassages } from './passages.js';
+import { lookupOnWeb } from './web.js';
 
 interface Env {
   AI: {
     run: (model: string, input: Record<string, unknown>) => Promise<unknown>;
+    websearch?: (input: { gatewayId: string; query: string; limit?: number }) => Promise<{ json: () => Promise<unknown> }>;
   };
   DB?: D1Database;
   AVATARS?: R2Bucket;
@@ -123,6 +125,7 @@ export default {
     } catch {
       passages = [];
     }
+    let entryId: string | null = null;
     try {
       const result = await env.AI.run(MODEL, {
         messages: [
@@ -146,10 +149,14 @@ export default {
         response_format: { type: 'json_object' },
         chat_template_kwargs: { enable_thinking: false }
       });
-      return json({ entryId: parseEntryId(readPayload(result), known), passages }, 200, headers);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Workers AI failed';
-      return json({ error: message }, 502, headers);
+      entryId = parseEntryId(readPayload(result), known);
+    } catch {
+      entryId = null;
     }
+    let web: { answer: string; sources: { title: string; url: string }[] } | null = null;
+    if (!entryId && !coversQuestion(passages, question)) {
+      web = await lookupOnWeb(env, question, lang);
+    }
+    return json({ entryId, passages, web }, 200, headers);
   }
 };

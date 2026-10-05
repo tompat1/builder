@@ -102,6 +102,19 @@ export function rankPassages(passages, query) {
   return picked.map(({ title, url, text }) => ({ title, url, text }));
 }
 
+/** A stored passage covers the question when its most specific words are in one passage. */
+export function coversQuestion(passages, query) {
+  const terms = fold(query).split(' ').filter((term) => term.length > 4);
+  if (!terms.length || !passages?.length) return false;
+  const longest = Math.max(...terms.map((term) => term.length));
+  const needed = Math.ceil(terms.length / 2);
+  return passages.some((passage) => {
+    const hay = fold(`${passage.title} ${passage.text}`);
+    const hits = terms.filter((term) => hay.includes(term));
+    return hits.some((term) => term.length === longest) && hits.length >= needed;
+  });
+}
+
 function passageId(kind, sourceId, position) {
   let hash = 5381;
   const raw = `${kind}|${sourceId}|${position}`;
