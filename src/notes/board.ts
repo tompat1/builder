@@ -15,6 +15,13 @@ export type NoteLink =
   | { kind: 'wall'; wall: NoteWall }
   | { kind: 'slot'; slotId: string };
 
+/** A point on the house, in metres. The note stays on this spot as the view moves. */
+export interface NotePin {
+  x: number;
+  y: number;
+  z: number;
+}
+
 export interface HouseNote {
   id: string;
   text: string;
@@ -24,6 +31,7 @@ export interface HouseNote {
   offsetX: number;
   offsetY: number;
   link: NoteLink;
+  pin: NotePin | null;
 }
 
 const WALLS = new Set<NoteWall>(['front', 'back', 'left', 'right']);
@@ -69,6 +77,20 @@ export function linkFromValue(value: string): NoteLink {
   return parseNoteLink({ kind: value });
 }
 
+export function parseNotePin(value: unknown): NotePin | null {
+  if (!value || typeof value !== 'object') return null;
+  const pin = value as { x?: unknown; y?: unknown; z?: unknown };
+  const x = Number(pin.x);
+  const y = Number(pin.y);
+  const z = Number(pin.z);
+  if (![x, y, z].every((item) => Number.isFinite(item))) return null;
+  return {
+    x: clamp(x, -20, 20, 0),
+    y: clamp(y, -20, 20, 0),
+    z: clamp(z, -20, 20, 0)
+  };
+}
+
 export function acceptNotes(value: unknown): HouseNote[] {
   if (!Array.isArray(value)) return [];
   const notes: HouseNote[] = [];
@@ -85,7 +107,8 @@ export function acceptNotes(value: unknown): HouseNote[] {
       y: clamp(Number(row.y), 2, 86, 36),
       offsetX: clamp(Number(row.offsetX), -480, 480, 20),
       offsetY: clamp(Number(row.offsetY), -480, 480, -128),
-      link: parseNoteLink(row.link)
+      link: parseNoteLink(row.link),
+      pin: parseNotePin(row.pin)
     });
     if (notes.length >= NOTE_LIMIT) break;
   }
@@ -101,6 +124,7 @@ export function freshNote(index: number, id: string): HouseNote {
     y: 36 + (index % 4) * 8,
     offsetX: 64,
     offsetY: -56,
-    link: { kind: 'board' }
+    link: { kind: 'board' },
+    pin: null
   };
 }

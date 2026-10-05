@@ -850,6 +850,10 @@ export const useConfigStore = defineStore('config', () => {
     replaceNote(id, place);
   }
 
+  function setNotePin(id: string, pin: { x: number; y: number; z: number } | null) {
+    replaceNote(id, { pin });
+  }
+
   function commitNotes() {
     commitHouse();
   }
@@ -1031,6 +1035,7 @@ export const useConfigStore = defineStore('config', () => {
     setNoteText,
     setNoteLink,
     moveNote,
+    setNotePin,
     commitNotes,
     toggleNotes,
     setNoteAnchors

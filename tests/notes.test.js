@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { acceptNotes, linkFromValue, linkToValue, noteTargetId } from '../src/notes/board.ts';
+import { acceptNotes, linkFromValue, linkToValue, noteTargetId, parseNotePin } from '../src/notes/board.ts';
 
 test('a note keeps its writing and a link to one part of the house', () => {
   const notes = acceptNotes([
@@ -12,7 +12,8 @@ test('a note keeps its writing and a link to one part of the house', () => {
       y: 40,
       offsetX: 10,
       offsetY: -80,
-      link: { kind: 'slot', slotId: 'front-0' }
+      link: { kind: 'slot', slotId: 'front-0' },
+      pin: { x: 0.25, y: 1.4, z: 1.75 }
     },
     { id: 'bad', text: 'nope', link: { kind: 'roof' } },
     {
@@ -29,6 +30,9 @@ test('a note keeps its writing and a link to one part of the house', () => {
   assert.equal(notes[0].text, '  Kontrollera syllen  ');
   assert.equal(notes[0].link.kind, 'slot');
   assert.equal(noteTargetId(notes[0].link), 'slot:front-0');
+  assert.deepEqual(notes[0].pin, { x: 0.25, y: 1.4, z: 1.75 });
+  assert.equal(notes[1].pin, null);
+  assert.equal(parseNotePin({ x: 1, y: 'no', z: 0 }), null);
   assert.equal(notes[1].text.length, 240);
   assert.equal(notes[1].color, 'sand');
   assert.equal(notes[1].x, 90);

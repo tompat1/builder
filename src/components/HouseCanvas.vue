@@ -21,6 +21,14 @@ function noteTargetIds() {
   )];
 }
 
+function syncNotePins() {
+  engine?.setNotePins(
+    store.showNotes
+      ? store.notes.flatMap((note) => (note.pin ? [{ id: note.id, ...note.pin }] : []))
+      : []
+  );
+}
+
 onMounted(() => {
   if (canvasContainer.value) {
     engine = new HouseScene(canvasContainer.value, {
@@ -75,6 +83,7 @@ onMounted(() => {
       store.setNoteAnchors(anchors);
     };
     engine.setNoteTargets(noteTargetIds());
+    syncNotePins();
 
     if (typeof window !== 'undefined') {
       (window as any).__houseScene = engine;
@@ -178,6 +187,12 @@ watch(
   (key) => {
     engine?.setNoteTargets(key ? key.split('|') : []);
   }
+);
+
+watch(
+  () => store.notes.map((note) => (note.pin ? `${note.id}:${note.pin.x},${note.pin.y},${note.pin.z}` : '')).join('|')
+    + (store.showNotes ? ':on' : ':off'),
+  () => syncNotePins()
 );
 
 // Watch selected slot highlight

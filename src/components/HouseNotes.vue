@@ -24,7 +24,7 @@
       :id="`note-${item.note.id}`"
       :key="item.note.id"
       class="note pointer-events-auto absolute w-44"
-      :class="[`note-${item.note.color}`, { 'note-active': store.activeNoteId === item.note.id }]"
+      :class="[`note-${item.note.color}`, { 'note-active': store.activeNoteId === item.note.id, 'note-away': !item.shown }]"
       :style="{ left: `${item.left}px`, top: `${item.top}px`, '--tilt': `${tilt(item.note.id)}deg`, zIndex: store.activeNoteId === item.note.id ? 3 : 1 }"
       @pointerdown="onDown($event, item.note)"
       @pointermove="onMove($event, item.note)"
@@ -116,11 +116,31 @@ function tilt(id: string) {
 }
 
 function layout(note: HouseNote) {
+  const width = Math.max(board.value?.clientWidth || boardSize.value.w, 1);
+  const height = Math.max(board.value?.clientHeight || boardSize.value.h, 1);
+  const pinned = Boolean(note.pin) && dragging !== note.id;
+  const pinAnchor = pinned ? store.noteAnchors[note.id] : undefined;
+  if (pinned && pinAnchor?.visible) {
+    return {
+      left: pinAnchor.x - 88,
+      top: pinAnchor.y - 72,
+      tracking: false,
+      shown: true,
+      anchor: null
+    };
+  }
+  if (pinned) {
+    return {
+      left: (note.x / 100) * width,
+      top: (note.y / 100) * height,
+      tracking: false,
+      shown: !pinAnchor,
+      anchor: null
+    };
+  }
   const target = noteTargetId(note.link);
   const anchor = target ? store.noteAnchors[target] : undefined;
   const tracking = Boolean(target && anchor?.visible);
-  const width = Math.max(board.value?.clientWidth || boardSize.value.w, 1);
-  const height = Math.max(board.value?.clientHeight || boardSize.value.h, 1);
   const leftRaw = tracking && anchor
     ? anchor.x + note.offsetX
     : (note.x / 100) * width;
@@ -133,7 +153,7 @@ function layout(note: HouseNote) {
     left: Math.min(maxX, Math.max(8, leftRaw)),
     top: Math.min(maxY, Math.max(8, topRaw)),
     tracking,
-    linked: Boolean(target),
+    shown: true,
     anchor: tracking ? anchor : null
   };
 }
@@ -164,6 +184,13 @@ function onDown(event: PointerEvent, note: HouseNote) {
   const rect = noteEl.getBoundingClientRect();
   grabX = event.clientX - rect.left;
   grabY = event.clientY - rect.top;
+  if (note.pin && board.value) {
+    const boardRect = board.value.getBoundingClientRect();
+    store.moveNote(note.id, {
+      x: ((rect.left - boardRect.left) / boardRect.width) * 100,
+      y: ((rect.top - boardRect.top) / boardRect.height) * 100
+    });
+  }
   noteEl.setPointerCapture(event.pointerId);
 }
 
@@ -186,6 +213,15 @@ function onMove(event: PointerEvent, note: HouseNote) {
 function onUp(note: HouseNote) {
   if (dragging !== note.id) return;
   dragging = null;
+  if (note.link.kind === 'board') {
+    const article = document.getElementById(`note-${note.id}`);
+    const rect = article?.getBoundingClientRect();
+    const scene = (window as unknown as { __houseScene?: { housePointAt?: (x: number, y: number) => { x: number; y: number; z: number } | null } }).__houseScene;
+    const point = rect && scene?.housePointAt
+      ? scene.housePointAt(rect.left + rect.width / 2, rect.top + rect.height / 2)
+      : null;
+    store.setNotePin(note.id, point);
+  }
   store.commitNotes();
 }
 
@@ -241,6 +277,11 @@ onBeforeUnmount(() => observer?.disconnect());
 
 .note-active {
   box-shadow: 0 18px 30px rgb(58 42 16 / 0.22), inset 0 1px 0 rgb(255 252 245 / 0.75);
+}
+
+.note-away {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .note-moss {

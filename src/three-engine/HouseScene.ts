@@ -63,8 +63,10 @@ export class HouseScene {
   public onNoteAnchors?: (anchors: Record<string, { x: number; y: number; visible: boolean }>) => void;
   private dimensionAnchors = new Map<string, THREE.Vector3>();
   private noteTargets: string[] = [];
+  private notePins: { id: string; x: number; y: number; z: number }[] = [];
   private notePoint = new THREE.Vector3();
   private noteBox = new THREE.Box3();
+  private pickMouse = new THREE.Vector2();
 
   constructor(container: HTMLElement, initialConfig?: Partial<SceneConfig>) {
     this.container = container;
@@ -2796,6 +2798,37 @@ export class HouseScene {
     this.noteTargets = ids;
   }
 
+  /** World points a paper note sticks to. */
+  public setNotePins(pins: { id: string; x: number; y: number; z: number }[]) {
+    this.notePins = pins;
+  }
+
+  /** The house surface under a screen point, or nothing when the point is on the empty canvas. */
+  public housePointAt(clientX: number, clientY: number) {
+    const rect = this.container.getBoundingClientRect();
+    if (rect.width < 1 || rect.height < 1) return null;
+    this.pickMouse.set(
+      ((clientX - rect.left) / rect.width) * 2 - 1,
+      -((clientY - rect.top) / rect.height) * 2 + 1
+    );
+    this.raycaster.setFromCamera(this.pickMouse, this.camera);
+    const hit = this.raycaster.intersectObjects([this.houseGroup], true).find((item) => {
+      let object: THREE.Object3D | null = item.object;
+      while (object) {
+        if (!object.visible) return false;
+        object = object.parent;
+      }
+      return true;
+    });
+    if (!hit) return null;
+    const point = hit.point;
+    return {
+      x: Math.round(point.x * 1000) / 1000,
+      y: Math.round(point.y * 1000) / 1000,
+      z: Math.round(point.z * 1000) / 1000
+    };
+  }
+
   private anchorFor(id: string) {
     const w = this.currentConfig.widthMm / 1000;
     const d = this.currentConfig.depthMm / 1000;
@@ -2830,6 +2863,9 @@ export class HouseScene {
       anchors[id] = point
         ? this.projectAnchor(point, occlude)
         : { x: 0, y: 0, visible: false };
+    }
+    for (const pin of this.notePins) {
+      anchors[pin.id] = this.projectAnchor(this.notePoint.set(pin.x, pin.y, pin.z), true);
     }
     this.onNoteAnchors(anchors);
   }
