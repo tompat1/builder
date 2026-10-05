@@ -144,10 +144,35 @@
             </div>
           </button>
           <button
+            v-for="paint in store.savedPaints"
+            :key="paint.id"
+            type="button"
+            :id="`saved-paint-${paint.id}`"
+            class="p-2.5 rounded-xl border text-left flex items-center gap-3 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+            :class="store.customPaint?.id === paint.id && !store.paintPreview
+              ? 'border-slate-900 ring-1 ring-slate-900 bg-slate-50 shadow-sm'
+              : 'border-slate-200 bg-white hover:border-slate-300'"
+            :aria-pressed="store.customPaint?.id === paint.id && !store.paintPreview"
+            @click="chooseSaved(paint.id)"
+          >
+            <div
+              class="w-8 h-8 rounded-lg shrink-0 border border-slate-300 flex items-center justify-center"
+              :style="{ backgroundColor: paint.hex, color: readableInk(paint.hex) }"
+            >
+              <svg v-if="store.customPaint?.id === paint.id && !store.paintPreview" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </div>
+            <div class="min-w-0">
+              <span class="block text-xs font-bold text-slate-900 truncate">{{ paintTitle(paint) }}</span>
+              <p class="text-[10px] text-slate-600 truncate">{{ paint.hex.toUpperCase() }}</p>
+            </div>
+          </button>
+          <button
             type="button"
             id="btn-custom-paint"
             class="p-2.5 rounded-xl border text-left flex items-center gap-3 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
-            :class="store.customPaint || store.paintPreview
+            :class="paintOpen || store.paintPreview
               ? 'border-slate-900 ring-1 ring-slate-900 bg-slate-50 shadow-sm'
               : 'border-slate-200 bg-white hover:border-slate-300'"
             :aria-expanded="paintOpen"
@@ -156,18 +181,15 @@
           >
             <div
               class="w-8 h-8 rounded-lg shrink-0 border border-slate-300 flex items-center justify-center"
-              :style="paintSwatch ? { backgroundColor: paintSwatch, color: ink } : undefined"
+              :style="store.paintPreview ? { backgroundColor: store.paintPreview, color: previewInk } : undefined"
             >
-              <svg v-if="store.customPaint || store.paintPreview" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-              <svg v-else class="w-4 h-4 text-slate-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <path d="M12 5v14M5 12h14" />
               </svg>
             </div>
             <div class="min-w-0">
               <span class="block text-xs font-bold text-slate-900 truncate">{{ t('paint.add') }}</span>
-              <p class="text-[10px] text-slate-600 truncate">{{ store.customPaint ? store.currentMaterial.name : store.paintPreview ? store.paintPreview.toUpperCase() : t('paint.pick') }}</p>
+              <p class="text-[10px] text-slate-600 truncate">{{ store.paintPreview ? store.paintPreview.toUpperCase() : t('paint.pick') }}</p>
             </div>
           </button>
         </div>
@@ -821,13 +843,17 @@ import {
 } from '../store/useConfigStore';
 import { useLabels } from '../i18n';
 import CustomPaint from './CustomPaint.vue';
-import { readableInk } from '../color/paint';
+import { paintTitle, readableInk } from '../color/paint';
 
 const store = useConfigStore();
 const { t, catalog, money, delta } = useLabels();
 const paintOpen = ref(false);
-const paintSwatch = computed(() => store.paintPreview ?? store.customPaint?.hex ?? null);
-const ink = computed(() => readableInk(paintSwatch.value ?? '#ffffff'));
+const previewInk = computed(() => readableInk(store.paintPreview ?? '#ffffff'));
+
+function chooseSaved(id: string) {
+  paintOpen.value = false;
+  store.selectSavedPaint(id);
+}
 
 const coveringSwatch: Record<RoofCovering, string> = {
   felt: 'bg-slate-700',

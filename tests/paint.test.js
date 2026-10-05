@@ -6,6 +6,7 @@ import {
   nearestRal,
   normalizeHex,
   parseCustomPaint,
+  parseSavedPaints,
   rgbToCmyk,
   rgbToHex
 } from '../src/color/paint.ts';
@@ -34,4 +35,17 @@ test('a RAL Classic code sets the screen colour and an unknown code does not', (
   const saved = parseCustomPaint({ hex: '#383e42', system: 'ral', ral: '7016', pantone: '19-4052 TCX' });
   assert.deepEqual(saved, { hex: '#383e42', system: 'ral', ral: '7016', pantone: '19-4052 TCX' });
   assert.equal(parseCustomPaint({ hex: 'nope' }), null);
+});
+
+test('saved custom colours stay in the gallery when another swatch is the active one', () => {
+  const gallery = parseSavedPaints([
+    { id: 'paint-a', hex: '#22676c', system: 'hex', ral: '7012', pantone: '' },
+    { id: 'paint-b', hex: '#383e42', system: 'ral', ral: '7016', pantone: '' },
+    { id: 'paint-a', hex: '#aabbcc', system: 'hex', ral: '', pantone: '' }
+  ]);
+  assert.deepEqual(gallery.map((paint) => paint.id), ['paint-a', 'paint-b']);
+  const older = parseSavedPaints(undefined, { hex: '#383e42', system: 'ral', ral: '7016', pantone: '' });
+  assert.equal(older.length, 1);
+  assert.equal(older[0].hex, '#383e42');
+  assert.equal(parseSavedPaints([], { hex: '#383e42', system: 'ral', ral: '7016', pantone: '' }).length, 0);
 });

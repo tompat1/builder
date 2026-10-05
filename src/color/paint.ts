@@ -15,6 +15,12 @@ export interface CustomPaint {
   ral: string;
 }
 
+export interface SavedPaint extends CustomPaint {
+  id: string;
+}
+
+export const SAVED_PAINT_LIMIT = 12;
+
 export interface RalChip {
   code: string;
   name: string;
@@ -209,4 +215,25 @@ export function parseCustomPaint(value: unknown): CustomPaint | null {
     pantone,
     ral: lookupRal(ralCode) ? ralCode : ''
   };
+}
+
+function samePaint(left: CustomPaint, right: CustomPaint) {
+  return left.hex === right.hex && left.ral === right.ral && left.pantone === right.pantone;
+}
+
+/** Saved custom swatches. An older house file stores only the one active colour. */
+export function parseSavedPaints(list: unknown, fallback?: unknown): SavedPaint[] {
+  const rows = Array.isArray(list) ? list : fallback ? [fallback] : [];
+  const paints: SavedPaint[] = [];
+  for (const row of rows) {
+    const paint = parseCustomPaint(row);
+    if (!paint || paints.some((item) => samePaint(item, paint))) continue;
+    const rawId = row && typeof row === 'object' && typeof (row as { id?: unknown }).id === 'string'
+      ? (row as { id: string }).id
+      : '';
+    const id = rawId.replace(/[^\w-]/g, '').slice(0, 40) || `paint-${paint.hex.slice(1)}-${paints.length}`;
+    if (paints.some((item) => item.id === id)) continue;
+    paints.push({ ...paint, id });
+  }
+  return paints.slice(0, SAVED_PAINT_LIMIT);
 }

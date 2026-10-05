@@ -9,7 +9,15 @@ import {
   type HouseNote
 } from '../notes/board';
 import { nextMeasure, type MeasurePoint } from '../measure/length';
-import { normalizeHex, paintTitle, parseCustomPaint, type CustomPaint } from '../color/paint';
+import {
+  normalizeHex,
+  paintTitle,
+  parseCustomPaint,
+  parseSavedPaints,
+  SAVED_PAINT_LIMIT,
+  type CustomPaint,
+  type SavedPaint
+} from '../color/paint';
 
 export type ViewMode = 'utsida' | 'insida';
 export type CategoryKey = 'size' | 'roof' | 'loft' | 'doors' | 'windows' | 'gates' | 'extras';
@@ -398,7 +406,9 @@ export const useConfigStore = defineStore('config', () => {
   const viewMode = ref<ViewMode>('utsida');
   const selectedCategory = ref<CategoryKey>('size');
   const activeMaterial = ref<MaterialKey>('wood');
-  const customPaint = ref<CustomPaint | null>(null);
+  const savedPaints = ref<SavedPaint[]>([]);
+  const activePaintId = ref<string | null>(null);
+  const customPaint = computed(() => savedPaints.value.find((paint) => paint.id === activePaintId.value) ?? null);
   const paintPreview = ref<string | null>(null);
   const panelOrientation = ref<PanelOrientation>('staende');
   const claddingSizeId = ref<CladdingSizeId>('22x145');
@@ -466,6 +476,8 @@ export const useConfigStore = defineStore('config', () => {
       activeWindow: activeWindow.value,
       activeGate: activeGate.value,
       activeMaterial: activeMaterial.value,
+      savedPaints: savedPaints.value,
+      activePaintId: activePaintId.value,
       customPaint: customPaint.value,
       panelOrientation: panelOrientation.value,
       claddingSizeId: claddingSizeId.value,
@@ -528,7 +540,17 @@ export const useConfigStore = defineStore('config', () => {
       activeMaterial.value = MATERIAL_OPTIONS.some((item) => item.id === data.activeMaterial)
         ? data.activeMaterial
         : 'wood';
-      customPaint.value = parseCustomPaint(data.customPaint);
+      savedPaints.value = parseSavedPaints(
+        data.savedPaints,
+        data.savedPaints === undefined ? data.customPaint : undefined
+      );
+      const requested = typeof data.activePaintId === 'string' ? data.activePaintId : '';
+      const parsedActive = parseCustomPaint(data.customPaint);
+      const fromId = savedPaints.value.find((paint) => paint.id === requested);
+      const fromPaint = parsedActive
+        ? savedPaints.value.find((paint) => paint.hex === parsedActive.hex && paint.ral === parsedActive.ral && paint.pantone === parsedActive.pantone)
+        : undefined;
+      activePaintId.value = (fromId ?? fromPaint)?.id ?? null;
       panelOrientation.value = data.panelOrientation === 'liggande' ? 'liggande' : 'staende';
       claddingSizeId.value = CLADDING_SIZES.some((size) => size.id === data.claddingSizeId)
         ? data.claddingSizeId
@@ -803,8 +825,16 @@ export const useConfigStore = defineStore('config', () => {
 
   function selectMaterial(id: MaterialKey) {
     activeMaterial.value = id;
-    customPaint.value = null;
+    activePaintId.value = null;
     paintPreview.value = null;
+    saveSnapshot();
+  }
+
+  function selectSavedPaint(id: string) {
+    if (!savedPaints.value.some((paint) => paint.id === id)) return;
+    paintPreview.value = null;
+    if (activePaintId.value === id) return;
+    activePaintId.value = id;
     saveSnapshot();
   }
 
@@ -816,8 +846,21 @@ export const useConfigStore = defineStore('config', () => {
     const next = parseCustomPaint(paint);
     if (!next) return;
     paintPreview.value = null;
-    if (JSON.stringify(next) === JSON.stringify(customPaint.value)) return;
-    customPaint.value = next;
+    const existing = savedPaints.value.find((item) => item.hex === next.hex && item.ral === next.ral && item.pantone === next.pantone);
+    if (existing) {
+      if (activePaintId.value === existing.id) return;
+      activePaintId.value = existing.id;
+      saveSnapshot();
+      return;
+    }
+    const id = `paint-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+    let kept = savedPaints.value;
+    if (kept.length >= SAVED_PAINT_LIMIT) {
+      const oldest = kept.find((item) => item.id !== activePaintId.value) ?? kept[0];
+      kept = kept.filter((item) => item.id !== oldest.id);
+    }
+    savedPaints.value = [...kept, { ...next, id }];
+    activePaintId.value = id;
     saveSnapshot();
   }
 
@@ -1058,9 +1101,11 @@ export const useConfigStore = defineStore('config', () => {
     selectedCategory,
     activeMaterial,
     customPaint,
+    savedPaints,
     paintPreview,
     setPaintPreview,
     setCustomPaint,
+    selectSavedPaint,
     panelOrientation,
     claddingSizeId,
     selectedSlotId,
