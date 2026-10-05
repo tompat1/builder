@@ -99,8 +99,8 @@ export function freshNote(index: number, id: string): HouseNote {
     color: NOTE_COLORS[index % NOTE_COLORS.length],
     x: 8 + (index % 3) * 8,
     y: 36 + (index % 4) * 8,
-    offsetX: 22,
-    offsetY: -132,
+    offsetX: 64,
+    offsetY: -56,
     link: { kind: 'board' }
   };
 }

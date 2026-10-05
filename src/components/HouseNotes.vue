@@ -93,7 +93,7 @@
       <span class="fold" aria-hidden="true"></span>
     </article>
 
-    <div class="pointer-events-auto absolute left-3 top-[5.5rem] z-10 flex flex-col items-start gap-2">
+    <div class="pointer-events-auto absolute left-3 top-32 z-10 flex flex-col items-start gap-2">
       <button
         v-if="store.notes.length < NOTE_LIMIT"
         id="btn-add-note"
@@ -162,14 +162,16 @@ function layout(note: HouseNote) {
   const target = noteTargetId(note.link);
   const anchor = target ? store.noteAnchors[target] : undefined;
   const tracking = Boolean(target && anchor?.visible);
+  const width = Math.max(board.value?.clientWidth || boardSize.value.w, 1);
+  const height = Math.max(board.value?.clientHeight || boardSize.value.h, 1);
   const leftRaw = tracking && anchor
     ? anchor.x + note.offsetX
-    : (note.x / 100) * boardSize.value.w;
+    : (note.x / 100) * width;
   const topRaw = tracking && anchor
     ? anchor.y + note.offsetY
-    : (note.y / 100) * boardSize.value.h;
-  const maxX = Math.max(8, boardSize.value.w - 188);
-  const maxY = Math.max(8, boardSize.value.h - 220);
+    : (note.y / 100) * height;
+  const maxX = Math.max(8, width - 188);
+  const maxY = Math.max(8, height - 220);
   return {
     left: Math.min(maxX, Math.max(8, leftRaw)),
     top: Math.min(maxY, Math.max(8, topRaw)),
@@ -248,6 +250,7 @@ watch(() => store.notes.length, (count, previous) => {
 
 onMounted(() => {
   measure();
+  requestAnimationFrame(measure);
   observer = new ResizeObserver(measure);
   if (board.value) observer.observe(board.value);
   focusFresh();

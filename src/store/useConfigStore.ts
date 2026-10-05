@@ -842,7 +842,6 @@ export const useConfigStore = defineStore('config', () => {
   function setNoteLink(id: string, value: string) {
     const link = linkFromValue(value);
     replaceNote(id, { link });
-    if (link.kind === 'slot') selectSlot(link.slotId);
     activeNoteId.value = id;
     commitHouse();
   }

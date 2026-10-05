@@ -57,8 +57,6 @@
 
       <!-- Main Scrollable Panel Content -->
       <div v-show="!isMobileCollapsed" class="p-4 md:p-5 overflow-y-auto space-y-4 flex-1">
-        <HouseImport />
-
         <!-- Step Navigation Bar -->
         <CategoryNav />
 
@@ -67,6 +65,8 @@
 
         <!-- Embedded AI Architect Assistant -->
         <AIAssistantBar />
+
+        <HouseImport />
       </div>
 
       <!-- Footer Quick Status Summary -->
