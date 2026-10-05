@@ -80,16 +80,16 @@
           <label v-for="field in measureFields" :key="field.axis" class="block">
             <span class="block text-[11px] font-semibold text-slate-600 mb-1">
               <Cms :k="field.label" />
-              <span class="font-medium text-slate-400"><Cms k="category.unitMm" /></span>
+              <span class="font-medium text-slate-400"> ({{ t('category.unitCm') }})</span>
             </span>
             <input
               type="number"
               :id="`measure-${field.axis}`"
               class="w-full text-xs font-semibold tabular-nums bg-white border border-slate-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-slate-900"
-              :min="BUILDING_LIMITS[field.axis].min"
-              :max="BUILDING_LIMITS[field.axis].max"
-              step="10"
-              :value="store.dimensions[field.axis]"
+              :min="BUILDING_LIMITS[field.axis].min / 10"
+              :max="BUILDING_LIMITS[field.axis].max / 10"
+              step="0.1"
+              :value="centimetres(store.dimensions[field.axis])"
               @change="commitMeasure(field.axis, $event)"
             />
           </label>
@@ -814,10 +814,15 @@ const measureFields = [
   { axis: 'height' as const, label: 'category.height' }
 ];
 
+function centimetres(millimetres: number) {
+  const cm = millimetres / 10;
+  return Number.isInteger(cm) ? String(cm) : cm.toFixed(1);
+}
+
 function commitMeasure(axis: 'width' | 'depth' | 'height', event: Event) {
   const raw = Number((event.target as HTMLInputElement).value);
-  store.setBuildingMeasure(axis, raw);
-  (event.target as HTMLInputElement).value = String(store.dimensions[axis]);
+  store.setBuildingMeasure(axis, Math.round(raw * 10));
+  (event.target as HTMLInputElement).value = centimetres(store.dimensions[axis]);
 }
 
 const currentOptionsCount = computed(() => {
