@@ -9,6 +9,7 @@ import {
   type HouseNote
 } from '../notes/board';
 import { nextMeasure, type MeasurePoint } from '../measure/length';
+import { normalizeHex, paintTitle, parseCustomPaint, type CustomPaint } from '../color/paint';
 
 export type ViewMode = 'utsida' | 'insida';
 export type CategoryKey = 'size' | 'roof' | 'loft' | 'doors' | 'windows' | 'gates' | 'extras';
@@ -397,6 +398,8 @@ export const useConfigStore = defineStore('config', () => {
   const viewMode = ref<ViewMode>('utsida');
   const selectedCategory = ref<CategoryKey>('size');
   const activeMaterial = ref<MaterialKey>('wood');
+  const customPaint = ref<CustomPaint | null>(null);
+  const paintPreview = ref<string | null>(null);
   const panelOrientation = ref<PanelOrientation>('staende');
   const claddingSizeId = ref<CladdingSizeId>('22x145');
   const isFullscreen = ref<boolean>(false);
@@ -463,6 +466,7 @@ export const useConfigStore = defineStore('config', () => {
       activeWindow: activeWindow.value,
       activeGate: activeGate.value,
       activeMaterial: activeMaterial.value,
+      customPaint: customPaint.value,
       panelOrientation: panelOrientation.value,
       claddingSizeId: claddingSizeId.value,
       wallSlots: wallSlots.value,
@@ -521,7 +525,10 @@ export const useConfigStore = defineStore('config', () => {
       if (data.activeDoor) activeDoor.value = data.activeDoor;
       if (data.activeWindow) activeWindow.value = data.activeWindow;
       if (data.activeGate) activeGate.value = data.activeGate;
-      activeMaterial.value = data.activeMaterial;
+      activeMaterial.value = MATERIAL_OPTIONS.some((item) => item.id === data.activeMaterial)
+        ? data.activeMaterial
+        : 'wood';
+      customPaint.value = parseCustomPaint(data.customPaint);
       panelOrientation.value = data.panelOrientation === 'liggande' ? 'liggande' : 'staende';
       claddingSizeId.value = CLADDING_SIZES.some((size) => size.id === data.claddingSizeId)
         ? data.claddingSizeId
@@ -553,6 +560,16 @@ export const useConfigStore = defineStore('config', () => {
   });
 
   const currentMaterial = computed(() => {
+    if (customPaint.value) {
+      return {
+        id: 'custom' as const,
+        name: paintTitle(customPaint.value),
+        badge: '',
+        colorHex: customPaint.value.hex,
+        desc: '',
+        priceDelta: 0
+      };
+    }
     return MATERIAL_OPTIONS.find((m) => m.id === activeMaterial.value) ?? MATERIAL_OPTIONS[0];
   });
 
@@ -786,6 +803,21 @@ export const useConfigStore = defineStore('config', () => {
 
   function selectMaterial(id: MaterialKey) {
     activeMaterial.value = id;
+    customPaint.value = null;
+    paintPreview.value = null;
+    saveSnapshot();
+  }
+
+  function setPaintPreview(hex: string | null) {
+    paintPreview.value = hex ? normalizeHex(hex) : null;
+  }
+
+  function setCustomPaint(paint: CustomPaint) {
+    const next = parseCustomPaint(paint);
+    if (!next) return;
+    paintPreview.value = null;
+    if (JSON.stringify(next) === JSON.stringify(customPaint.value)) return;
+    customPaint.value = next;
     saveSnapshot();
   }
 
@@ -1025,6 +1057,10 @@ export const useConfigStore = defineStore('config', () => {
     viewMode,
     selectedCategory,
     activeMaterial,
+    customPaint,
+    paintPreview,
+    setPaintPreview,
+    setCustomPaint,
     panelOrientation,
     claddingSizeId,
     selectedSlotId,

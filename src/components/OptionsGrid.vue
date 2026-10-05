@@ -115,7 +115,7 @@
             @click="store.selectMaterial(mat.id)"
             :class="[
               'p-2.5 rounded-xl border text-left flex items-center gap-3 transition-all',
-              store.activeMaterial === mat.id
+              store.activeMaterial === mat.id && !store.customPaint && !store.paintPreview
                 ? 'border-slate-900 ring-1 ring-slate-900 bg-slate-50 shadow-sm'
                 : 'border-slate-200 bg-white hover:border-slate-300'
             ]"
@@ -127,7 +127,7 @@
               :style="{ backgroundColor: mat.colorHex }"
             >
               <div class="absolute inset-0 bg-gradient-to-tr from-black/10 to-transparent"></div>
-              <svg v-if="store.activeMaterial === mat.id" class="w-4 h-4 text-white drop-shadow-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+              <svg v-if="store.activeMaterial === mat.id && !store.customPaint && !store.paintPreview" class="w-4 h-4 text-white drop-shadow-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
                 <polyline points="20 6 9 17 4 12" />
               </svg>
             </div>
@@ -143,7 +143,35 @@
               <p class="text-[10px] text-slate-500 truncate"><Cms :k="`catalog.${mat.id}.desc`" :fallback="mat.desc" /></p>
             </div>
           </button>
+          <button
+            type="button"
+            id="btn-custom-paint"
+            class="p-2.5 rounded-xl border text-left flex items-center gap-3 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+            :class="store.customPaint || store.paintPreview
+              ? 'border-slate-900 ring-1 ring-slate-900 bg-slate-50 shadow-sm'
+              : 'border-slate-200 bg-white hover:border-slate-300'"
+            :aria-expanded="paintOpen"
+            aria-controls="custom-paint"
+            @click="paintOpen = !paintOpen"
+          >
+            <div
+              class="w-8 h-8 rounded-lg shrink-0 border border-slate-300 flex items-center justify-center"
+              :style="paintSwatch ? { backgroundColor: paintSwatch, color: ink } : undefined"
+            >
+              <svg v-if="store.customPaint || store.paintPreview" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+              <svg v-else class="w-4 h-4 text-slate-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+            </div>
+            <div class="min-w-0">
+              <span class="block text-xs font-bold text-slate-900 truncate">{{ t('paint.add') }}</span>
+              <p class="text-[10px] text-slate-600 truncate">{{ store.customPaint ? store.currentMaterial.name : store.paintPreview ? store.paintPreview.toUpperCase() : t('paint.pick') }}</p>
+            </div>
+          </button>
         </div>
+        <CustomPaint v-if="paintOpen" @saved="paintOpen = false" />
 
         <div class="mt-4 pt-3 border-t border-slate-200/70">
           <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2"><Cms k="category.cladding" /></h4>
@@ -774,7 +802,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import Cms from './Cms.vue';
 import CmsImage from './CmsImage.vue';
 import {
@@ -792,9 +820,14 @@ import {
   GATES_OPTIONS
 } from '../store/useConfigStore';
 import { useLabels } from '../i18n';
+import CustomPaint from './CustomPaint.vue';
+import { readableInk } from '../color/paint';
 
 const store = useConfigStore();
 const { t, catalog, money, delta } = useLabels();
+const paintOpen = ref(false);
+const paintSwatch = computed(() => store.paintPreview ?? store.customPaint?.hex ?? null);
+const ink = computed(() => readableInk(paintSwatch.value ?? '#ffffff'));
 
 const coveringSwatch: Record<RoofCovering, string> = {
   felt: 'bg-slate-700',

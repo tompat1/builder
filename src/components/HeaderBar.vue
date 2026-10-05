@@ -182,7 +182,7 @@
       </div>
       <div class="flex justify-between">
         <span>{{ t('header.facade', { name: catalog(store.currentMaterial.id, 'name', store.currentMaterial.name) }) }}</span>
-        <span class="font-semibold">{{ delta(store.currentMaterial.priceDelta) }}</span>
+        <span v-if="store.currentMaterial.id !== 'custom'" class="font-semibold">{{ delta(store.currentMaterial.priceDelta) }}</span>
       </div>
       <div v-if="store.hasLoft" class="flex justify-between text-emerald-700">
         <span><Cms k="header.loftExtra" /></span>

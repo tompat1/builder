@@ -102,38 +102,38 @@
           <div class="bg-white/95 backdrop-blur-md rounded-2xl shadow-md border border-slate-200/80 p-1.5 flex items-center gap-1">
             <button
               type="button"
-              id="btn-tool-tape"
-              @click="store.toggleMeasure()"
-              :class="toolButton(store.measuring)"
-              :aria-label="t('tools.tape')"
-              :aria-pressed="store.measuring"
-            >
-              <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M4.5 9.5h8a3.5 3.5 0 0 1 0 7H7.5" />
-                <circle cx="8" cy="13" r="1.2" />
-                <path d="M12.5 13H20" />
-                <path d="M15.5 11v4" />
-                <path d="M18 11.5v3" />
-              </svg>
-              <span class="tool-tip"><Cms k="tools.tape" /></span>
-            </button>
-            <div class="w-px h-7 bg-slate-200/60"></div>
-            <button
-              type="button"
               id="btn-tool-dimensions"
               @click="store.toggleDimensions()"
               :class="toolButton(store.showDimensions)"
               :aria-label="t('tools.dimensions')"
               :aria-pressed="store.showDimensions"
             >
-              <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M4 12h16" />
-                <path d="M7 8.5 4 12l3 3.5" />
-                <path d="M17 8.5 20 12l-3 3.5" />
-                <path d="M4 9v6" />
-                <path d="M20 9v6" />
+              <svg v-if="store.showDimensions" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2.8 12S6.2 7 12 7s9.2 5 9.2 5-3.4 5-9.2 5S2.8 12 2.8 12Z" />
+                <circle cx="12" cy="12" r="2.2" />
+                <path d="M4 6.5 20 17.5" />
+              </svg>
+              <svg v-else class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2.8 12S6.2 7 12 7s9.2 5 9.2 5-3.4 5-9.2 5S2.8 12 2.8 12Z" />
+                <circle cx="12" cy="12" r="2.2" />
               </svg>
               <span class="tool-tip"><Cms k="tools.dimensions" /></span>
+            </button>
+            <div class="w-px h-7 bg-slate-200/60"></div>
+            <button
+              type="button"
+              id="btn-tool-tape"
+              @click="store.toggleMeasure()"
+              :class="toolButton(store.measuring)"
+              :aria-label="t('tools.tape')"
+              :aria-pressed="store.measuring"
+            >
+              <svg class="h-8 w-12" viewBox="0 0 48 24" fill="none" stroke="currentColor" stroke-width="1.45" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M23.3 17.8V6.6l1.5-1.7.1-2.3h-3.4l-.2 2.3C20.4 3.4 17.2 1.5 12.6 1.5 6.4 1.5 2.2 5.8 2.2 11.2V19.5c0 1.6 1.6 2.9 3.8 2.9H46.2V17.8H23.3z" />
+                <circle cx="12.7" cy="12.2" r="4.5" />
+                <path stroke-linecap="butt" d="M26.4 22.4v-1.55M29.8 22.4v-1.55M33.2 22.4v-1.55M36.6 22.4v-1.55M40 22.4v-1.55M43.4 22.4v-1.55" />
+              </svg>
+              <span class="tool-tip"><Cms k="tools.tape" /></span>
             </button>
           </div>
         </div>

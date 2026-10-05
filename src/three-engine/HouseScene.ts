@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { PULPET_PITCH_DEG, type MaterialKey, type WallSlot, type LoftPlacement, type LoftCount, type PanelOrientation, type RoofCovering } from '../store/useConfigStore';
 import { inferNoteNormal, noteAxes, noteCameraTransform, noteSheetTransform, noteTiltRadians, NOTE_SURFACE_SCALE } from '../notes/surface';
+import { paintBoards } from '../color/paint';
 
 const PULPET_PITCH_RAD = (PULPET_PITCH_DEG * Math.PI) / 180;
 
@@ -20,6 +21,8 @@ export interface SceneConfig {
   /** Overhead cutaway used while the Loft category is open. */
   loftView: boolean;
   material: MaterialKey;
+  /** Painted facade. When set, the boards use this colour instead of a catalog stain. */
+  customHex: string | null;
   panelOrientation: PanelOrientation;
   /** Visible board width, millimetres. 145 is the standard 22×145 board. */
   panelWidthMm: number;
@@ -100,6 +103,7 @@ export class HouseScene {
       viewMode: initialConfig?.viewMode ?? 'utsida',
       loftView: initialConfig?.loftView ?? false,
       material: initialConfig?.material ?? 'wood',
+      customHex: initialConfig?.customHex ?? null,
       panelOrientation: initialConfig?.panelOrientation ?? 'staende',
       panelWidthMm: initialConfig?.panelWidthMm ?? 145,
       showDimensions: initialConfig?.showDimensions ?? true,
@@ -171,7 +175,7 @@ export class HouseScene {
     canvas.height = 1024;
     const ctx = canvas.getContext('2d')!;
 
-    const isNaturalWood = materialKey === 'wood';
+    const isNaturalWood = materialKey === 'wood' && !this.currentConfig.customHex;
     // Four boards per tile, so neighbouring boards can differ and the width stays readable.
     const plankCount = 4;
     const plankW = 1024 / plankCount;
@@ -187,7 +191,10 @@ export class HouseScene {
     ];
 
     let colorPalette: { base: string; grain: string; darkGrain: string };
-    if (materialKey === 'falurod') {
+    const painted = this.currentConfig.customHex ? paintBoards(this.currentConfig.customHex) : null;
+    if (painted) {
+      colorPalette = painted;
+    } else if (materialKey === 'falurod') {
       colorPalette = { base: '#892622', grain: '#731c19', darkGrain: '#591310' };
     } else if (materialKey === 'grey') {
       colorPalette = { base: '#64748b', grain: '#475569', darkGrain: '#334155' };
@@ -903,6 +910,7 @@ export class HouseScene {
   }
 
   private casingColor() {
+    if (this.currentConfig.customHex) return paintBoards(this.currentConfig.customHex).base;
     switch (this.currentConfig.material) {
       case 'falurod':
         return '#9a2d28';

@@ -165,6 +165,22 @@ const sv = {
     doorBlocked: 'Dörr kan inte placeras på markerad väggyta på byggnaden.',
     doorBlockedHint: 'Välj en marknära väggsektion eller byt till fönsterparti.'
   },
+  paint: {
+    add: 'Egen kulör',
+    pick: 'Välj på paletten',
+    palette: 'Kulörpalett',
+    hue: 'Regnbågsskala',
+    screen: 'Skärmmatchning, inte ett lackprov.',
+    ralHint: 'RAL Classic, till exempel 7016.',
+    ralMiss: 'Den RAL-koden finns inte i listan.',
+    pantoneHint: 'Pantone-koden sparas som namn. Paletten sätter kulören på skärmen.',
+    hexHint: 'Sex tecken, till exempel 383E42.',
+    channel: '0–255',
+    percent: '0–100',
+    closest: 'Närmaste RAL {code}',
+    pickRal: 'Välj RAL {code}',
+    save: 'Spara kulör'
+  },
   tools: {
     label: '3D Vyverktyg',
     zoomIn: 'Zooma in',
@@ -457,6 +473,22 @@ const en = {
     seriesTraditional: 'Traditional timber',
     doorBlocked: 'A door cannot be placed on the marked wall of the building.',
     doorBlockedHint: 'Choose a wall section at ground level, or switch to a window.'
+  },
+  paint: {
+    add: 'Custom colour',
+    pick: 'Choose on the palette',
+    palette: 'Colour palette',
+    hue: 'Rainbow scale',
+    screen: 'A screen match, not a paint chip.',
+    ralHint: 'RAL Classic, for example 7016.',
+    ralMiss: 'That RAL code is not in the list.',
+    pantoneHint: 'The Pantone code is kept as the name. The palette sets the colour on screen.',
+    hexHint: 'Six characters, for example 383E42.',
+    channel: '0–255',
+    percent: '0–100',
+    closest: 'Closest RAL {code}',
+    pickRal: 'Use RAL {code}',
+    save: 'Save colour'
   },
   tools: {
     label: '3D view tools',
