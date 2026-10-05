@@ -1,5 +1,7 @@
 /** Admin-added knowledge pages. The model may choose the id. The stored sentence stays. */
 
+import { deletePassages, indexResource } from './passages.js';
+
 const ID_PATTERN = /^extra-[a-z0-9-]{1,48}$/;
 
 export function resourceSlug(title) {
@@ -172,6 +174,7 @@ async function createResource(request, env, headers, sessionUser) {
   await env.DB.prepare(
     'INSERT INTO resources (id, keywords, title, body, link_label, link_href, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
   ).bind(id, JSON.stringify(row.keywords), row.title, row.body, row.linkLabel, row.linkHref, now).run();
+  await indexResource(env, { ...row, id }).catch(() => false);
   return new Response(JSON.stringify({ resource: { ...row, id } }), {
     headers: { ...headers, 'Content-Type': 'application/json' }
   });
@@ -192,6 +195,7 @@ async function deleteResource(request, env, headers, sessionUser, id) {
     });
   }
   await env.DB.prepare('DELETE FROM resources WHERE id = ?').bind(id).run();
+  await deletePassages(env, 'resource', id);
   return new Response(JSON.stringify({ ok: true }), {
     headers: { ...headers, 'Content-Type': 'application/json' }
   });

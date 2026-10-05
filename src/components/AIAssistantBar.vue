@@ -94,6 +94,21 @@
         <Cms v-else k="ai.show" />
       </button>
 
+      <div v-if="passages.length" class="mt-2 space-y-1.5">
+        <p class="text-[11px] font-semibold text-slate-600">{{ t('ai.passages') }}</p>
+        <article v-for="(passage, index) in passages" :key="`${passage.url}-${index}`" class="rounded-lg bg-slate-50 px-2 py-1.5">
+          <a
+            v-if="passage.url"
+            :href="passage.url"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-[11px] font-semibold text-slate-800 underline underline-offset-2"
+          >{{ passage.title }}</a>
+          <p v-else class="text-[11px] font-semibold text-slate-800">{{ passage.title }}</p>
+          <p class="text-[11px] text-slate-600 leading-relaxed">{{ excerpt(passage.text) }}</p>
+        </article>
+      </div>
+
       <div v-if="hit.related.length" class="flex flex-wrap gap-1.5 mt-2">
         <button
           v-for="related in hit.related"
@@ -107,9 +122,23 @@
       </div>
     </div>
 
-    <p v-else-if="miss" ref="answerEl" class="mt-2 text-[11px] text-slate-500 leading-relaxed" aria-live="polite">
-      <Cms k="ai.miss" />
-    </p>
+    <div v-else-if="miss" ref="answerEl" class="mt-2" aria-live="polite">
+      <p class="text-[11px] text-slate-500 leading-relaxed"><Cms k="ai.miss" /></p>
+      <div v-if="passages.length" class="mt-2 space-y-1.5">
+        <p class="text-[11px] font-semibold text-slate-600">{{ t('ai.passages') }}</p>
+        <article v-for="(passage, index) in passages" :key="`${passage.url}-${index}`" class="rounded-lg bg-slate-50 px-2 py-1.5">
+          <a
+            v-if="passage.url"
+            :href="passage.url"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-[11px] font-semibold text-slate-800 underline underline-offset-2"
+          >{{ passage.title }}</a>
+          <p v-else class="text-[11px] font-semibold text-slate-800">{{ passage.title }}</p>
+          <p class="text-[11px] text-slate-600 leading-relaxed">{{ excerpt(passage.text) }}</p>
+        </article>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -118,7 +147,7 @@ import { computed, nextTick, ref } from 'vue';
 import { useConfigStore } from '../store/useConfigStore';
 import { useLabels } from '../i18n';
 import { allKnowledgeEntries, askKnowledge, type KnowledgeApply, type KnowledgeEntry, type KnowledgeHit, type KnowledgeLang } from '../knowledge/hub';
-import { askKnowledgeWorker } from '../services/knowledgeWorker';
+import { askKnowledgeWorker, type RetrievedPassage } from '../services/knowledgeWorker';
 import KnowledgeFigure from './KnowledgeFigure.vue';
 import CmsImage from './CmsImage.vue';
 import Cms from './Cms.vue';
@@ -132,6 +161,7 @@ const appliedId = ref<string | null>(null);
 const answerEl = ref<HTMLElement | null>(null);
 const viaWorker = ref(false);
 const asking = ref(false);
+const passages = ref<RetrievedPassage[]>([]);
 let requestId = 0;
 
 const lang = computed<KnowledgeLang>(() => (locale.value === 'en' ? 'en' : 'sv'));
@@ -142,6 +172,21 @@ function copy(value: Record<KnowledgeLang, string>) {
   return value[lang.value];
 }
 
+function excerpt(text: string) {
+  const clean = text.replace(/\s+/g, ' ').trim();
+  const term = customPrompt.value
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((word) => word.length > 4)
+    .find((word) => clean.toLowerCase().includes(word));
+  const at = term ? clean.toLowerCase().indexOf(term) : 0;
+  const start = at > 40 ? at - 40 : 0;
+  const slice = clean.slice(start, start + 280).trim();
+  const prefix = start > 0 ? '…' : '';
+  const suffix = start + 280 < clean.length ? '…' : '';
+  return `${prefix}${slice}${suffix}`;
+}
+
 function ask(query: string) {
   const next = query.trim();
   if (!next) return;
@@ -149,16 +194,21 @@ function ask(query: string) {
   customPrompt.value = next;
   appliedId.value = null;
   viaWorker.value = false;
+  passages.value = [];
   const found = askKnowledge(next);
   hit.value = found;
   miss.value = !found;
   asking.value = true;
   reveal();
-  askKnowledgeWorker(next, lang.value).then((entryId) => {
+  askKnowledgeWorker(next, lang.value).then((result) => {
     if (id !== requestId) return;
     asking.value = false;
-    const entry = entryId ? allKnowledgeEntries().find((item) => item.id === entryId) : undefined;
-    if (!entry) return;
+    passages.value = result.passages;
+    const entry = result.entryId ? allKnowledgeEntries().find((item) => item.id === result.entryId) : undefined;
+    if (!entry) {
+      reveal();
+      return;
+    }
     hit.value = { entry, related: found?.related.filter((item) => item.id !== entry.id) ?? [] };
     viaWorker.value = true;
     miss.value = false;

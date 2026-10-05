@@ -1,8 +1,10 @@
-/** Reference sites kept for the knowledge base. They are not answers. */
+/** Reference sites kept for the knowledge base. A saved site is also read into passages. */
+
+import { deletePassages, indexExternalPage } from './passages.js';
 
 export function acceptSource(input) {
   const raw = String(typeof input === 'string' ? input : input?.url ?? '').trim();
-  if (!raw || raw.length > 400) return null;
+  if (!raw || raw.length > 2000) return null;
   let parsed;
   try {
     parsed = new URL(raw);
@@ -70,6 +72,7 @@ async function createSource(request, env, headers, sessionUser) {
   await env.DB.prepare(
     'INSERT INTO sources (url, created_at) VALUES (?, ?) ON CONFLICT(url) DO NOTHING'
   ).bind(href, new Date().toISOString()).run();
+  await indexExternalPage(env, href).catch(() => false);
   return new Response(JSON.stringify({ url: href }), {
     headers: { ...headers, 'Content-Type': 'application/json' }
   });
@@ -91,6 +94,7 @@ async function deleteSource(request, env, headers, sessionUser, raw) {
     });
   }
   await env.DB.prepare('DELETE FROM sources WHERE url = ?').bind(href).run();
+  await deletePassages(env, 'source', href);
   return new Response(JSON.stringify({ ok: true }), {
     headers: { ...headers, 'Content-Type': 'application/json' }
   });

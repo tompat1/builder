@@ -12,6 +12,7 @@ import { handleSources } from './sources.js';
 import { handleRender } from './render.js';
 import { handleHouse } from './house.js';
 import { parseEntryId, readPayload } from './select.js';
+import { indexCatalog, indexPendingResources, indexPendingSources, searchPassages } from './passages.js';
 
 interface Env {
   AI: {
@@ -54,7 +55,7 @@ function json(body: unknown, status: number, headers: HeadersInit): Response {
 }
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx?: { waitUntil?: (work: Promise<unknown>) => void }): Promise<Response> {
     const headers = corsHeaders(request, env);
     const url = new URL(request.url);
 
@@ -111,6 +112,17 @@ export default {
     const seen = new Set(PAGES.map((page) => page.id));
     const pages = [...PAGES, ...extra.filter((page) => !seen.has(page.id))];
     const known = new Set(pages.map((page) => page.id));
+    let passages: { title: string; url: string; text: string }[] = [];
+    try {
+      await indexCatalog(env, PAGES);
+      passages = await searchPassages(env, question);
+      ctx?.waitUntil?.(Promise.all([
+        indexPendingResources(env).catch(() => 0),
+        indexPendingSources(env, 2).catch(() => 0)
+      ]));
+    } catch {
+      passages = [];
+    }
     try {
       const result = await env.AI.run(MODEL, {
         messages: [
@@ -134,7 +146,7 @@ export default {
         response_format: { type: 'json_object' },
         chat_template_kwargs: { enable_thinking: false }
       });
-      return json({ entryId: parseEntryId(readPayload(result), known) }, 200, headers);
+      return json({ entryId: parseEntryId(readPayload(result), known), passages }, 200, headers);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Workers AI failed';
       return json({ error: message }, 502, headers);
