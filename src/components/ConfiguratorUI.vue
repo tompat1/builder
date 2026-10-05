@@ -17,7 +17,7 @@
       <HouseNotes />
     </div>
 
-    <!-- Lower-Left Toolset (Zoom +, Zoom -, Ruler, Undo, Redo) -->
+    <!-- Lower-Left Toolset (Zoom, Fullscreen, Center, Measure, Undo, Redo, Notes) -->
     <ToolSet
       @zoom-in="$emit('zoom-in')"
       @zoom-out="$emit('zoom-out')"

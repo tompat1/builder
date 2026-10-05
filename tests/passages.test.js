@@ -43,6 +43,14 @@ test('a question finds the reference passage without the exact heading', () => {
   assert.deepEqual(rankPassages([], 'attefall'), []);
 });
 
+test('a short question word does not pull an unrelated page', () => {
+  const ranked = rankPassages([
+    { title: 'Svenska Skalhus', url: 'https://svenskaskalhus.se/', text: 'Vad ingår i ett skalhus?' },
+    { title: 'Trossbotten', url: 'https://sv.wikipedia.org/wiki/Trossbotten', text: 'Trossbotten är utrymmet mellan golvbjälkarna.' }
+  ], 'Vad är en trossbotten?');
+  assert.deepEqual(ranked.map((passage) => passage.title), ['Trossbotten']);
+});
+
 test('nearby passages come from different pages', () => {
   const ranked = rankPassages([
     { title: 'Husverket', url: 'https://husverket.se/hus/attefallshus/', text: 'Nyckelfärdigt attefallshus.' },

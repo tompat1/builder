@@ -4,7 +4,7 @@
     :class="store.isFullscreen ? 'top-6 left-6 md:top-auto md:bottom-6 md:left-6' : 'top-20 left-3 md:top-auto md:bottom-6 md:left-6'"
     :aria-label="t('tools.label')"
   >
-    <!-- Top Button Pair: Zoom In / Zoom Out -->
+    <!-- Camera toolbar: Zoom, Fullscreen, Center view -->
     <div class="w-fit self-start bg-white/95 backdrop-blur-md rounded-2xl shadow-md border border-slate-200/80 p-1.5 flex flex-col gap-1">
       <button
         type="button"
@@ -38,9 +38,58 @@
         </svg>
         <span class="tool-tip"><Cms k="tools.zoomOut" /></span>
       </button>
+
+      <div class="h-px bg-slate-100 mx-1"></div>
+
+      <button
+        type="button"
+        id="btn-tool-fullscreen"
+        @click="toggleFullscreen"
+        :class="[
+          'group relative w-12 h-12 rounded-xl flex items-center justify-center transition-colors',
+          store.isFullscreen
+            ? 'bg-slate-900 text-white shadow-2xs'
+            : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
+        ]"
+        :aria-label="store.isFullscreen ? t('tools.exitFullscreen') : t('tools.fullscreen')"
+        :aria-pressed="store.isFullscreen"
+      >
+        <svg v-if="store.isFullscreen" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="4 14 10 14 10 20" />
+          <polyline points="20 10 14 10 14 4" />
+          <line x1="14" y1="10" x2="21" y2="3" />
+          <line x1="3" y1="21" x2="10" y2="14" />
+        </svg>
+        <svg v-else class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="15 3 21 3 21 9" />
+          <polyline points="9 21 3 21 3 15" />
+          <line x1="21" y1="3" x2="14" y2="10" />
+          <line x1="3" y1="21" x2="10" y2="14" />
+        </svg>
+        <span class="tool-tip"><Cms :k="store.isFullscreen ? 'tools.exitFullscreen' : 'tools.fullscreen'" /></span>
+      </button>
+
+      <div class="h-px bg-slate-100 mx-1"></div>
+
+      <button
+        type="button"
+        id="btn-tool-reset-view"
+        @click="$emit('reset-view')"
+        class="group relative w-12 h-12 rounded-xl flex items-center justify-center text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+        :aria-label="t('tools.resetView')"
+      >
+        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 7V5a2 2 0 0 1 2-2h2" />
+          <path d="M17 3h2a2 2 0 0 1 2 2v2" />
+          <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
+          <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+        <span class="tool-tip"><Cms k="tools.resetView" /></span>
+      </button>
     </div>
 
-    <!-- Bottom Button Row: Measure / Undo / Redo -->
+    <!-- Bottom Button Row: Measure / Undo / Redo / Notes -->
     <div class="bg-white/95 backdrop-blur-md rounded-2xl shadow-md border border-slate-200/80 p-1.5 flex items-center gap-1">
       <button
         type="button"
@@ -101,34 +150,6 @@
 
       <button
         type="button"
-        id="btn-tool-fullscreen"
-        @click="toggleFullscreen"
-        :class="[
-          'group relative w-12 h-12 rounded-xl flex items-center justify-center transition-colors',
-          store.isFullscreen
-            ? 'bg-slate-900 text-white shadow-2xs'
-            : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
-        ]"
-        :aria-label="store.isFullscreen ? t('tools.exitFullscreen') : t('tools.fullscreen')"
-        :aria-pressed="store.isFullscreen"
-      >
-        <svg v-if="store.isFullscreen" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polyline points="4 14 10 14 10 20" />
-          <polyline points="20 10 14 10 14 4" />
-          <line x1="14" y1="10" x2="21" y2="3" />
-          <line x1="3" y1="21" x2="10" y2="14" />
-        </svg>
-        <svg v-else class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polyline points="15 3 21 3 21 9" />
-          <polyline points="9 21 3 21 3 15" />
-          <line x1="21" y1="3" x2="14" y2="10" />
-          <line x1="3" y1="21" x2="10" y2="14" />
-        </svg>
-        <span class="tool-tip"><Cms :k="store.isFullscreen ? 'tools.exitFullscreen' : 'tools.fullscreen'" /></span>
-      </button>
-
-      <button
-        type="button"
         id="btn-tool-notes"
         @click="store.toggleNotes()"
         :class="[
@@ -152,23 +173,6 @@
           aria-hidden="true"
         ></span>
         <span class="tool-tip"><Cms k="notes.tool" /></span>
-      </button>
-
-      <button
-        type="button"
-        id="btn-tool-reset-view"
-        @click="$emit('reset-view')"
-        class="group relative w-12 h-12 rounded-xl flex items-center justify-center text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-        :aria-label="t('tools.resetView')"
-      >
-        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M3 7V5a2 2 0 0 1 2-2h2" />
-          <path d="M17 3h2a2 2 0 0 1 2 2v2" />
-          <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
-          <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
-          <circle cx="12" cy="12" r="3" />
-        </svg>
-        <span class="tool-tip"><Cms k="tools.resetView" /></span>
       </button>
     </div>
   </div>

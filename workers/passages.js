@@ -79,8 +79,10 @@ function fold(value) {
     .trim();
 }
 
+const QUERY_STOP = new Set(['vad', 'hur', 'for', 'med', 'och', 'den', 'det', 'som', 'att', 'inte', 'fran', 'till', 'eller', 'nar', 'var', 'vem', 'ett', 'vara', 'far', 'kan', 'ska', 'har', 'men', 'vilken', 'vilka', 'vilket']);
+
 export function rankPassages(passages, query) {
-  const terms = fold(query).split(' ').filter((term) => term.length > 2);
+  const terms = fold(query).split(' ').filter((term) => term.length > 2 && !QUERY_STOP.has(term));
   if (!terms.length) return [];
   const ranked = passages
     .map((passage) => {

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { coversQuestion } from '../workers/passages.js';
-import { acceptWebItems, readWebAnswer } from '../workers/web.js';
+import { acceptWebItems, citedSources, readWebAnswer, wikiItems, wikiQuery } from '../workers/web.js';
 
 test('a stored attefall passage covers the question', () => {
   const covered = coversQuestion([
@@ -34,6 +34,37 @@ test('web hits keep https pages and drop the rest', () => {
   });
   assert.equal(items.length, 1);
   assert.equal(items[0].url, 'https://www.traguiden.se/konstruktion/skruv/');
+});
+
+test('a Wikipedia search uses the distinctive words', () => {
+  assert.equal(
+    wikiQuery('Vilken skruvlängd passar till liggande ytterpanel?'),
+    'vilken skruvlängd passar liggande ytterpanel'
+  );
+});
+
+test('a Wikipedia search becomes a source page', () => {
+  const items = wikiItems({
+    query: {
+      search: [
+        { title: 'Träpanel', snippet: '<span>Stående och liggande träpanel</span> fästs med skruv.' }
+      ]
+    }
+  }, 'sv');
+  assert.equal(items.length, 1);
+  assert.equal(items[0].url, 'https://sv.wikipedia.org/wiki/Tr%C3%A4panel');
+  assert.match(items[0].description, /liggande träpanel/);
+  assert.deepEqual(wikiItems({ query: { search: [] } }, 'sv'), []);
+});
+
+test('a web reply cites the page it names', () => {
+  const items = [
+    { title: 'Trossbotten', url: 'https://sv.wikipedia.org/wiki/Trossbotten', description: 'Utrymmet mellan golvbjälkarna.' },
+    { title: 'Sportpalatset, Stockholm', url: 'https://sv.wikipedia.org/wiki/Sportpalatset,_Stockholm', description: 'En byggnad i Stockholm.' }
+  ];
+  const cited = citedSources('Trossbotten är utrymmet mellan golvbjälkarna.', items);
+  assert.deepEqual(cited.map((item) => item.title), ['Trossbotten']);
+  assert.deepEqual(citedSources('Ett utrymme mellan golvbjälkarna i ett hus.', items).map((item) => item.title), ['Trossbotten']);
 });
 
 test('a web reply is a short sentence or nothing', () => {

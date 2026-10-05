@@ -18,7 +18,6 @@ import { lookupOnWeb } from './web.js';
 interface Env {
   AI: {
     run: (model: string, input: Record<string, unknown>) => Promise<unknown>;
-    websearch?: (input: { gatewayId: string; query: string; limit?: number }) => Promise<{ json: () => Promise<unknown> }>;
   };
   DB?: D1Database;
   AVATARS?: R2Bucket;
@@ -155,7 +154,7 @@ export default {
     }
     let web: { answer: string; sources: { title: string; url: string }[] } | null = null;
     if (!entryId && !coversQuestion(passages, question)) {
-      web = await lookupOnWeb(env, question, lang);
+      web = await lookupOnWeb(env, question, lang, passages);
     }
     return json({ entryId, passages, web }, 200, headers);
   }
