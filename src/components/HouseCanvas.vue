@@ -6,6 +6,7 @@
 import { ref, onMounted, onBeforeUnmount, watch } from 'vue';
 import { HouseScene } from '../three-engine/HouseScene';
 import { useConfigStore } from '../store/useConfigStore';
+import type { RoofId } from '../store/roof';
 import { noteTargetId } from '../notes/board';
 
 const canvasContainer = ref<HTMLElement | null>(null);
@@ -35,7 +36,7 @@ onMounted(() => {
       widthMm: store.dimensions.width,
       depthMm: store.dimensions.depth,
       heightMm: store.dimensions.height,
-      roofType: store.activeRoof as 'pulpettak' | 'sadeltak' | 'flackt',
+      roofType: store.activeRoof as RoofId,
       roofCovering: store.roofCovering,
       hasLoft: store.hasLoft,
       loftCount: store.loftCount,
@@ -171,7 +172,7 @@ watch(
   () => store.activeRoof,
   (roof) => {
     engine?.updateConfig({
-      roofType: roof as 'pulpettak' | 'sadeltak' | 'flackt'
+      roofType: roof as RoofId
     });
   }
 );

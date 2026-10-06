@@ -1,4 +1,4 @@
-export type DrawingRoof = 'pulpettak' | 'sadeltak' | 'flackt';
+export type DrawingRoof = 'pulpettak' | 'sadeltak' | 'sadeltak14' | 'flackt';
 export type DrawingCovering = 'felt' | 'metal' | 'tiles' | 'shingles';
 export type DrawingDoor = 'STEHAG' | 'SVANSHALL';
 export type DrawingWindow = 'standard-single' | 'panorama' | 'sprojat' | 'frost';

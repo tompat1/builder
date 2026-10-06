@@ -18,6 +18,7 @@ import {
   type CustomPaint,
   type SavedPaint
 } from '../color/paint';
+import { eaveLiftMm, gablePitchDegrees } from './roof';
 
 export type ViewMode = 'utsida' | 'insida';
 export type CategoryKey = 'size' | 'roof' | 'loft' | 'doors' | 'windows' | 'gates' | 'extras';
@@ -189,6 +190,13 @@ export const ROOF_OPTIONS: OptionItem[] = [
     desc: 'Klassisk svensk byggtradition med två symmetriska takfall.',
     spec: 'Betongpannor / Plåt, 22° lutning',
     priceDelta: 14800
+  },
+  {
+    id: 'sadeltak14',
+    name: 'Sadeltak med extra takhöjd',
+    desc: 'Flackare sadeltak med takfoten lyft 400 mm, så rummet får mer ståhöjd.',
+    spec: '14° lutning, +400 mm takhöjd',
+    priceDelta: 18600
   },
   {
     id: 'flackt',
@@ -616,13 +624,17 @@ export const useConfigStore = defineStore('config', () => {
       case 'pulpettak':
         return PULPET_PITCH_DEG;
       case 'sadeltak':
-        return 22;
+      case 'sadeltak14':
+        return gablePitchDegrees(activeRoof.value);
       case 'flackt':
         return 2;
       default:
         return PULPET_PITCH_DEG;
     }
   });
+
+  /** Wall top the roof sits on. The extra-height gable lifts the plate 400 mm. */
+  const eaveHeight = computed(() => dimensions.value.height + eaveLiftMm(activeRoof.value));
 
   const rearHeight = computed(() => {
     if (activeRoof.value === 'pulpettak') {
@@ -633,7 +645,8 @@ export const useConfigStore = defineStore('config', () => {
   });
 
   const innerCeilingHeight = computed(() => {
-    return viewMode.value === 'insida' ? 2595 : 2144;
+    const base = viewMode.value === 'insida' ? 2595 : 2144;
+    return base + eaveLiftMm(activeRoof.value);
   });
 
   const availableLoftSizes = computed<LoftSizeItem[]>(() => {
@@ -1126,6 +1139,7 @@ export const useConfigStore = defineStore('config', () => {
     currentMaterial,
     dimensions,
     roofPitchAngle,
+    eaveHeight,
     rearHeight,
     innerCeilingHeight,
     hasLoft,

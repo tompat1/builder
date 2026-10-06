@@ -677,6 +677,11 @@ const en = {
       desc: 'A classic Swedish roof with two matching slopes.',
       spec: 'Concrete tiles / metal, 22° pitch'
     },
+    sadeltak14: {
+      name: 'Gable roof, extra ceiling height',
+      desc: 'A shallower gable with the eaves raised 400 mm, so you can stand taller in the room.',
+      spec: '14° pitch, +400 mm ceiling height'
+    },
     flackt: {
       name: 'Low roof',
       desc: 'A cubic modern roof with a discreet crown.',

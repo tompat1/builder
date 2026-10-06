@@ -35,7 +35,7 @@
       :style="labelStyle('frontHeight')"
     >
       <span class="block text-xs font-bold text-slate-900 leading-none">
-        {{ store.dimensions.height }} mm
+        {{ store.eaveHeight }} mm
       </span>
       <span class="block text-[9px] text-slate-500 font-medium"><Cms k="dims.frontWall" /></span>
     </div>
@@ -46,7 +46,7 @@
       :style="labelStyle('rearHeight')"
     >
       <span id="dim-height" class="block text-xs font-bold text-slate-900 leading-none">
-        {{ store.activeRoof === 'pulpettak' ? store.rearHeight : store.dimensions.height }} mm
+        {{ store.activeRoof === 'pulpettak' ? store.rearHeight : store.eaveHeight }} mm
       </span>
       <span class="block text-[9px] text-slate-500 font-medium">
         <Cms v-if="store.activeRoof === 'pulpettak'" k="dims.rearWall" />

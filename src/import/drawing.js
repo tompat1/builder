@@ -50,6 +50,9 @@ function firstWord(text, pairs) {
 }
 
 function roofOf(text) {
+  const gable = text.includes('sadel') || text.includes('gable');
+  const extra = text.includes('extra takhöjd') || text.includes('extra takhojd') || text.includes('14°') || text.includes('14 grader');
+  if (gable && extra) return 'sadeltak14';
   return firstWord(text, [
     ['pulpet', 'pulpettak'],
     ['sadel', 'sadeltak'],

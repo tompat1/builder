@@ -66,8 +66,8 @@ export function knowledgeEntries(): KnowledgeEntry[] {
       keywords: PAGE_KEYWORDS.pitch,
       title: text(`Pulpettak ${PULPET_PITCH_DEG}°`, `Mono-pitch ${PULPET_PITCH_DEG}°`),
       body: text(
-        `Pulpettaket lutar ${PULPET_PITCH_DEG}°, mitt i spannet 10–15° så att den höga sidan fortfarande avvattnas. På huset som är 3 503 mm djupt och 5 000 mm högt blir bakväggen cirka 4 255 mm. Sadeltaket är 22° och det flacka taket 2°.`,
-        `The mono-pitch roof is ${PULPET_PITCH_DEG}°, in the middle of the 10–15° band, so the high eave still drains. On the house that is 3,503 mm deep and 5,000 mm high, the rear wall is about 4,255 mm. The gable roof is 22° and the low roof is 2°.`
+        `Pulpettaket lutar ${PULPET_PITCH_DEG}°, mitt i spannet 10–15° så att den höga sidan fortfarande avvattnas. På huset som är 3 503 mm djupt och 5 000 mm högt blir bakväggen cirka 4 255 mm. Sadeltaket är 22°. Sadeltak med extra takhöjd är 14° och lyfter takfoten 400 mm. Det flacka taket är 2°.`,
+        `The mono-pitch roof is ${PULPET_PITCH_DEG}°, in the middle of the 10–15° band, so the high eave still drains. On the house that is 3,503 mm deep and 5,000 mm high, the rear wall is about 4,255 mm. The gable roof is 22°. The extra-height gable is 14° and raises the eaves by 400 mm. The low roof is 2°.`
       ),
       figure: 'pitch',
       links: [],

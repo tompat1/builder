@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { PULPET_PITCH_DEG, type MaterialKey, type WallSlot, type LoftPlacement, type LoftCount, type PanelOrientation, type RoofCovering } from '../store/useConfigStore';
+import { eaveLiftMm, gablePitchDegrees, isGableRoof, type RoofId } from '../store/roof';
 import { inferNoteNormal, noteAxes, noteCameraTransform, noteSheetTransform, noteTiltRadians, NOTE_SURFACE_SCALE } from '../notes/surface';
 import { paintBoards } from '../color/paint';
 import { loftJoistTop, loftStairRun, loftStairTreads } from './loftLevel';
@@ -11,7 +12,7 @@ export interface SceneConfig {
   widthMm: number;
   depthMm: number;
   heightMm: number;
-  roofType: 'pulpettak' | 'sadeltak' | 'flackt';
+  roofType: RoofId;
   roofCovering: RoofCovering;
   hasLoft: boolean;
   loftPlacement?: LoftPlacement;
@@ -735,7 +736,7 @@ export class HouseScene {
 
     const w = this.currentConfig.widthMm / 1000;
     const d = this.currentConfig.depthMm / 1000;
-    const h = this.currentConfig.heightMm / 1000;
+    const h = this.wallTopM();
     const wallThick = 0.18; // standard 180mm modular wall (145mm stud + 22mm cladding + air gap)
 
     // Materials - Authentic Scandinavian timber with tactile bump map
@@ -806,7 +807,7 @@ export class HouseScene {
         : h;
       this.addCornerBoards(w, d, h, rearTop, 0.25, exteriorMat);
     }
-    if (this.currentConfig.roofType === 'sadeltak' && this.currentConfig.viewMode === 'utsida') {
+    if (isGableRoof(this.currentConfig.roofType) && this.currentConfig.viewMode === 'utsida') {
       this.addGableEnds(w, d, h, exteriorMat);
     }
 
@@ -830,6 +831,15 @@ export class HouseScene {
 
     // View mode visibility
     this.applyViewMode();
+  }
+
+  /** Wall plate. The extra-height gable lifts it above the height the user set. */
+  private wallTopM() {
+    return this.currentConfig.heightMm / 1000 + eaveLiftMm(this.currentConfig.roofType) / 1000;
+  }
+
+  private gablePitchRad() {
+    return (gablePitchDegrees(this.currentConfig.roofType) * Math.PI) / 180;
   }
 
   /** Waist-height cut used by the Insida tab. The loft cutaway keeps the shell intact. */
@@ -875,7 +885,7 @@ export class HouseScene {
   }
 
   private addGableEnds(w: number, d: number, h: number, exteriorMat: THREE.MeshStandardMaterial) {
-    const rise = Math.tan((22 * Math.PI) / 180) * (d / 2);
+    const rise = Math.tan(this.gablePitchRad()) * (d / 2);
     const thick = 0.025;
     const shape = new THREE.Shape();
     shape.moveTo(-d / 2, -0.02);
@@ -1978,7 +1988,7 @@ export class HouseScene {
       roughness: 0.55
     });
 
-    if (roofType === 'sadeltak') {
+    if (isGableRoof(roofType)) {
       this.addGableRoof(w, d, h, overhang, roofMat, whiteTrimMat);
     } else if (roofType === 'flackt') {
       this.addShallowRoof(w, d, h, overhang, 2, roofMat, whiteTrimMat);
@@ -2109,7 +2119,7 @@ export class HouseScene {
     roofMat: THREE.Material,
     trimMat: THREE.Material
   ) {
-    const angleRad = (22 * Math.PI) / 180;
+    const angleRad = this.gablePitchRad();
     const rise = Math.tan(angleRad) * (d / 2);
     const ridgeY = h + rise;
     const roofThick = 0.07;
@@ -2258,7 +2268,7 @@ export class HouseScene {
         beamParent.add(rafter);
       }
     } else {
-      const angleRad = (22 * Math.PI) / 180;
+      const angleRad = this.gablePitchRad();
       const rise = Math.tan(angleRad) * (d / 2);
       const slopeLen = (d / 2) / Math.cos(angleRad) + (ghost ? 0.25 : 0.08);
       const rafterGeo = new THREE.BoxGeometry(rafterW, rafterH, slopeLen);
@@ -2680,7 +2690,8 @@ export class HouseScene {
       this.dimensionAnchors.set('pitchRight', pitchC.clone().lerp(pitchD, 0.5));
     }
 
-    this.dimensionAnchors.set('ceiling', new THREE.Vector3(0, 2.2, 0));
+    const ceilingY = 2.2 + eaveLiftMm(this.currentConfig.roofType) / 1000;
+    this.dimensionAnchors.set('ceiling', new THREE.Vector3(0, ceilingY, 0));
     this.dimensionsGroup.visible = this.currentConfig.showDimensions;
   }
 
@@ -2932,7 +2943,7 @@ export class HouseScene {
   private anchorFor(id: string) {
     const w = this.currentConfig.widthMm / 1000;
     const d = this.currentConfig.depthMm / 1000;
-    const h = this.currentConfig.heightMm / 1000;
+    const h = this.wallTopM();
     const mid = Math.max((h - 0.25) * 0.45, 0.8);
     if (id === 'roof') return this.notePoint.set(0, h + 0.35, 0);
     if (id === 'floor') return this.notePoint.set(0, 0.4, 0);
@@ -2985,7 +2996,7 @@ export class HouseScene {
     const house = {
       widthM: this.currentConfig.widthMm / 1000,
       depthM: this.currentConfig.depthMm / 1000,
-      heightM: this.currentConfig.heightMm / 1000
+      heightM: this.wallTopM()
     };
     const planes: Record<string, { transform: string; visible: boolean }> = {};
     for (const pin of this.notePins) {

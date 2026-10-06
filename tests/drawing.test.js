@@ -22,6 +22,9 @@ test('a pair of measurements is enough, and a sheet with no numbers changes noth
   assert.equal(pair.width, 6040);
   assert.equal(pair.depth, 3500);
   assert.equal(pair.roof, 'sadeltak');
+
+  const raised = readDrawing('6040 x 3500 sadeltak med extra takhöjd 14 grader');
+  assert.equal(raised.roof, 'sadeltak14');
   assert.equal(pair.height, null);
 
   const meters = readDrawing('6,04 x 3,50');

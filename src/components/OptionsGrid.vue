@@ -282,6 +282,11 @@
               <line x1="20" y1="60" x2="140" y2="60" stroke="currentColor" stroke-width="1.5" stroke-dasharray="3 3" />
               <text x="80" y="72" font-size="10" fill="currentColor" text-anchor="middle">22° lutning</text>
             </svg>
+            <svg v-else-if="roof.id === 'sadeltak14'" class="w-full h-full text-slate-700" viewBox="0 0 160 80" fill="none">
+              <path d="M 24 46 L 24 62 L 136 62 L 136 46" stroke="currentColor" stroke-width="1.4" />
+              <path d="M 18 46 L 80 32 L 142 46" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+              <text x="80" y="74" font-size="10" fill="currentColor" text-anchor="middle">14° lutning</text>
+            </svg>
             <svg v-else-if="roof.id === 'flackt'" class="w-full h-full text-slate-700" viewBox="0 0 160 80" fill="none">
               <line x1="20" y1="35" x2="140" y2="35" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" />
               <rect x="25" y="38" width="110" height="24" fill="currentColor" fill-opacity="0.08" stroke="currentColor" stroke-width="1.2" />
