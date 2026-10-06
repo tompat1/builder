@@ -30,14 +30,16 @@ test.describe("3D Modular House Configurator", () => {
   test("supports material selection with Wood as default in the first right panel", async ({ page }) => {
     // Ensure size category (first panel) is open
     await page.locator("#category-size").click();
-    await expect(page.locator("text=Fasadmaterial & Kulör")).toBeVisible();
+    await page.locator("#size-tab-facade").click();
+    await expect(page.locator("text=Fasadmaterial & Panel")).toBeVisible();
 
-    // Wood is default material
+    // Wood is default material, on the facade tab
     const woodBtn = page.locator("#material-wood");
     await expect(woodBtn).toBeVisible();
     await expect(page.locator("text=Vald: Obehandlad Gran")).toBeVisible();
 
-    // Select Faluröd
+    // Select Faluröd on the colour tab
+    await page.locator("#size-tab-colour").click();
     const falurodBtn = page.locator("#material-falurod");
     await falurodBtn.scrollIntoViewIfNeeded();
     await falurodBtn.click();

@@ -76,11 +76,11 @@
           </button>
         </div>
 
-        <div class="flex items-end justify-between gap-3 mt-3 mb-1.5">
+        <div class="flex items-center justify-between gap-3 mt-3 mb-1.5">
           <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">
             <Cms k="category.customSize" />
           </h4>
-          <p id="custom-area" class="text-xs font-bold text-slate-900 tabular-nums">{{ customArea }}</p>
+          <p id="custom-area" class="shrink-0 rounded-md bg-emerald-50 px-2 py-1 text-sm font-extrabold leading-none tabular-nums text-emerald-900 ring-1 ring-emerald-200">{{ customArea }}</p>
         </div>
         <div class="grid grid-cols-3 gap-2">
           <label v-for="field in measureFields" :key="field.axis" class="block">
@@ -103,18 +103,39 @@
         <p class="text-[11px] text-slate-500 mt-1.5"><Cms k="category.heightHint" /></p>
       </div>
 
-      <!-- Material & Fasad Heading -->
       <div class="pt-3 border-t border-slate-200/70">
-        <div class="flex items-center justify-between mb-2">
-          <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider"><Cms k="category.facade" /></h4>
-          <span class="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60">
-            {{ t('category.selected', { name: catalog(store.currentMaterial.id, 'name', store.currentMaterial.name) }) }}
-          </span>
+        <div class="flex border-b border-slate-200 gap-6" role="tablist">
+          <button
+            type="button"
+            id="size-tab-colour"
+            role="tab"
+            :aria-selected="sizeTab === 'kulor'"
+            @click="sizeTab = 'kulor'"
+            :class="sizeTabClass(sizeTab === 'kulor')"
+          >
+            <Cms k="category.colourTab" />
+          </button>
+          <button
+            type="button"
+            id="size-tab-facade"
+            role="tab"
+            :aria-selected="sizeTab === 'panel'"
+            @click="sizeTab = 'panel'"
+            :class="sizeTabClass(sizeTab === 'panel')"
+          >
+            <Cms k="category.facadePanel" />
+          </button>
         </div>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <div v-if="sizeTab === 'kulor'" class="pt-3">
+          <div v-if="store.currentMaterial.id !== 'wood'" class="flex justify-end mb-2">
+            <span class="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60">
+              {{ t('category.selected', { name: catalog(store.currentMaterial.id, 'name', store.currentMaterial.name) }) }}
+            </span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
           <button
-            v-for="mat in MATERIAL_OPTIONS"
+            v-for="mat in colourMaterials"
             :key="mat.id"
             type="button"
             :id="`material-${mat.id}`"
@@ -200,9 +221,42 @@
           </button>
         </div>
         <CustomPaint v-if="paintOpen" @saved="paintOpen = false" />
+        </div>
 
-        <div class="mt-4 pt-3 border-t border-slate-200/70">
-          <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2"><Cms k="category.cladding" /></h4>
+        <div v-else class="pt-3 space-y-3">
+          <div v-if="store.activeMaterial === 'wood' && !store.customPaint && !store.paintPreview" class="flex justify-end">
+            <span class="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60">
+              {{ t('category.selected', { name: catalog(woodMaterial.id, 'name', woodMaterial.name) }) }}
+            </span>
+          </div>
+          <button
+            type="button"
+            id="material-wood"
+            class="p-2.5 rounded-xl border text-left flex items-center gap-3 transition-all w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+            :class="store.activeMaterial === 'wood' && !store.customPaint && !store.paintPreview
+              ? 'border-slate-900 ring-1 ring-slate-900 bg-slate-50 shadow-sm'
+              : 'border-slate-200 bg-white hover:border-slate-300'"
+            :aria-pressed="store.activeMaterial === 'wood' && !store.customPaint && !store.paintPreview"
+            @click="store.selectMaterial('wood')"
+          >
+            <div
+              class="w-8 h-8 rounded-lg shrink-0 border border-slate-300 shadow-xs flex items-center justify-center relative overflow-hidden"
+              :style="{ backgroundColor: woodMaterial.colorHex }"
+            >
+              <div class="absolute inset-0 bg-gradient-to-tr from-black/10 to-transparent"></div>
+              <svg v-if="store.activeMaterial === 'wood' && !store.customPaint && !store.paintPreview" class="w-4 h-4 text-white drop-shadow-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-900 truncate"><Cms k="catalog.wood.name" :fallback="woodMaterial.name" /></span>
+                <span class="text-[11px] font-semibold text-slate-500 tabular-nums">{{ delta(woodMaterial.priceDelta) }}</span>
+              </div>
+              <p class="text-[10px] text-slate-500 truncate"><Cms k="catalog.wood.desc" :fallback="woodMaterial.desc" /></p>
+            </div>
+          </button>
+          <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider"><Cms k="category.cladding" /></h4>
           <div class="grid grid-cols-2 gap-2">
             <button
               v-for="orientation in panelOrientations"
@@ -858,6 +912,18 @@ import { paintTitle, readableInk } from '../color/paint';
 
 const store = useConfigStore();
 const { t, catalog, money, delta, locale } = useLabels();
+const sizeTab = ref<'kulor' | 'panel'>('kulor');
+const colourMaterials = MATERIAL_OPTIONS.filter((mat) => mat.id !== 'wood');
+const woodMaterial = MATERIAL_OPTIONS.find((mat) => mat.id === 'wood') ?? MATERIAL_OPTIONS[0];
+
+function sizeTabClass(active: boolean) {
+  return [
+    'text-xs font-bold pb-2 border-b-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
+    active
+      ? 'border-slate-900 text-slate-900'
+      : 'border-transparent text-slate-400 hover:text-slate-600'
+  ];
+}
 const customArea = computed(() => {
   const loc = locale.value === 'en' ? 'en-GB' : 'sv-SE';
   const area = new Intl.NumberFormat(loc, {
