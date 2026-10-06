@@ -26,7 +26,8 @@
     "tesseract.js": "^5.1.1",
     "three": "^0.174.0",
     "vue": "^3.5.13",
-    "vue-i18n": "^11.1.2"
+    "vue-i18n": "^11.1.2",
+    "vue-router": "^4.6.4"
   },
   "devDependencies": {
     "@eslint/js": "^9.21.0",

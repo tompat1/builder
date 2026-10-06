@@ -6,17 +6,15 @@
     <!-- Brand & Top Links (Matching Skånska Byggvaror) -->
     <div class="flex items-center gap-3 md:gap-5">
       <!-- Logo Badge -->
-      <div class="flex items-center gap-2.5">
-        <div class="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center font-black text-sm shadow-xs tracking-tight">
-          B
-        </div>
+      <router-link to="/" class="flex items-center gap-2.5 text-pine focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine">
+        <BrandMark class="h-8 w-auto" />
         <div class="block">
           <div class="flex items-center gap-1.5 leading-none">
             <span class="font-extrabold text-slate-900 tracking-tight text-sm md:text-base">Builder</span>
           </div>
           <span class="text-[9px] uppercase tracking-wider text-slate-400 font-bold block mt-0.5"><Cms k="brand.tagline" /></span>
         </div>
-      </div>
+      </router-link>
 
       <div class="h-6 w-px bg-slate-200 hidden md:block"></div>
 
@@ -202,6 +200,7 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
+import BrandMark from './brand/BrandMark.vue';
 import { useConfigStore } from '../store/useConfigStore';
 import { useContentStore } from '../store/useContentStore';
 import { useSessionStore } from '../store/useSessionStore';

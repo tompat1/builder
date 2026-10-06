@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 
 test.describe("3D Modular House Configurator", () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto("/");
+    await page.goto("/build");
   });
 
   test("renders 3D canvas and header UI controls with Builder branding", async ({ page }) => {
