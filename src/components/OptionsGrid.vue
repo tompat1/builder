@@ -271,27 +271,56 @@
                   : 'border-slate-200 bg-white hover:border-slate-300'
               ]"
             >
-              <CmsImage :k="`picture.panel.${orientation.id}`" class="mb-1 h-8 w-full">
-              <svg class="w-full h-8 text-slate-700" viewBox="0 0 120 32" fill="none" aria-hidden="true">
-                <template v-if="orientation.id === 'staende'">
-                  <path
-                    v-for="x in [8, 28, 48, 68, 88, 108]"
-                    :key="x"
-                    :d="`M ${x} 2 V 30`"
-                    stroke="currentColor"
-                    stroke-width="1.5"
-                  />
-                </template>
-                <template v-else>
-                  <path
-                    v-for="y in [6, 16, 26]"
-                    :key="y"
-                    :d="`M 4 ${y} H 116`"
-                    stroke="currentColor"
-                    stroke-width="1.5"
-                  />
-                </template>
-              </svg>
+              <CmsImage :k="`picture.panel.${orientation.id}`" class="mb-2 h-16 w-full">
+              <div class="h-16 w-full overflow-hidden rounded-lg bg-[#cbb892]">
+                <svg class="block h-full w-full" viewBox="0 0 160 64" preserveAspectRatio="none" aria-hidden="true">
+                  <template v-if="orientation.id === 'staende'">
+                    <rect
+                      v-for="i in 8"
+                      :key="`board-${i}`"
+                      :x="(i - 1) * 20"
+                      y="0"
+                      width="19"
+                      height="64"
+                      fill="#e7d6b8"
+                    />
+                    <rect
+                      v-for="i in 7"
+                      :key="`cover-${i}`"
+                      :x="i * 20 - 4"
+                      y="0"
+                      width="8"
+                      height="64"
+                      fill="#dcc9a6"
+                    />
+                    <rect
+                      v-for="i in 7"
+                      :key="`light-${i}`"
+                      :x="i * 20 - 4"
+                      y="0"
+                      width="1"
+                      height="64"
+                      fill="#f4ead8"
+                    />
+                    <rect
+                      v-for="i in 7"
+                      :key="`shade-${i}`"
+                      :x="i * 20 + 3"
+                      y="0"
+                      width="1"
+                      height="64"
+                      fill="#b89a70"
+                    />
+                  </template>
+                  <template v-else>
+                    <g v-for="i in 4" :key="`course-${i}`">
+                      <rect :y="(i - 1) * 16" width="160" height="16" fill="#e7d6b8" />
+                      <rect :y="(i - 1) * 16" width="160" height="1.5" fill="#f4ead8" />
+                      <rect :y="(i - 1) * 16 + 13.2" width="160" height="2.8" fill="#c4ae86" />
+                    </g>
+                  </template>
+                </svg>
+              </div>
               </CmsImage>
               <span class="block text-xs font-bold text-slate-900"><Cms :k="orientation.label" /></span>
             </button>
