@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { PULPET_PITCH_DEG, type MaterialKey, type WallSlot, type LoftPlacement, type LoftCount, type PanelOrientation, type RoofCovering } from '../store/useConfigStore';
 import { inferNoteNormal, noteAxes, noteCameraTransform, noteSheetTransform, noteTiltRadians, NOTE_SURFACE_SCALE } from '../notes/surface';
 import { paintBoards } from '../color/paint';
+import { loftJoistTop, loftStairRun, loftStairTreads } from './loftLevel';
 
 const PULPET_PITCH_RAD = (PULPET_PITCH_DEG * Math.PI) / 180;
 
@@ -2297,7 +2298,8 @@ export class HouseScene {
     const interiorD = d - wt * 2;
 
     const loftD = interiorD;
-    const loftElev = 1.95; // 1950 mm clearance below loft
+    // Deck at least 2.5 m above the interior floor, with the joists above the door head.
+    const loftElev = loftJoistTop(h);
     const joistH = 0.195; // 195 mm floor joists (45x195 mm bjälklag)
     const joistW = 0.045; // 45 mm joist thickness
     const floorboardThick = 0.028; // 28 mm massive granplank
@@ -2414,7 +2416,8 @@ export class HouseScene {
     const stairW = 0.55; // 550 mm width
     const floorY = 0.275; // ground floor elevation
     const deltaY = loftElev - floorY;
-    const runZ = 1.05; // horizontal floor projection (~60° angle)
+    const interiorD = d - wt * 2;
+    const runZ = loftStairRun(deltaY, interiorD);
 
     const stringerThick = 0.04;
     const stringerWidth = 0.16;
@@ -2453,7 +2456,7 @@ export class HouseScene {
     stairGroup.add(rightStringer);
 
     // 3. Treads (Trappsteg 28x140 mm)
-    const stepCount = 8;
+    const stepCount = loftStairTreads(deltaY);
     const treadGeo = new THREE.BoxGeometry(stairW - stringerThick * 2, 0.028, 0.14);
 
     for (let s = 1; s <= stepCount; s++) {
