@@ -38,10 +38,14 @@ function summary(row) {
   };
 }
 
+export function acceptHouseId(value) {
+  const id = String(value ?? '');
+  return /^hus_[a-f0-9]{32}$/.test(id) ? id : '';
+}
+
 function houseId(pathname) {
   if (!pathname.startsWith('/api/houses/')) return '';
-  const id = decodeURIComponent(pathname.slice('/api/houses/'.length));
-  return /^hus_[a-f0-9]{32}$/.test(id) ? id : '';
+  return acceptHouseId(decodeURIComponent(pathname.slice('/api/houses/'.length)));
 }
 
 export async function handleHouse(request, env, headers, sessionUser) {
@@ -94,6 +98,22 @@ export async function handleHouse(request, env, headers, sessionUser) {
        VALUES (?, ?, ?, ?, ?, ?)`
     ).bind(savedId, user.id, name, config, now, createdBy).run();
     return json({ house: { id: savedId, name, createdAt: now, createdBy } }, 200, headers);
+  }
+
+  if (request.method === 'PUT' && id) {
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return json({ error: 'house' }, 400, headers);
+    }
+    const config = acceptHouse(body);
+    if (!config) return json({ error: 'house' }, 400, headers);
+    const result = await env.DB.prepare(
+      'UPDATE saved_houses SET config = ? WHERE id = ? AND user_id = ?'
+    ).bind(config, id, user.id).run();
+    if (!result.meta?.changes) return json({ error: 'house' }, 404, headers);
+    return json({ ok: true }, 200, headers);
   }
 
   if (request.method === 'DELETE' && id) {

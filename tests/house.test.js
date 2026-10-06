@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { acceptHouse, acceptHouseName } from '../workers/house.js';
+import { acceptHouse, acceptHouseId, acceptHouseName } from '../workers/house.js';
 import { acceptHouseThumb } from '../src/services/houseThumb.ts';
 
 test('a house config is stored only as a bounded object', () => {
@@ -16,6 +16,12 @@ test('a house thumb is a short jpeg picture', () => {
   assert.equal(acceptHouseThumb(jpeg), jpeg);
   assert.equal(acceptHouseThumb('data:image/png;base64,aaaa'), '');
   assert.equal(acceptHouseThumb(`${jpeg}${'A'.repeat(24_000)}`), '');
+});
+
+test('a saved house id is the account key', () => {
+  assert.equal(acceptHouseId(`hus_${'a'.repeat(32)}`), `hus_${'a'.repeat(32)}`);
+  assert.equal(acceptHouseId('hus_short'), '');
+  assert.equal(acceptHouseId(''), '');
 });
 
 test('a saved house needs a short name', () => {

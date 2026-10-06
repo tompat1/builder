@@ -74,7 +74,7 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, ref, watch } from 'vue';
+import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useConfigStore } from '../store/useConfigStore';
 import { useSessionStore } from '../store/useSessionStore';
 import { useLabels } from '../i18n';
@@ -83,9 +83,13 @@ import {
   listHouses,
   markHousePending,
   openNamedHouse,
+  readActiveHouseId,
+  readLocalHouse,
   readPendingHouse,
   removeNamedHouse,
   saveNamedHouse,
+  updateNamedHouse,
+  writeActiveHouseId,
   writeLocalHouse,
   type SavedHouse
 } from '../services/houseSave';
@@ -106,6 +110,8 @@ const busy = ref(false);
 const notice = ref('');
 const error = ref('');
 const panelStyle = ref({ top: '64px', left: '12px' });
+let draft = '';
+let saveTimer = 0;
 
 function place() {
   const button = document.getElementById('btn-save-project');
@@ -126,6 +132,19 @@ function stamp(value: string) {
   }).format(date);
 }
 
+function showThumb(id: string, thumb: string) {
+  const row = houses.value.find((house) => house.id === id);
+  if (row && thumb) row.thumb = thumb;
+}
+
+function attachThumb(id: string) {
+  if (!id) return;
+  const thumb = captureHouseThumb() || houseThumb(id);
+  if (!thumb) return;
+  rememberHouseThumb(id, thumb);
+  showThumb(id, thumb);
+}
+
 async function refresh() {
   if (!session.user) {
     houses.value = [];
@@ -135,6 +154,47 @@ async function refresh() {
     ...house,
     thumb: house.thumb || houseThumb(house.id)
   }));
+  let active = readActiveHouseId();
+  if (!active && houses.value.length === 1) {
+    active = houses.value[0].id;
+    writeActiveHouseId(active);
+  }
+  if (active && !houseThumb(active)) attachThumb(active);
+}
+
+async function adoptWorkingHouse() {
+  if (!session.user) return;
+  let active = readActiveHouseId();
+  if (!active) {
+    try {
+      const listed = await listHouses();
+      if (listed.length === 1) {
+        active = listed[0].id;
+        writeActiveHouseId(active);
+      }
+    } catch {
+      return;
+    }
+  }
+  if (active && !houseThumb(active)) attachThumb(active);
+}
+
+function rememberDraft(json: string) {
+  draft = json;
+  const config = JSON.parse(json) as unknown;
+  writeLocalHouse(config);
+  const active = readActiveHouseId();
+  if (active) attachThumb(active);
+  if (!active || !session.user) return;
+  void updateNamedHouse(active, config).catch(() => {
+    // The browser copy is already written. The account catches up on the next change.
+  });
+}
+
+function queueDraft(json: string) {
+  if (!draft || json === draft) return;
+  window.clearTimeout(saveTimer);
+  saveTimer = window.setTimeout(() => rememberDraft(json), 800);
 }
 
 async function save() {
@@ -158,6 +218,7 @@ async function save() {
   busy.value = true;
   try {
     const saved = await saveNamedHouse(title, config);
+    writeActiveHouseId(saved.id);
     if (thumb) rememberHouseThumb(saved.id, thumb);
     name.value = '';
     notice.value = t('header.houseSaved');
@@ -174,9 +235,13 @@ async function openHouse(id: string) {
   notice.value = '';
   busy.value = true;
   try {
-    const house = await openNamedHouse(id);
-    store.importHouse(house.config);
-    writeLocalHouse(house.config);
+    const local = id === readActiveHouseId() ? readLocalHouse() : null;
+    const config = local ?? (await openNamedHouse(id)).config;
+    writeActiveHouseId(id);
+    store.importHouse(config);
+    writeLocalHouse(config);
+    draft = JSON.stringify(store.exportHouse());
+    attachThumb(id);
     notice.value = t('header.houseOpened');
   } catch {
     error.value = t('header.saveFailed');
@@ -190,6 +255,7 @@ async function remove(id: string) {
   try {
     await removeNamedHouse(id);
     forgetHouseThumb(id);
+    if (readActiveHouseId() === id) writeActiveHouseId('');
     houses.value = houses.value.filter((house) => house.id !== id);
   } catch {
     error.value = t('header.saveFailed');
@@ -201,6 +267,7 @@ async function uploadPending() {
   if (!pending?.name || !session.user) return;
   try {
     const saved = await saveNamedHouse(pending.name, pending.config);
+    writeActiveHouseId(saved.id);
     const thumb = houseThumb('pending');
     if (thumb) {
       rememberHouseThumb(saved.id, thumb);
@@ -220,6 +287,24 @@ function onKey(event: KeyboardEvent) {
   if (event.key === 'Escape' && props.open) emit('close');
 }
 
+watch(() => JSON.stringify(store.exportHouse()), queueDraft);
+
+onMounted(() => {
+  nextTick(() => {
+    draft = JSON.stringify(store.exportHouse());
+    window.setTimeout(() => {
+      if (!session.user) return;
+      const active = readActiveHouseId();
+      if (active && !houseThumb(active)) attachThumb(active);
+    }, 600);
+    if (props.open) {
+      refresh().catch(() => {
+        error.value = t('header.saveFailed');
+      });
+    }
+  });
+});
+
 watch(() => props.open, async (isOpen) => {
   if (!isOpen) return;
   notice.value = '';
@@ -234,8 +319,12 @@ watch(() => props.open, async (isOpen) => {
 
 watch(() => session.user, () => {
   uploadPending();
+  void adoptWorkingHouse();
 }, { immediate: true });
 
 document.addEventListener('keydown', onKey);
-onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
+onBeforeUnmount(() => {
+  document.removeEventListener('keydown', onKey);
+  window.clearTimeout(saveTimer);
+});
 </script>

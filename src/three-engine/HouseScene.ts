@@ -3097,6 +3097,11 @@ export class HouseScene {
     return this.renderer.domElement;
   }
 
+  /** Draw the current frame before a thumbnail read. The animation loop may not have painted yet. */
+  public renderStill() {
+    this.renderer.render(this.scene, this.camera);
+  }
+
   private animate = () => {
     this.animFrameId = requestAnimationFrame(this.animate);
     this.controls.update();

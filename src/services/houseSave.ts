@@ -4,6 +4,22 @@ import { sessionToken, workerBase } from './account';
 
 const HOUSE_KEY = 'builder.house';
 const PENDING_KEY = 'builder.house.pending';
+const ACTIVE_KEY = 'builder.house.active';
+
+export function acceptActiveHouseId(value: unknown) {
+  const id = typeof value === 'string' ? value : '';
+  return /^hus_[a-f0-9]{32}$/.test(id) ? id : '';
+}
+
+export function readActiveHouseId() {
+  return acceptActiveHouseId(localStorage.getItem(ACTIVE_KEY));
+}
+
+export function writeActiveHouseId(id: string) {
+  const accepted = acceptActiveHouseId(id);
+  if (accepted) localStorage.setItem(ACTIVE_KEY, accepted);
+  else localStorage.removeItem(ACTIVE_KEY);
+}
 
 export interface SavedHouse {
   id: string;
@@ -69,7 +85,7 @@ export function keepHouseForLogin(config: unknown, changed: boolean) {
   writeLocalHouse(config);
 }
 
-async function houseFetch(path: string, method: 'GET' | 'POST' | 'DELETE', body?: unknown) {
+async function houseFetch(path: string, method: 'GET' | 'POST' | 'PUT' | 'DELETE', body?: unknown) {
   const headers = new Headers();
   const token = sessionToken();
   if (token) headers.set('Authorization', `Bearer ${token}`);
@@ -104,6 +120,11 @@ export async function openNamedHouse(id: string) {
   const data = await houseFetch(`/api/houses/${encodeURIComponent(id)}`, 'GET');
   if (!data.house?.config || typeof data.house.config !== 'object') throw new Error('house');
   return data.house;
+}
+
+export async function updateNamedHouse(id: string, config: unknown) {
+  if (!acceptActiveHouseId(id)) throw new Error('house');
+  await houseFetch(`/api/houses/${encodeURIComponent(id)}`, 'PUT', { config });
 }
 
 export async function removeNamedHouse(id: string) {

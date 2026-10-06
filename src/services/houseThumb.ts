@@ -44,17 +44,26 @@ export function forgetHouseThumb(id: string) {
 }
 
 export function captureHouseThumb(): string {
-  const scene = (window as unknown as { __houseScene?: { getCanvas?: () => HTMLCanvasElement } }).__houseScene;
-  const source = scene?.getCanvas?.();
-  if (!source || source.width < 2 || source.height < 2) return '';
-  const canvas = document.createElement('canvas');
-  canvas.width = 192;
-  canvas.height = 144;
-  const context = canvas.getContext('2d');
-  if (!context) return '';
-  const scale = Math.max(canvas.width / source.width, canvas.height / source.height);
-  const width = source.width * scale;
-  const height = source.height * scale;
-  context.drawImage(source, (canvas.width - width) / 2, (canvas.height - height) / 2, width, height);
-  return acceptHouseThumb(canvas.toDataURL('image/jpeg', 0.72));
+  try {
+    const scene = (window as unknown as {
+      __houseScene?: { getCanvas?: () => HTMLCanvasElement; renderStill?: () => void };
+    }).__houseScene;
+    scene?.renderStill?.();
+    const source = scene?.getCanvas?.();
+    if (!source || source.width < 2 || source.height < 2) return '';
+    const canvas = document.createElement('canvas');
+    canvas.width = 192;
+    canvas.height = 144;
+    const context = canvas.getContext('2d');
+    if (!context) return '';
+    const scale = Math.max(canvas.width / source.width, canvas.height / source.height);
+    const width = source.width * scale;
+    const height = source.height * scale;
+    context.drawImage(source, (canvas.width - width) / 2, (canvas.height - height) / 2, width, height);
+    const sharp = acceptHouseThumb(canvas.toDataURL('image/jpeg', 0.72));
+    if (sharp) return sharp;
+    return acceptHouseThumb(canvas.toDataURL('image/jpeg', 0.5));
+  } catch {
+    return '';
+  }
 }
