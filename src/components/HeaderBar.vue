@@ -152,14 +152,18 @@
         </button>
       </div>
 
-      <!-- Green NÄSTA CTA Button -->
       <button
         type="button"
         id="btn-next-step"
-        class="bg-[#1b5e40] hover:bg-[#154a32] active:bg-[#0f3624] text-white font-extrabold tracking-wide uppercase px-3 py-1.5 md:px-6 md:py-2.5 rounded-lg text-xs md:text-sm transition-all duration-150 shadow-sm hover:shadow min-h-[32px] md:min-h-[38px] flex items-center gap-1 shrink-0"
+        class="bg-[#1b5e40] hover:bg-[#154a32] active:bg-[#0f3624] text-white font-extrabold px-3 py-1.5 md:px-5 md:py-2.5 rounded-lg text-xs md:text-sm transition-all duration-150 shadow-sm hover:shadow min-h-[32px] md:min-h-[38px] flex items-center gap-1.5 shrink-0"
         @click="$emit('open-export')"
       >
-        <span><Cms k="header.next" /></span>
+        <span><Cms k="panel.export" /></span>
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="7 10 12 15 17 10" />
+          <line x1="12" y1="15" x2="12" y2="3" />
+        </svg>
       </button>
     </div>
   </header>

@@ -71,26 +71,13 @@
       </div>
 
       <!-- Footer Quick Status Summary -->
-      <div class="p-3 md:p-4 bg-slate-50/90 border-t border-slate-100 rounded-b-2xl flex items-center justify-between">
-        <div class="flex items-center gap-2">
-          <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-2xs"></span>
-          <span class="text-xs text-slate-700 font-semibold">
+      <div class="p-3 md:p-4 bg-slate-50/90 border-t border-slate-100 rounded-b-2xl flex items-center">
+        <div class="flex items-center gap-2 min-w-0">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-2xs shrink-0"></span>
+          <span class="text-xs text-slate-700 font-semibold truncate">
             <Cms :k="`catalog.${store.currentSize.id}.name`" :fallback="store.currentSize.name" /> • <Cms :k="`catalog.${store.currentMaterial.id}.name`" :fallback="store.currentMaterial.name" />
           </span>
         </div>
-
-        <button
-          type="button"
-          @click="isExportOpen = true"
-          class="text-xs font-bold text-slate-700 hover:text-slate-900 flex items-center gap-1 hover:underline p-1"
-        >
-          <span><Cms k="panel.export" /></span>
-          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-            <polyline points="7 10 12 15 17 10" />
-            <line x1="12" y1="15" x2="12" y2="3" />
-          </svg>
-        </button>
       </div>
     </aside>
 

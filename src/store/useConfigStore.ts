@@ -19,6 +19,7 @@ import {
   type SavedPaint
 } from '../color/paint';
 import { eaveLiftMm, gablePitchDegrees } from './roof';
+import { floorAreaSqMeters } from './area';
 
 export type ViewMode = 'utsida' | 'insida';
 export type CategoryKey = 'size' | 'roof' | 'loft' | 'doors' | 'windows' | 'gates' | 'extras';
@@ -604,18 +605,13 @@ export const useConfigStore = defineStore('config', () => {
   });
 
   const dimensions = computed(() => {
-    const preset = currentSize.value;
     const width = buildingWidth.value;
     const depth = buildingDepth.value;
-    const matchesFootprint = width === preset.width && depth === preset.depth;
-    const areaSqMeters = matchesFootprint
-      ? preset.areaSqMeters
-      : Math.round((width * depth) / 1e5) / 10;
     return {
       width,
       depth,
       height: buildingHeight.value,
-      areaSqMeters
+      areaSqMeters: floorAreaSqMeters(width, depth)
     };
   });
 

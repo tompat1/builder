@@ -76,7 +76,13 @@
           </button>
         </div>
 
-        <div class="grid grid-cols-3 gap-2 mt-3">
+        <div class="flex items-end justify-between gap-3 mt-3 mb-1.5">
+          <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">
+            <Cms k="category.customSize" />
+          </h4>
+          <p id="custom-area" class="text-xs font-bold text-slate-900 tabular-nums">{{ customArea }}</p>
+        </div>
+        <div class="grid grid-cols-3 gap-2">
           <label v-for="field in measureFields" :key="field.axis" class="block">
             <span class="block text-[11px] font-semibold text-slate-600 mb-1">
               <Cms :k="field.label" />
@@ -494,7 +500,7 @@
               <div class="flex items-center justify-between mb-2">
                 <h5 class="text-xs font-bold text-slate-800"><Cms k="category.size" /></h5>
                 <span class="text-[11px] text-slate-500">
-                  {{ t('category.buildingArea', { area: store.currentSize.areaSqMeters }) }}
+                  {{ t('category.buildingArea', { area: store.dimensions.areaSqMeters }) }}
                 </span>
               </div>
               <div class="grid grid-cols-2 gap-2">
@@ -851,7 +857,15 @@ import CustomPaint from './CustomPaint.vue';
 import { paintTitle, readableInk } from '../color/paint';
 
 const store = useConfigStore();
-const { t, catalog, money, delta } = useLabels();
+const { t, catalog, money, delta, locale } = useLabels();
+const customArea = computed(() => {
+  const loc = locale.value === 'en' ? 'en-GB' : 'sv-SE';
+  const area = new Intl.NumberFormat(loc, {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1
+  }).format(store.dimensions.areaSqMeters);
+  return `${area} m²`;
+});
 const paintOpen = ref(false);
 const previewInk = computed(() => readableInk(store.paintPreview ?? '#ffffff'));
 
