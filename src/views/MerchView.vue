@@ -117,9 +117,9 @@
               :src="zoomed.image"
               alt=""
               draggable="false"
-              class="pointer-events-none max-h-[82vh] w-full object-contain ease-out motion-reduce:transition-none"
+              class="pointer-events-none max-h-[82vh] w-full select-none object-contain ease-out [-webkit-user-drag:none] motion-reduce:transition-none"
               :class="drag ? '' : 'transition-transform duration-300'"
-              :style="{ transform: tight ? `translate(${pan.x}px, ${pan.y}px) scale(2.4)` : 'scale(1)', webkitUserDrag: 'none' }"
+              :style="{ transform: tight ? `translate(${pan.x}px, ${pan.y}px) scale(2.4)` : 'scale(1)' }"
             />
           </div>
           <p class="mt-3 text-center font-display text-lg font-extrabold text-ivory">{{ t(zoomed.nameKey) }}</p>
