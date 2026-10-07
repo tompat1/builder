@@ -48,34 +48,36 @@
 
               <p class="mt-1 text-sm text-pine/80"><Cms :k="item.infoKey" /></p>
 
-              <div v-if="group.items.length > 1" class="mt-3 flex flex-wrap gap-2">
-                <button
-                  v-for="variant in group.items"
-                  :key="variant.id"
-                  type="button"
-                  class="h-6 w-6 rounded-full border border-pine/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine transition-shadow"
-                  :class="[
-                    swatchClass(variant.id),
-                    selectedColor[group.baseId] === variant.id || (!selectedColor[group.baseId] && variant.id === item.id) ? 'ring-2 ring-pine ring-offset-2 ring-offset-ivory' : 'hover:border-pine/40'
-                  ]"
-                  :aria-label="t(variant.nameKey)"
-                  @click="selectedColor[group.baseId] = variant.id"
-                />
-              </div>
+              <div class="mt-auto pt-4 flex flex-col gap-4">
+                <div class="flex flex-wrap items-center justify-between gap-4">
+                  <div v-if="group.items.length > 1" class="flex flex-wrap gap-2">
+                    <button
+                      v-for="variant in group.items"
+                      :key="variant.id"
+                      type="button"
+                      class="h-6 w-6 rounded-full border border-pine/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine transition-shadow"
+                      :class="[
+                        swatchClass(variant.id),
+                        selectedColor[group.baseId] === variant.id || (!selectedColor[group.baseId] && variant.id === item.id) ? 'ring-2 ring-pine ring-offset-2 ring-offset-ivory' : 'hover:border-pine/40'
+                      ]"
+                      :aria-label="t(variant.nameKey)"
+                      @click="selectedColor[group.baseId] = variant.id"
+                    />
+                  </div>
 
-              <div class="mt-auto pt-4">
-                <div v-if="item.sizes.length > 1" class="mb-3 flex flex-wrap gap-1.5" role="group" :aria-label="t('site.size')">
-                  <button
-                    v-for="size in item.sizes"
-                    :key="size"
-                    type="button"
-                    class="grid h-9 min-w-[2.25rem] place-items-center rounded-full px-2 text-xs font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine transition-colors"
-                    :class="chosen(item) === size ? 'bg-pine text-ivory' : 'border border-pine/20 text-pine hover:border-pine'"
-                    :aria-pressed="chosen(item) === size"
-                    @click="pickSize(item.id, size)"
-                  >
-                    {{ sizeLabel(size) }}
-                  </button>
+                  <div v-if="item.sizes.length > 1" class="flex flex-wrap gap-1.5" role="group" :aria-label="t('site.size')">
+                    <button
+                      v-for="size in item.sizes"
+                      :key="size"
+                      type="button"
+                      class="grid h-9 min-w-[2.25rem] place-items-center rounded-full px-2 text-xs font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine transition-colors"
+                      :class="chosen(item) === size ? 'bg-pine text-ivory' : 'border border-pine/20 text-pine hover:border-pine'"
+                      :aria-pressed="chosen(item) === size"
+                      @click="pickSize(item.id, size)"
+                    >
+                      {{ sizeLabel(size) }}
+                    </button>
+                  </div>
                 </div>
 
                 <div class="flex flex-wrap items-center gap-2">
