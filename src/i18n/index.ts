@@ -101,7 +101,14 @@ const sv = {
     heroAlt: 'Trähus bland björkar vid en sjö',
     showPassword: 'Visa lösenord',
     hidePassword: 'Dölj lösenord',
-    rights: '© 2026 Builder.'
+    rights: '© 2026 Builder.',
+    capInfo: 'Klassisk passform',
+    teeInfo: 'Mjuk och bekväm',
+    hoodieInfo: 'Varm och skön',
+    toteInfo: 'Rymlig och slittålig',
+    printInfo: 'Konsttryck för hemmet',
+    stickersInfo: 'Dekorera dina verktyg',
+    caseInfo: 'Skydda din telefon'
   },
   header: {
     save: 'Spara projekt',
@@ -508,7 +515,14 @@ const en = {
     heroAlt: 'A timber house among birches by a lake',
     showPassword: 'Show password',
     hidePassword: 'Hide password',
-    rights: '© 2026 Builder.'
+    rights: '© 2026 Builder.',
+    capInfo: 'Classic fit',
+    teeInfo: 'Soft and comfortable',
+    hoodieInfo: 'Warm and cozy',
+    toteInfo: 'Spacious and durable',
+    printInfo: 'Art print for the home',
+    stickersInfo: 'Decorate your tools',
+    caseInfo: 'Protect your phone'
   },
   header: {
     save: 'Save project',

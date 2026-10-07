@@ -71,6 +71,7 @@
             </div>
           </div>
           <h2 class="mt-3 font-display text-lg font-extrabold tracking-[-0.03em] text-pine"><Cms :k="item.nameKey" /></h2>
+          <p class="mt-1 text-sm text-pine/80"><Cms :k="item.infoKey" /></p>
           <p class="mt-1 text-sm font-semibold tabular-nums text-graphite">{{ money(item.priceSek) }}</p>
         </li>
       </ul>
