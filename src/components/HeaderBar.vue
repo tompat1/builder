@@ -6,11 +6,11 @@
     <!-- Brand & Top Links (Matching Skånska Byggvaror) -->
     <div class="flex items-center gap-3 md:gap-5">
       <!-- Logo Badge -->
-      <router-link to="/" class="flex items-center gap-2.5 text-pine focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine">
-        <BrandMark class="h-8 w-auto" />
+      <router-link to="/" class="flex items-center gap-2.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5A00]">
+        <BrandMark class="h-9 md:h-10 w-auto text-[#FF5A00]" />
         <div class="block">
           <div class="flex items-center gap-1.5 leading-none">
-            <span class="font-extrabold text-slate-900 tracking-tight text-sm md:text-base">Builder</span>
+            <span class="font-extrabold text-[#0E3524] tracking-tight text-sm md:text-base md:text-[22px]">Builder</span>
           </div>
           <span class="text-[9px] uppercase tracking-wider text-slate-400 font-bold block mt-0.5"><Cms k="brand.tagline" /></span>
         </div>
@@ -19,69 +19,60 @@
       <div class="h-6 w-px bg-slate-200 hidden md:block"></div>
 
       <!-- Action Quick-links -->
-      <div class="flex items-center gap-3">
-        <button
-          type="button"
+      <div class="flex items-center gap-4">
+        <ActionControl
+          appearance="text"
+          direction="forward"
           id="btn-save-project"
           :aria-expanded="housesOpen"
           @click="toggleHouses"
-          class="flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors p-1"
         >
-          <svg class="w-4 h-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-            <polyline points="17 21 17 13 7 13 7 21" />
-            <polyline points="7 3 7 8 15 8" />
-          </svg>
-          <span><Cms k="header.save" /></span>
-        </button>
-
-        <button
-          type="button"
-          id="btn-open-blueprint"
-          @click="$emit('open-export')"
-          class="hidden md:flex items-center gap-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors p-1"
-        >
-          <svg class="w-4 h-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-            <polyline points="14 2 14 8 20 8" />
-            <line x1="16" y1="13" x2="8" y2="13" />
-            <line x1="16" y1="17" x2="8" y2="17" />
-          </svg>
-          <span><Cms k="header.drawings" /></span>
-        </button>
+          <span class="flex items-center gap-2">
+            <svg class="w-[18px] h-[18px] text-[#FF5A00]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2z"></path>
+              <polyline points="17 21 17 13 7 13 7 21"></polyline>
+              <polyline points="7 3 7 8 15 8"></polyline>
+            </svg>
+            Projects
+          </span>
+        </ActionControl>
       </div>
     </div>
 
     <div class="flex items-center gap-2 shrink-0">
-    <div
-      class="flex bg-slate-100/90 p-1 rounded-xl border border-slate-200/80 shadow-inner shrink-0"
-      role="group"
-      :aria-label="t('lang.label')"
-    >
-      <button
-        type="button"
-        id="lang-sv"
-        lang="sv"
-        :aria-pressed="locale === 'sv'"
-        @click="applyLocale('sv')"
-        :class="langButtonClass(locale === 'sv')"
-      >
-        Sv
-      </button>
-      <button
-        type="button"
-        id="lang-en"
-        lang="en"
-        :aria-pressed="locale === 'en'"
-        @click="applyLocale('en')"
-        :class="langButtonClass(locale === 'en')"
-      >
-        En
-      </button>
-    </div>
+      <!-- Language Toggle -->
+      <nav class="flex bg-graphite p-1 rounded-xl shadow-inner shrink-0" role="group" :aria-label="locale === 'sv' ? 'Språk' : 'Language'">
+        <button
+          type="button"
+          :aria-pressed="locale === 'sv'"
+          @click="applyLocale('sv')"
+          :class="[
+            'flex items-center justify-center px-2.5 md:px-3 py-1 text-xs md:text-sm font-bold rounded-lg transition-all duration-200 min-h-[30px] md:min-h-[34px]',
+            locale === 'sv'
+              ? 'bg-[#FF5A00] text-graphite shadow-sm'
+              : 'text-ivory hover:text-white'
+          ]"
+        >
+          SV
+        </button>
+
+        <button
+          type="button"
+          :aria-pressed="locale === 'en'"
+          @click="applyLocale('en')"
+          :class="[
+            'flex items-center justify-center px-2.5 md:px-3 py-1 text-xs md:text-sm font-bold rounded-lg transition-all duration-200 min-h-[30px] md:min-h-[34px]',
+            locale === 'en'
+              ? 'bg-[#FF5A00] text-graphite shadow-sm'
+              : 'text-ivory hover:text-white'
+          ]"
+        >
+          EN
+        </button>
+      </nav>
 
     <!-- Center Segmented Master Toggle (Outside / Inside) -->
-    <nav class="flex bg-slate-100/90 p-1 rounded-xl border border-slate-200/80 shadow-inner shrink-0" role="tablist" :aria-label="t('header.view')">
+    <nav class="flex bg-graphite p-1 rounded-xl shadow-inner shrink-0" role="tablist" :aria-label="t('header.view')">
       <button
         type="button"
         role="tab"
@@ -91,8 +82,8 @@
         :class="[
           'flex items-center gap-1 px-2.5 md:px-4 py-1 text-xs md:text-sm font-semibold rounded-lg transition-all duration-200 min-h-[30px] md:min-h-[34px]',
           store.viewMode === 'utsida'
-            ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
-            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+            ? 'bg-[#FF5A00] text-graphite shadow-sm'
+            : 'text-ivory hover:text-white'
         ]"
       >
         <span><Cms k="header.outside" /></span>
@@ -107,8 +98,8 @@
         :class="[
           'flex items-center gap-1 px-2.5 md:px-4 py-1 text-xs md:text-sm font-semibold rounded-lg transition-all duration-200 min-h-[30px] md:min-h-[34px]',
           store.viewMode === 'insida'
-            ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
-            : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
+            ? 'bg-[#FF5A00] text-graphite shadow-sm'
+            : 'text-ivory hover:text-white'
         ]"
       >
         <span><Cms k="header.inside" /></span>
@@ -118,7 +109,6 @@
 
     <!-- Price and Action Cluster -->
     <div class="flex items-center gap-2 md:gap-5 shrink-0">
-      <AccountMenu ref="accountMenu" />
       <button
         v-if="session.user?.role === 'admin'"
         type="button"
@@ -150,23 +140,20 @@
         </button>
       </div>
 
-      <button
-        type="button"
+      <ActionControl
+        prominent
+        tone="graphite"
+        direction="down"
         id="btn-next-step"
-        class="bg-[#1b5e40] hover:bg-[#154a32] active:bg-[#0f3624] text-white font-extrabold px-3 py-1.5 md:px-5 md:py-2.5 rounded-lg text-xs md:text-sm transition-all duration-150 shadow-sm hover:shadow min-h-[32px] md:min-h-[38px] flex items-center gap-1.5 shrink-0"
+        class="shrink-0 min-h-[32px] md:min-h-[38px]"
         @click="$emit('open-export')"
       >
-        <span><Cms k="panel.export" /></span>
-        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-          <polyline points="7 10 12 15 17 10" />
-          <line x1="12" y1="15" x2="12" y2="3" />
-        </svg>
-      </button>
+        <Cms k="panel.export" />
+      </ActionControl>
     </div>
   </header>
 
-  <SavedHouses :open="housesOpen" @close="housesOpen = false" @sign-in="accountMenu?.openLogin()" />
+  <SavedHouses :open="housesOpen" @close="housesOpen = false" />
 
   <!-- Price Breakdown Flyout Modal -->
   <div
@@ -201,19 +188,18 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
 import BrandMark from './brand/BrandMark.vue';
+import ActionControl from './site/ActionControl.vue';
 import { useConfigStore } from '../store/useConfigStore';
 import { useContentStore } from '../store/useContentStore';
 import { useSessionStore } from '../store/useSessionStore';
 import { applyLocale, useLabels } from '../i18n';
 import { readLocalHouse } from '../services/houseSave';
-import AccountMenu from './AccountMenu.vue';
 import SavedHouses from './SavedHouses.vue';
 import Cms from './Cms.vue';
 
 const store = useConfigStore();
 const content = useContentStore();
 const session = useSessionStore();
-const accountMenu = ref<{ openLogin: () => void } | null>(null);
 const housesOpen = ref(false);
 const { t, locale, catalog, money, delta } = useLabels();
 const showPriceBreakdown = ref(false);
@@ -222,14 +208,6 @@ defineEmits<{
   (e: 'open-export'): void;
 }>();
 
-function langButtonClass(active: boolean) {
-  return [
-    'px-2 md:px-2.5 py-1 text-xs font-semibold rounded-lg transition-all duration-200 min-h-[30px] md:min-h-[34px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
-    active
-      ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
-      : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/50'
-  ];
-}
 
 function toggleHouses() {
   housesOpen.value = !housesOpen.value;

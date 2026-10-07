@@ -9,8 +9,8 @@
       :class="[
         'flex flex-col items-center justify-center min-w-[58px] min-h-[52px] py-2 px-1.5 rounded-xl transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
         store.selectedCategory === cat.id
-          ? 'bg-slate-900 text-white shadow-sm'
-          : 'bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-slate-200/60'
+          ? 'bg-slate-900 text-white shadow-sm border border-slate-900'
+          : 'bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-slate-200/60 hover:border-[#FF5A00]'
       ]"
       :aria-current="store.selectedCategory === cat.id ? 'step' : undefined"
     >

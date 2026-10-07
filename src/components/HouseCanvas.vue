@@ -1,5 +1,40 @@
 <template>
-  <div ref="canvasContainer" class="w-full h-full absolute inset-0 z-0"></div>
+  <div class="relative w-full h-full">
+    <div ref="canvasContainer" class="w-full h-full absolute inset-0 z-0"></div>
+
+    <!-- Drag to orbit hint -->
+    <transition
+      enter-active-class="transition duration-500 ease-out"
+      enter-from-class="opacity-0 scale-95"
+      enter-to-class="opacity-100 scale-100"
+      leave-active-class="transition duration-500 ease-in"
+      leave-from-class="opacity-100 scale-100"
+      leave-to-class="opacity-0 scale-95"
+    >
+      <div
+        v-if="showDragHint"
+        class="pointer-events-none absolute inset-0 flex items-center justify-center z-10"
+      >
+        <div class="flex items-center gap-2.5 bg-ivory/95 backdrop-blur-md text-slate-700 px-4 py-2.5 rounded-full shadow-[0_2px_12px_rgba(0,0,0,0.08)] border border-slate-200/60">
+          <svg class="w-[18px] h-[18px] text-slate-500 animate-[spin_8s_linear_infinite]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <!-- Top Right -->
+            <path d="M12 3a9 9 0 0 1 7.7 4.3" />
+            <polyline points="16 7.3 19.7 7.3 19.7 3.5" />
+            <!-- Bottom Right -->
+            <path d="M21 12a9 9 0 0 1-4.3 7.7" />
+            <polyline points="16.7 16 16.7 19.7 20.5 19.7" />
+            <!-- Bottom Left -->
+            <path d="M12 21a9 9 0 0 1-7.7-4.3" />
+            <polyline points="8 16.7 4.3 16.7 4.3 20.5" />
+            <!-- Top Left -->
+            <path d="M3 12a9 9 0 0 1 4.3-7.7" />
+            <polyline points="7.3 8 7.3 4.3 3.5 4.3" />
+          </svg>
+          <span class="text-sm font-semibold tracking-wide"><Cms k="canvas.orbit" fallback="Drag to orbit" /></span>
+        </div>
+      </div>
+    </transition>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -8,10 +43,12 @@ import { HouseScene } from '../three-engine/HouseScene';
 import { useConfigStore } from '../store/useConfigStore';
 import type { RoofId } from '../store/roof';
 import { noteTargetId } from '../notes/board';
+import Cms from './Cms.vue';
 
 const canvasContainer = ref<HTMLElement | null>(null);
 const store = useConfigStore();
 let engine: HouseScene | null = null;
+const showDragHint = ref(false);
 
 function noteTargetIds() {
   if (!store.showNotes) return [];
@@ -31,7 +68,24 @@ function syncNotePins() {
 }
 
 onMounted(() => {
+  // Check if this is the first time visiting the canvas
+  if (typeof window !== 'undefined' && !localStorage.getItem('builder_has_orbited')) {
+    showDragHint.value = true;
+  }
+
+  function handleInteraction() {
+    if (showDragHint.value) {
+      showDragHint.value = false;
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('builder_has_orbited', '1');
+      }
+    }
+  }
+
   if (canvasContainer.value) {
+    canvasContainer.value.addEventListener('mousedown', handleInteraction, { once: true });
+    canvasContainer.value.addEventListener('touchstart', handleInteraction, { once: true });
+
     engine = new HouseScene(canvasContainer.value, {
       widthMm: store.dimensions.width,
       depthMm: store.dimensions.depth,
