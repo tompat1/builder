@@ -18,61 +18,82 @@
         </button>
       </div>
 
-      <ul class="mt-8 grid gap-x-5 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
-        <li v-for="item in shown" :key="item.id" class="group">
-          <div class="relative overflow-hidden rounded-2xl bg-white" :class="selected === item.id ? 'ring-2 ring-pine' : ''">
-            <button
-              type="button"
-              class="block w-full cursor-zoom-in focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine"
-              :aria-pressed="selected === item.id"
-              :aria-label="`${t(item.nameKey)}. ${t('site.zoomPhoto')}`"
-              @click="openZoom(item)"
-            >
-              <CmsImage :k="`merch.image.${item.id}`" class="block w-full h-full">
-                <img
-                  :src="item.image"
-                  alt=""
-                  class="aspect-square w-full object-cover transition-transform duration-500 ease-out motion-reduce:transition-none group-hover:scale-105 group-focus-within:scale-105 motion-reduce:group-hover:scale-100"
-                />
-              </CmsImage>
-            </button>
-            <span v-if="totalQty(item)" class="pointer-events-none absolute right-3 top-3 z-20 grid h-7 min-w-7 place-items-center rounded-full bg-pine px-2 text-xs font-bold tabular-nums text-ivory">{{ totalQty(item) }}</span>
-            <div
-              class="z-10 bg-ivory/95 px-3 py-3 md:absolute md:inset-x-0 md:bottom-0 md:border-t md:border-pine/15 md:bg-ivory/90 md:backdrop-blur-md md:transition-transform md:duration-500 md:ease-[cubic-bezier(0.19,1,0.22,1)] motion-reduce:md:transition-none"
-              :class="selected === item.id ? 'md:translate-y-0' : 'md:translate-y-full md:group-hover:translate-y-0 md:group-focus-within:translate-y-0'"
-            >
-              <p class="text-xs leading-relaxed text-pine/75"><Cms :k="item.detailKey" /></p>
-              <div class="mt-2 flex flex-wrap gap-1.5" role="group" :aria-label="t('site.size')">
-                <button
-                  v-for="size in item.sizes"
-                  :key="size"
-                  type="button"
-                  class="rounded-full px-2.5 py-1 text-xs font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine"
-                  :class="chosen(item) === size ? 'bg-pine text-ivory' : 'border border-pine/20 text-pine hover:border-pine'"
-                  :aria-pressed="chosen(item) === size"
-                  @click="pickSize(item.id, size)"
-                >
-                  {{ sizeLabel(size) }}
-                </button>
+      <ul class="mt-8 grid gap-x-5 gap-y-12 sm:grid-cols-2 lg:grid-cols-4">
+        <li v-for="group in groupedShown" :key="group.baseId" class="group flex flex-col">
+          <template v-for="item in [currentItem(group)]" :key="item.id">
+            <div class="relative overflow-hidden rounded-2xl bg-white" :class="selected === item.id ? 'ring-2 ring-pine' : ''">
+              <button
+                type="button"
+                class="block w-full cursor-zoom-in focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine"
+                :aria-pressed="selected === item.id"
+                :aria-label="`${t(item.nameKey)}. ${t('site.zoomPhoto')}`"
+                @click="openZoom(item)"
+              >
+                <CmsImage :k="`merch.image.${item.id}`" class="block w-full h-full">
+                  <img
+                    :src="item.image"
+                    alt=""
+                    class="aspect-square w-full object-cover transition-transform duration-500 ease-out motion-reduce:transition-none group-hover:scale-105 group-focus-within:scale-105 motion-reduce:group-hover:scale-100"
+                  />
+                </CmsImage>
+              </button>
+              <span v-if="totalQty(item)" class="pointer-events-none absolute right-3 top-3 z-20 grid h-7 min-w-7 place-items-center rounded-full bg-pine px-2 text-xs font-bold tabular-nums text-ivory">{{ totalQty(item) }}</span>
+            </div>
+
+            <div class="mt-4 flex flex-1 flex-col">
+              <div class="flex items-start justify-between gap-4">
+                <h2 class="font-display text-lg font-extrabold tracking-[-0.03em] text-pine"><Cms :k="item.nameKey" /></h2>
+                <p class="text-sm font-semibold tabular-nums text-graphite">{{ money(item.priceSek) }}</p>
               </div>
-              <div class="mt-3 flex flex-wrap items-center gap-2">
-                <ActionControl v-if="!lineQty(item)" type="button" prominent @click="add(item)">
-                  <Cms k="site.add" />
-                </ActionControl>
-                <template v-else>
-                  <button type="button" class="grid h-9 w-9 place-items-center rounded-full border border-pine/20 text-pine hover:border-pine focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine" :aria-label="t('site.decrease')" @click="bag.setQty(keyFor(item), lineQty(item) - 1)">−</button>
-                  <span class="w-6 text-center text-sm font-semibold tabular-nums">{{ lineQty(item) }}</span>
-                  <button type="button" class="grid h-9 w-9 place-items-center rounded-full border border-pine/20 text-pine hover:border-pine focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine" :aria-label="t('site.increase')" :disabled="lineQty(item) >= 19" @click="bag.setQty(keyFor(item), lineQty(item) + 1)">+</button>
-                  <button type="button" class="ml-1 text-sm font-semibold text-pine hover:text-clay focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine" @click="bag.remove(keyFor(item))">
-                    <Cms k="site.remove" />
+
+              <p class="mt-1 text-sm text-pine/80"><Cms :k="item.infoKey" /></p>
+
+              <div v-if="group.items.length > 1" class="mt-3 flex flex-wrap gap-2">
+                <button
+                  v-for="variant in group.items"
+                  :key="variant.id"
+                  type="button"
+                  class="h-6 w-6 rounded-full border border-pine/15 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine transition-shadow"
+                  :class="[
+                    swatchClass(variant.id),
+                    selectedColor[group.baseId] === variant.id || (!selectedColor[group.baseId] && variant.id === item.id) ? 'ring-2 ring-pine ring-offset-2 ring-offset-ivory' : 'hover:border-pine/40'
+                  ]"
+                  :aria-label="t(variant.nameKey)"
+                  @click="selectedColor[group.baseId] = variant.id"
+                />
+              </div>
+
+              <div class="mt-auto pt-4">
+                <div v-if="item.sizes.length > 1" class="mb-3 flex flex-wrap gap-1.5" role="group" :aria-label="t('site.size')">
+                  <button
+                    v-for="size in item.sizes"
+                    :key="size"
+                    type="button"
+                    class="grid h-9 min-w-[2.25rem] place-items-center rounded-full px-2 text-xs font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine transition-colors"
+                    :class="chosen(item) === size ? 'bg-pine text-ivory' : 'border border-pine/20 text-pine hover:border-pine'"
+                    :aria-pressed="chosen(item) === size"
+                    @click="pickSize(item.id, size)"
+                  >
+                    {{ sizeLabel(size) }}
                   </button>
-                </template>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2">
+                  <ActionControl v-if="!lineQty(item)" type="button" prominent class="w-full" @click="add(item)">
+                    <Cms k="site.add" />
+                  </ActionControl>
+                  <template v-else>
+                    <button type="button" class="grid h-9 w-9 place-items-center rounded-full border border-pine/20 bg-white text-pine hover:border-pine focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine" :aria-label="t('site.decrease')" @click="bag.setQty(keyFor(item), lineQty(item) - 1)">−</button>
+                    <span class="w-6 text-center text-sm font-semibold tabular-nums">{{ lineQty(item) }}</span>
+                    <button type="button" class="grid h-9 w-9 place-items-center rounded-full border border-pine/20 bg-white text-pine hover:border-pine focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine" :aria-label="t('site.increase')" :disabled="lineQty(item) >= 19" @click="bag.setQty(keyFor(item), lineQty(item) + 1)">+</button>
+                    <button type="button" class="ml-auto text-sm font-semibold text-pine hover:text-clay focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine" @click="bag.remove(keyFor(item))">
+                      <Cms k="site.remove" />
+                    </button>
+                  </template>
+                </div>
               </div>
             </div>
-          </div>
-          <h2 class="mt-3 font-display text-lg font-extrabold tracking-[-0.03em] text-pine"><Cms :k="item.nameKey" /></h2>
-          <p class="mt-1 text-sm text-pine/80"><Cms :k="item.infoKey" /></p>
-          <p class="mt-1 text-sm font-semibold tabular-nums text-graphite">{{ money(item.priceSek) }}</p>
+          </template>
         </li>
       </ul>
     </div>
@@ -299,5 +320,36 @@ const filters = [
   { id: 'prints' as const, label: 'site.prints' }
 ];
 
-const shown = computed(() => MERCH.filter((item) => kind.value === 'all' || item.kind === kind.value));
+interface MerchGroup {
+  baseId: string;
+  kind: MerchKind;
+  items: MerchItem[];
+}
+
+const groupedShown = computed(() => {
+  const map = new Map<string, MerchGroup>();
+  for (const item of MERCH) {
+    if (kind.value !== 'all' && item.kind !== kind.value) continue;
+    const baseId = item.id.split('-')[0];
+    if (!map.has(baseId)) {
+      map.set(baseId, { baseId, kind: item.kind, items: [] });
+    }
+    map.get(baseId)!.items.push(item);
+  }
+  return Array.from(map.values());
+});
+
+const selectedColor = ref<Record<string, string>>({});
+
+function currentItem(group: MerchGroup) {
+  const selId = selectedColor.value[group.baseId];
+  return group.items.find(i => i.id === selId) || group.items[0];
+}
+
+function swatchClass(itemId: string) {
+  if (itemId.includes('graphite')) return 'bg-pine';
+  if (itemId.includes('ivory')) return 'bg-ivory';
+  if (itemId.includes('orange')) return 'bg-[#FF5A00]';
+  return 'bg-transparent';
+}
 </script>
