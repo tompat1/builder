@@ -1,13 +1,11 @@
 <template>
-  <span class="cms-wrap" :class="{ 'cms-on': editing }">
+  <span class="cms-wrap" :class="{ 'cms-on': editing }" @click="guard" @mousedown="guard">
     <span
       ref="field"
       class="cms-field"
       :class="{ 'cms-block': block }"
       :contenteditable="editing ? 'plaintext-only' : 'false'"
       spellcheck="false"
-      @click="guard"
-      @mousedown="guard"
       @blur="commit"
       @keydown.enter.exact="onEnter"
     />
@@ -50,7 +48,12 @@ onMounted(paint);
 watch(shown, paint);
 
 function guard(event: MouseEvent) {
-  if (editing.value) event.stopPropagation();
+  if (editing.value) {
+    event.stopPropagation();
+    if (event.type === 'click') {
+      event.preventDefault();
+    }
+  }
 }
 
 function commit() {
