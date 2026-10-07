@@ -723,22 +723,22 @@
       <div class="flex border-b border-slate-200 gap-4 mb-2">
         <button
           type="button"
-          @click="doorTab = 'single'"
-          :class="sizeTabClass(doorTab === 'single')"
+          @click.capture="doorTab = 'single'"
+          :class="doorTabClass(doorTab === 'single')"
         >
           <Cms k="category.singleDoors" />
         </button>
         <button
           type="button"
-          @click="doorTab = 'double'"
-          :class="sizeTabClass(doorTab === 'double')"
+          @click.capture="doorTab = 'double'"
+          :class="doorTabClass(doorTab === 'double')"
         >
           <Cms k="category.doubleDoors" />
         </button>
         <button
           type="button"
-          @click="doorTab = 'sliding'"
-          :class="sizeTabClass(doorTab === 'sliding')"
+          @click.capture="doorTab = 'sliding'"
+          :class="doorTabClass(doorTab === 'sliding')"
         >
           <Cms k="category.slidingDoors" />
         </button>
@@ -968,6 +968,15 @@ function sizeTabClass(active: boolean) {
     active
       ? 'border-slate-900 text-slate-900'
       : 'border-transparent text-slate-400 hover:text-slate-600'
+  ];
+}
+
+function doorTabClass(active: boolean) {
+  return [
+    'text-xs pb-2 border-b-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5A00] px-1 -mx-1',
+    active
+      ? 'font-bold border-emerald-700 text-slate-900'
+      : 'font-semibold border-transparent text-slate-400 hover:text-slate-600'
   ];
 }
 const customArea = computed(() => {
