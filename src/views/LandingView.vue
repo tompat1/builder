@@ -13,14 +13,9 @@
             {{ t('site.heroTitle') }}
           </h1>
           <p class="mt-5 max-w-[36ch] text-lg leading-relaxed text-pine/80">{{ t('site.heroLead') }}</p>
-          <div class="mt-8 flex flex-wrap gap-3">
-            <router-link to="/build" class="inline-flex items-center gap-2 rounded-full bg-pine px-5 py-3 text-sm font-semibold text-ivory hover:bg-graphite focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine">
-              {{ t('site.start') }}
-              <span aria-hidden="true">→</span>
-            </router-link>
-            <router-link to="/homes" class="inline-flex items-center rounded-full border border-pine/25 bg-ivory px-5 py-3 text-sm font-semibold text-pine hover:border-pine focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine">
-              {{ t('site.explore') }}
-            </router-link>
+          <div class="mt-8 flex flex-wrap items-center gap-3">
+            <ActionControl to="/build" prominent>{{ t('site.start') }}</ActionControl>
+            <ActionControl to="/homes" appearance="outline">{{ t('site.explore') }}</ActionControl>
           </div>
         </div>
         <img src="/brand/landing.webp" alt="" class="mt-8 h-64 w-full object-cover object-[75%_center] md:hidden" />
@@ -49,20 +44,26 @@
 
       <router-link
         to="/merch"
-        class="relative z-10 mx-4 mb-6 mt-2 flex items-center gap-3 self-end rounded-2xl bg-white p-2.5 pr-4 shadow-[0_12px_28px_-16px_rgba(23,61,53,0.55)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine md:absolute md:bottom-6 md:right-6 md:mx-0 md:mb-0 md:mt-0 md:w-[18.5rem]"
+        class="group relative z-10 mx-4 mb-6 mt-2 flex items-stretch self-end overflow-hidden rounded-2xl bg-white text-pine shadow-[0_12px_28px_-16px_rgba(23,61,53,0.55)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine md:absolute md:bottom-6 md:right-6 md:mx-0 md:mb-0 md:mt-0 md:w-[18.5rem]"
       >
-          <img src="/merch/07.jpg" alt="" class="h-16 w-16 shrink-0 rounded-xl object-cover" />
-          <span class="min-w-0 flex-1">
-            <span class="block text-sm font-semibold text-pine">{{ t('site.merchTitle') }}</span>
-            <span class="mt-0.5 block text-xs leading-snug text-pine/70">{{ t('site.merchBody') }}</span>
+          <span class="flex min-w-0 flex-1 items-center gap-3 p-2.5">
+            <img src="/merch/07.jpg" alt="" class="h-16 w-16 shrink-0 rounded-xl object-cover" />
+            <span class="min-w-0">
+              <span class="block text-sm font-semibold">{{ t('site.merchTitle') }}</span>
+              <span class="mt-0.5 block text-xs leading-snug text-pine/70">{{ t('site.merchBody') }}</span>
+            </span>
           </span>
-          <span aria-hidden="true" class="text-lg text-pine">→</span>
+          <span class="grid w-12 shrink-0 place-items-center bg-[#FF5A00] text-graphite">
+            <ArrowMark />
+          </span>
       </router-link>
     </section>
   </SiteFrame>
 </template>
 
 <script setup lang="ts">
+import ActionControl from '../components/site/ActionControl.vue';
+import ArrowMark from '../components/site/ArrowMark.vue';
 import SiteFrame from '../components/site/SiteFrame.vue';
 import { useLabels } from '../i18n';
 

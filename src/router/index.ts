@@ -1,9 +1,12 @@
 import { createRouter, createWebHistory } from 'vue-router';
+import { acceptGithubReturn } from '../services/account';
 import HomesView from '../views/HomesView.vue';
 import LandingView from '../views/LandingView.vue';
 import MerchView from '../views/MerchView.vue';
 import LoginView from '../views/LoginView.vue';
 import BuilderView from '../views/BuilderView.vue';
+
+acceptGithubReturn();
 
 const router = createRouter({
   history: createWebHistory(),

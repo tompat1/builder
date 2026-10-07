@@ -50,18 +50,18 @@
             </button>
           </div>
 
-          <button type="submit" class="mt-6 w-full rounded-full bg-pine px-4 py-3.5 text-sm font-semibold text-ivory hover:bg-graphite focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine disabled:opacity-60" :disabled="busy">
+          <ActionControl type="submit" prominent class="mt-6 w-full" :disabled="busy">
             {{ mode === 'login' ? t('site.login') : t('site.create') }}
-          </button>
+          </ActionControl>
           <p class="mt-5 text-center text-sm text-pine/80">
             <button type="button" class="font-semibold text-pine underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine" @click="toggleMode">
               {{ mode === 'login' ? t('site.newHere') : t('site.login') }}
             </button>
           </p>
           <p class="my-4 text-center text-xs uppercase tracking-[0.14em] text-pine/50">{{ t('site.or') }}</p>
-          <button type="button" class="w-full rounded-full border border-pine/20 px-4 py-3 text-sm font-semibold text-pine hover:border-pine focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine" @click="github">
+          <ActionControl type="button" appearance="outline" direction="external" class="w-full" @click="github">
             {{ t('site.github') }}
-          </button>
+          </ActionControl>
         </form>
       </div>
     </div>
@@ -70,7 +70,8 @@
 
 <script setup lang="ts">
 import { ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
+import ActionControl from '../components/site/ActionControl.vue';
 import SiteFrame from '../components/site/SiteFrame.vue';
 import { useLabels } from '../i18n';
 import { beginGithubLogin, loginWithPassword, registerAccount } from '../services/account';
@@ -78,6 +79,7 @@ import { useSessionStore } from '../store/useSessionStore';
 
 const { t } = useLabels();
 const session = useSessionStore();
+const route = useRoute();
 const router = useRouter();
 const mode = ref<'login' | 'register'>('login');
 const login = ref('');
@@ -99,6 +101,12 @@ const messages: Record<string, string> = {
 
 function showError(code: string) {
   error.value = t(messages[code] ?? 'account.denied');
+}
+
+const authError = route.query.auth_error;
+if (typeof authError === 'string' && authError) {
+  showError(authError);
+  void router.replace({ path: '/login', query: {} });
 }
 
 function toggleMode() {

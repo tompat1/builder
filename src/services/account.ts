@@ -37,6 +37,16 @@ export function takeSessionFromHash() {
   return { token: token || sessionToken(), error };
 }
 
+/** Keep a GitHub return off the route hash before the router reads the URL. */
+export function acceptGithubReturn() {
+  const landed = takeSessionFromHash();
+  if (!landed.error) return landed;
+  const next = new URL('/login', window.location.origin);
+  next.searchParams.set('auth_error', landed.error);
+  window.history.replaceState(null, '', `${next.pathname}${next.search}`);
+  return landed;
+}
+
 async function accountFetch(path: string, init: RequestInit = {}) {
   const headers = new Headers(init.headers);
   const token = sessionToken();

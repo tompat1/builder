@@ -8,16 +8,16 @@
       <div>
         <p class="text-xs font-semibold uppercase tracking-[0.14em] text-sage">{{ t('site.footerExplore') }}</p>
         <ul class="mt-3 space-y-2 text-sm">
-          <li><router-link class="hover:text-sage focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ivory" to="/homes" :aria-current="homesCurrent">{{ t('site.explore') }}</router-link></li>
-          <li><router-link class="hover:text-sage focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ivory" to="/homes#how" :aria-current="howCurrent">{{ t('site.how') }}</router-link></li>
-          <li><router-link class="hover:text-sage focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ivory" to="/merch">{{ t('site.merch') }}</router-link></li>
+          <li><ActionControl to="/homes" appearance="text" class="hover:text-sage" :aria-current="homesCurrent">{{ t('site.explore') }}</ActionControl></li>
+          <li><ActionControl to="/homes#how" appearance="text" class="hover:text-sage" :aria-current="howCurrent">{{ t('site.how') }}</ActionControl></li>
+          <li><ActionControl to="/merch" appearance="text" class="hover:text-sage">{{ t('site.merch') }}</ActionControl></li>
         </ul>
       </div>
       <div>
         <p class="text-xs font-semibold uppercase tracking-[0.14em] text-sage">{{ t('site.footerSupport') }}</p>
         <ul class="mt-3 space-y-2 text-sm">
-          <li><router-link class="hover:text-sage focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ivory" to="/build">{{ t('site.start') }}</router-link></li>
-          <li><router-link class="hover:text-sage focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ivory" to="/login">{{ t('site.login') }}</router-link></li>
+          <li><ActionControl to="/build" appearance="text" class="hover:text-sage">{{ t('site.start') }}</ActionControl></li>
+          <li><ActionControl to="/login" appearance="text" class="hover:text-sage">{{ t('site.login') }}</ActionControl></li>
         </ul>
       </div>
       <div class="flex flex-col items-start gap-3 md:items-end">
@@ -42,6 +42,7 @@
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import BrandLockup from '../brand/BrandLockup.vue';
+import ActionControl from './ActionControl.vue';
 import { applyLocale, useLabels, type AppLocale } from '../../i18n';
 
 const { t, locale } = useLabels();

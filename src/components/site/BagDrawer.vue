@@ -53,9 +53,9 @@
             <span class="tabular-nums">{{ money(total) }}</span>
           </div>
           <p v-if="rows.length" class="mb-3 text-xs leading-relaxed text-pine/70">{{ t('site.checkoutNote') }}</p>
-          <button type="button" class="w-full rounded-full border border-pine/20 px-4 py-3 text-sm font-semibold text-pine hover:border-pine focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine" @click="bag.closePanel()">
+          <ActionControl type="button" appearance="outline" class="w-full" @click="bag.closePanel()">
             {{ t('site.continueShop') }}
-          </button>
+          </ActionControl>
         </div>
       </aside>
     </div>
@@ -65,6 +65,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
 import { useLabels } from '../../i18n';
+import ActionControl from './ActionControl.vue';
 import { MERCH } from '../../site/merch';
 import { useBagStore } from '../../store/useBagStore';
 

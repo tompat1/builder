@@ -3,8 +3,9 @@
     <div class="flex h-[4.25rem] w-full items-center gap-6 px-4 md:px-8">
       <BrandLockup class="text-pine" mark-class="text-[#FF5A00]" />
       <nav class="ml-auto hidden items-center gap-7 md:flex" :aria-label="t('site.menu')">
-        <a v-for="link in links" :key="link.to" :href="link.to" :class="linkClass(link.to)">
+        <a v-for="link in links" :key="link.to" :href="link.to" class="group inline-flex items-center gap-2" :class="linkClass(link.to)">
           {{ t(link.label) }}
+          <ArrowMark />
         </a>
       </nav>
       <div class="ml-auto flex items-center gap-2 md:ml-0">
@@ -34,7 +35,7 @@
             <span class="absolute right-0.5 top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-clay px-1 text-[10px] font-bold tabular-nums text-ivory">{{ bag.count }}</span>
           </button>
           <router-link
-            to="/login"
+            :to="session.user ? '/build' : '/login'"
             class="grid h-10 w-10 place-items-center rounded-full text-pine focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine"
             :aria-label="session.user ? session.user.name : t('site.login')"
           >
@@ -45,10 +46,7 @@
             </svg>
           </router-link>
         </div>
-        <router-link to="/build" class="hidden items-center gap-1.5 rounded-full bg-pine px-4 py-2.5 text-sm font-semibold text-ivory hover:bg-graphite focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine md:inline-flex">
-          {{ t('site.start') }}
-          <span aria-hidden="true">→</span>
-        </router-link>
+        <ActionControl to="/build" prominent tone="graphite" class="max-md:hidden">{{ t('site.start') }}</ActionControl>
         <button
           type="button"
           class="grid h-10 w-10 place-items-center rounded-full text-pine focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine md:hidden"
@@ -67,16 +65,15 @@
     </div>
     <div v-if="open" class="border-t border-pine/10 bg-ivory px-4 py-4 md:hidden">
       <nav class="flex flex-col gap-1" :aria-label="t('site.menu')">
-        <a v-for="link in links" :key="link.to" :href="link.to" class="rounded-xl px-3 py-3 text-base font-semibold text-pine" @click="open = false">
+        <a v-for="link in links" :key="link.to" :href="link.to" class="group inline-flex items-center gap-2 rounded-xl px-3 py-3 text-base font-semibold text-pine" @click="open = false">
           {{ t(link.label) }}
+          <ArrowMark />
         </a>
-        <router-link to="/login" class="rounded-xl px-3 py-3 text-base font-semibold text-pine" @click="open = false">
+        <router-link :to="session.user ? '/build' : '/login'" class="group inline-flex items-center gap-2 rounded-xl px-3 py-3 text-base font-semibold text-pine" @click="open = false">
           {{ session.user ? session.user.name : t('site.login') }}
+          <ArrowMark />
         </router-link>
-        <router-link to="/build" class="mt-2 inline-flex items-center justify-center gap-1.5 rounded-full bg-pine px-4 py-3 text-center text-sm font-semibold text-ivory" @click="open = false">
-          {{ t('site.start') }}
-          <span aria-hidden="true">→</span>
-        </router-link>
+        <ActionControl to="/build" prominent tone="graphite" class="mt-2 w-full" @click="open = false">{{ t('site.start') }}</ActionControl>
       </nav>
     </div>
   </header>
@@ -87,6 +84,8 @@
 import { ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import BrandLockup from '../brand/BrandLockup.vue';
+import ActionControl from './ActionControl.vue';
+import ArrowMark from './ArrowMark.vue';
 import BagDrawer from './BagDrawer.vue';
 import { applyLocale, useLabels } from '../../i18n';
 import { useBagStore } from '../../store/useBagStore';

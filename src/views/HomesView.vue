@@ -45,15 +45,13 @@
           <p class="mt-1.5 max-w-[28ch] text-sm leading-relaxed text-pine/75">{{ t(step.body) }}</p>
         </li>
       </ol>
-      <router-link to="/build" class="mt-10 inline-flex items-center gap-2 rounded-full bg-pine px-5 py-3 text-sm font-semibold text-ivory hover:bg-graphite focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine">
-        {{ t('site.start') }}
-        <span aria-hidden="true">→</span>
-      </router-link>
+      <ActionControl to="/build" prominent class="mt-10">{{ t('site.start') }}</ActionControl>
     </section>
   </SiteFrame>
 </template>
 
 <script setup lang="ts">
+import ActionControl from '../components/site/ActionControl.vue';
 import SiteFrame from '../components/site/SiteFrame.vue';
 import { useLabels } from '../i18n';
 import { SIZE_OPTIONS, useConfigStore } from '../store/useConfigStore';
