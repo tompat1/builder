@@ -102,13 +102,13 @@ const sv = {
     showPassword: 'Visa lösenord',
     hidePassword: 'Dölj lösenord',
     rights: '© 2026 Builder.',
-    capInfo: 'Klassisk passform',
-    teeInfo: 'Mjuk och bekväm',
-    hoodieInfo: 'Varm och skön',
-    toteInfo: 'Rymlig och slittålig',
-    printInfo: 'Konsttryck för hemmet',
-    stickersInfo: 'Dekorera dina verktyg',
-    caseInfo: 'Skydda din telefon'
+    capInfo: 'Klassisk passform i strukturerad bomullstwill.',
+    teeInfo: 'Mjuk vardagskomfort i 100 % ekologisk bomull.',
+    hoodieInfo: 'Kraftig ekologisk bomullsblandning för varaktig värme.',
+    toteInfo: 'Rymlig och slittålig, tillverkad av återvunnen canvas.',
+    printInfo: 'Högkvalitativt konsttryck på matt bomullspapper.',
+    stickersInfo: 'Slittåliga vinylklistermärken med väderbeständig yta.',
+    caseInfo: 'Skyddande silikonskal med mjukt foder i mikrofiber.'
   },
   header: {
     save: 'Spara projekt',
@@ -516,13 +516,13 @@ const en = {
     showPassword: 'Show password',
     hidePassword: 'Hide password',
     rights: '© 2026 Builder.',
-    capInfo: 'Classic fit',
-    teeInfo: 'Soft and comfortable',
-    hoodieInfo: 'Warm and cozy',
-    toteInfo: 'Spacious and durable',
-    printInfo: 'Art print for the home',
-    stickersInfo: 'Decorate your tools',
-    caseInfo: 'Protect your phone'
+    capInfo: 'Classic fit in structured cotton twill.',
+    teeInfo: 'Soft, everyday comfort in 100% organic cotton.',
+    hoodieInfo: 'Heavyweight organic cotton blend for lasting warmth.',
+    toteInfo: 'Spacious and durable, made from recycled canvas.',
+    printInfo: 'High-quality archival art print on matte cotton paper.',
+    stickersInfo: 'Durable vinyl stickers with a weather-resistant finish.',
+    caseInfo: 'Protective silicone case with a soft microfibre lining.'
   },
   header: {
     save: 'Save project',
