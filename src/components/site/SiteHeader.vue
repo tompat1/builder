@@ -46,6 +46,15 @@
             </svg>
           </router-link>
         </div>
+        <button
+          v-if="session.user?.role === 'admin'"
+          type="button"
+          class="inline-flex h-[34px] items-center gap-[3px] rounded-md border border-pine/15 bg-white px-3 text-[11px] font-semibold tracking-[0.05em] text-pine shadow-[0_1px_2px_rgba(23,61,53,0.06)] hover:border-pine focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine max-md:hidden disabled:opacity-50"
+          :disabled="content.saving"
+          @click="toggleEdit"
+        >
+          {{ content.editing ? t('cms.done') : t('cms.edit') }}
+        </button>
         <ActionControl to="/build" prominent tone="graphite" class="max-md:hidden"><Cms k="site.start" /></ActionControl>
         <button
           type="button"
@@ -92,10 +101,12 @@ import Cms from '../Cms.vue';
 import { applyLocale, useLabels } from '../../i18n';
 import { useBagStore } from '../../store/useBagStore';
 import { useSessionStore } from '../../store/useSessionStore';
+import { useContentStore } from '../../store/useContentStore';
 
 const { t, locale } = useLabels();
 const bag = useBagStore();
 const session = useSessionStore();
+const content = useContentStore();
 const route = useRoute();
 const open = ref(false);
 
@@ -128,4 +139,17 @@ watch(() => route.fullPath, () => {
   if (route.hash === '#bag') bag.openPanel();
   else bag.closePanel();
 }, { immediate: true });
+
+async function toggleEdit() {
+  if (!content.editing) {
+    content.editing = true;
+    return;
+  }
+  try {
+    await content.save();
+    content.editing = false;
+  } catch {
+    content.editing = true;
+  }
+}
 </script>
