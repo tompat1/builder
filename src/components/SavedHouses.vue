@@ -7,7 +7,7 @@
       :style="panelStyle"
     >
       <div class="mb-2 flex items-center justify-between">
-        <p class="font-bold text-slate-900">{{ t('header.houses') }}</p>
+        <p class="font-bold text-slate-900"><Cms k="header.houses" /></p>
         <button type="button" class="text-slate-400 hover:text-slate-700" :aria-label="t('header.houseClose')" @click="emit('close')">
           <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <path d="M6 6 L18 18 M18 6 L6 18" />
@@ -19,7 +19,7 @@
       <p v-if="error" class="mb-2 text-[11px] text-red-800" role="status">{{ error }}</p>
 
       <form class="space-y-1.5" @submit.prevent="save">
-        <label class="block font-semibold text-slate-600" for="house-save-name">{{ t('header.houseName') }}</label>
+        <label class="block font-semibold text-slate-600" for="house-save-name"><Cms k="header.houseName" /></label>
         <input
           id="house-save-name"
           v-model="name"
@@ -31,7 +31,7 @@
           class="w-full rounded-lg bg-slate-900 px-3 py-1.5 font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
           :disabled="busy"
         >
-          {{ t('header.houseSave') }}
+          <Cms k="header.houseSave" />
         </button>
       </form>
 
@@ -62,12 +62,12 @@
             class="shrink-0 px-1 py-1 font-semibold text-slate-500 hover:text-slate-900"
             @click="remove(house.id)"
           >
-            {{ t('header.houseRemove') }}
+            <Cms k="header.houseRemove" />
           </button>
         </li>
       </ul>
       <p v-else-if="!busy" class="mt-3 border-t border-slate-200 pt-3 text-[11px] text-slate-500">
-        {{ t('header.houseEmpty') }}
+        <Cms k="header.houseEmpty" />
       </p>
     </div>
   </Teleport>
@@ -78,6 +78,7 @@ import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useConfigStore } from '../store/useConfigStore';
 import { useSessionStore } from '../store/useSessionStore';
 import { useLabels } from '../i18n';
+import Cms from './Cms.vue';
 import {
   clearHousePending,
   listHouses,

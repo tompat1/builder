@@ -10,7 +10,7 @@
         <BrandMark class="h-9 md:h-10 w-auto text-[#FF5A00]" />
         <div class="block">
           <div class="flex items-center gap-1.5 leading-none">
-            <span class="font-extrabold text-[#0E3524] tracking-tight text-sm md:text-base md:text-[22px]">Builder</span>
+            <span class="font-extrabold text-[#0E3524] tracking-tight text-sm md:text-base md:text-[22px]"><Cms k="brand.name" fallback="Builder" /></span>
           </div>
           <span class="text-[9px] uppercase tracking-wider text-slate-400 font-bold block mt-0.5"><Cms k="brand.tagline" /></span>
         </div>
@@ -33,7 +33,7 @@
               <polyline points="17 21 17 13 7 13 7 21"></polyline>
               <polyline points="7 3 7 8 15 8"></polyline>
             </svg>
-            Projects
+            <Cms k="header.projects" fallback="Projects" />
           </span>
         </ActionControl>
       </div>

@@ -2,15 +2,17 @@
   <SiteFrame>
     <div class="grid md:min-h-[calc(100svh-8.5rem)] md:grid-cols-2">
       <div class="relative min-h-72 md:min-h-full">
-        <img src="/brand/login.webp" :alt="t('site.heroAlt')" class="absolute inset-0 h-full w-full object-cover object-center" />
+        <CmsImage k="login.heroImage" class="absolute inset-0 h-full w-full block">
+          <img src="/brand/login.webp" :alt="t('site.heroAlt')" class="h-full w-full object-cover object-center" />
+        </CmsImage>
       </div>
       <div class="flex items-center px-4 py-12 md:px-12 lg:px-16">
         <form class="w-full max-w-md" @submit.prevent="submit">
-          <h1 class="font-display text-5xl font-extrabold tracking-[-0.04em] text-pine">{{ t('site.welcome') }}</h1>
-          <p class="mt-3 text-pine/75">{{ mode === 'login' ? t('site.loginLead') : t('site.create') }}</p>
+          <h1 class="font-display text-5xl font-extrabold tracking-[-0.04em] text-pine"><Cms k="site.welcome" /></h1>
+          <p class="mt-3 text-pine/75"><Cms :k="mode === 'login' ? 'site.loginLead' : 'site.create'" /></p>
           <p v-if="error" class="mt-4 rounded-xl bg-clay/15 px-3 py-2 text-sm text-graphite" role="status">{{ error }}</p>
 
-          <label class="mt-8 block text-sm font-semibold text-pine" for="site-login">{{ t('account.loginName') }}</label>
+          <label class="mt-8 block text-sm font-semibold text-pine" for="site-login"><Cms k="account.loginName" /></label>
           <div class="relative mt-1.5">
             <svg class="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-pine/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
               <circle cx="12" cy="8" r="3.2" />
@@ -19,10 +21,10 @@
             <input id="site-login" v-model="login" autocomplete="username" class="w-full rounded-xl border border-pine/15 bg-white py-3 pl-11 pr-3 text-graphite focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine" />
           </div>
 
-          <label v-if="mode === 'register'" class="mt-4 block text-sm font-semibold text-pine" for="site-name">{{ t('account.displayName') }}</label>
+          <label v-if="mode === 'register'" class="mt-4 block text-sm font-semibold text-pine" for="site-name"><Cms k="account.displayName" /></label>
           <input v-if="mode === 'register'" id="site-name" v-model="displayName" autocomplete="name" class="mt-1.5 w-full rounded-xl border border-pine/15 bg-white px-3 py-3 text-graphite focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine" />
 
-          <label class="mt-4 block text-sm font-semibold text-pine" for="site-password">{{ t('site.password') }}</label>
+          <label class="mt-4 block text-sm font-semibold text-pine" for="site-password"><Cms k="site.password" /></label>
           <div class="relative mt-1.5">
             <svg class="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-pine/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
               <rect x="5" y="10" width="14" height="10" rx="2" />
@@ -51,16 +53,16 @@
           </div>
 
           <ActionControl type="submit" prominent class="mt-6 w-full" :disabled="busy">
-            {{ mode === 'login' ? t('site.login') : t('site.create') }}
+            <Cms :k="mode === 'login' ? 'site.login' : 'site.create'" />
           </ActionControl>
           <p class="mt-5 text-center text-sm text-pine/80">
             <button type="button" class="font-semibold text-pine underline-offset-4 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine" @click="toggleMode">
-              {{ mode === 'login' ? t('site.newHere') : t('site.login') }}
+              <Cms :k="mode === 'login' ? 'site.newHere' : 'site.login'" />
             </button>
           </p>
-          <p class="my-4 text-center text-xs uppercase tracking-[0.14em] text-pine/50">{{ t('site.or') }}</p>
+          <p class="my-4 text-center text-xs uppercase tracking-[0.14em] text-pine/50"><Cms k="site.or" /></p>
           <ActionControl type="button" appearance="outline" direction="external" class="w-full" @click="github">
-            {{ t('site.github') }}
+            <Cms k="site.github" />
           </ActionControl>
         </form>
       </div>
@@ -73,6 +75,8 @@ import { ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import ActionControl from '../components/site/ActionControl.vue';
 import SiteFrame from '../components/site/SiteFrame.vue';
+import Cms from '../components/Cms.vue';
+import CmsImage from '../components/CmsImage.vue';
 import { useLabels } from '../i18n';
 import { beginGithubLogin, loginWithPassword, registerAccount } from '../services/account';
 import { useSessionStore } from '../store/useSessionStore';

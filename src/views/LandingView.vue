@@ -1,24 +1,27 @@
 <template>
   <SiteFrame>
     <section class="relative flex flex-1 flex-col overflow-hidden">
-      <img
-        src="/brand/landing.webp"
-        :alt="t('site.heroAlt')"
-        class="pointer-events-none absolute inset-0 hidden h-full w-full object-cover object-[46%_48%] md:block"
-        style="mask-image: linear-gradient(102deg, transparent 0%, transparent 22%, #000 58%, #000 100%); -webkit-mask-image: linear-gradient(102deg, transparent 0%, transparent 22%, #000 58%, #000 100%)"
-      />
+      <CmsImage k="landing.heroDesktop" class="pointer-events-none absolute inset-0 hidden h-full w-full object-cover object-[46%_48%] md:block" style="mask-image: linear-gradient(102deg, transparent 0%, transparent 22%, #000 58%, #000 100%); -webkit-mask-image: linear-gradient(102deg, transparent 0%, transparent 22%, #000 58%, #000 100%)">
+        <img
+          src="/brand/landing.webp"
+          :alt="t('site.heroAlt')"
+          class="h-full w-full object-cover object-[46%_48%]"
+        />
+      </CmsImage>
       <div class="relative z-10 flex w-full flex-1 flex-col px-4 py-10 md:px-8 md:py-12">
         <div class="max-w-xl">
           <h1 class="max-w-[12ch] font-display text-5xl font-extrabold leading-[0.95] tracking-[-0.04em] text-pine md:text-7xl">
-            {{ t('site.heroTitle') }}
+            <Cms k="site.heroTitle" />
           </h1>
-          <p class="mt-5 max-w-[36ch] text-lg leading-relaxed text-pine/80">{{ t('site.heroLead') }}</p>
+          <p class="mt-5 max-w-[36ch] text-lg leading-relaxed text-pine/80"><Cms k="site.heroLead" /></p>
           <div class="mt-8 flex flex-wrap items-center gap-3">
-            <ActionControl to="/build" prominent>{{ t('site.start') }}</ActionControl>
-            <ActionControl to="/homes" appearance="outline">{{ t('site.explore') }}</ActionControl>
+            <ActionControl to="/build" prominent><Cms k="site.start" /></ActionControl>
+            <ActionControl to="/homes" appearance="outline"><Cms k="site.explore" /></ActionControl>
           </div>
         </div>
-        <img src="/brand/landing.webp" alt="" class="mt-8 h-64 w-full object-cover object-[75%_center] md:hidden" />
+        <CmsImage k="landing.heroMobile" class="mt-8 h-64 w-full object-cover object-[75%_center] md:hidden">
+          <img src="/brand/landing.webp" alt="" class="h-full w-full object-cover object-[75%_center]" />
+        </CmsImage>
         <ul class="relative mt-12 grid gap-8 sm:grid-cols-3 md:mb-10 md:mt-auto md:max-w-2xl md:before:pointer-events-none md:before:absolute md:before:-bottom-4 md:before:-left-8 md:before:top-0 md:before:w-[48rem] md:before:bg-gradient-to-r md:before:from-ivory md:before:via-ivory/80 md:before:to-transparent md:before:content-['']">
           <li v-for="point in points" :key="point.title" class="relative z-10">
             <svg class="h-9 w-9 text-pine" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
@@ -36,8 +39,8 @@
                 <path d="M9.5 20v-6h5v6" />
               </template>
             </svg>
-            <p class="mt-4 text-lg font-semibold leading-snug text-pine">{{ t(point.title) }}</p>
-            <p class="mt-1.5 max-w-[22ch] text-sm leading-relaxed text-pine/75">{{ t(point.body) }}</p>
+            <p class="mt-4 text-lg font-semibold leading-snug text-pine"><Cms :k="point.title" /></p>
+            <p class="mt-1.5 max-w-[22ch] text-sm leading-relaxed text-pine/75"><Cms :k="point.body" /></p>
           </li>
         </ul>
       </div>
@@ -47,10 +50,12 @@
         class="group relative z-10 mx-4 mb-6 mt-2 flex items-stretch self-end overflow-hidden rounded-2xl bg-white text-pine shadow-[0_12px_28px_-16px_rgba(23,61,53,0.55)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine md:absolute md:bottom-6 md:right-6 md:mx-0 md:mb-0 md:mt-0 md:w-[18.5rem]"
       >
           <span class="flex min-w-0 flex-1 items-center gap-3 p-2.5">
-            <img src="/merch/07.jpg" alt="" class="h-16 w-16 shrink-0 rounded-xl object-cover" />
+            <CmsImage k="landing.merchImage" class="h-16 w-16 shrink-0 rounded-xl object-cover">
+              <img src="/merch/07.jpg" alt="" class="h-full w-full object-cover" />
+            </CmsImage>
             <span class="min-w-0">
-              <span class="block text-sm font-semibold">{{ t('site.merchTitle') }}</span>
-              <span class="mt-0.5 block text-xs leading-snug text-pine/70">{{ t('site.merchBody') }}</span>
+              <span class="block text-sm font-semibold"><Cms k="site.merchTitle" /></span>
+              <span class="mt-0.5 block text-xs leading-snug text-pine/70"><Cms k="site.merchBody" /></span>
             </span>
           </span>
           <span class="grid w-12 shrink-0 place-items-center bg-[#FF5A00] text-graphite">
@@ -65,6 +70,8 @@
 import ActionControl from '../components/site/ActionControl.vue';
 import ArrowMark from '../components/site/ArrowMark.vue';
 import SiteFrame from '../components/site/SiteFrame.vue';
+import Cms from '../components/Cms.vue';
+import CmsImage from '../components/CmsImage.vue';
 import { useLabels } from '../i18n';
 
 const { t } = useLabels();

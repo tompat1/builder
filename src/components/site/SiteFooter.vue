@@ -3,25 +3,25 @@
     <div class="flex flex-col gap-8 px-4 py-8 md:flex-row md:items-start md:gap-12 md:px-8">
       <div class="md:mr-auto">
         <BrandLockup to="/" class="text-ivory" />
-        <p class="mt-2 text-sm text-ivory/80">{{ t('brand.tagline') }}</p>
+        <p class="mt-2 text-sm text-ivory/80"><Cms k="brand.tagline" /></p>
       </div>
       <div>
-        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-sage">{{ t('site.footerExplore') }}</p>
+        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-sage"><Cms k="site.footerExplore" /></p>
         <ul class="mt-3 space-y-2 text-sm">
-          <li><ActionControl to="/homes" appearance="text" class="hover:text-sage" :aria-current="homesCurrent">{{ t('site.explore') }}</ActionControl></li>
-          <li><ActionControl to="/homes#how" appearance="text" class="hover:text-sage" :aria-current="howCurrent">{{ t('site.how') }}</ActionControl></li>
-          <li><ActionControl to="/merch" appearance="text" class="hover:text-sage">{{ t('site.merch') }}</ActionControl></li>
+          <li><ActionControl to="/homes" appearance="text" class="hover:text-sage" :aria-current="homesCurrent"><Cms k="site.explore" /></ActionControl></li>
+          <li><ActionControl to="/homes#how" appearance="text" class="hover:text-sage" :aria-current="howCurrent"><Cms k="site.how" /></ActionControl></li>
+          <li><ActionControl to="/merch" appearance="text" class="hover:text-sage"><Cms k="site.merch" /></ActionControl></li>
         </ul>
       </div>
       <div>
-        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-sage">{{ t('site.footerSupport') }}</p>
+        <p class="text-xs font-semibold uppercase tracking-[0.14em] text-sage"><Cms k="site.footerSupport" /></p>
         <ul class="mt-3 space-y-2 text-sm">
-          <li><ActionControl to="/build" appearance="text" class="hover:text-sage">{{ t('site.start') }}</ActionControl></li>
-          <li><ActionControl to="/login" appearance="text" class="hover:text-sage">{{ t('site.login') }}</ActionControl></li>
+          <li><ActionControl to="/build" appearance="text" class="hover:text-sage"><Cms k="site.start" /></ActionControl></li>
+          <li><ActionControl to="/login" appearance="text" class="hover:text-sage"><Cms k="site.login" /></ActionControl></li>
         </ul>
       </div>
       <div class="flex flex-col items-start gap-3 md:items-end">
-        <p class="text-xs text-ivory/70">{{ t('site.rights') }}</p>
+        <p class="text-xs text-ivory/70"><Cms k="site.rights" /></p>
         <label class="text-sm">
           <span class="sr-only">{{ t('lang.label') }}</span>
           <select
@@ -43,6 +43,7 @@ import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import BrandLockup from '../brand/BrandLockup.vue';
 import ActionControl from './ActionControl.vue';
+import Cms from '../Cms.vue';
 import { applyLocale, useLabels, type AppLocale } from '../../i18n';
 
 const { t, locale } = useLabels();

@@ -1,8 +1,8 @@
 <template>
   <SiteFrame>
     <div class="px-4 py-12 md:px-8 md:py-16">
-      <h1 class="max-w-[16ch] font-display text-5xl font-extrabold leading-[0.95] tracking-[-0.04em] text-pine md:text-6xl">{{ t('site.shopTitle') }}</h1>
-      <p class="mt-4 max-w-xl text-lg text-pine/80">{{ t('site.shopLead') }}</p>
+      <h1 class="max-w-[16ch] font-display text-5xl font-extrabold leading-[0.95] tracking-[-0.04em] text-pine md:text-6xl"><Cms k="site.shopTitle" /></h1>
+      <p class="mt-4 max-w-xl text-lg text-pine/80"><Cms k="site.shopLead" /></p>
       <div class="mt-6 flex flex-wrap gap-2" role="tablist">
         <button
           v-for="filter in filters"
@@ -14,7 +14,7 @@
           :class="kind === filter.id ? 'bg-pine text-ivory' : 'bg-white text-pine hover:bg-sage/40'"
           @click="kind = filter.id"
         >
-          {{ t(filter.label) }}
+          <Cms :k="filter.label" />
         </button>
       </div>
 
@@ -28,18 +28,20 @@
               :aria-label="`${t(item.nameKey)}. ${t('site.zoomPhoto')}`"
               @click="openZoom(item)"
             >
-              <img
-                :src="item.image"
-                alt=""
-                class="aspect-square w-full object-cover transition-transform duration-500 ease-out motion-reduce:transition-none group-hover:scale-105 group-focus-within:scale-105 motion-reduce:group-hover:scale-100"
-              />
+              <CmsImage :k="`merch.image.${item.id}`" class="block w-full h-full">
+                <img
+                  :src="item.image"
+                  alt=""
+                  class="aspect-square w-full object-cover transition-transform duration-500 ease-out motion-reduce:transition-none group-hover:scale-105 group-focus-within:scale-105 motion-reduce:group-hover:scale-100"
+                />
+              </CmsImage>
             </button>
             <span v-if="totalQty(item)" class="pointer-events-none absolute right-3 top-3 z-20 grid h-7 min-w-7 place-items-center rounded-full bg-pine px-2 text-xs font-bold tabular-nums text-ivory">{{ totalQty(item) }}</span>
             <div
               class="z-10 bg-ivory/95 px-3 py-3 md:absolute md:inset-x-0 md:bottom-0 md:border-t md:border-pine/15 md:bg-ivory/90 md:backdrop-blur-md md:transition-transform md:duration-500 md:ease-[cubic-bezier(0.19,1,0.22,1)] motion-reduce:md:transition-none"
               :class="selected === item.id ? 'md:translate-y-0' : 'md:translate-y-full md:group-hover:translate-y-0 md:group-focus-within:translate-y-0'"
             >
-              <p class="text-xs leading-relaxed text-pine/75">{{ t(item.detailKey) }}</p>
+              <p class="text-xs leading-relaxed text-pine/75"><Cms :k="item.detailKey" /></p>
               <div class="mt-2 flex flex-wrap gap-1.5" role="group" :aria-label="t('site.size')">
                 <button
                   v-for="size in item.sizes"
@@ -55,20 +57,20 @@
               </div>
               <div class="mt-3 flex flex-wrap items-center gap-2">
                 <ActionControl v-if="!lineQty(item)" type="button" prominent @click="add(item)">
-                  {{ t('site.add') }}
+                  <Cms k="site.add" />
                 </ActionControl>
                 <template v-else>
                   <button type="button" class="grid h-9 w-9 place-items-center rounded-full border border-pine/20 text-pine hover:border-pine focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine" :aria-label="t('site.decrease')" @click="bag.setQty(keyFor(item), lineQty(item) - 1)">−</button>
                   <span class="w-6 text-center text-sm font-semibold tabular-nums">{{ lineQty(item) }}</span>
                   <button type="button" class="grid h-9 w-9 place-items-center rounded-full border border-pine/20 text-pine hover:border-pine focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine" :aria-label="t('site.increase')" :disabled="lineQty(item) >= 19" @click="bag.setQty(keyFor(item), lineQty(item) + 1)">+</button>
                   <button type="button" class="ml-1 text-sm font-semibold text-pine hover:text-clay focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine" @click="bag.remove(keyFor(item))">
-                    {{ t('site.remove') }}
+                    <Cms k="site.remove" />
                   </button>
                 </template>
               </div>
             </div>
           </div>
-          <h2 class="mt-3 font-display text-lg font-extrabold tracking-[-0.03em] text-pine">{{ t(item.nameKey) }}</h2>
+          <h2 class="mt-3 font-display text-lg font-extrabold tracking-[-0.03em] text-pine"><Cms :k="item.nameKey" /></h2>
           <p class="mt-1 text-sm font-semibold tabular-nums text-graphite">{{ money(item.priceSek) }}</p>
         </li>
       </ul>
@@ -117,8 +119,8 @@
               :style="{ transform: tight ? `translate(${pan.x}px, ${pan.y}px) scale(2.4)` : 'scale(1)' }"
             />
           </div>
-          <p class="mt-3 text-center font-display text-lg font-extrabold text-ivory">{{ t(zoomed.nameKey) }}</p>
-          <p v-if="tight" class="mt-1 text-center text-sm text-ivory/80">{{ t('site.zoomMove') }}</p>
+          <p class="mt-3 text-center font-display text-lg font-extrabold text-ivory"><Cms :k="zoomed.nameKey" /></p>
+          <p v-if="tight" class="mt-1 text-center text-sm text-ivory/80"><Cms k="site.zoomMove" /></p>
         </div>
       </div>
     </Teleport>
@@ -129,6 +131,8 @@
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
 import ActionControl from '../components/site/ActionControl.vue';
 import SiteFrame from '../components/site/SiteFrame.vue';
+import Cms from '../components/Cms.vue';
+import CmsImage from '../components/CmsImage.vue';
 import { useLabels } from '../i18n';
 import { MERCH, lineKey, type MerchItem, type MerchKind } from '../site/merch';
 import { useBagStore } from '../store/useBagStore';

@@ -4,7 +4,7 @@
       <BrandLockup class="text-pine" mark-class="text-[#FF5A00]" />
       <nav class="ml-auto hidden items-center gap-7 md:flex" :aria-label="t('site.menu')">
         <a v-for="link in links" :key="link.to" :href="link.to" class="group inline-flex items-center gap-2" :class="linkClass(link.to)">
-          {{ t(link.label) }}
+          <Cms :k="link.label" />
           <ArrowMark />
         </a>
       </nav>
@@ -46,7 +46,7 @@
             </svg>
           </router-link>
         </div>
-        <ActionControl to="/build" prominent tone="graphite" class="max-md:hidden">{{ t('site.start') }}</ActionControl>
+        <ActionControl to="/build" prominent tone="graphite" class="max-md:hidden"><Cms k="site.start" /></ActionControl>
         <button
           type="button"
           class="grid h-10 w-10 place-items-center rounded-full text-pine focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine md:hidden"
@@ -66,14 +66,15 @@
     <div v-if="open" class="border-t border-pine/10 bg-ivory px-4 py-4 md:hidden">
       <nav class="flex flex-col gap-1" :aria-label="t('site.menu')">
         <a v-for="link in links" :key="link.to" :href="link.to" class="group inline-flex items-center gap-2 rounded-xl px-3 py-3 text-base font-semibold text-pine" @click="open = false">
-          {{ t(link.label) }}
+          <Cms :k="link.label" />
           <ArrowMark />
         </a>
         <router-link :to="session.user ? '/build' : '/login'" class="group inline-flex items-center gap-2 rounded-xl px-3 py-3 text-base font-semibold text-pine" @click="open = false">
-          {{ session.user ? session.user.name : t('site.login') }}
+          <template v-if="session.user">{{ session.user.name }}</template>
+          <Cms v-else k="site.login" />
           <ArrowMark />
         </router-link>
-        <ActionControl to="/build" prominent tone="graphite" class="mt-2 w-full" @click="open = false">{{ t('site.start') }}</ActionControl>
+        <ActionControl to="/build" prominent tone="graphite" class="mt-2 w-full" @click="open = false"><Cms k="site.start" /></ActionControl>
       </nav>
     </div>
   </header>
@@ -87,6 +88,7 @@ import BrandLockup from '../brand/BrandLockup.vue';
 import ActionControl from './ActionControl.vue';
 import ArrowMark from './ArrowMark.vue';
 import BagDrawer from './BagDrawer.vue';
+import Cms from '../Cms.vue';
 import { applyLocale, useLabels } from '../../i18n';
 import { useBagStore } from '../../store/useBagStore';
 import { useSessionStore } from '../../store/useSessionStore';

@@ -9,7 +9,7 @@
         :aria-label="t('site.bag')"
       >
         <div class="flex items-center justify-between border-b border-pine/10 px-5 py-4">
-          <h2 class="font-display text-2xl font-extrabold tracking-[-0.03em] text-pine">{{ t('site.bag') }}</h2>
+          <h2 class="font-display text-2xl font-extrabold tracking-[-0.03em] text-pine"><Cms k="site.bag" /></h2>
           <button
             ref="closeButton"
             type="button"
@@ -24,13 +24,13 @@
         </div>
 
         <div class="flex-1 overflow-y-auto px-5 py-4">
-          <p v-if="!rows.length" class="text-sm text-pine/70">{{ t('site.emptyBag') }}</p>
+          <p v-if="!rows.length" class="text-sm text-pine/70"><Cms k="site.emptyBag" /></p>
           <ul v-else class="space-y-4">
             <li v-for="row in rows" :key="row.key" class="flex gap-3 border-b border-pine/10 pb-4">
               <img :src="row.item.image" alt="" class="h-20 w-20 shrink-0 rounded-xl object-cover" />
               <div class="min-w-0 flex-1">
-                <p class="font-display text-lg font-extrabold tracking-[-0.03em] text-pine">{{ t(row.item.nameKey) }}</p>
-                <p class="text-xs text-pine/70">{{ t('site.size') }}: {{ sizeLabel(row.size) }}</p>
+                <p class="font-display text-lg font-extrabold tracking-[-0.03em] text-pine"><Cms :k="row.item.nameKey" /></p>
+                <p class="text-xs text-pine/70"><Cms k="site.size" />: {{ sizeLabel(row.size) }}</p>
                 <p class="mt-1 text-sm font-semibold tabular-nums">{{ money(row.qty * row.item.priceSek) }}</p>
                 <div class="mt-2 flex items-center gap-2">
                   <button type="button" class="grid h-8 w-8 place-items-center rounded-full border border-pine/20 text-pine hover:border-pine focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine" :aria-label="t('site.decrease')" @click="bag.setQty(row.key, row.qty - 1)">−</button>
@@ -49,12 +49,12 @@
 
         <div class="border-t border-pine/10 px-5 py-4">
           <div v-if="rows.length" class="mb-3 flex items-center justify-between font-semibold">
-            <span>{{ t('site.subtotal') }}</span>
+            <span><Cms k="site.subtotal" /></span>
             <span class="tabular-nums">{{ money(total) }}</span>
           </div>
-          <p v-if="rows.length" class="mb-3 text-xs leading-relaxed text-pine/70">{{ t('site.checkoutNote') }}</p>
+          <p v-if="rows.length" class="mb-3 text-xs leading-relaxed text-pine/70"><Cms k="site.checkoutNote" /></p>
           <ActionControl type="button" appearance="outline" class="w-full" @click="bag.closePanel()">
-            {{ t('site.continueShop') }}
+            <Cms k="site.continueShop" />
           </ActionControl>
         </div>
       </aside>
@@ -66,6 +66,7 @@
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
 import { useLabels } from '../../i18n';
 import ActionControl from './ActionControl.vue';
+import Cms from '../Cms.vue';
 import { MERCH } from '../../site/merch';
 import { useBagStore } from '../../store/useBagStore';
 
