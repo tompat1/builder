@@ -54,14 +54,9 @@
                 </button>
               </div>
               <div class="mt-3 flex flex-wrap items-center gap-2">
-                <button
-                  v-if="!lineQty(item)"
-                  type="button"
-                  class="rounded-full bg-pine px-4 py-2 text-sm font-semibold text-ivory hover:bg-graphite focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine"
-                  @click="add(item)"
-                >
+                <ActionControl v-if="!lineQty(item)" type="button" prominent @click="add(item)">
                   {{ t('site.add') }}
-                </button>
+                </ActionControl>
                 <template v-else>
                   <button type="button" class="grid h-9 w-9 place-items-center rounded-full border border-pine/20 text-pine hover:border-pine focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine" :aria-label="t('site.decrease')" @click="bag.setQty(keyFor(item), lineQty(item) - 1)">−</button>
                   <span class="w-6 text-center text-sm font-semibold tabular-nums">{{ lineQty(item) }}</span>
@@ -132,6 +127,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
+import ActionControl from '../components/site/ActionControl.vue';
 import SiteFrame from '../components/site/SiteFrame.vue';
 import { useLabels } from '../i18n';
 import { MERCH, lineKey, type MerchItem, type MerchKind } from '../site/merch';
