@@ -107,6 +107,7 @@ export interface OptionItem {
   priceDelta: number;
   spec?: string;
   imageUrl?: string;
+  doorType?: 'single' | 'double' | 'sliding';
 }
 
 export const SIZE_OPTIONS: SizeOption[] = [
@@ -250,28 +251,40 @@ export const DOORS_OPTIONS: OptionItem[] = [
     name: 'STEHAG',
     desc: 'Ytterdörr Stabil, slät m. klarglas, 10x21',
     spec: 'Mått 10×21, U-värde 0.8',
-    priceDelta: 0
+    priceDelta: 0,
+    doorType: 'single'
   },
   {
     id: 'FLENINGE',
     name: 'FLENINGE',
     desc: 'Ytterdörr Stabil, spårfräst 6 rutor spröjs, 10x21',
     spec: 'Mått 10×21, 3-glas isoler',
-    priceDelta: 2400
+    priceDelta: 2400,
+    doorType: 'single'
   },
   {
     id: 'SVANSHALL',
     name: 'SVANSHALL',
     desc: 'Ytterdörr Stabil, helglasad pardörr, 16x21',
     spec: 'Mått 16×21, laminerat säkerhetsglas',
-    priceDelta: 9800
+    priceDelta: 9800,
+    doorType: 'double'
   },
   {
     id: 'LERVIK',
     name: 'LERVIK',
     desc: 'Ytterdörr Stabil, slät m. vertikalt glas, 10x21',
     spec: 'Mått 10×21, dold gångjärnskonstruktion',
-    priceDelta: 3200
+    priceDelta: 3200,
+    doorType: 'single'
+  },
+  {
+    id: 'SKJUTDORR',
+    name: 'SKANO',
+    desc: 'Skjutdörr helglasad i aluminium, 20x21',
+    spec: 'Mått 20×21, 3-glas isoler',
+    priceDelta: 14500,
+    doorType: 'sliding'
   }
 ];
 

@@ -719,19 +719,28 @@
         </span>
       </div>
 
-      <!-- Door Type Tabs (Enkeldörrar / Pardörrar) matching Image 1 & 2 -->
+      <!-- Door Type Tabs (Enkeldörrar / Pardörrar / Skjutdörrar) -->
       <div class="flex border-b border-slate-200 gap-4 mb-2">
         <button
           type="button"
-          class="text-xs font-bold pb-2 border-b-2 border-emerald-700 text-slate-900"
+          @click="doorTab = 'single'"
+          :class="sizeTabClass(doorTab === 'single')"
         >
           <Cms k="category.singleDoors" />
         </button>
         <button
           type="button"
-          class="text-xs font-semibold pb-2 border-b-2 border-transparent text-slate-400 hover:text-slate-600"
+          @click="doorTab = 'double'"
+          :class="sizeTabClass(doorTab === 'double')"
         >
           <Cms k="category.doubleDoors" />
+        </button>
+        <button
+          type="button"
+          @click="doorTab = 'sliding'"
+          :class="sizeTabClass(doorTab === 'sliding')"
+        >
+          <Cms k="category.slidingDoors" />
         </button>
       </div>
 
@@ -761,7 +770,7 @@
 
       <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
         <button
-          v-for="door in DOORS_OPTIONS"
+          v-for="door in DOORS_OPTIONS.filter(d => (d as any).doorType === doorTab)"
           :key="door.id"
           type="button"
           :id="`option-${door.id}`"
@@ -791,6 +800,13 @@
                 <line x1="80" y1="8" x2="80" y2="72" stroke="currentColor" stroke-width="1.5" />
                 <rect x="65" y="12" width="12" height="50" fill="currentColor" fill-opacity="0.18" stroke="currentColor" stroke-width="0.8" />
                 <rect x="83" y="12" width="12" height="50" fill="currentColor" fill-opacity="0.18" stroke="currentColor" stroke-width="0.8" />
+              </template>
+              <template v-else-if="door.id === 'SKJUTDORR'">
+                <rect x="30" y="8" width="100" height="64" rx="1" stroke="currentColor" stroke-width="2" />
+                <line x1="80" y1="8" x2="80" y2="72" stroke="currentColor" stroke-width="1.5" />
+                <rect x="33" y="12" width="44" height="56" fill="currentColor" fill-opacity="0.18" stroke="currentColor" stroke-width="0.8" />
+                <rect x="83" y="12" width="44" height="56" fill="currentColor" fill-opacity="0.18" stroke="currentColor" stroke-width="0.8" />
+                <circle cx="77" cy="42" r="1.5" fill="currentColor" />
               </template>
               <template v-else>
                 <rect x="66" y="12" width="6" height="52" fill="currentColor" fill-opacity="0.25" stroke="currentColor" stroke-width="0.8" />
@@ -942,6 +958,7 @@ import { paintTitle, readableInk } from '../color/paint';
 const store = useConfigStore();
 const { t, catalog, money, delta, locale } = useLabels();
 const sizeTab = ref<'kulor' | 'panel'>('kulor');
+const doorTab = ref<'single' | 'double' | 'sliding'>('single');
 const colourMaterials = MATERIAL_OPTIONS.filter((mat) => mat.id !== 'wood');
 const woodMaterial = MATERIAL_OPTIONS.find((mat) => mat.id === 'wood') ?? MATERIAL_OPTIONS[0];
 
