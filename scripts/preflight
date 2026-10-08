@@ -21,6 +21,8 @@ bash -n .githooks/pre-commit
 bash -n .githooks/pre-push
 bash -n execution/install-git-hooks.sh
 
+node scripts/check-public-images.mjs
+
 node -e '
   const fs = require("fs");
   const source = fs.readFileSync("directives/testing_and_deployment.md", "utf8");

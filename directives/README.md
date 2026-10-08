@@ -7,6 +7,7 @@ This directory contains **Directives** — Standard Operating Procedures (SOPs) 
 | Directive | Use it for |
 | --- | --- |
 | [Testing and deployment verification gate](testing_and_deployment.md) | Repository bootstrap, tests, builds, pushes, CI, Cloudflare, and deployment |
+| [Public image conversion](image_conversion.md) | Turn PNG and JPEG files in `public/` into WebP and rewrite the links |
 
 ## 📄 Template Structure
 
