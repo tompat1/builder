@@ -136,7 +136,13 @@ const sv = {
     throw: 'Ullpläd',
     throwInfo: 'Ullpläd med fransar, för stolen eller soffan.',
     drawings: 'Husteckningar',
-    drawingsInfo: 'Inramade ritningar av huset, i ek.'
+    drawingsInfo: 'Inramade ritningar av huset, i ek.',
+    cards: 'Konstkort',
+    cardsInfo: 'Fem kort: Picassos uppbrutna hus, Van Goghs stjärnhus, Kandinskys planer, Hilma af Klints port och Mondrians färgblock.',
+    pop: 'Popaffisch',
+    popInfo: 'Nio poprutor av Builder-märket, efter Andy Warhol.',
+    silk: 'Screentryck',
+    silkInfo: 'Ett kvadratiskt screentryck av Builder-märket, efter Andy Warhol.'
   },
   header: {
     save: 'Spara projekt',
@@ -579,7 +585,13 @@ const en = {
     throw: 'Wool throw',
     throwInfo: 'A wool throw with fringe, for the chair or sofa.',
     drawings: 'House drawings',
-    drawingsInfo: 'Framed drawings of the house, in oak.'
+    drawingsInfo: 'Framed drawings of the house, in oak.',
+    cards: 'Art cards',
+    cardsInfo: 'Five cards: Picasso\'s fragmented house, Van Gogh\'s starry home, Kandinsky\'s plans, Hilma af Klint\'s doorway, and Mondrian\'s colour blocks.',
+    pop: 'Pop poster',
+    popInfo: 'Nine pop panels of the Builder mark, after Andy Warhol.',
+    silk: 'Silkscreen poster',
+    silkInfo: 'A square silkscreen of the Builder mark, after Andy Warhol.'
   },
   header: {
     save: 'Save project',

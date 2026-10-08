@@ -51,5 +51,8 @@ export const MERCH: MerchItem[] = [
   { id: 'rule', kind: 'accessories', nameKey: 'site.rule', infoKey: 'site.ruleInfo', detailKey: 'site.ruleInfo', priceSek: 149, image: '/merch/rule.webp', cta: '/merch/rule.webp', sizes: one },
   { id: 'doormat', kind: 'accessories', nameKey: 'site.doormat', infoKey: 'site.doormatInfo', detailKey: 'site.doormatInfo', priceSek: 349, image: '/merch/doormat.webp', cta: '/merch/doormat.webp', sizes: one },
   { id: 'throw', kind: 'accessories', nameKey: 'site.throw', infoKey: 'site.throwInfo', detailKey: 'site.throwInfo', priceSek: 699, image: '/merch/throw.webp', cta: '/merch/throw.webp', sizes: one },
-  { id: 'drawings', kind: 'prints', nameKey: 'site.drawings', infoKey: 'site.drawingsInfo', detailKey: 'site.drawingsInfo', priceSek: 599, image: '/merch/drawings.webp', cta: '/merch/drawings.webp', sizes: one }
+  { id: 'drawings', kind: 'prints', nameKey: 'site.drawings', infoKey: 'site.drawingsInfo', detailKey: 'site.drawingsInfo', priceSek: 599, image: '/merch/drawings.webp', cta: '/merch/drawings.webp', sizes: one },
+  { id: 'cards', kind: 'prints', nameKey: 'site.cards', infoKey: 'site.cardsInfo', detailKey: 'site.cardsInfo', priceSek: 299, image: '/merch/cards.webp', cta: '/merch/cards.webp', sizes: one },
+  { id: 'pop', kind: 'prints', nameKey: 'site.pop', infoKey: 'site.popInfo', detailKey: 'site.popInfo', priceSek: 349, image: '/merch/pop.webp', cta: '/merch/pop.webp', sizes: one },
+  { id: 'silk', kind: 'prints', nameKey: 'site.silk', infoKey: 'site.silkInfo', detailKey: 'site.silkInfo', priceSek: 349, image: '/merch/silk.webp', cta: '/merch/silk.webp', sizes: one }
 ];
