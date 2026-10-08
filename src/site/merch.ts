@@ -12,6 +12,7 @@ export interface MerchItem {
   detailKey: string;
   priceSek: number;
   image: string;
+  cta?: string;
   sizes: string[];
 }
 
@@ -37,5 +38,18 @@ export const MERCH: MerchItem[] = [
   { id: 'tote-graphite', kind: 'accessories', nameKey: 'site.toteGraphite', infoKey: 'site.toteInfo', detailKey: 'site.toteDetail', priceSek: 349, image: '/merch/11.webp', sizes: one },
   { id: 'case', kind: 'accessories', nameKey: 'site.case', infoKey: 'site.caseInfo', detailKey: 'site.caseDetail', priceSek: 349, image: '/merch/17.webp', sizes: phone },
   { id: 'print', kind: 'prints', nameKey: 'site.print', infoKey: 'site.printInfo', detailKey: 'site.printDetail', priceSek: 599, image: '/merch/18.webp', sizes: one },
-  { id: 'stickers', kind: 'prints', nameKey: 'site.stickers', infoKey: 'site.stickersInfo', detailKey: 'site.stickerDetail', priceSek: 149, image: '/merch/16.webp', sizes: one }
+  { id: 'stickers', kind: 'prints', nameKey: 'site.stickers', infoKey: 'site.stickersInfo', detailKey: 'site.stickerDetail', priceSek: 149, image: '/merch/16.webp', sizes: one },
+  { id: 'pencils', kind: 'accessories', nameKey: 'site.pencils', infoKey: 'site.pencilsInfo', detailKey: 'site.pencilsInfo', priceSek: 299, image: '/merch/pencils.webp', cta: '/merch/pencils.webp', sizes: one },
+  { id: 'tapes', kind: 'accessories', nameKey: 'site.tapes', infoKey: 'site.tapesInfo', detailKey: 'site.tapesInfo', priceSek: 299, image: '/merch/tapes.webp', cta: '/merch/tapes.webp', sizes: one },
+  { id: 'apron', kind: 'accessories', nameKey: 'site.apron', infoKey: 'site.apronInfo', detailKey: 'site.apronInfo', priceSek: 399, image: '/merch/apron.webp', cta: '/merch/apron.webp', sizes: one },
+  { id: 'mugs', kind: 'accessories', nameKey: 'site.mugs', infoKey: 'site.mugsInfo', detailKey: 'site.mugsInfo', priceSek: 299, image: '/merch/mugs.webp', cta: '/merch/mugs.webp', sizes: one },
+  { id: 'journals', kind: 'accessories', nameKey: 'site.journals', infoKey: 'site.journalsInfo', detailKey: 'site.journalsInfo', priceSek: 299, image: '/merch/journals.webp', cta: '/merch/journals.webp', sizes: one },
+  { id: 'plaques', kind: 'accessories', nameKey: 'site.plaques', infoKey: 'site.plaquesInfo', detailKey: 'site.plaquesInfo', priceSek: 349, image: '/merch/plaques.webp', cta: '/merch/plaques.webp', sizes: one },
+  { id: 'tumblers', kind: 'accessories', nameKey: 'site.tumblers', infoKey: 'site.tumblersInfo', detailKey: 'site.tumblersInfo', priceSek: 349, image: '/merch/tumblers.webp', cta: '/merch/tumblers.webp', sizes: one },
+  { id: 'model', kind: 'accessories', nameKey: 'site.model', infoKey: 'site.modelInfo', detailKey: 'site.modelInfo', priceSek: 699, image: '/merch/model.webp', cta: '/merch/model.webp', sizes: one },
+  { id: 'giftbox', kind: 'accessories', nameKey: 'site.giftbox', infoKey: 'site.giftboxInfo', detailKey: 'site.giftboxInfo', priceSek: 699, image: '/merch/giftbox.webp', cta: '/merch/giftbox.webp', sizes: one },
+  { id: 'rule', kind: 'accessories', nameKey: 'site.rule', infoKey: 'site.ruleInfo', detailKey: 'site.ruleInfo', priceSek: 149, image: '/merch/rule.webp', cta: '/merch/rule.webp', sizes: one },
+  { id: 'doormat', kind: 'accessories', nameKey: 'site.doormat', infoKey: 'site.doormatInfo', detailKey: 'site.doormatInfo', priceSek: 349, image: '/merch/doormat.webp', cta: '/merch/doormat.webp', sizes: one },
+  { id: 'throw', kind: 'accessories', nameKey: 'site.throw', infoKey: 'site.throwInfo', detailKey: 'site.throwInfo', priceSek: 699, image: '/merch/throw.webp', cta: '/merch/throw.webp', sizes: one },
+  { id: 'drawings', kind: 'prints', nameKey: 'site.drawings', infoKey: 'site.drawingsInfo', detailKey: 'site.drawingsInfo', priceSek: 599, image: '/merch/drawings.webp', cta: '/merch/drawings.webp', sizes: one }
 ];

@@ -51,7 +51,7 @@
         class="group relative z-10 mx-4 mb-6 mt-2 flex items-stretch self-end overflow-hidden rounded-2xl bg-white text-pine shadow-[0_12px_28px_-16px_rgba(23,61,53,0.55)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine xl:absolute xl:bottom-6 xl:right-6 xl:mx-0 xl:mb-0 xl:mt-0 xl:w-[18.5rem]"
       >
           <span class="absolute inset-y-0 left-0 w-[5.25rem]">
-            <img :src="`/merch/cta/${ctaProduct.id}.webp`" alt="" class="h-full w-full object-contain" />
+            <img :src="ctaProduct.cta ?? `/merch/cta/${ctaProduct.id}.webp`" alt="" class="h-full w-full object-contain" />
           </span>
           <span class="flex min-w-0 flex-1 items-center py-3 pl-[6rem] pr-3">
             <span class="min-w-0">

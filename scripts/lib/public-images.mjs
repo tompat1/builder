@@ -216,7 +216,9 @@ export function auditPublicImages(root) {
   if (checksMerchCards) {
     const merchPath = path.join(root, 'src/site/merch.ts');
     const merch = fs.existsSync(merchPath) ? fs.readFileSync(merchPath, 'utf8') : '';
-    for (const match of merch.matchAll(/\bid:\s*'([^']+)'/g)) {
+    for (const line of merch.split('\n')) {
+      const match = line.match(/\bid:\s*'([^']+)'/);
+      if (!match || /\bcta:\s*'/.test(line)) continue;
       const url = `/merch/cta/${match[1]}.webp`;
       if (!fs.existsSync(path.join(publicDir, url.slice(1)))) errors.push(`${url} is missing.`);
     }
