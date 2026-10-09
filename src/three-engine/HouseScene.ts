@@ -719,17 +719,19 @@ export class HouseScene {
         if (pt) {
           const vecPt = new THREE.Vector3(pt.x, 0, pt.z);
 
-          // Clear any existing utility core (for MVP, allow only one)
-          const existing = this.interiorGroup.children.find(c => c.userData.type === 'utility_core');
-          if (existing) this.interiorGroup.remove(existing);
-
           const coreGeo = new THREE.BoxGeometry(0.6, 2.4, 0.6);
           const coreMat = new THREE.MeshStandardMaterial({ color: 0x3b82f6 }); // Blue for HVAC/water
           const coreMesh = new THREE.Mesh(coreGeo, coreMat);
           coreMesh.position.copy(vecPt);
           coreMesh.position.y = 1.2;
           coreMesh.userData.type = 'utility_core';
-          this.interiorGroup.add(coreMesh);
+
+          if (this.isValidInteriorPlacement(coreMesh)) {
+            // Clear any existing utility core (for MVP, allow only one)
+            const existing = this.interiorGroup.children.find(c => c.userData.type === 'utility_core');
+            if (existing) this.interiorGroup.remove(existing);
+            this.interiorGroup.add(coreMesh);
+          }
         }
         return;
       }
@@ -760,7 +762,10 @@ export class HouseScene {
           roomMesh.position.copy(vecPt);
           roomMesh.position.y = 1.2;
           roomMesh.userData.type = 'room_zone';
-          this.interiorGroup.add(roomMesh);
+
+          if (this.isValidInteriorPlacement(roomMesh)) {
+            this.interiorGroup.add(roomMesh);
+          }
         }
         return;
       }
@@ -1608,6 +1613,40 @@ export class HouseScene {
 
   private boundsOf(hit: THREE.Object3D): THREE.Object3D {
     return (hit.userData.panelGroup as THREE.Object3D | undefined) ?? hit;
+  }
+
+  private isValidInteriorPlacement(mesh: THREE.Mesh): boolean {
+    mesh.updateMatrixWorld();
+    const box = new THREE.Box3().setFromObject(mesh);
+
+    // Check bounds (house walls)
+    const hw = this.currentConfig.widthMm / 1000 / 2;
+    const hd = this.currentConfig.depthMm / 1000 / 2;
+    if (box.min.x < -hw || box.max.x > hw || box.min.z < -hd || box.max.z > hd) {
+      return false; // Out of bounds
+    }
+
+    // Check collisions with other interior zones/cores
+    for (const child of this.interiorGroup.children) {
+      if (child !== mesh && (child.userData.type === 'room_zone' || child.userData.type === 'utility_core')) {
+        const otherBox = new THREE.Box3().setFromObject(child);
+        if (box.intersectsBox(otherBox)) {
+          return false; // Collision
+        }
+      }
+    }
+
+    // Check collision with staircase
+    for (const child of this.loftGroup.children) {
+      if (child.userData.type === 'staircase') {
+        const stairBox = new THREE.Box3().setFromObject(child);
+        if (box.intersectsBox(stairBox)) {
+          return false;
+        }
+      }
+    }
+
+    return true;
   }
 
   /**
@@ -2591,6 +2630,7 @@ export class HouseScene {
     stairGroup.add(topPost);
 
     stairGroup.position.set(stairX, 0, 0);
+    stairGroup.userData.type = 'staircase';
     this.loftGroup.add(stairGroup);
   }
 
