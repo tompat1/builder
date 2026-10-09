@@ -307,8 +307,8 @@ const sv = {
     doorBlockedHint: 'Välj en marknära väggsektion eller byt till fönsterparti.'
   },
   interior: {
-    blueprintMode: 'Blueprint-läge Aktivt',
-    blueprintDesc: 'Klicka och dra i vyn för att rita, eller be AI-assistenten generera en planlösning.',
+    blueprintMode: 'Insida vald',
+    blueprintDesc: 'Placera ett rum och dra det. Sidor mot ytterväggen lämnas öppna.',
     layout: 'Planlösning',
     plumbing: 'Våtrum & VVS',
     electrical: 'El & Ljus',
@@ -786,8 +786,8 @@ const en = {
     doorBlockedHint: 'Choose a wall section at ground level, or switch to a window.'
   },
   interior: {
-    blueprintMode: 'Blueprint Mode Active',
-    blueprintDesc: 'Click and drag in the view to draw, or ask the AI assistant to generate a floor plan.',
+    blueprintMode: 'Inside view',
+    blueprintDesc: 'Place a room and drag it. Sides against the outer wall stay open.',
     layout: 'Floor Plan',
     plumbing: 'Plumbing & HVAC',
     electrical: 'Electrical',

@@ -43,6 +43,7 @@ import { HouseScene } from '../three-engine/HouseScene';
 import { useConfigStore } from '../store/useConfigStore';
 import type { RoofId } from '../store/roof';
 import { noteTargetId } from '../notes/board';
+import { fitRoom, innerHalf } from '../three-engine/roomWalls';
 import Cms from './Cms.vue';
 
 const canvasContainer = ref<HTMLElement | null>(null);
@@ -175,8 +176,29 @@ onMounted(() => {
     if (typeof window !== 'undefined') {
       (window as any).__houseScene = engine;
     }
+    syncPlacedRooms();
   }
 });
+
+function syncPlacedRooms() {
+  if (!engine) return;
+  const { hx, hz } = innerHalf(store.dimensions.width / 1000, store.dimensions.depth / 1000);
+  for (const [id, info] of Object.entries(store.placedRooms)) {
+    const fitted = fitRoom({ x: info.x, z: info.z, w: info.w, d: info.d }, hx, hz);
+    if (
+      Math.abs(fitted.w - info.w) > 1e-4
+      || Math.abs(fitted.d - info.d) > 1e-4
+      || Math.abs(fitted.x - info.x) > 1e-4
+      || Math.abs(fitted.z - info.z) > 1e-4
+    ) {
+      info.w = fitted.w;
+      info.d = fitted.d;
+      info.x = fitted.x;
+      info.z = fitted.z;
+    }
+    engine.updateRoomSize(id, info.type, fitted.w, fitted.d, fitted.x, info.y, fitted.z);
+  }
+}
 
 // Watch show dimensions toggle
 watch(
@@ -266,15 +288,7 @@ watch(
   }
 );
 
-watch(
-  () => store.placedRooms,
-  (rooms) => {
-    for (const [id, info] of Object.entries(rooms)) {
-      engine?.updateRoomSize(id, info.type, info.w, info.d, info.x, info.y, info.z);
-    }
-  },
-  { deep: true }
-);
+watch(() => store.placedRooms, syncPlacedRooms, { deep: true });
 
 // Watch loft toggle and settings
 watch(

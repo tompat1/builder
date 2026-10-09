@@ -5,6 +5,7 @@ import { eaveLiftMm, gablePitchDegrees, isGableRoof, type RoofId } from '../stor
 import { inferNoteNormal, noteAxes, noteCameraTransform, noteSheetTransform, noteTiltRadians, NOTE_SURFACE_SCALE } from '../notes/surface';
 import { paintBoards } from '../color/paint';
 import { loftJoistTop, loftStairRun, loftStairTreads } from './loftLevel';
+import { fitRoom, innerHalf, roomFootprint, shellSides, type ShellSides } from './roomWalls';
 
 const PULPET_PITCH_RAD = (PULPET_PITCH_DEG * Math.PI) / 180;
 
@@ -645,6 +646,19 @@ export class HouseScene {
 
   private roomPreviewGroup: THREE.Mesh | null = null;
 
+  private shellLimits() {
+    return innerHalf(this.currentConfig.widthMm / 1000, this.currentConfig.depthMm / 1000);
+  }
+
+  /** Plan size stored on the room. The drag handles must not inflate it. */
+  private roomPlan(group: THREE.Object3D) {
+    const w = Number(group.userData.w);
+    const d = Number(group.userData.d);
+    if (Number.isFinite(w) && Number.isFinite(d) && w > 0 && d > 0) return { w, d };
+    const box = new THREE.Box3().setFromObject(group);
+    return { w: box.max.x - box.min.x, d: box.max.z - box.min.z };
+  }
+
   private updateRoomPreview(roomType: string | null, pt?: { x: number, y: number, z: number }) {
     if (!roomType || !pt) {
       if (this.roomPreviewGroup) {
@@ -653,29 +667,28 @@ export class HouseScene {
       return;
     }
 
-    let w = 2.0; let d = 2.0;
-    if (roomType === 'bathroom') { w = 2.0; d = 2.0; }
-    if (roomType === 'bedroom') { w = 3.0; d = 3.0; }
-    if (roomType === 'kitchen') { w = 3.0; d = 2.0; }
-    if (roomType === 'storage') { w = 1.5; d = 1.5; }
+    const footprint = roomFootprint(roomType);
 
     if (!this.roomPreviewGroup || this.roomPreviewGroup.userData.roomType !== roomType) {
       if (this.roomPreviewGroup) {
         this.scene.remove(this.roomPreviewGroup);
       }
-      const geo = new THREE.BoxGeometry(w, 2.4, d);
+      const geo = new THREE.BoxGeometry(footprint.w, 2.4, footprint.d);
       const mat = new THREE.MeshStandardMaterial({ color: 0x3b82f6, transparent: true, opacity: 0.5 });
       this.roomPreviewGroup = new THREE.Mesh(geo, mat);
       this.roomPreviewGroup.userData.roomType = roomType;
       this.scene.add(this.roomPreviewGroup);
     }
 
+    const { hx, hz } = this.shellLimits();
+    const fitted = fitRoom({ x: pt.x, z: pt.z, w: footprint.w, d: footprint.d }, hx, hz);
     this.roomPreviewGroup.visible = true;
-    this.roomPreviewGroup.position.set(
-      Math.round(pt.x * 10) / 10,
-      1.2,
-      Math.round(pt.z * 10) / 10
+    this.roomPreviewGroup.scale.set(
+      footprint.w > 0 ? fitted.w / footprint.w : 1,
+      1,
+      footprint.d > 0 ? fitted.d / footprint.d : 1
     );
+    this.roomPreviewGroup.position.set(fitted.x, 1.2, fitted.z);
   }
 
   private setupRaycasting() {
@@ -737,12 +750,8 @@ export class HouseScene {
             newD = Math.max(1.0, this.draggingRoom.startD - dz);
             newZ = this.draggingRoom.startZ - (newD - this.draggingRoom.startD) / 2;
           } else if (this.draggingRoom.side === 'center') {
-            const hw = this.currentConfig.widthMm / 1000 / 2;
-            const hd = this.currentConfig.depthMm / 1000 / 2;
             newX = this.draggingRoom.startX + dx;
             newZ = this.draggingRoom.startZ + dz;
-            newX = Math.max(-hw + newW/2 + 0.05, Math.min(hw - newW/2 - 0.05, newX));
-            newZ = Math.max(-hd + newD/2 + 0.05, Math.min(hd - newD/2 - 0.05, newZ));
           }
 
           newW = Math.round(newW * 10) / 10;
@@ -750,8 +759,10 @@ export class HouseScene {
           newX = Math.round(newX * 10) / 10;
           newZ = Math.round(newZ * 10) / 10;
 
-          this.updateRoomSize(this.draggingRoom.roomId, this.draggingRoom.roomType, newW, newD, newX, undefined, newZ);
-          this.onRoomResize?.(this.draggingRoom.roomId, newW, newD, newX, this.draggingRoom.startY || 0.3, newZ);
+          const { hx, hz } = this.shellLimits();
+          const fitted = fitRoom({ x: newX, z: newZ, w: newW, d: newD }, hx, hz);
+          this.updateRoomSize(this.draggingRoom.roomId, this.draggingRoom.roomType, fitted.w, fitted.d, fitted.x, undefined, fitted.z);
+          this.onRoomResize?.(this.draggingRoom.roomId, fitted.w, fitted.d, fitted.x, this.draggingRoom.startY || 0.3, fitted.z);
         }
         return;
       }
@@ -837,14 +848,19 @@ export class HouseScene {
       if (this.currentConfig.interactionMode === 'draw_wall') {
         const pt = this.housePointAt(e.clientX, e.clientY);
         if (pt) {
-          const vecPt = new THREE.Vector3(pt.x, 0, pt.z);
+          const { hx, hz } = this.shellLimits();
+          const vecPt = new THREE.Vector3(
+            Math.min(hx - 0.05, Math.max(-hx + 0.05, pt.x)),
+            0,
+            Math.min(hz - 0.05, Math.max(-hz + 0.05, pt.z))
+          );
           this.drawingWallPoints.push(vecPt);
 
           // Render a simple pillar at the click point
           const geo = new THREE.CylinderGeometry(0.05, 0.05, 2.4, 16);
           const mat = new THREE.MeshStandardMaterial({ color: 0x10b981, transparent: true, opacity: 0.8 });
           const mesh = new THREE.Mesh(geo, mat);
-          mesh.position.copy(pt);
+          mesh.position.copy(vecPt);
           mesh.position.y = 1.2;
           this.interiorGroup.add(mesh);
 
@@ -896,25 +912,16 @@ export class HouseScene {
             Math.round(pt.z * 10) / 10
           );
 
-          let w = 2.0;
-          let d = 2.0;
-          if (roomType === 'bathroom') { w = 2.0; d = 2.0; }
-          if (roomType === 'bedroom') { w = 3.0; d = 3.0; }
-          if (roomType === 'kitchen') { w = 3.0; d = 2.0; }
-          if (roomType === 'storage') { w = 1.5; d = 1.5; }
-
-          const roomGroup = this.createRoomGroup(roomType, w, d);
-
-          const hw = this.currentConfig.widthMm / 1000 / 2;
-          const hd = this.currentConfig.depthMm / 1000 / 2;
-          const snappedX = Math.max(-hw + w/2 + 0.05, Math.min(hw - w/2 - 0.05, vecPt.x));
-          const snappedZ = Math.max(-hd + d/2 + 0.05, Math.min(hd - d/2 - 0.05, vecPt.z));
+          const footprint = roomFootprint(roomType);
+          const { hx, hz } = this.shellLimits();
+          const fitted = fitRoom({ x: vecPt.x, z: vecPt.z, w: footprint.w, d: footprint.d }, hx, hz);
+          const roomGroup = this.createRoomGroup(roomType, fitted.w, fitted.d, shellSides(fitted, hx, hz));
 
           let baseY = 0.3;
           if (pt.y > 1.0) {
             baseY = Math.max(0.3, pt.y);
           }
-          roomGroup.position.set(snappedX, baseY, snappedZ);
+          roomGroup.position.set(fitted.x, baseY, fitted.z);
 
           let existingCount = 1;
           let roomId = `${roomType}_${existingCount}`;
@@ -923,9 +930,12 @@ export class HouseScene {
             roomId = `${roomType}_${existingCount}`;
           }
           roomGroup.userData.roomId = roomId;
+          roomGroup.children.forEach(child => {
+            if (child.userData.type === 'room_drag') child.userData.roomId = roomId;
+          });
 
           this.interiorGroup.add(roomGroup);
-          this.onRoomPlaced?.(roomId, roomType, w, d, snappedX, baseY, snappedZ);
+          this.onRoomPlaced?.(roomId, roomType, fitted.w, fitted.d, fitted.x, baseY, fitted.z);
           this.updateRoomPreview(null);
           this.onInteractionComplete?.();
         }
@@ -947,17 +957,15 @@ export class HouseScene {
           const roomGroup = this.interiorGroup.children.find(c => c.userData.type === 'room_zone' && c.userData.roomId === roomId);
           if (roomGroup) {
             // Find current bounds
-            const wBox = new THREE.Box3().setFromObject(roomGroup);
-            const startW = wBox.max.x - wBox.min.x;
-            const startD = wBox.max.z - wBox.min.z;
+            const plan = this.roomPlan(roomGroup);
 
             const pt = this.housePointAt(e.clientX, e.clientY);
             if (pt) {
               this.draggingRoom = {
                 roomId,
                 side,
-                startW,
-                startD,
+                startW: plan.w,
+                startD: plan.d,
                 startX: roomGroup.position.x,
                 startZ: roomGroup.position.z,
                 startY: roomGroup.position.y,
@@ -985,17 +993,15 @@ export class HouseScene {
           const roomGroup = hit.parent as THREE.Group;
           if (roomGroup && roomGroup.userData.type === 'room_zone') {
             const { roomId } = roomGroup.userData;
-            const wBox = new THREE.Box3().setFromObject(roomGroup);
-            const startW = wBox.max.x - wBox.min.x;
-            const startD = wBox.max.z - wBox.min.z;
+            const plan = this.roomPlan(roomGroup);
 
             const pt = this.housePointAt(e.clientX, e.clientY);
             if (pt) {
               this.draggingRoom = {
                 roomId,
                 side: 'center',
-                startW,
-                startD,
+                startW: plan.w,
+                startD: plan.d,
                 startX: roomGroup.position.x,
                 startZ: roomGroup.position.z,
                 startY: roomGroup.position.y,
@@ -1861,11 +1867,9 @@ export class HouseScene {
     mesh.updateMatrixWorld();
     const box = new THREE.Box3().setFromObject(mesh);
 
-    // Check bounds (house walls)
-    const hw = this.currentConfig.widthMm / 1000 / 2;
-    const hd = this.currentConfig.depthMm / 1000 / 2;
-    if (box.min.x < -hw || box.max.x > hw || box.min.z < -hd || box.max.z > hd) {
-      return false; // Out of bounds
+    const { hx, hz } = this.shellLimits();
+    if (box.min.x < -hx - 1e-3 || box.max.x > hx + 1e-3 || box.min.z < -hz - 1e-3 || box.max.z > hz + 1e-3) {
+      return false;
     }
 
     // Check collisions with other interior zones/cores
@@ -3258,120 +3262,150 @@ export class HouseScene {
     }
   }
 
-  private createRoomGroup(roomType: string, w: number, d: number): THREE.Group {
+  private createRoomGroup(roomType: string, w: number, d: number, open: ShellSides): THREE.Group {
     const group = new THREE.Group();
     group.userData.type = 'room_zone';
     group.userData.roomType = roomType;
+    group.userData.w = w;
+    group.userData.d = d;
 
-    // Floor
     const floorGeo = new THREE.BoxGeometry(w, 0.05, d);
     const floorMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0 });
     const floor = new THREE.Mesh(floorGeo, floorMat);
     floor.position.y = 0.025;
     group.add(floor);
 
-    // Walls (inner walls)
     const wallThick = 0.1;
     const wallH = 2.4;
-    const wallMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc });
+    const wallBase = 0.05;
+    const wallMat = new THREE.MeshStandardMaterial({
+      color: 0xf8fafc,
+      side: THREE.DoubleSide,
+      polygonOffset: true,
+      polygonOffsetFactor: 1,
+      polygonOffsetUnits: 1
+    });
     const edgeMat = new THREE.LineBasicMaterial({ color: 0x64748b });
+    const trim = (againstShell: boolean) => (againstShell ? 0.01 : wallThick);
 
-    const addWall = (geo: THREE.BoxGeometry, x: number, z: number) => {
+    const addPartition = (
+      side: keyof ShellSides,
+      along: number,
+      height: number,
+      centerAlong: number,
+      y: number,
+      fixed: number,
+      axis: 'x' | 'z'
+    ) => {
+      if (along < 0.02 || height < 0.02) return;
+      const geo = axis === 'x'
+        ? new THREE.BoxGeometry(along, height, wallThick)
+        : new THREE.BoxGeometry(wallThick, height, along);
       const mesh = new THREE.Mesh(geo, wallMat);
-      mesh.position.set(x, wallH/2, z);
+      mesh.position.set(axis === 'x' ? centerAlong : fixed, y, axis === 'x' ? fixed : centerAlong);
+      mesh.userData.partition = side;
       mesh.castShadow = true;
       mesh.receiveShadow = true;
-      const edges = new THREE.EdgesGeometry(geo);
-      const line = new THREE.LineSegments(edges, edgeMat);
-      mesh.add(line);
+      mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), edgeMat));
       group.add(mesh);
     };
 
-    // back
-    addWall(new THREE.BoxGeometry(w, wallH, wallThick), 0, -d/2 + wallThick/2);
-    // front (with a gap for door)
-    addWall(new THREE.BoxGeometry(w/2 - 0.4, wallH, wallThick), -(w/4 + 0.2), d/2 - wallThick/2);
-    addWall(new THREE.BoxGeometry(w/2 - 0.4, wallH, wallThick), w/4 + 0.2, d/2 - wallThick/2);
-    // door header
-    addWall(new THREE.BoxGeometry(0.8, 0.3, wallThick), 0, d/2 - wallThick/2); // Y is overridden below
-    // Fix door header Y
-    const headerMesh = group.children[group.children.length - 1] as THREE.Mesh;
-    headerMesh.position.set(0, wallH - 0.15, d/2 - wallThick/2);
+    const addRun = (
+      side: keyof ShellSides,
+      span: number,
+      center: number,
+      fixed: number,
+      axis: 'x' | 'z',
+      withDoor: boolean
+    ) => {
+      const doorW = 0.8;
+      const headerH = 0.3;
+      if (!withDoor || span < doorW + 0.24) {
+        addPartition(side, span, wallH, center, wallBase + wallH / 2, fixed, axis);
+        return;
+      }
+      const jamb = (span - doorW) / 2;
+      addPartition(side, jamb, wallH, center - (doorW + jamb) / 2, wallBase + wallH / 2, fixed, axis);
+      addPartition(side, jamb, wallH, center + (doorW + jamb) / 2, wallBase + wallH / 2, fixed, axis);
+      addPartition(side, doorW, headerH, center, wallBase + wallH - headerH / 2, fixed, axis);
+    };
 
-    // left
-    addWall(new THREE.BoxGeometry(wallThick, wallH, d - wallThick*2), -w/2 + wallThick/2, 0);
-    // right
-    addWall(new THREE.BoxGeometry(wallThick, wallH, d - wallThick*2), w/2 - wallThick/2, 0);
+    const run = (length: number, trimStart: number, trimEnd: number) => {
+      const size = Math.max(length - trimStart - trimEnd, 0.05);
+      return { size, center: (trimStart - trimEnd) / 2 };
+    };
 
+    const doorSide = (['front', 'right', 'back', 'left'] as const).find((side) => !open[side]);
+    if (!open.back) {
+      const { size, center } = run(w, trim(open.left), trim(open.right));
+      addRun('back', size, center, -d / 2 + wallThick / 2, 'x', doorSide === 'back');
+    }
+    if (!open.front) {
+      const { size, center } = run(w, trim(open.left), trim(open.right));
+      addRun('front', size, center, d / 2 - wallThick / 2, 'x', doorSide === 'front');
+    }
+    if (!open.left) {
+      const { size, center } = run(d, trim(open.back), trim(open.front));
+      addRun('left', size, center, -w / 2 + wallThick / 2, 'z', doorSide === 'left');
+    }
+    if (!open.right) {
+      const { size, center } = run(d, trim(open.back), trim(open.front));
+      addRun('right', size, center, w / 2 - wallThick / 2, 'z', doorSide === 'right');
+    }
+
+    const edge = (againstShell: boolean) => (againstShell ? 0.02 : wallThick);
     if (roomType === 'bathroom') {
-      // Shower
       const showerGeo = new THREE.BoxGeometry(0.9, 0.1, 0.9);
       const showerMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1 });
       const shower = new THREE.Mesh(showerGeo, showerMat);
-      shower.position.set(-w/2 + 0.45 + wallThick, 0.05, -d/2 + 0.45 + wallThick);
+      shower.position.set(-w / 2 + 0.45 + edge(open.left), 0.05, -d / 2 + 0.45 + edge(open.back));
       group.add(shower);
-      // Shower glass
       const glassGeo = new THREE.BoxGeometry(0.9, 2.0, 0.02);
       const glassMat = new THREE.MeshStandardMaterial({ color: 0xbae6fd, transparent: true, opacity: 0.4 });
       const glass = new THREE.Mesh(glassGeo, glassMat);
-      glass.position.set(-w/2 + 0.45 + wallThick, 1.0, -d/2 + 0.9 + wallThick);
+      glass.position.set(-w / 2 + 0.45 + edge(open.left), 1.0, -d / 2 + 0.9 + edge(open.back));
       group.add(glass);
 
-      // Toilet
       const wcGeo = new THREE.BoxGeometry(0.4, 0.45, 0.5);
       const wcMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
       const wc = new THREE.Mesh(wcGeo, wcMat);
-      wc.position.set(w/2 - 0.4 - wallThick, 0.225, -d/2 + 0.25 + wallThick);
+      wc.position.set(w / 2 - 0.4 - edge(open.right), 0.225, -d / 2 + 0.25 + edge(open.back));
       group.add(wc);
 
-      // Sink
       const sinkGeo = new THREE.BoxGeometry(0.6, 0.15, 0.4);
       const sink = new THREE.Mesh(sinkGeo, wcMat);
-      sink.position.set(w/2 - 0.3 - wallThick, 0.85, 0);
+      sink.position.set(w / 2 - 0.3 - edge(open.right), 0.85, 0);
       group.add(sink);
     } else if (roomType === 'kitchen') {
-      // Kitchen counter
-      const counterGeo = new THREE.BoxGeometry(w - wallThick*2, 0.9, 0.6);
+      const counterGeo = new THREE.BoxGeometry(Math.max(0.6, w - edge(open.left) - edge(open.right)), 0.9, 0.6);
       const counterMat = new THREE.MeshStandardMaterial({ color: 0x334155 });
       const counter = new THREE.Mesh(counterGeo, counterMat);
-      counter.position.set(0, 0.45, -d/2 + 0.3 + wallThick);
+      counter.position.set((edge(open.left) - edge(open.right)) / 2, 0.45, -d / 2 + 0.3 + edge(open.back));
       group.add(counter);
     } else if (roomType === 'bedroom') {
-      // Bed
       const bedGeo = new THREE.BoxGeometry(1.6, 0.5, 2.0);
       const bedMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8 });
       const bed = new THREE.Mesh(bedGeo, bedMat);
-      bed.position.set(0, 0.25, -d/2 + 1.0 + wallThick);
+      bed.position.set(0, 0.25, -d / 2 + 1.0 + edge(open.back));
       group.add(bed);
     }
 
-    // To make it easy to click/drag or view bounds, add invisible drag handles for the 4 walls
     const handleMat = new THREE.MeshBasicMaterial({ visible: false });
-    const handleThickness = 0.4; // make them thick enough to easily click
-
-    const leftHandle = new THREE.Mesh(new THREE.BoxGeometry(handleThickness, wallH, d), handleMat);
-    leftHandle.position.set(-w/2, wallH/2, 0);
-    leftHandle.userData = { type: 'room_drag', side: 'left', roomId: null }; // roomId set later
-    group.add(leftHandle);
-    this.roomDragHandles.push(leftHandle);
-
-    const rightHandle = new THREE.Mesh(new THREE.BoxGeometry(handleThickness, wallH, d), handleMat);
-    rightHandle.position.set(w/2, wallH/2, 0);
-    rightHandle.userData = { type: 'room_drag', side: 'right', roomId: null };
-    group.add(rightHandle);
-    this.roomDragHandles.push(rightHandle);
-
-    const frontHandle = new THREE.Mesh(new THREE.BoxGeometry(w, wallH, handleThickness), handleMat);
-    frontHandle.position.set(0, wallH/2, d/2);
-    frontHandle.userData = { type: 'room_drag', side: 'front', roomId: null };
-    group.add(frontHandle);
-    this.roomDragHandles.push(frontHandle);
-
-    const backHandle = new THREE.Mesh(new THREE.BoxGeometry(w, wallH, handleThickness), handleMat);
-    backHandle.position.set(0, wallH/2, -d/2);
-    backHandle.userData = { type: 'room_drag', side: 'back', roomId: null };
-    group.add(backHandle);
-    this.roomDragHandles.push(backHandle);
+    const handleThickness = 0.4;
+    const handleInset = handleThickness / 2;
+    const handles: Array<[keyof ShellSides, number, number, number, number, number]> = [
+      ['left', handleThickness, wallH, d, -w / 2 + handleInset, 0],
+      ['right', handleThickness, wallH, d, w / 2 - handleInset, 0],
+      ['front', w, wallH, handleThickness, 0, d / 2 - handleInset],
+      ['back', w, wallH, handleThickness, 0, -d / 2 + handleInset]
+    ];
+    for (const [side, sx, sy, sz, px, pz] of handles) {
+      const handle = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), handleMat);
+      handle.position.set(px, wallBase + wallH / 2, pz);
+      handle.userData = { type: 'room_drag', side, roomId: null };
+      group.add(handle);
+      this.roomDragHandles.push(handle);
+    }
 
     return group;
   }
@@ -3391,16 +3425,16 @@ export class HouseScene {
       this.interiorGroup.remove(existing);
     }
 
-    // Cleanup drag handles for this room
     this.roomDragHandles = this.roomDragHandles.filter(h => h.userData.roomId !== roomId);
 
-    const newRoom = this.createRoomGroup(roomType, w, d);
+    const { hx, hz } = this.shellLimits();
+    const fitted = fitRoom({ x: x ?? currentX, z: z ?? currentZ, w, d }, hx, hz);
+    const newRoom = this.createRoomGroup(roomType, fitted.w, fitted.d, shellSides(fitted, hx, hz));
     newRoom.userData.roomId = roomId;
-    // Set roomId on handles
     newRoom.children.forEach(c => {
       if (c.userData.type === 'room_drag') c.userData.roomId = roomId;
     });
-    newRoom.position.set(x ?? currentX, y ?? currentY, z ?? currentZ);
+    newRoom.position.set(fitted.x, y ?? currentY, fitted.z);
 
     this.interiorGroup.add(newRoom);
   }
@@ -3659,6 +3693,10 @@ export class HouseScene {
 
       if (this.gridHelper) this.gridHelper.visible = false;
     }
+    const inside = this.currentConfig.viewMode === 'insida';
+    this.controls.minDistance = inside ? 0.4 : 3.5;
+    this.camera.near = inside ? 0.05 : 0.1;
+    this.camera.updateProjectionMatrix();
     this.controls.update();
   }
 

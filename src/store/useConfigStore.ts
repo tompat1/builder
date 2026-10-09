@@ -766,7 +766,7 @@ export const useConfigStore = defineStore('config', () => {
       viewMode.value = 'insida';
     } else if (category === 'interior' && selectedCategory.value !== 'interior') {
       viewModeBeforeLoft = viewMode.value;
-      viewMode.value = 'blueprint';
+      viewMode.value = 'insida';
     } else if (['loft', 'interior'].includes(selectedCategory.value) && !['loft', 'interior'].includes(category) && viewModeBeforeLoft) {
       viewMode.value = viewModeBeforeLoft;
       viewModeBeforeLoft = null;
