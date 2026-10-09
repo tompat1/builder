@@ -663,18 +663,27 @@ export class HouseScene {
     return { w: box.max.x - box.min.x, d: box.max.z - box.min.z };
   }
 
+  /** Release geometries and materials owned by a room or its preview. */
+  private disposeObject(object: THREE.Object3D) {
+    const geometries = new Set<THREE.BufferGeometry>();
+    const materials = new Set<THREE.Material>();
+    object.traverse((child) => {
+      const drawn = child as THREE.Mesh;
+      if (drawn.geometry) geometries.add(drawn.geometry);
+      const material = drawn.material;
+      if (!material) return;
+      if (Array.isArray(material)) material.forEach((entry) => materials.add(entry));
+      else materials.add(material);
+    });
+    geometries.forEach((geometry) => geometry.dispose());
+    materials.forEach((material) => material.dispose());
+  }
+
   private clearRoomPreview() {
     const preview = this.roomPreviewGroup;
     if (!preview) return;
     this.scene.remove(preview);
-    preview.traverse((child) => {
-      const drawn = child as THREE.Mesh;
-      if (drawn.geometry) drawn.geometry.dispose();
-      const material = drawn.material;
-      if (!material) return;
-      if (Array.isArray(material)) material.forEach((entry) => entry.dispose());
-      else material.dispose();
-    });
+    this.disposeObject(preview);
     this.roomPreviewGroup = null;
   }
 
@@ -3691,6 +3700,7 @@ export class HouseScene {
       currentY = existing.position.y;
       currentZ = existing.position.z;
       roomType = existing.userData.roomType;
+      this.disposeObject(existing);
       this.interiorGroup.remove(existing);
     }
 
@@ -3718,7 +3728,10 @@ export class HouseScene {
 
   public removeRoom(roomId: string) {
     const existing = this.interiorGroup.children.find(c => c.userData.type === 'room_zone' && c.userData.roomId === roomId);
-    if (existing) this.interiorGroup.remove(existing);
+    if (existing) {
+      this.disposeObject(existing);
+      this.interiorGroup.remove(existing);
+    }
     this.roomDragHandles = this.roomDragHandles.filter(h => h.userData.roomId !== roomId);
     if (this.draggingRoom?.roomId === roomId) {
       this.draggingRoom = null;
