@@ -25,6 +25,7 @@ export type ViewMode = 'utsida' | 'insida' | 'blueprint';
 export type CategoryKey = 'size' | 'roof' | 'loft' | 'interior' | 'doors' | 'windows' | 'gates' | 'extras';
 export type MaterialKey = 'wood' | 'falurod' | 'grey' | 'white' | 'black';
 export type PanelOrientation = 'staende' | 'liggande';
+export type InteractionMode = 'default' | 'draw_wall' | 'place_utility';
 
 /** Common Swedish exterior boards. 22×145 mm is the usual standard. */
 export const CLADDING_SIZES = [
@@ -426,6 +427,8 @@ function mergeWallSlots(saved: Record<string, WallSlot> | undefined): Record<str
 
 export const useConfigStore = defineStore('config', () => {
   const viewMode = ref<ViewMode>('utsida');
+  const interactionMode = ref<InteractionMode>('default');
+  const generateElectricalSignal = ref(0);
   const selectedCategory = ref<CategoryKey>('size');
   const activeMaterial = ref<MaterialKey>('wood');
   const savedPaints = ref<SavedPaint[]>([]);
@@ -735,6 +738,14 @@ export const useConfigStore = defineStore('config', () => {
     viewMode.value = mode;
   }
 
+  function setInteractionMode(mode: InteractionMode) {
+    interactionMode.value = mode;
+  }
+
+  function triggerGenerateElectrical() {
+    generateElectricalSignal.value++;
+  }
+
   let viewModeBeforeLoft: ViewMode | null = null;
 
   function selectCategory(category: CategoryKey) {
@@ -747,6 +758,9 @@ export const useConfigStore = defineStore('config', () => {
     } else if (['loft', 'interior'].includes(selectedCategory.value) && !['loft', 'interior'].includes(category) && viewModeBeforeLoft) {
       viewMode.value = viewModeBeforeLoft;
       viewModeBeforeLoft = null;
+    }
+    if (category !== 'interior') {
+      interactionMode.value = 'default';
     }
     selectedCategory.value = category;
   }
@@ -1123,6 +1137,8 @@ export const useConfigStore = defineStore('config', () => {
 
   return {
     viewMode,
+    interactionMode,
+    generateElectricalSignal,
     selectedCategory,
     activeMaterial,
     customPaint,
@@ -1165,6 +1181,8 @@ export const useConfigStore = defineStore('config', () => {
     selectedSlotCanAcceptDoor,
     toggleViewMode,
     setViewMode,
+    setInteractionMode,
+    triggerGenerateElectrical,
     selectCategory,
     selectSize,
     setBuildingMeasure,

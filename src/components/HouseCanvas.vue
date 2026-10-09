@@ -97,6 +97,7 @@ onMounted(() => {
       loftPlacement: store.loftPlacement,
       loftAreaSqMeters: store.selectedLoftSize,
       hasLoftStair: store.hasLoftStair,
+      interactionMode: store.interactionMode,
       viewMode: store.viewMode,
       loftView: store.selectedCategory === 'loft',
       material: store.activeMaterial,
@@ -183,14 +184,22 @@ watch(
   }
 );
 
-// Watch view mode (Outside / Inside)
+// Watch view mode and interaction mode
 watch(
-  [() => store.viewMode, () => store.selectedCategory],
-  ([mode, category]) => {
+  [() => store.viewMode, () => store.selectedCategory, () => store.interactionMode],
+  ([mode, category, interaction]) => {
     engine?.updateConfig({
       viewMode: mode,
+      interactionMode: interaction,
       loftView: category === 'loft'
     });
+  }
+);
+
+watch(
+  () => store.generateElectricalSignal,
+  () => {
+    engine?.generateStandardElectrical();
   }
 );
 

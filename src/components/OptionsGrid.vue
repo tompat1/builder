@@ -710,26 +710,143 @@
     <!-- Interior Options -->
     <template v-else-if="store.selectedCategory === 'interior'">
       <div class="space-y-4">
+        <!-- Blueprint Active Alert -->
         <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
-          <p class="text-xs font-semibold text-emerald-900 mb-1">Blueprint-läge Aktivt</p>
+          <p class="text-xs font-semibold text-emerald-900 mb-1"><Cms k="interior.blueprintMode" fallback="Blueprint-läge Aktivt" /></p>
           <p class="text-[11px] text-emerald-800 leading-snug">
-            Klicka och dra i vyn för att rita väggar, eller be AI-assistenten generera en optimal planlösning.
+            <Cms k="interior.blueprintDesc" fallback="Klicka och dra i vyn för att rita, eller be AI-assistenten generera en planlösning." />
           </p>
         </div>
 
-        <div>
-          <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2">Verktyg</h4>
-          <div class="grid grid-cols-2 gap-2">
-            <button type="button" class="p-2 border border-slate-300 rounded-lg bg-white text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-sm flex items-center justify-center gap-2">
-              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3z"/><path d="M3 9h18M9 21V9"/></svg>
-              Rita Vägg
-            </button>
-            <button type="button" class="p-2 border border-slate-300 rounded-lg bg-white text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-sm flex items-center justify-center gap-2">
-              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
-              Placera VVS
-            </button>
-          </div>
+        <!-- Interior Sub-tabs -->
+        <div class="flex border-b border-slate-200 gap-4 mb-2">
+          <button
+            type="button"
+            @click="interiorTab = 'layout'"
+            :class="interiorTab === 'layout' ? 'text-xs font-bold pb-2 border-b-2 border-emerald-800 text-slate-900' : 'text-xs font-bold pb-2 border-b-2 border-transparent text-slate-400 hover:text-slate-600'"
+          >
+            <Cms k="interior.layout" fallback="Planlösning" />
+          </button>
+          <button
+            type="button"
+            @click="interiorTab = 'plumbing'"
+            :class="interiorTab === 'plumbing' ? 'text-xs font-bold pb-2 border-b-2 border-emerald-800 text-slate-900' : 'text-xs font-bold pb-2 border-b-2 border-transparent text-slate-400 hover:text-slate-600'"
+          >
+            <Cms k="interior.plumbing" fallback="Våtrum & VVS" />
+          </button>
+          <button
+            type="button"
+            @click="interiorTab = 'electrical'"
+            :class="interiorTab === 'electrical' ? 'text-xs font-bold pb-2 border-b-2 border-emerald-800 text-slate-900' : 'text-xs font-bold pb-2 border-b-2 border-transparent text-slate-400 hover:text-slate-600'"
+          >
+            <Cms k="interior.electrical" fallback="El & Ljus" />
+          </button>
         </div>
+
+        <!-- Layout Content -->
+        <template v-if="interiorTab === 'layout'">
+          <div>
+            <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2"><Cms k="interior.rooms" fallback="Dra & Släpp Rum" /></h4>
+            <div class="grid grid-cols-2 gap-2">
+              <button type="button" class="p-2 border border-slate-300 rounded-lg bg-white text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-sm flex items-center justify-center gap-2">
+                Sovrum
+              </button>
+              <button type="button" class="p-2 border border-slate-300 rounded-lg bg-white text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-sm flex items-center justify-center gap-2">
+                Badrum
+              </button>
+              <button type="button" class="p-2 border border-slate-300 rounded-lg bg-white text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-sm flex items-center justify-center gap-2">
+                Kök / Pentry
+              </button>
+              <button type="button" class="p-2 border border-slate-300 rounded-lg bg-white text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-sm flex items-center justify-center gap-2">
+                Förråd
+              </button>
+            </div>
+            <p class="text-[11px] text-slate-500 mt-2"><Cms k="interior.layoutHint" fallback="Dra in zoner för att automatiskt generera innerväggar runt dem." /></p>
+          </div>
+
+          <div class="pt-2">
+            <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2"><Cms k="interior.manual" fallback="Manuella Verktyg" /></h4>
+            <div class="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                @click="store.setInteractionMode(store.interactionMode === 'draw_wall' ? 'default' : 'draw_wall')"
+                :class="[
+                  'p-2 border rounded-lg text-xs font-bold shadow-sm flex items-center justify-center gap-2 transition-colors',
+                  store.interactionMode === 'draw_wall'
+                    ? 'border-emerald-600 bg-emerald-600 text-white'
+                    : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                ]"
+              >
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3z"/><path d="M3 9h18M9 21V9"/></svg>
+                Rita Vägg
+              </button>
+              <button type="button" class="p-2 border border-slate-300 rounded-lg bg-white text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-sm flex items-center justify-center gap-2">
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 21h16M5 21V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v17M12 4c5 0 7 2 7 8v9"/><circle cx="10" cy="12" r="1" fill="currentColor"/></svg>
+                Innerdörr
+              </button>
+            </div>
+          </div>
+        </template>
+
+        <!-- Plumbing Content -->
+        <template v-if="interiorTab === 'plumbing'">
+          <div>
+            <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2"><Cms k="interior.utilityCore" fallback="Placera VVS-Kärna" /></h4>
+            <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center mb-3">
+              <p class="text-[11px] text-slate-600 mb-2">Placera kärnan i huset. Systemet drar automatiskt avlopp och tappvatten dit.</p>
+              <button
+                type="button"
+                @click="store.setInteractionMode(store.interactionMode === 'place_utility' ? 'default' : 'place_utility')"
+                :class="[
+                  'w-full p-2 border rounded-lg text-xs font-bold transition-colors flex items-center justify-center gap-2',
+                  store.interactionMode === 'place_utility'
+                    ? 'border-emerald-600 bg-emerald-600 text-white shadow-sm'
+                    : 'border-emerald-600 bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+                ]"
+              >
+                <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
+                Placera Huvudstam
+              </button>
+            </div>
+          </div>
+        </template>
+
+        <!-- Electrical Content -->
+        <template v-if="interiorTab === 'electrical'">
+          <div>
+            <div class="flex items-center justify-between mb-2">
+              <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider"><Cms k="interior.smartElec" fallback="Smart El-layout" /></h4>
+              <span class="text-[10px] font-bold px-2 py-0.5 bg-blue-100 text-blue-800 rounded">AI</span>
+            </div>
+            <div class="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-3">
+              <p class="text-[11px] text-blue-800 mb-2">
+                Vi kan auto-placera uttag varannan meter och brytare vid dörrar enligt svensk standard.
+              </p>
+              <button
+                type="button"
+                @click="store.triggerGenerateElectrical()"
+                class="w-full p-2 border border-blue-600 rounded-lg bg-blue-600 text-xs font-bold text-white hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 shadow-sm"
+              >
+                Generera Standard-El
+              </button>
+            </div>
+            <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2"><Cms k="interior.manual" fallback="Manuella Verktyg" /></h4>
+            <div class="grid grid-cols-2 gap-2">
+              <button type="button" class="p-2 border border-slate-300 rounded-lg bg-white text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-sm flex items-center justify-center gap-2">
+                Eluttag
+              </button>
+              <button type="button" class="p-2 border border-slate-300 rounded-lg bg-white text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-sm flex items-center justify-center gap-2">
+                Strömbrytare
+              </button>
+              <button type="button" class="p-2 border border-slate-300 rounded-lg bg-white text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-sm flex items-center justify-center gap-2">
+                Taklampa
+              </button>
+              <button type="button" class="p-2 border border-slate-300 rounded-lg bg-white text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-sm flex items-center justify-center gap-2">
+                Fasadbelysning
+              </button>
+            </div>
+          </div>
+        </template>
       </div>
     </template>
 
@@ -985,6 +1102,7 @@ const store = useConfigStore();
 const { t, catalog, money, delta, locale } = useLabels();
 const sizeTab = ref<'kulor' | 'panel'>('kulor');
 const doorTab = ref<'single' | 'double' | 'sliding'>('single');
+const interiorTab = ref<'layout' | 'plumbing' | 'electrical'>('layout');
 const colourMaterials = MATERIAL_OPTIONS.filter((mat) => mat.id !== 'wood');
 const woodMaterial = MATERIAL_OPTIONS.find((mat) => mat.id === 'wood') ?? MATERIAL_OPTIONS[0];
 

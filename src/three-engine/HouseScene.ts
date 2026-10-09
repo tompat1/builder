@@ -19,6 +19,7 @@ export interface SceneConfig {
   loftAreaSqMeters?: number;
   hasLoftStair?: boolean;
   loftCount?: LoftCount;
+  interactionMode: 'default' | 'draw_wall' | 'place_utility';
   viewMode: 'utsida' | 'insida' | 'blueprint';
   /** Overhead cutaway used while the Loft category is open. */
   loftView: boolean;
@@ -49,6 +50,7 @@ export class HouseScene {
   private framingGroup: THREE.Group;
   private trussesGroup: THREE.Group;
   private dimensionsGroup: THREE.Group;
+  private interiorGroup: THREE.Group;
   private highlightBox: THREE.LineSegments | null = null;
   private contactShadow: THREE.Mesh | null = null;
   private hoverBox: THREE.Object3D | null = null;
@@ -88,10 +90,13 @@ export class HouseScene {
   private notePoint = new THREE.Vector3();
   private noteBox = new THREE.Box3();
   private pickMouse = new THREE.Vector2();
+  private drawingWallPoints: THREE.Vector3[] = [];
+  private drawingWallMesh: THREE.Mesh | null = null;
 
   constructor(container: HTMLElement, initialConfig?: Partial<SceneConfig>) {
     this.container = container;
     this.currentConfig = {
+      interactionMode: initialConfig?.interactionMode ?? 'default',
       widthMm: initialConfig?.widthMm ?? 6040,
       depthMm: initialConfig?.depthMm ?? 3503,
       heightMm: initialConfig?.heightMm ?? 5000,
@@ -154,12 +159,14 @@ export class HouseScene {
     this.roofGroup = new THREE.Group();
     this.loftGroup = new THREE.Group();
     this.dimensionsGroup = new THREE.Group();
+    this.interiorGroup = new THREE.Group();
 
     this.houseGroup.add(this.wallsGroup);
     this.houseGroup.add(this.framingGroup);
     this.houseGroup.add(this.trussesGroup);
     this.houseGroup.add(this.roofGroup);
     this.houseGroup.add(this.loftGroup);
+    this.houseGroup.add(this.interiorGroup);
     this.scene.add(this.houseGroup);
     this.scene.add(this.dimensionsGroup);
 
@@ -675,6 +682,57 @@ export class HouseScene {
         return;
       }
       if (this.currentConfig.isFullscreen) return;
+
+      if (this.currentConfig.interactionMode === 'draw_wall') {
+        const pt = this.housePointAt(e.clientX, e.clientY);
+        if (pt) {
+          const vecPt = new THREE.Vector3(pt.x, 0, pt.z);
+          this.drawingWallPoints.push(vecPt);
+
+          // Render a simple pillar at the click point
+          const geo = new THREE.CylinderGeometry(0.05, 0.05, 2.4, 16);
+          const mat = new THREE.MeshStandardMaterial({ color: 0x10b981, transparent: true, opacity: 0.8 });
+          const mesh = new THREE.Mesh(geo, mat);
+          mesh.position.copy(pt);
+          mesh.position.y = 1.2;
+          this.interiorGroup.add(mesh);
+
+          if (this.drawingWallPoints.length >= 2) {
+            // Draw a wall segment between the last two points
+            const p1 = this.drawingWallPoints[this.drawingWallPoints.length - 2];
+            const p2 = this.drawingWallPoints[this.drawingWallPoints.length - 1];
+            const dist = p1.distanceTo(p2);
+            const wallGeo = new THREE.BoxGeometry(0.1, 2.4, dist);
+            const wallMesh = new THREE.Mesh(wallGeo, mat);
+            wallMesh.position.copy(p1).lerp(p2, 0.5);
+            wallMesh.position.y = 1.2;
+            wallMesh.lookAt(p2.x, 1.2, p2.z);
+            this.interiorGroup.add(wallMesh);
+          }
+        }
+        return;
+      }
+
+      if (this.currentConfig.interactionMode === 'place_utility') {
+        const pt = this.housePointAt(e.clientX, e.clientY);
+        if (pt) {
+          const vecPt = new THREE.Vector3(pt.x, 0, pt.z);
+
+          // Clear any existing utility core (for MVP, allow only one)
+          const existing = this.interiorGroup.children.find(c => c.userData.type === 'utility_core');
+          if (existing) this.interiorGroup.remove(existing);
+
+          const coreGeo = new THREE.BoxGeometry(0.6, 2.4, 0.6);
+          const coreMat = new THREE.MeshStandardMaterial({ color: 0x3b82f6 }); // Blue for HVAC/water
+          const coreMesh = new THREE.Mesh(coreGeo, coreMat);
+          coreMesh.position.copy(vecPt);
+          coreMesh.position.y = 1.2;
+          coreMesh.userData.type = 'utility_core';
+          this.interiorGroup.add(coreMesh);
+        }
+        return;
+      }
+
       const rect = this.container.getBoundingClientRect();
       this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
@@ -724,6 +782,9 @@ export class HouseScene {
     }
     while (this.loftGroup.children.length > 0) {
       this.loftGroup.remove(this.loftGroup.children[0]);
+    }
+    while (this.interiorGroup.children.length > 0) {
+      this.interiorGroup.remove(this.interiorGroup.children[0]);
     }
     while (this.dimensionsGroup.children.length > 0) {
       this.dimensionsGroup.remove(this.dimensionsGroup.children[0]);
@@ -2841,7 +2902,15 @@ export class HouseScene {
       (config.loftView !== undefined && config.loftView !== this.currentConfig.loftView);
     const cameraPosition = this.camera.position.clone();
     const cameraTarget = this.controls.target.clone();
+    const interactionChanged = config.interactionMode !== undefined && config.interactionMode !== this.currentConfig.interactionMode;
     Object.assign(this.currentConfig, config);
+    if (interactionChanged) {
+      this.drawingWallPoints = [];
+      if (this.drawingWallMesh) {
+        this.scene.remove(this.drawingWallMesh);
+        this.drawingWallMesh = null;
+      }
+    }
     if (config.isFullscreen) {
       this.currentConfig.selectedSlotId = null;
       this.updateHighlightBox(null);
@@ -2852,6 +2921,24 @@ export class HouseScene {
       this.camera.position.copy(cameraPosition);
       this.controls.target.copy(cameraTarget);
       this.controls.update();
+    }
+  }
+
+  public generateStandardElectrical() {
+    // Mock the generation of standard electrical outlets
+    // We'll just scatter a few boxes along the interior walls
+    const outGeo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+    const outMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+
+    for (let i = 0; i < 4; i++) {
+      const outlet = new THREE.Mesh(outGeo, outMat);
+      outlet.position.set(
+        (Math.random() - 0.5) * (this.currentConfig.widthMm / 1000 - 0.5),
+        0.3, // 30cm above floor
+        (Math.random() - 0.5) * (this.currentConfig.depthMm / 1000 - 0.5)
+      );
+      outlet.userData.type = 'electrical_outlet';
+      this.interiorGroup.add(outlet);
     }
   }
 
