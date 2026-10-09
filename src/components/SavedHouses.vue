@@ -94,6 +94,7 @@ import {
   openNamedHouse,
   readActiveHouseId,
   readLocalHouse,
+  watchActiveHouseId,
   readPendingHouse,
   removeNamedHouse,
   saveNamedHouse,
@@ -120,6 +121,13 @@ const notice = ref('');
 const error = ref('');
 const activeId = ref(readActiveHouseId());
 const autoSaveOn = computed(() => !!(session.user && activeId.value));
+
+function syncActiveHouse() {
+  const next = readActiveHouseId();
+  if (activeId.value !== next) activeId.value = next;
+}
+
+const stopActiveHouseWatch = watchActiveHouseId(syncActiveHouse);
 const panelStyle = ref({ top: '64px', left: '12px' });
 let draft = '';
 let saveTimer = 0;
@@ -173,6 +181,7 @@ function attachThumb(id: string) {
 }
 
 async function refresh() {
+  syncActiveHouse();
   if (!session.user) {
     houses.value = [];
     return;
@@ -342,6 +351,7 @@ onMounted(() => {
 
 watch(() => props.open, async (isOpen) => {
   if (!isOpen) return;
+  syncActiveHouse();
   notice.value = '';
   error.value = '';
   place();
@@ -359,6 +369,7 @@ watch(() => session.user, () => {
 
 document.addEventListener('keydown', onKey);
 onBeforeUnmount(() => {
+  stopActiveHouseWatch();
   document.removeEventListener('keydown', onKey);
   window.clearTimeout(saveTimer);
 });

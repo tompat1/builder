@@ -5,6 +5,7 @@ import { sessionToken, workerBase } from './account';
 const HOUSE_KEY = 'builder.house';
 const PENDING_KEY = 'builder.house.pending';
 const ACTIVE_KEY = 'builder.house.active';
+const ACTIVE_EVENT = 'builder:house-active';
 
 export function acceptActiveHouseId(value: unknown) {
   const id = typeof value === 'string' ? value : '';
@@ -19,6 +20,21 @@ export function writeActiveHouseId(id: string) {
   const accepted = acceptActiveHouseId(id);
   if (accepted) localStorage.setItem(ACTIVE_KEY, accepted);
   else localStorage.removeItem(ACTIVE_KEY);
+  window.dispatchEvent(new Event(ACTIVE_EVENT));
+}
+
+/** Same-tab writers and other tabs both move the active house. */
+export function watchActiveHouseId(onChange: () => void) {
+  const onStorage = (event: StorageEvent) => {
+    if (event.key !== ACTIVE_KEY && event.key !== null) return;
+    onChange();
+  };
+  window.addEventListener('storage', onStorage);
+  window.addEventListener(ACTIVE_EVENT, onChange);
+  return () => {
+    window.removeEventListener('storage', onStorage);
+    window.removeEventListener(ACTIVE_EVENT, onChange);
+  };
 }
 
 export interface SavedHouse {
