@@ -2,7 +2,7 @@
   <div>
     <!-- Desktop Hover Indicator Pill -->
     <div
-      v-if="store.hoveredSlotId && store.hoveredSlotId !== store.selectedSlotId"
+      v-if="store.viewMode === 'utsida' && store.hoveredSlotId && store.hoveredSlotId !== store.selectedSlotId"
       class="pointer-events-none absolute z-20 transition-all duration-150 ease-out animate-fade-in"
       :style="hoverPromptStyle"
     >
@@ -14,7 +14,7 @@
 
     <!-- Active Selected Slot Cluster -->
     <div
-      v-if="store.selectedSlotId && activeSlot"
+      v-if="store.viewMode === 'utsida' && store.selectedSlotId && activeSlot"
       class="pointer-events-auto absolute z-20 flex flex-col items-center gap-2 animate-fade-in transition-all duration-100"
       :style="overlayStyle"
     >
