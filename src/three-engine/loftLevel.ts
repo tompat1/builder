@@ -63,3 +63,17 @@ export function loftStairTreads(rise: number): number {
   const risers = Math.max(6, Math.round(rise / 0.19));
   return Math.max(5, risers - 1);
 }
+
+/** Clear floor opening at the inner/front corner where the stair meets the loft. */
+export function loftStairOpening(
+  type: 'straight' | 'curved',
+  sectionWidth: number,
+  loftDepth: number
+): { width: number; depth: number } {
+  const targetWidth = type === 'curved' ? 1.35 : 0.75;
+  const targetDepth = type === 'curved' ? 1.35 : 1.1;
+  return {
+    width: Math.min(targetWidth, Math.max(0.55, sectionWidth - 0.25)),
+    depth: Math.min(targetDepth, Math.max(0.8, loftDepth - 0.5))
+  };
+}

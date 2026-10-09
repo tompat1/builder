@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { acceptHouse, acceptHouseId, acceptHouseName } from '../workers/house.js';
+import { acceptHouse, acceptHouseId, acceptHouseName, houseAreaSqMeters } from '../workers/house.js';
 import { acceptHouseThumb } from '../src/services/houseThumb.ts';
 
 test('a house config is stored only as a bounded object', () => {
@@ -9,6 +9,13 @@ test('a house config is stored only as a bounded object', () => {
   assert.equal(acceptHouse({ config: [] }), null);
   assert.equal(acceptHouse({}), null);
   assert.equal(acceptHouse({ config: { note: 'x'.repeat(100_001) } }), null);
+});
+
+test('a saved house summary includes its floor area', () => {
+  assert.equal(houseAreaSqMeters({ buildingWidth: 6040, buildingDepth: 4950 }), 29.9);
+  assert.equal(houseAreaSqMeters(JSON.stringify({ buildingWidth: 5800, buildingDepth: 4310 })), 25);
+  assert.equal(houseAreaSqMeters({ buildingWidth: 6040 }), null);
+  assert.equal(houseAreaSqMeters('not json'), null);
 });
 
 test('a house thumb is a short jpeg picture', () => {

@@ -53,7 +53,7 @@
             <span class="min-w-0">
               <span class="block truncate font-semibold text-slate-900">{{ house.name }}</span>
               <span class="block text-[10px] text-slate-500">
-                {{ stamp(house.createdAt) }} · {{ t('header.houseBy', { name: house.createdBy }) }}
+                {{ description(house) }}
               </span>
             </span>
           </button>
@@ -131,6 +131,22 @@ function stamp(value: string) {
     dateStyle: 'medium',
     timeStyle: 'short'
   }).format(date);
+}
+
+function area(value: number | null | undefined) {
+  if (!Number.isFinite(value) || Number(value) <= 0) return '';
+  const formatted = new Intl.NumberFormat(locale.value === 'en' ? 'en-GB' : 'sv-SE', {
+    maximumFractionDigits: 1
+  }).format(Number(value));
+  return `${formatted} m²`;
+}
+
+function description(house: SavedHouse) {
+  return [
+    stamp(house.createdAt),
+    area(house.areaSqMeters),
+    t('header.houseBy', { name: house.createdBy })
+  ].filter(Boolean).join(' · ');
 }
 
 function showThumb(id: string, thumb: string) {

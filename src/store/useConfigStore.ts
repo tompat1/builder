@@ -221,6 +221,7 @@ export const ROOF_OPTIONS: OptionItem[] = [
 export type LoftCount = 'ett' | 'tva';
 export type LoftPlacement = 'vanster' | 'hoger';
 export type LoftTab = 'planlosning' | 'golv';
+export type LoftStairType = 'straight' | 'curved';
 
 export interface LoftSizeItem {
   areaSqMeters: number;
@@ -489,6 +490,7 @@ export const useConfigStore = defineStore('config', () => {
   const loftPlacement = ref<LoftPlacement>('vanster');
   const selectedLoftSize = ref<number>(10.95);
   const hasLoftStair = ref<boolean>(true);
+  const loftStairType = ref<LoftStairType>('straight');
   const loftTab = ref<LoftTab>('planlosning');
   const activeDoor = ref<string>('STEHAG');
   const activeWindow = ref<string>('standard-single');
@@ -550,6 +552,7 @@ export const useConfigStore = defineStore('config', () => {
       loftPlacement: loftPlacement.value,
       selectedLoftSize: selectedLoftSize.value,
       hasLoftStair: hasLoftStair.value,
+      loftStairType: loftStairType.value,
       activeDoor: activeDoor.value,
       activeWindow: activeWindow.value,
       activeGate: activeGate.value,
@@ -613,6 +616,7 @@ export const useConfigStore = defineStore('config', () => {
       if (data.loftPlacement) loftPlacement.value = data.loftPlacement;
       if (data.selectedLoftSize) selectedLoftSize.value = data.selectedLoftSize;
       if (data.hasLoftStair !== undefined) hasLoftStair.value = data.hasLoftStair;
+      loftStairType.value = data.loftStairType === 'curved' ? 'curved' : 'straight';
       if (data.activeDoor) activeDoor.value = data.activeDoor;
       if (data.activeWindow) activeWindow.value = data.activeWindow;
       if (data.activeGate) activeGate.value = data.activeGate;
@@ -900,6 +904,12 @@ export const useConfigStore = defineStore('config', () => {
 
   function toggleLoftStair() {
     hasLoftStair.value = !hasLoftStair.value;
+    saveSnapshot();
+  }
+
+  function setLoftStairType(type: LoftStairType) {
+    loftStairType.value = type;
+    hasLoftStair.value = true;
     saveSnapshot();
   }
 
@@ -1268,6 +1278,7 @@ export const useConfigStore = defineStore('config', () => {
     loftPlacement,
     selectedLoftSize,
     hasLoftStair,
+    loftStairType,
     loftTab,
     placedRooms,
     selectedRoomId,
@@ -1291,6 +1302,7 @@ export const useConfigStore = defineStore('config', () => {
     setLoftPlacement,
     setLoftSize,
     toggleLoftStair,
+    setLoftStairType,
     setLoftTab,
     selectDoor,
     selectWindow,

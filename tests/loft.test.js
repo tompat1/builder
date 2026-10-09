@@ -7,6 +7,7 @@ import {
   LOFT_MIN_ABOVE_FLOOR,
   doorFrameTop,
   loftJoistTop,
+  loftStairOpening,
   loftStairRun,
   loftStairTreads,
   isLoftRoom
@@ -94,4 +95,18 @@ test('a taller rise keeps a walkable stair inside the room', () => {
   assert.ok(angle > 50);
   assert.ok(run < 3.14);
   assert.ok(treads >= 10);
+});
+
+test('each stair type gets a floor opening that fits inside the loft', () => {
+  const straight = loftStairOpening('straight', 2.4, 4.5);
+  const curved = loftStairOpening('curved', 2.4, 4.5);
+
+  assert.deepEqual(straight, { width: 0.75, depth: 1.1 });
+  assert.deepEqual(curved, { width: 1.35, depth: 1.35 });
+  assert.ok(curved.width > straight.width);
+  assert.ok(curved.depth > straight.depth);
+
+  const compact = loftStairOpening('curved', 1.2, 1.5);
+  assert.ok(compact.width < 1.2);
+  assert.ok(compact.depth < 1.5);
 });

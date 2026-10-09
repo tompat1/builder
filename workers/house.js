@@ -29,12 +29,29 @@ export function acceptHouse(body) {
   return text;
 }
 
+export function houseAreaSqMeters(value) {
+  let config = value;
+  if (typeof value === 'string') {
+    try {
+      config = JSON.parse(value);
+    } catch {
+      return null;
+    }
+  }
+  if (!config || typeof config !== 'object' || Array.isArray(config)) return null;
+  const width = Number(config.buildingWidth);
+  const depth = Number(config.buildingDepth);
+  if (!Number.isFinite(width) || !Number.isFinite(depth) || width <= 0 || depth <= 0) return null;
+  return Math.round((width * depth) / 1e5) / 10;
+}
+
 function summary(row) {
   return {
     id: row.id,
     name: row.name,
     createdAt: row.created_at,
-    createdBy: row.created_by
+    createdBy: row.created_by,
+    areaSqMeters: houseAreaSqMeters(row.config)
   };
 }
 
@@ -59,7 +76,7 @@ export async function handleHouse(request, env, headers, sessionUser) {
 
   if (request.method === 'GET' && listing) {
     const rows = await env.DB.prepare(
-      `SELECT id, name, created_at, created_by FROM saved_houses
+      `SELECT id, name, created_at, created_by, config FROM saved_houses
        WHERE user_id = ? ORDER BY created_at DESC LIMIT ?`
     ).bind(user.id, LIST_LIMIT).all();
     return json({ houses: (rows.results ?? []).map(summary) }, 200, headers);
@@ -97,7 +114,9 @@ export async function handleHouse(request, env, headers, sessionUser) {
       `INSERT INTO saved_houses (id, user_id, name, config, created_at, created_by)
        VALUES (?, ?, ?, ?, ?, ?)`
     ).bind(savedId, user.id, name, config, now, createdBy).run();
-    return json({ house: { id: savedId, name, createdAt: now, createdBy } }, 200, headers);
+    return json({
+      house: { id: savedId, name, createdAt: now, createdBy, areaSqMeters: houseAreaSqMeters(config) }
+    }, 200, headers);
   }
 
   if (request.method === 'PUT' && id) {

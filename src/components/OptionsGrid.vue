@@ -647,9 +647,11 @@
             <!-- 4. Lofttrappa / Stege -->
             <div class="pt-1">
               <h5 class="text-xs font-bold text-slate-800 mb-2"><Cms k="category.stair" /></h5>
-              <div
+              <button
+                type="button"
                 @click="store.toggleLoftStair()"
-                class="p-3 rounded-xl border border-slate-200/90 bg-white hover:border-slate-300 cursor-pointer flex items-center justify-between transition-all"
+                :aria-pressed="store.hasLoftStair"
+                class="w-full p-3 rounded-xl border border-slate-200/90 bg-white hover:border-slate-300 flex items-center justify-between gap-3 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700"
               >
                 <div class="flex items-center gap-3">
                   <div
@@ -672,6 +674,53 @@
                 <span class="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded">
                   <Cms k="price.included" />
                 </span>
+              </button>
+
+              <div v-if="store.hasLoftStair" class="mt-2 grid grid-cols-2 gap-2" role="group" :aria-label="t('category.stair')">
+                <button
+                  type="button"
+                  id="loft-stair-straight"
+                  @click="store.setLoftStairType('straight')"
+                  :aria-pressed="store.loftStairType === 'straight'"
+                  :class="[
+                    'rounded-lg border p-2.5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700',
+                    store.loftStairType === 'straight'
+                      ? 'border-emerald-800 bg-emerald-800 text-white shadow-xs'
+                      : 'border-slate-300 bg-white text-slate-800 hover:border-slate-400'
+                  ]"
+                >
+                  <span class="flex items-center gap-1.5 text-xs font-bold">
+                    <svg v-if="store.loftStairType === 'straight'" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    <Cms k="category.stairStraight" />
+                  </span>
+                  <span :class="['mt-1 block text-[10px] leading-snug', store.loftStairType === 'straight' ? 'text-emerald-100' : 'text-slate-500']">
+                    <Cms k="category.stairStraightBody" />
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  id="loft-stair-curved"
+                  @click="store.setLoftStairType('curved')"
+                  :aria-pressed="store.loftStairType === 'curved'"
+                  :class="[
+                    'rounded-lg border p-2.5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700',
+                    store.loftStairType === 'curved'
+                      ? 'border-emerald-800 bg-emerald-800 text-white shadow-xs'
+                      : 'border-slate-300 bg-white text-slate-800 hover:border-slate-400'
+                  ]"
+                >
+                  <span class="flex items-center gap-1.5 text-xs font-bold">
+                    <svg v-if="store.loftStairType === 'curved'" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true">
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                    <Cms k="category.stairCurved" />
+                  </span>
+                  <span :class="['mt-1 block text-[10px] leading-snug', store.loftStairType === 'curved' ? 'text-emerald-100' : 'text-slate-500']">
+                    <Cms k="category.stairCurvedBody" />
+                  </span>
+                </button>
               </div>
             </div>
           </div>

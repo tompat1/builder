@@ -26,6 +26,7 @@ export interface SavedHouse {
   name: string;
   createdAt: string;
   createdBy: string;
+  areaSqMeters?: number | null;
   thumb?: string;
   config?: unknown;
 }
