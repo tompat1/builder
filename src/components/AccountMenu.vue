@@ -110,9 +110,10 @@
         >
           <p class="font-bold text-slate-900">{{ t('account.resources') }}</p>
           <label class="block font-semibold text-slate-600" for="resource-title">{{ t('account.resourceTitle') }}</label>
-          <input id="resource-title" v-model="resourceTitle" class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-slate-900" />
+          <input id="resource-title" v-model="resourceTitle" :maxlength="RESOURCE_TITLE_LIMIT" class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-slate-900" />
           <label class="block font-semibold text-slate-600" for="resource-body">{{ t('account.resourceBody') }}</label>
-          <textarea id="resource-body" v-model="resourceBody" rows="3" class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-slate-900"></textarea>
+          <textarea id="resource-body" v-model="resourceBody" :maxlength="RESOURCE_BODY_LIMIT" rows="3" class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-slate-900"></textarea>
+          <p class="text-right text-xs tabular-nums text-slate-500">{{ resourceBody.length.toLocaleString() }} / {{ RESOURCE_BODY_LIMIT.toLocaleString() }}</p>
           <label class="block font-semibold text-slate-600" for="resource-keywords">{{ t('account.resourceKeywords') }}</label>
           <input id="resource-keywords" v-model="resourceKeywords" class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-slate-900" />
           <label class="block font-semibold text-slate-600" for="resource-link">{{ t('account.resourceLink') }}</label>
@@ -162,7 +163,7 @@
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useLabels } from '../i18n';
 import { useConfigStore } from '../store/useConfigStore';
-import { useResourceStore } from '../store/useResourceStore';
+import { RESOURCE_BODY_LIMIT, RESOURCE_TITLE_LIMIT, useResourceStore } from '../store/useResourceStore';
 import { useSessionStore } from '../store/useSessionStore';
 import { useSourceStore } from '../store/useSourceStore';
 import {
@@ -242,6 +243,8 @@ const messages: Record<string, string> = {
   denied: 'account.denied',
   bad_resource: 'account.badResource',
   bad_link: 'account.badLink',
+  title_too_long: 'account.titleTooLong',
+  answer_too_long: 'account.answerTooLong',
   state: 'account.denied',
   code: 'account.denied'
 };

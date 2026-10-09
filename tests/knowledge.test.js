@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PAGE_KEYWORDS, rankEntries } from '../src/knowledge/match.js';
 import { SELECTION_PAGES } from '../workers/catalog.js';
-import { acceptResource } from '../workers/resources.js';
+import { acceptResource, RESOURCE_BODY_LIMIT } from '../workers/resources.js';
 import { acceptSource } from '../workers/sources.js';
 import { parseEntryId, readPayload } from '../workers/select.js';
 
@@ -71,6 +71,14 @@ test('an admin page gets a safe id and can be found by its words', () => {
     title: 'Syllpapp',
     body: 'Ett svar som räcker.',
     linkHref: `https://example.com/${'a'.repeat(2000)}`
+  }), null);
+  assert.equal(acceptResource({
+    title: 'Ett långt svar',
+    body: 'a'.repeat(4001)
+  }).body.length, 4001);
+  assert.equal(acceptResource({
+    title: 'Ett för långt svar',
+    body: 'a'.repeat(RESOURCE_BODY_LIMIT + 1)
   }), null);
   const ranked = rankEntries([
     { id: 'permit', keywords: ['bygglov'] },

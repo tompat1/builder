@@ -3,6 +3,8 @@
 import { deletePassages, indexResource } from './passages.js';
 
 const ID_PATTERN = /^extra-[a-z0-9-]{1,48}$/;
+export const RESOURCE_TITLE_LIMIT = 120;
+export const RESOURCE_BODY_LIMIT = 20_000;
 
 export function resourceSlug(title) {
   const slug = String(title ?? '')
@@ -40,8 +42,8 @@ function acceptLink(value) {
 export function acceptResource(input) {
   const title = String(input?.title ?? '').trim();
   const body = String(input?.body ?? '').trim();
-  if (title.length < 2 || title.length > 120) return null;
-  if (body.length < 2 || body.length > 4000) return null;
+  if (title.length < 2 || title.length > RESOURCE_TITLE_LIMIT) return null;
+  if (body.length < 2 || body.length > RESOURCE_BODY_LIMIT) return null;
   const id = resourceSlug(title);
   if (!id || !ID_PATTERN.test(id)) return null;
   let keywords = String(input?.keywords ?? '')
@@ -152,7 +154,15 @@ async function createResource(request, env, headers, sessionUser) {
   }
   const row = acceptResource(body);
   if (!row) {
-    const code = linkRejected(body?.linkHref) ? 'bad_link' : 'bad_resource';
+    const titleLength = String(body?.title ?? '').trim().length;
+    const answerLength = String(body?.body ?? '').trim().length;
+    const code = linkRejected(body?.linkHref)
+      ? 'bad_link'
+      : titleLength > RESOURCE_TITLE_LIMIT
+        ? 'title_too_long'
+        : answerLength > RESOURCE_BODY_LIMIT
+          ? 'answer_too_long'
+          : 'bad_resource';
     return new Response(JSON.stringify({ error: code }), {
       status: 400,
       headers: { ...headers, 'Content-Type': 'application/json' }

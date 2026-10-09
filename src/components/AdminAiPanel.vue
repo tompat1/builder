@@ -51,9 +51,10 @@
             <form class="space-y-2" @submit.prevent="addResource">
               <h3 class="text-sm font-bold text-slate-900">{{ t('account.resources') }}</h3>
               <label class="block text-xs font-semibold text-slate-600" for="admin-resource-title">{{ t('account.resourceTitle') }}</label>
-              <input id="admin-resource-title" v-model="resourceTitle" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5A00]" />
+              <input id="admin-resource-title" v-model="resourceTitle" :maxlength="RESOURCE_TITLE_LIMIT" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5A00]" />
               <label class="block text-xs font-semibold text-slate-600" for="admin-resource-body">{{ t('account.resourceBody') }}</label>
-              <textarea id="admin-resource-body" v-model="resourceBody" rows="4" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5A00]"></textarea>
+              <textarea id="admin-resource-body" v-model="resourceBody" :maxlength="RESOURCE_BODY_LIMIT" rows="4" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5A00]"></textarea>
+              <p class="text-right text-xs tabular-nums text-slate-500">{{ resourceBody.length.toLocaleString() }} / {{ RESOURCE_BODY_LIMIT.toLocaleString() }}</p>
               <label class="block text-xs font-semibold text-slate-600" for="admin-resource-keywords">{{ t('account.resourceKeywords') }}</label>
               <input id="admin-resource-keywords" v-model="resourceKeywords" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 placeholder:text-slate-500 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5A00]" />
               <label class="block text-xs font-semibold text-slate-600" for="admin-resource-link">{{ t('account.resourceLink') }}</label>
@@ -97,7 +98,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
 import { useSessionStore } from '../store/useSessionStore';
-import { useResourceStore } from '../store/useResourceStore';
+import { RESOURCE_BODY_LIMIT, RESOURCE_TITLE_LIMIT, useResourceStore } from '../store/useResourceStore';
 import { useSourceStore } from '../store/useSourceStore';
 import { useLabels } from '../i18n';
 
@@ -123,7 +124,9 @@ const error = ref('');
 
 const messages: Record<string, string> = {
   bad_resource: 'account.badResource',
-  bad_link: 'account.badLink'
+  bad_link: 'account.badLink',
+  title_too_long: 'account.titleTooLong',
+  answer_too_long: 'account.answerTooLong'
 };
 
 function showError(code: string) {
