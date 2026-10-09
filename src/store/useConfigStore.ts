@@ -761,7 +761,10 @@ export const useConfigStore = defineStore('config', () => {
   let viewModeBeforeLoft: ViewMode | null = null;
 
   function selectCategory(category: CategoryKey) {
-    if (category === 'loft' && selectedCategory.value !== 'loft') {
+    if (category === 'doors' || category === 'windows' || category === 'gates') {
+      viewMode.value = 'utsida';
+      viewModeBeforeLoft = null;
+    } else if (category === 'loft' && selectedCategory.value !== 'loft') {
       viewModeBeforeLoft = viewMode.value;
       viewMode.value = 'insida';
     } else if (category === 'interior' && selectedCategory.value !== 'interior') {

@@ -226,7 +226,7 @@ watch(
 // Watch view mode and interaction mode
 watch(
   [() => store.viewMode, () => store.selectedCategory, () => store.interactionMode],
-  ([mode, category, interaction]) => {
+  ([mode, category, interaction], [, previousCategory]) => {
     engine?.updateConfig({
       viewMode: mode,
       interactionMode: interaction,
@@ -234,6 +234,12 @@ watch(
       interiorView: category === 'interior',
       roofView: category === 'roof'
     });
+    if (
+      previousCategory !== category
+      && (category === 'doors' || category === 'windows' || category === 'gates')
+    ) {
+      engine?.resetView();
+    }
   }
 );
 
