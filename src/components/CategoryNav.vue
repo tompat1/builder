@@ -62,6 +62,12 @@
           <path d="M3 15h18" />
           <path d="M10 18h4" />
         </svg>
+        <!-- Interiör (Interior walls/layout) -->
+        <svg v-else-if="cat.id === 'interior'" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2" />
+          <path d="M3 9h8v12" />
+          <path d="M15 3v8h6" />
+        </svg>
       </span>
 
       <span class="text-[11px] font-medium tracking-tight whitespace-nowrap">
@@ -82,6 +88,7 @@ const { t } = useLabels();
 const categories: { id: CategoryKey }[] = [
   { id: 'size' },
   { id: 'roof' },
+  { id: 'interior' },
   { id: 'loft' },
   { id: 'doors' },
   { id: 'windows' },

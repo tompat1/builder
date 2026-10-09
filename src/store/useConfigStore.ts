@@ -21,8 +21,8 @@ import {
 import { eaveLiftMm, gablePitchDegrees } from './roof';
 import { floorAreaSqMeters } from './area';
 
-export type ViewMode = 'utsida' | 'insida';
-export type CategoryKey = 'size' | 'roof' | 'loft' | 'doors' | 'windows' | 'gates' | 'extras';
+export type ViewMode = 'utsida' | 'insida' | 'blueprint';
+export type CategoryKey = 'size' | 'roof' | 'loft' | 'interior' | 'doors' | 'windows' | 'gates' | 'extras';
 export type MaterialKey = 'wood' | 'falurod' | 'grey' | 'white' | 'black';
 export type PanelOrientation = 'staende' | 'liggande';
 
@@ -741,7 +741,10 @@ export const useConfigStore = defineStore('config', () => {
     if (category === 'loft' && selectedCategory.value !== 'loft') {
       viewModeBeforeLoft = viewMode.value;
       viewMode.value = 'insida';
-    } else if (selectedCategory.value === 'loft' && category !== 'loft' && viewModeBeforeLoft) {
+    } else if (category === 'interior' && selectedCategory.value !== 'interior') {
+      viewModeBeforeLoft = viewMode.value;
+      viewMode.value = 'blueprint';
+    } else if (['loft', 'interior'].includes(selectedCategory.value) && !['loft', 'interior'].includes(category) && viewModeBeforeLoft) {
       viewMode.value = viewModeBeforeLoft;
       viewModeBeforeLoft = null;
     }

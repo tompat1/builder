@@ -19,7 +19,7 @@ export interface SceneConfig {
   loftAreaSqMeters?: number;
   hasLoftStair?: boolean;
   loftCount?: LoftCount;
-  viewMode: 'utsida' | 'insida';
+  viewMode: 'utsida' | 'insida' | 'blueprint';
   /** Overhead cutaway used while the Loft category is open. */
   loftView: boolean;
   material: MaterialKey;
@@ -3049,13 +3049,18 @@ export class HouseScene {
     this.updateHighlightBox(mesh ? this.boundsOf(mesh) : null);
   }
 
-  public setViewMode(mode: 'utsida' | 'insida') {
+  public setViewMode(mode: 'utsida' | 'insida' | 'blueprint') {
     this.currentConfig.viewMode = mode;
     this.applyViewMode();
   }
 
   private applyViewMode() {
-    if (this.loftCutaway()) {
+    if (this.currentConfig.viewMode === 'blueprint') {
+      this.roofGroup.visible = false;
+      this.trussesGroup.visible = false;
+      this.camera.position.set(0, 14, 0); // Top-down
+      this.controls.target.set(0, 0, 0);
+    } else if (this.loftCutaway()) {
       this.roofGroup.visible = false;
       this.trussesGroup.visible = true;
       this.camera.position.set(3.4, 10.2, 6.4);

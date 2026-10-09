@@ -707,6 +707,32 @@
       </div>
     </template>
 
+    <!-- Interior Options -->
+    <template v-else-if="store.selectedCategory === 'interior'">
+      <div class="space-y-4">
+        <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
+          <p class="text-xs font-semibold text-emerald-900 mb-1">Blueprint-läge Aktivt</p>
+          <p class="text-[11px] text-emerald-800 leading-snug">
+            Klicka och dra i vyn för att rita väggar, eller be AI-assistenten generera en optimal planlösning.
+          </p>
+        </div>
+
+        <div>
+          <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2">Verktyg</h4>
+          <div class="grid grid-cols-2 gap-2">
+            <button type="button" class="p-2 border border-slate-300 rounded-lg bg-white text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-sm flex items-center justify-center gap-2">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3z"/><path d="M3 9h18M9 21V9"/></svg>
+              Rita Vägg
+            </button>
+            <button type="button" class="p-2 border border-slate-300 rounded-lg bg-white text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-sm flex items-center justify-center gap-2">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
+              Placera VVS
+            </button>
+          </div>
+        </div>
+      </div>
+    </template>
+
     <!-- Doors Options -->
     <template v-else-if="store.selectedCategory === 'doors'">
       <!-- Category Title matching other sections -->
