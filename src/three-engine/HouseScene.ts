@@ -4,7 +4,8 @@ import { PULPET_PITCH_DEG, type MaterialKey, type WallSlot, type LoftPlacement, 
 import { eaveLiftMm, gablePitchDegrees, isGableRoof, type RoofId } from '../store/roof';
 import { inferNoteNormal, noteAxes, noteCameraTransform, noteSheetTransform, noteTiltRadians, NOTE_SURFACE_SCALE } from '../notes/surface';
 import { paintBoards } from '../color/paint';
-import { loftJoistTop, loftStairRun, loftStairTreads } from './loftLevel';
+import { loftJoistTop, loftStairRun, loftStairTreads, isLoftRoom } from './loftLevel';
+import { ceilingStations, loftCeilingY, sliceStations, type CeilingStation, type RoofSlope } from './roofClearance';
 import { fitRoom, innerHalf, roomFootprint, shellSides, type ShellSides } from './roomWalls';
 
 const PULPET_PITCH_RAD = (PULPET_PITCH_DEG * Math.PI) / 180;
@@ -95,6 +96,8 @@ export class HouseScene {
   } | null) => void;
   public onRoomPlaced?: (id: string, type: string, w: number, d: number, x: number, y: number, z: number) => void;
   public onRoomResize?: (id: string, w: number, d: number, x: number, y: number, z: number) => void;
+  public onRoomSelect?: (id: string) => void;
+  private selectedRoomId: string | null = null;
   public onInteractionComplete?: () => void;
   private measuring = false;
   private measureDown: { x: number; y: number } | null = null;
@@ -644,7 +647,7 @@ export class HouseScene {
     this.scene.add(grid);
   }
 
-  private roomPreviewGroup: THREE.Mesh | null = null;
+  private roomPreviewGroup: THREE.Object3D | null = null;
 
   private shellLimits() {
     return innerHalf(this.currentConfig.widthMm / 1000, this.currentConfig.depthMm / 1000);
@@ -659,36 +662,75 @@ export class HouseScene {
     return { w: box.max.x - box.min.x, d: box.max.z - box.min.z };
   }
 
+  private clearRoomPreview() {
+    const preview = this.roomPreviewGroup;
+    if (!preview) return;
+    this.scene.remove(preview);
+    preview.traverse((child) => {
+      const drawn = child as THREE.Mesh;
+      if (drawn.geometry) drawn.geometry.dispose();
+      const material = drawn.material;
+      if (!material) return;
+      if (Array.isArray(material)) material.forEach((entry) => entry.dispose());
+      else material.dispose();
+    });
+    this.roomPreviewGroup = null;
+  }
+
   private updateRoomPreview(roomType: string | null, pt?: { x: number, y: number, z: number }) {
     if (!roomType || !pt) {
-      if (this.roomPreviewGroup) {
-        this.roomPreviewGroup.visible = false;
-      }
+      this.clearRoomPreview();
       return;
     }
 
     const footprint = roomFootprint(roomType);
-
-    if (!this.roomPreviewGroup || this.roomPreviewGroup.userData.roomType !== roomType) {
-      if (this.roomPreviewGroup) {
-        this.scene.remove(this.roomPreviewGroup);
-      }
-      const geo = new THREE.BoxGeometry(footprint.w, 2.4, footprint.d);
-      const mat = new THREE.MeshStandardMaterial({ color: 0x3b82f6, transparent: true, opacity: 0.5 });
-      this.roomPreviewGroup = new THREE.Mesh(geo, mat);
-      this.roomPreviewGroup.userData.roomType = roomType;
-      this.scene.add(this.roomPreviewGroup);
-    }
-
     const { hx, hz } = this.shellLimits();
     const fitted = fitRoom({ x: pt.x, z: pt.z, w: footprint.w, d: footprint.d }, hx, hz);
-    this.roomPreviewGroup.visible = true;
-    this.roomPreviewGroup.scale.set(
+    const onLoft = isLoftRoom(pt.y);
+
+    if (onLoft) {
+      this.clearRoomPreview();
+      const group = this.createRoomGroup(
+        roomType,
+        fitted.w,
+        fitted.d,
+        shellSides(fitted, hx, hz),
+        { y: pt.y, z: fitted.z },
+        true
+      );
+      group.traverse((child) => {
+        if (!(child instanceof THREE.Mesh)) return;
+        const material = child.material;
+        if (!(material instanceof THREE.MeshStandardMaterial)) return;
+        material.color.set(0x3b82f6);
+        material.transparent = true;
+        material.opacity = 0.45;
+        material.depthWrite = false;
+      });
+      group.position.set(fitted.x, pt.y, fitted.z);
+      this.roomPreviewGroup = group;
+      this.scene.add(group);
+      return;
+    }
+
+    if (!(this.roomPreviewGroup instanceof THREE.Mesh) || this.roomPreviewGroup.userData.roomType !== roomType) {
+      this.clearRoomPreview();
+      const geo = new THREE.BoxGeometry(footprint.w, 2.4, footprint.d);
+      const mat = new THREE.MeshStandardMaterial({ color: 0x3b82f6, transparent: true, opacity: 0.5 });
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.userData.roomType = roomType;
+      this.roomPreviewGroup = mesh;
+      this.scene.add(mesh);
+    }
+
+    const preview = this.roomPreviewGroup;
+    preview.visible = true;
+    preview.scale.set(
       footprint.w > 0 ? fitted.w / footprint.w : 1,
       1,
       footprint.d > 0 ? fitted.d / footprint.d : 1
     );
-    this.roomPreviewGroup.position.set(fitted.x, 1.2, fitted.z);
+    preview.position.set(fitted.x, 1.2, fitted.z);
   }
 
   private setupRaycasting() {
@@ -915,12 +957,14 @@ export class HouseScene {
           const footprint = roomFootprint(roomType);
           const { hx, hz } = this.shellLimits();
           const fitted = fitRoom({ x: vecPt.x, z: vecPt.z, w: footprint.w, d: footprint.d }, hx, hz);
-          const roomGroup = this.createRoomGroup(roomType, fitted.w, fitted.d, shellSides(fitted, hx, hz));
-
-          let baseY = 0.3;
-          if (pt.y > 1.0) {
-            baseY = Math.max(0.3, pt.y);
-          }
+          const baseY = isLoftRoom(pt.y) ? pt.y : 0.3;
+          const roomGroup = this.createRoomGroup(
+            roomType,
+            fitted.w,
+            fitted.d,
+            shellSides(fitted, hx, hz),
+            isLoftRoom(baseY) ? { y: baseY, z: fitted.z } : undefined
+          );
           roomGroup.position.set(fitted.x, baseY, fitted.z);
 
           let existingCount = 1;
@@ -953,7 +997,8 @@ export class HouseScene {
         const dragIntersects = this.raycaster.intersectObjects(this.roomDragHandles, false);
         if (dragIntersects.length > 0) {
           const hit = dragIntersects[0].object as THREE.Mesh;
-          const { roomId, side } = hit.userData;
+            const { roomId, side } = hit.userData;
+          this.onRoomSelect?.(roomId);
           const roomGroup = this.interiorGroup.children.find(c => c.userData.type === 'room_zone' && c.userData.roomId === roomId);
           if (roomGroup) {
             // Find current bounds
@@ -993,6 +1038,7 @@ export class HouseScene {
           const roomGroup = hit.parent as THREE.Group;
           if (roomGroup && roomGroup.userData.type === 'room_zone') {
             const { roomId } = roomGroup.userData;
+            this.onRoomSelect?.(roomId);
             const plan = this.roomPlan(roomGroup);
 
             const pt = this.housePointAt(e.clientX, e.clientY);
@@ -1174,6 +1220,7 @@ export class HouseScene {
     // 8. 3D Architectural Dimensions
     this.buildDimensionLines(w, d, h);
     this.buildContactShadow(w, d);
+    this.refreshLoftRooms();
 
     // View mode visibility
     this.applyViewMode();
@@ -3262,17 +3309,167 @@ export class HouseScene {
     }
   }
 
-  private createRoomGroup(roomType: string, w: number, d: number, open: ShellSides): THREE.Group {
+  /** The slope the loft room ceiling has to follow. */
+  private roofSlope(): RoofSlope {
+    const roof = this.currentConfig.roofType;
+    if (roof === 'pulpettak') return { kind: 'shed', degrees: PULPET_PITCH_DEG, anchor: 'front', minRear: 2.4 };
+    if (roof === 'flackt') return { kind: 'shed', degrees: 2, anchor: 'centre' };
+    return { kind: 'gable', degrees: gablePitchDegrees(roof) };
+  }
+
+  /** Ceiling height in room-local Y, following the roof above a loft floor. */
+  private loftCeiling(roomZ: number, baseY: number) {
+    const depth = this.currentConfig.depthMm / 1000;
+    const wallTop = this.wallTopM();
+    const slope = this.roofSlope();
+    return (localZ: number) => loftCeilingY(slope, depth, wallTop, roomZ + localZ) - baseY;
+  }
+
+  private ceilingProfile(roomZ: number, z0: number, z1: number, ceiling: (localZ: number) => number): CeilingStation[] {
+    return ceilingStations(this.roofSlope(), z0, z1, roomZ).map((at) => ({
+      at,
+      top: ceiling(at)
+    }));
+  }
+
+  /** A wall whose top follows the roof. The profile runs along Z and the thickness is along X. */
+  private addProfileWall(
+    group: THREE.Group,
+    stations: CeilingStation[],
+    base: number,
+    thick: number,
+    x: number,
+    side: string,
+    wallMat: THREE.Material,
+    edgeMat: THREE.Material
+  ) {
+    if (stations.length < 2) return;
+    if (!stations.some((station) => station.top - base > 0.02)) return;
+    const shape = new THREE.Shape();
+    shape.moveTo(stations[0].at, base);
+    shape.lineTo(stations[stations.length - 1].at, base);
+    for (let i = stations.length - 1; i >= 0; i--) {
+      shape.lineTo(stations[i].at, Math.max(stations[i].top, base));
+    }
+    const geo = new THREE.ExtrudeGeometry(shape, { depth: thick, bevelEnabled: false });
+    geo.translate(0, 0, -thick / 2);
+    geo.rotateY(-Math.PI / 2);
+    const mesh = new THREE.Mesh(geo, wallMat);
+    mesh.position.x = x;
+    mesh.userData.partition = side;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), edgeMat));
+    group.add(mesh);
+  }
+
+  private addLoftSide(
+    group: THREE.Group,
+    side: 'left' | 'right',
+    x: number,
+    z0: number,
+    z1: number,
+    roomZ: number,
+    ceiling: (localZ: number) => number,
+    withDoor: boolean,
+    wallThick: number,
+    wallBase: number,
+    wallMat: THREE.Material,
+    edgeMat: THREE.Material
+  ) {
+    if (z1 - z0 < 0.02) return;
+    const stations = this.ceilingProfile(roomZ, z0, z1, ceiling);
+    const minTop = Math.min(...stations.map((station) => station.top));
+    const doorW = 0.8;
+    const doorClear = minTop - wallBase;
+    if (!withDoor || z1 - z0 < doorW + 0.24 || doorClear < 1.35) {
+      this.addProfileWall(group, stations, wallBase, wallThick, x, side, wallMat, edgeMat);
+      return;
+    }
+    const head = wallBase + Math.min(2.0, doorClear - 0.05);
+    const mid = (z0 + z1) / 2;
+    this.addProfileWall(group, sliceStations(stations, z0, mid - doorW / 2), wallBase, wallThick, x, side, wallMat, edgeMat);
+    this.addProfileWall(group, sliceStations(stations, mid + doorW / 2, z1), wallBase, wallThick, x, side, wallMat, edgeMat);
+    this.addProfileWall(
+      group,
+      sliceStations(stations, mid - doorW / 2, mid + doorW / 2),
+      head,
+      wallThick,
+      x,
+      side,
+      wallMat,
+      edgeMat
+    );
+  }
+
+  private addLoftCeiling(
+    group: THREE.Group,
+    w: number,
+    roomZ: number,
+    ceiling: (localZ: number) => number,
+    wallMat: THREE.Material,
+    edgeMat: THREE.Material
+  ) {
+    const half = Number(group.userData.d) / 2;
+    const stations = this.ceilingProfile(roomZ, -half, half, ceiling);
+    for (let i = 0; i < stations.length - 1; i++) {
+      const from = stations[i];
+      const to = stations[i + 1];
+      const length = to.at - from.at;
+      if (length < 0.02) continue;
+      const rise = to.top - from.top;
+      const geo = new THREE.BoxGeometry(w, 0.02, Math.hypot(length, rise));
+      const mesh = new THREE.Mesh(geo, wallMat);
+      mesh.position.set(0, (from.top + to.top) / 2 - 0.01, (from.at + to.at) / 2);
+      mesh.rotation.x = -Math.atan2(rise, length);
+      mesh.userData.part = 'ceiling';
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), edgeMat));
+      group.add(mesh);
+    }
+  }
+
+  /** Loft rooms keep their plan when the house is rebuilt, and take the new roof. */
+  private refreshLoftRooms() {
+    const rooms = this.interiorGroup.children
+      .filter((child) => child.userData.type === 'room_zone' && isLoftRoom(child.position.y))
+      .map((child) => ({
+        id: child.userData.roomId as string,
+        type: child.userData.roomType as string,
+        w: Number(child.userData.w),
+        d: Number(child.userData.d),
+        x: child.position.x,
+        y: child.position.y,
+        z: child.position.z
+      }));
+    for (const room of rooms) {
+      if (!Number.isFinite(room.w) || !Number.isFinite(room.d)) continue;
+      this.updateRoomSize(room.id, room.type, room.w, room.d, room.x, room.y, room.z);
+    }
+  }
+
+  private createRoomGroup(
+    roomType: string,
+    w: number,
+    d: number,
+    open: ShellSides,
+    place?: { y: number; z: number },
+    preview = false
+  ): THREE.Group {
     const group = new THREE.Group();
     group.userData.type = 'room_zone';
     group.userData.roomType = roomType;
     group.userData.w = w;
     group.userData.d = d;
+    const loft = place && isLoftRoom(place.y) ? place : null;
+    const ceiling = loft ? this.loftCeiling(loft.z, loft.y) : null;
 
     const floorGeo = new THREE.BoxGeometry(w, 0.05, d);
     const floorMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0 });
     const floor = new THREE.Mesh(floorGeo, floorMat);
     floor.position.y = 0.025;
+    floor.userData.part = 'floor';
     group.add(floor);
 
     const wallThick = 0.1;
@@ -3316,18 +3513,19 @@ export class HouseScene {
       center: number,
       fixed: number,
       axis: 'x' | 'z',
-      withDoor: boolean
+      withDoor: boolean,
+      height: number
     ) => {
       const doorW = 0.8;
-      const headerH = 0.3;
-      if (!withDoor || span < doorW + 0.24) {
-        addPartition(side, span, wallH, center, wallBase + wallH / 2, fixed, axis);
+      const headerH = Math.min(0.3, Math.max(0.12, height * 0.2));
+      if (!withDoor || span < doorW + 0.24 || height < headerH + 0.4) {
+        addPartition(side, span, height, center, wallBase + height / 2, fixed, axis);
         return;
       }
       const jamb = (span - doorW) / 2;
-      addPartition(side, jamb, wallH, center - (doorW + jamb) / 2, wallBase + wallH / 2, fixed, axis);
-      addPartition(side, jamb, wallH, center + (doorW + jamb) / 2, wallBase + wallH / 2, fixed, axis);
-      addPartition(side, doorW, headerH, center, wallBase + wallH - headerH / 2, fixed, axis);
+      addPartition(side, jamb, height, center - (doorW + jamb) / 2, wallBase + height / 2, fixed, axis);
+      addPartition(side, jamb, height, center + (doorW + jamb) / 2, wallBase + height / 2, fixed, axis);
+      addPartition(side, doorW, headerH, center, wallBase + height - headerH / 2, fixed, axis);
     };
 
     const run = (length: number, trimStart: number, trimEnd: number) => {
@@ -3335,76 +3533,119 @@ export class HouseScene {
       return { size, center: (trimStart - trimEnd) / 2 };
     };
 
-    const doorSide = (['front', 'right', 'back', 'left'] as const).find((side) => !open[side]);
+    const doorOrder = (ceiling ? ['front', 'back', 'right', 'left'] : ['front', 'right', 'back', 'left']) as readonly (keyof ShellSides)[];
+    const doorSide = doorOrder.find((side) => !open[side]);
+    const edgeHeight = (localZ: number) => (ceiling ? ceiling(localZ) - wallBase : wallH);
     if (!open.back) {
       const { size, center } = run(w, trim(open.left), trim(open.right));
-      addRun('back', size, center, -d / 2 + wallThick / 2, 'x', doorSide === 'back');
+      const z = -d / 2 + wallThick / 2;
+      const height = edgeHeight(z);
+      if (height > 0.02) addRun('back', size, center, z, 'x', doorSide === 'back' && height >= 1.35, height);
     }
     if (!open.front) {
       const { size, center } = run(w, trim(open.left), trim(open.right));
-      addRun('front', size, center, d / 2 - wallThick / 2, 'x', doorSide === 'front');
+      const z = d / 2 - wallThick / 2;
+      const height = edgeHeight(z);
+      if (height > 0.02) addRun('front', size, center, z, 'x', doorSide === 'front' && height >= 1.35, height);
     }
     if (!open.left) {
-      const { size, center } = run(d, trim(open.back), trim(open.front));
-      addRun('left', size, center, -w / 2 + wallThick / 2, 'z', doorSide === 'left');
+      if (ceiling && loft) {
+        this.addLoftSide(
+          group, 'left', -w / 2 + wallThick / 2,
+          -d / 2 + trim(open.back), d / 2 - trim(open.front),
+          loft.z, ceiling, doorSide === 'left', wallThick, wallBase, wallMat, edgeMat
+        );
+      } else {
+        const { size, center } = run(d, trim(open.back), trim(open.front));
+        addRun('left', size, center, -w / 2 + wallThick / 2, 'z', doorSide === 'left', wallH);
+      }
     }
     if (!open.right) {
-      const { size, center } = run(d, trim(open.back), trim(open.front));
-      addRun('right', size, center, w / 2 - wallThick / 2, 'z', doorSide === 'right');
+      if (ceiling && loft) {
+        this.addLoftSide(
+          group, 'right', w / 2 - wallThick / 2,
+          -d / 2 + trim(open.back), d / 2 - trim(open.front),
+          loft.z, ceiling, doorSide === 'right', wallThick, wallBase, wallMat, edgeMat
+        );
+      } else {
+        const { size, center } = run(d, trim(open.back), trim(open.front));
+        addRun('right', size, center, w / 2 - wallThick / 2, 'z', doorSide === 'right', wallH);
+      }
     }
+    if (ceiling && loft) this.addLoftCeiling(group, w, loft.z, ceiling, wallMat, edgeMat);
 
     const edge = (againstShell: boolean) => (againstShell ? 0.02 : wallThick);
+    const fitUp = (height: number, bottom: number, currentY: number) => {
+      if (!ceiling) return { h: height, y: currentY };
+      const limit = Math.min(ceiling(-d / 2), ceiling(0), ceiling(d / 2)) - 0.06;
+      const h = Math.min(height, Math.max(0.05, limit - bottom));
+      return { h, y: bottom + h / 2 };
+    };
     if (roomType === 'bathroom') {
       const showerGeo = new THREE.BoxGeometry(0.9, 0.1, 0.9);
       const showerMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1 });
       const shower = new THREE.Mesh(showerGeo, showerMat);
       shower.position.set(-w / 2 + 0.45 + edge(open.left), 0.05, -d / 2 + 0.45 + edge(open.back));
       group.add(shower);
-      const glassGeo = new THREE.BoxGeometry(0.9, 2.0, 0.02);
+      const glassFit = fitUp(2.0, 0.1, 1.0);
+      const glassGeo = new THREE.BoxGeometry(0.9, glassFit.h, 0.02);
       const glassMat = new THREE.MeshStandardMaterial({ color: 0xbae6fd, transparent: true, opacity: 0.4 });
       const glass = new THREE.Mesh(glassGeo, glassMat);
-      glass.position.set(-w / 2 + 0.45 + edge(open.left), 1.0, -d / 2 + 0.9 + edge(open.back));
+      glass.position.set(-w / 2 + 0.45 + edge(open.left), glassFit.y, -d / 2 + 0.9 + edge(open.back));
       group.add(glass);
 
-      const wcGeo = new THREE.BoxGeometry(0.4, 0.45, 0.5);
+      const wcFit = fitUp(0.45, 0, 0.225);
+      const wcGeo = new THREE.BoxGeometry(0.4, wcFit.h, 0.5);
       const wcMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
       const wc = new THREE.Mesh(wcGeo, wcMat);
-      wc.position.set(w / 2 - 0.4 - edge(open.right), 0.225, -d / 2 + 0.25 + edge(open.back));
+      wc.position.set(w / 2 - 0.4 - edge(open.right), wcFit.y, -d / 2 + 0.25 + edge(open.back));
       group.add(wc);
 
-      const sinkGeo = new THREE.BoxGeometry(0.6, 0.15, 0.4);
+      const sinkFit = fitUp(0.15, 0.775, 0.85);
+      const sinkGeo = new THREE.BoxGeometry(0.6, sinkFit.h, 0.4);
       const sink = new THREE.Mesh(sinkGeo, wcMat);
-      sink.position.set(w / 2 - 0.3 - edge(open.right), 0.85, 0);
+      sink.position.set(w / 2 - 0.3 - edge(open.right), sinkFit.y, 0);
       group.add(sink);
     } else if (roomType === 'kitchen') {
-      const counterGeo = new THREE.BoxGeometry(Math.max(0.6, w - edge(open.left) - edge(open.right)), 0.9, 0.6);
+      const counterFit = fitUp(0.9, 0, 0.45);
+      const counterGeo = new THREE.BoxGeometry(Math.max(0.6, w - edge(open.left) - edge(open.right)), counterFit.h, 0.6);
       const counterMat = new THREE.MeshStandardMaterial({ color: 0x334155 });
       const counter = new THREE.Mesh(counterGeo, counterMat);
-      counter.position.set((edge(open.left) - edge(open.right)) / 2, 0.45, -d / 2 + 0.3 + edge(open.back));
+      counter.position.set((edge(open.left) - edge(open.right)) / 2, counterFit.y, -d / 2 + 0.3 + edge(open.back));
       group.add(counter);
     } else if (roomType === 'bedroom') {
-      const bedGeo = new THREE.BoxGeometry(1.6, 0.5, 2.0);
+      const bedFit = fitUp(0.5, 0, 0.25);
+      const bedGeo = new THREE.BoxGeometry(1.6, bedFit.h, 2.0);
       const bedMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8 });
       const bed = new THREE.Mesh(bedGeo, bedMat);
-      bed.position.set(0, 0.25, -d / 2 + 1.0 + edge(open.back));
+      bed.position.set(0, bedFit.y, -d / 2 + 1.0 + edge(open.back));
       group.add(bed);
     }
 
-    const handleMat = new THREE.MeshBasicMaterial({ visible: false });
-    const handleThickness = 0.4;
-    const handleInset = handleThickness / 2;
-    const handles: Array<[keyof ShellSides, number, number, number, number, number]> = [
-      ['left', handleThickness, wallH, d, -w / 2 + handleInset, 0],
-      ['right', handleThickness, wallH, d, w / 2 - handleInset, 0],
-      ['front', w, wallH, handleThickness, 0, d / 2 - handleInset],
-      ['back', w, wallH, handleThickness, 0, -d / 2 + handleInset]
-    ];
-    for (const [side, sx, sy, sz, px, pz] of handles) {
-      const handle = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), handleMat);
-      handle.position.set(px, wallBase + wallH / 2, pz);
-      handle.userData = { type: 'room_drag', side, roomId: null };
-      group.add(handle);
-      this.roomDragHandles.push(handle);
+    if (!preview) {
+      const handleMat = new THREE.MeshBasicMaterial({ visible: false });
+      const handleThickness = 0.4;
+      const handleInset = handleThickness / 2;
+      const underRoof = (localZ: number) => (ceiling ? Math.max(wallBase + 0.2, ceiling(localZ)) : wallBase + wallH);
+      const sideTop = ceiling
+        ? Math.max(wallBase + 0.2, Math.min(ceiling(-d / 2), ceiling(0), ceiling(d / 2)))
+        : wallBase + wallH;
+      const frontTop = underRoof(d / 2);
+      const backTop = underRoof(-d / 2);
+      const handles: Array<[keyof ShellSides, number, number, number, number, number, number]> = [
+        ['left', handleThickness, sideTop - wallBase, d, -w / 2 + handleInset, 0, sideTop],
+        ['right', handleThickness, sideTop - wallBase, d, w / 2 - handleInset, 0, sideTop],
+        ['front', w, frontTop - wallBase, handleThickness, 0, d / 2 - handleInset, frontTop],
+        ['back', w, backTop - wallBase, handleThickness, 0, -d / 2 + handleInset, backTop]
+      ];
+      for (const [side, sx, sy, sz, px, pz, top] of handles) {
+        if (sy < 0.05) continue;
+        const handle = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), handleMat);
+        handle.position.set(px, wallBase + (top - wallBase) / 2, pz);
+        handle.userData = { type: 'room_drag', side, roomId: null };
+        group.add(handle);
+        this.roomDragHandles.push(handle);
+      }
     }
 
     return group;
@@ -3429,14 +3670,60 @@ export class HouseScene {
 
     const { hx, hz } = this.shellLimits();
     const fitted = fitRoom({ x: x ?? currentX, z: z ?? currentZ, w, d }, hx, hz);
-    const newRoom = this.createRoomGroup(roomType, fitted.w, fitted.d, shellSides(fitted, hx, hz));
+    const nextY = y ?? currentY;
+    const newRoom = this.createRoomGroup(
+      roomType,
+      fitted.w,
+      fitted.d,
+      shellSides(fitted, hx, hz),
+      isLoftRoom(nextY) ? { y: nextY, z: fitted.z } : undefined
+    );
     newRoom.userData.roomId = roomId;
     newRoom.children.forEach(c => {
       if (c.userData.type === 'room_drag') c.userData.roomId = roomId;
     });
-    newRoom.position.set(fitted.x, y ?? currentY, fitted.z);
+    newRoom.position.set(fitted.x, nextY, fitted.z);
 
     this.interiorGroup.add(newRoom);
+    this.paintRoomSelection();
+  }
+
+  public removeRoom(roomId: string) {
+    const existing = this.interiorGroup.children.find(c => c.userData.type === 'room_zone' && c.userData.roomId === roomId);
+    if (existing) this.interiorGroup.remove(existing);
+    this.roomDragHandles = this.roomDragHandles.filter(h => h.userData.roomId !== roomId);
+    if (this.draggingRoom?.roomId === roomId) {
+      this.draggingRoom = null;
+      this.controls.enabled = true;
+    }
+    if (this.selectedRoomId === roomId) this.selectedRoomId = null;
+    this.paintRoomSelection();
+  }
+
+  public pruneRooms(ids: string[]) {
+    const keep = new Set(ids);
+    const stale = this.interiorGroup.children
+      .filter(child => child.userData.type === 'room_zone' && !keep.has(child.userData.roomId))
+      .map(child => child.userData.roomId as string);
+    for (const id of stale) this.removeRoom(id);
+  }
+
+  public setSelectedRoom(roomId: string | null) {
+    this.selectedRoomId = roomId;
+    this.paintRoomSelection();
+  }
+
+  private paintRoomSelection() {
+    for (const group of this.interiorGroup.children) {
+      if (group.userData.type !== 'room_zone') continue;
+      const floor = group.children.find(child => child.userData.part === 'floor') as THREE.Mesh | undefined;
+      const material = floor?.material;
+      if (!(material instanceof THREE.MeshStandardMaterial)) continue;
+      const selected = group.userData.roomId === this.selectedRoomId;
+      material.color.set(selected ? 0xd6def8 : 0xe2e8f0);
+      material.emissive.set(selected ? 0x1e293b : 0x000000);
+      material.emissiveIntensity = selected ? 0.18 : 0;
+    }
   }
 
   /** Parts a paper note can follow. Stored without rebuilding the house. */
@@ -3670,11 +3957,11 @@ export class HouseScene {
       this.loftGroup.visible = true;
       this.dimensionsGroup.visible = false;
 
-      // If we are just inside 'insida' mode we should place camera inside.
-      // If we are in 'utsida' mode but interiorView is true, we could keep the camera where it is or switch it.
-      // We'll just set it to 'insida' view camera.
-      this.camera.position.set(0, 7.5, 4.0);
-      this.controls.target.set(0, 1.2, 0);
+      if (this.currentConfig.interiorView) this.frameInterior();
+      else {
+        this.camera.position.set(0, 7.5, 4.0);
+        this.controls.target.set(0, 1.2, 0);
+      }
       if (this.gridHelper) this.gridHelper.visible = false;
     } else {
       this.roofGroup.visible = true;
@@ -3698,6 +3985,14 @@ export class HouseScene {
     this.camera.near = inside ? 0.05 : 0.1;
     this.camera.updateProjectionMatrix();
     this.controls.update();
+  }
+
+  /** High three-quarter view of the whole floor, used when Interior is open. */
+  private frameInterior() {
+    const span = Math.max(this.currentConfig.widthMm, this.currentConfig.depthMm) / 1000;
+    const distance = Math.max(span, 4) * 2.15;
+    this.camera.position.set(0, distance * 0.62, distance * 0.78);
+    this.controls.target.set(0, 0.4, 0);
   }
 
   /** Return the camera to the starting frame for the current view. */

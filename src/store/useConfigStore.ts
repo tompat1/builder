@@ -1,4 +1,4 @@
-import { defineStore } from 'pinia';
+import { defineStore, acceptHMRUpdate } from 'pinia';
 import { ref, computed, reactive } from 'vue';
 import {
   acceptNotes,
@@ -20,6 +20,7 @@ import {
 } from '../color/paint';
 import { eaveLiftMm, gablePitchDegrees } from './roof';
 import { floorAreaSqMeters } from './area';
+import { isLoftRoom } from '../three-engine/loftLevel';
 
 export type ViewMode = 'utsida' | 'insida' | 'blueprint';
 export type CategoryKey = 'size' | 'roof' | 'loft' | 'interior' | 'doors' | 'windows' | 'gates' | 'extras';
@@ -478,6 +479,31 @@ export const useConfigStore = defineStore('config', () => {
 
   // Interior rooms
   const placedRooms = ref<Record<string, { type: string; w: number; d: number; x: number; y: number; z: number }>>({});
+  const selectedRoomId = ref<string | null>(null);
+
+  function selectRoom(id: string | null) {
+    selectedRoomId.value = id && placedRooms.value[id] ? id : null;
+  }
+
+  function removePlacedRoom(id: string) {
+    if (!placedRooms.value[id]) return;
+    const next = { ...placedRooms.value };
+    delete next[id];
+    placedRooms.value = next;
+    if (selectedRoomId.value === id) selectedRoomId.value = null;
+  }
+
+  function clearLoftRooms() {
+    const next = { ...placedRooms.value };
+    let changed = false;
+    for (const [id, room] of Object.entries(next)) {
+      if (!isLoftRoom(room.y)) continue;
+      delete next[id];
+      changed = true;
+      if (selectedRoomId.value === id) selectedRoomId.value = null;
+    }
+    if (changed) placedRooms.value = next;
+  }
 
   // Wall panel modular slots (matching Skånska Byggvaror reference layout)
   const wallSlots = ref<Record<string, WallSlot>>(createWallSlots());
@@ -829,12 +855,14 @@ export const useConfigStore = defineStore('config', () => {
 
   function selectLoft(id: string) {
     activeLoft.value = id;
+    if (id === 'none') clearLoftRooms();
     saveSnapshot();
   }
 
   function toggleHasLoft(forceState?: boolean) {
     const next = forceState !== undefined ? forceState : activeLoft.value === 'none';
     activeLoft.value = next ? 'sleeping' : 'none';
+    if (!next) clearLoftRooms();
     saveSnapshot();
   }
 
@@ -1192,6 +1220,9 @@ export const useConfigStore = defineStore('config', () => {
     hasLoftStair,
     loftTab,
     placedRooms,
+    selectedRoomId,
+    selectRoom,
+    removePlacedRoom,
     availableLoftSizes,
     totalPriceSek,
     selectedSlotCanAcceptDoor,
@@ -1261,3 +1292,7 @@ export const useConfigStore = defineStore('config', () => {
     setNoteAnchors
   };
 });
+
+if (import.meta.hot) {
+  import.meta.hot.accept(acceptHMRUpdate(useConfigStore, import.meta.hot));
+}

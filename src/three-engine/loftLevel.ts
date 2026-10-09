@@ -4,6 +4,13 @@ export const INTERIOR_FLOOR_TOP = 0.3;
 /** Wall studs stand on the slab. Door sills share this height. */
 export const WALL_BASE = 0.25;
 
+/** Ground-floor rooms sit on the slab. Anything higher was placed on the loft deck. */
+export const LOFT_ROOM_MIN_Y = 1;
+
+export function isLoftRoom(y: number) {
+  return y > LOFT_ROOM_MIN_Y;
+}
+
 /** Walking surface of the loft, measured up from the interior floor. */
 export const LOFT_MIN_ABOVE_FLOOR = 2.5;
 

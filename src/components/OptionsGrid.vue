@@ -822,16 +822,30 @@
 
             <div v-if="Object.keys(store.placedRooms).length > 0" class="mt-4 pt-4 border-t border-slate-200">
               <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2"><Cms k="interior.placedRooms" fallback="Placerade Rum" /></h4>
-              <div v-for="(room, id) in store.placedRooms" :key="id" class="mb-3 space-y-1">
-                <div class="flex justify-between items-center text-xs font-semibold text-slate-700">
-                  <span class="capitalize">
+              <div
+                v-for="(room, id) in store.placedRooms"
+                :key="id"
+                class="mb-3 space-y-1 rounded-lg px-1.5 py-1"
+                :class="store.selectedRoomId === id ? 'bg-slate-50' : ''"
+              >
+                <div class="flex items-center justify-between gap-2 text-xs font-semibold text-slate-700">
+                  <button type="button" class="min-w-0 text-left capitalize" @click="store.selectRoom(String(id))">
                     <Cms v-if="room.type === 'bedroom'" k="interior.bedroom" fallback="Sovrum" />
                     <Cms v-else-if="room.type === 'bathroom'" k="interior.bathroom" fallback="Badrum" />
                     <Cms v-else-if="room.type === 'kitchen'" k="interior.kitchen" fallback="Kök / Pentry" />
                     <Cms v-else k="interior.storage" fallback="Förråd" />
                     {{ id.split('_')[1] }}
+                  </button>
+                  <span class="flex shrink-0 items-center gap-2">
+                    <span class="text-[10px] tabular-nums">{{ room.w.toFixed(1) }} × {{ room.d.toFixed(1) }} m</span>
+                    <button
+                      type="button"
+                      class="text-[11px] font-semibold text-slate-500 hover:text-slate-900"
+                      @click="store.removePlacedRoom(String(id))"
+                    >
+                      <Cms k="interior.deleteRoom" fallback="Ta bort" />
+                    </button>
                   </span>
-                  <span class="text-[10px] tabular-nums">{{ room.w.toFixed(1) }} × {{ room.d.toFixed(1) }} m</span>
                 </div>
                 <div class="flex gap-2">
                   <label class="flex-1 flex items-center gap-2 text-[10px] font-medium text-slate-600">

@@ -157,6 +157,7 @@ onMounted(() => {
     };
     engine.onRoomPlaced = (id, type, w, d, x, y, z) => {
       store.placedRooms[id] = { type, w, d, x, y, z };
+      store.selectRoom(id);
     };
     engine.onRoomResize = (id, w, d, x, y, z) => {
       if (store.placedRooms[id]) {
@@ -166,6 +167,9 @@ onMounted(() => {
         store.placedRooms[id].y = y;
         store.placedRooms[id].z = z;
       }
+    };
+    engine.onRoomSelect = (id) => {
+      store.selectRoom(id);
     };
     engine.onInteractionComplete = () => {
       store.setInteractionMode('default');
@@ -177,11 +181,22 @@ onMounted(() => {
       (window as any).__houseScene = engine;
     }
     syncPlacedRooms();
+    window.addEventListener('keydown', onRoomKey);
   }
 });
 
+function onRoomKey(event: KeyboardEvent) {
+  if (event.key !== 'Delete' && event.key !== 'Backspace') return;
+  const target = event.target as HTMLElement | null;
+  if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+  if (store.selectedCategory !== 'interior' || !store.selectedRoomId) return;
+  event.preventDefault();
+  store.removePlacedRoom(store.selectedRoomId);
+}
+
 function syncPlacedRooms() {
   if (!engine) return;
+  engine.pruneRooms(Object.keys(store.placedRooms));
   const { hx, hz } = innerHalf(store.dimensions.width / 1000, store.dimensions.depth / 1000);
   for (const [id, info] of Object.entries(store.placedRooms)) {
     const fitted = fitRoom({ x: info.x, z: info.z, w: info.w, d: info.d }, hx, hz);
@@ -338,6 +353,13 @@ watch(
   () => syncNotePins()
 );
 
+watch(
+  () => store.selectedRoomId,
+  (id) => {
+    engine?.setSelectedRoom(id);
+  }
+);
+
 // Watch selected slot highlight
 watch(
   () => store.selectedSlotId,
@@ -361,6 +383,7 @@ watch(
 );
 
 onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onRoomKey);
   engine?.destroy();
 });
 
