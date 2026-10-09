@@ -768,7 +768,7 @@
                 ]"
               >
                 <div class="flex flex-col items-center">
-                  <span>Sovrum</span>
+                  <span><Cms k="interior.bedroom" fallback="Sovrum" /></span>
                   <span class="text-[10px] font-normal opacity-75">3.0 x 3.0 m</span>
                 </div>
               </button>
@@ -783,7 +783,7 @@
                 ]"
               >
                 <div class="flex flex-col items-center">
-                  <span>Badrum</span>
+                  <span><Cms k="interior.bathroom" fallback="Badrum" /></span>
                   <span class="text-[10px] font-normal opacity-75">2.0 x 2.0 m</span>
                 </div>
               </button>
@@ -798,7 +798,7 @@
                 ]"
               >
                 <div class="flex flex-col items-center">
-                  <span>Kök / Pentry</span>
+                  <span><Cms k="interior.kitchen" fallback="Kök / Pentry" /></span>
                   <span class="text-[10px] font-normal opacity-75">3.0 x 2.0 m</span>
                 </div>
               </button>
@@ -813,7 +813,7 @@
                 ]"
               >
                 <div class="flex flex-col items-center">
-                  <span>Förråd</span>
+                  <span><Cms k="interior.storage" fallback="Förråd" /></span>
                   <span class="text-[10px] font-normal opacity-75">1.5 x 1.5 m</span>
                 </div>
               </button>
@@ -824,16 +824,22 @@
               <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2"><Cms k="interior.placedRooms" fallback="Placerade Rum" /></h4>
               <div v-for="(room, id) in store.placedRooms" :key="id" class="mb-3 space-y-1">
                 <div class="flex justify-between items-center text-xs font-semibold text-slate-700">
-                  <span class="capitalize">{{ room.type === 'bedroom' ? 'Sovrum' : room.type === 'bathroom' ? 'Badrum' : room.type === 'kitchen' ? 'Kök / Pentry' : 'Förråd' }} {{ id.split('_')[1] }}</span>
+                  <span class="capitalize">
+                    <Cms v-if="room.type === 'bedroom'" k="interior.bedroom" fallback="Sovrum" />
+                    <Cms v-else-if="room.type === 'bathroom'" k="interior.bathroom" fallback="Badrum" />
+                    <Cms v-else-if="room.type === 'kitchen'" k="interior.kitchen" fallback="Kök / Pentry" />
+                    <Cms v-else k="interior.storage" fallback="Förråd" />
+                    {{ id.split('_')[1] }}
+                  </span>
                   <span class="text-[10px] tabular-nums">{{ room.w.toFixed(1) }} × {{ room.d.toFixed(1) }} m</span>
                 </div>
                 <div class="flex gap-2">
                   <label class="flex-1 flex items-center gap-2 text-[10px] font-medium text-slate-600">
-                    Bredd:
+                    <Cms k="interior.width" fallback="Bredd:" />
                     <input type="range" min="1.0" max="6.0" step="0.1" v-model.number="room.w" class="w-full accent-slate-900" />
                   </label>
                   <label class="flex-1 flex items-center gap-2 text-[10px] font-medium text-slate-600">
-                    Djup:
+                    <Cms k="interior.depth" fallback="Djup:" />
                     <input type="range" min="1.0" max="6.0" step="0.1" v-model.number="room.d" class="w-full accent-slate-900" />
                   </label>
                 </div>
@@ -855,11 +861,11 @@
                 ]"
               >
                 <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h18v18H3z"/><path d="M3 9h18M9 21V9"/></svg>
-                Rita Vägg
+                <Cms k="interior.drawWall" fallback="Rita Vägg" />
               </button>
               <button type="button" class="p-2 border border-slate-300 rounded-lg bg-white text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-sm flex items-center justify-center gap-2">
                 <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 21h16M5 21V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v17M12 4c5 0 7 2 7 8v9"/><circle cx="10" cy="12" r="1" fill="currentColor"/></svg>
-                Innerdörr
+                <Cms k="interior.innerDoor" fallback="Innerdörr" />
               </button>
             </div>
           </div>
@@ -870,7 +876,7 @@
           <div>
             <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2"><Cms k="interior.utilityCore" fallback="Placera VVS-Kärna" /></h4>
             <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 text-center mb-3">
-              <p class="text-[11px] text-slate-600 mb-2">Placera kärnan i huset. Systemet drar automatiskt avlopp och tappvatten dit.</p>
+              <p class="text-[11px] text-slate-600 mb-2"><Cms k="interior.utilityCoreDesc" fallback="Placera kärnan i huset. Systemet drar automatiskt avlopp och tappvatten dit." /></p>
               <button
                 type="button"
                 @click="store.setInteractionMode(store.interactionMode === 'place_utility' ? 'default' : 'place_utility')"
@@ -882,7 +888,7 @@
                 ]"
               >
                 <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
-                Placera Huvudstam
+                <Cms k="interior.placeCore" fallback="Placera Huvudstam" />
               </button>
             </div>
           </div>
@@ -897,29 +903,28 @@
             </div>
             <div class="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-3">
               <p class="text-[11px] text-blue-800 mb-2">
-                Vi kan auto-placera uttag varannan meter och brytare vid dörrar enligt svensk standard.
+                <Cms k="interior.smartElecDesc" fallback="Vi kan auto-placera uttag varannan meter och brytare vid dörrar enligt svensk standard." />
               </p>
               <button
                 type="button"
                 @click="store.triggerGenerateElectrical()"
                 class="w-full p-2 border border-blue-600 rounded-lg bg-blue-600 text-xs font-bold text-white hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 shadow-sm"
-              >
-                Generera Standard-El
+                <Cms k="interior.generateElec" fallback="Generera Standard-El" />
               </button>
             </div>
             <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2"><Cms k="interior.manual" fallback="Manuella Verktyg" /></h4>
             <div class="grid grid-cols-2 gap-2">
               <button type="button" class="p-2 border border-slate-300 rounded-lg bg-white text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-sm flex items-center justify-center gap-2">
-                Eluttag
+                <Cms k="interior.outlet" fallback="Eluttag" />
               </button>
               <button type="button" class="p-2 border border-slate-300 rounded-lg bg-white text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-sm flex items-center justify-center gap-2">
-                Strömbrytare
+                <Cms k="interior.switch" fallback="Strömbrytare" />
               </button>
               <button type="button" class="p-2 border border-slate-300 rounded-lg bg-white text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-sm flex items-center justify-center gap-2">
-                Taklampa
+                <Cms k="interior.ceilingLamp" fallback="Taklampa" />
               </button>
               <button type="button" class="p-2 border border-slate-300 rounded-lg bg-white text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-sm flex items-center justify-center gap-2">
-                Fasadbelysning
+                <Cms k="interior.facadeLighting" fallback="Fasadbelysning" />
               </button>
             </div>
           </div>
