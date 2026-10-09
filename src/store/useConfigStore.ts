@@ -641,7 +641,7 @@ export const useConfigStore = defineStore('config', () => {
       if (data.activeGate) activeGate.value = data.activeGate;
       doorCanopy.value = data.doorCanopy === true;
       terrace.value = data.terrace === true;
-      terraceCeiling.value = terrace.value && data.terraceCeiling === true;
+      terraceCeiling.value = data.terraceCeiling === true;
       bigTerrace.value = data.bigTerrace === true;
       if (data.terraceSide === 'front' || data.terraceSide === 'back' || data.terraceSide === 'left' || data.terraceSide === 'right') {
         terraceSide.value = data.terraceSide;
