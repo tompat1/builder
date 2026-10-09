@@ -1048,6 +1048,15 @@
                 <rect x="83" y="12" width="44" height="56" fill="currentColor" fill-opacity="0.18" stroke="currentColor" stroke-width="0.8" />
                 <circle cx="77" cy="42" r="1.5" fill="currentColor" />
               </template>
+              <template v-else-if="door.id === 'SKJUTDORR3'">
+                <rect x="14" y="8" width="132" height="64" rx="1" stroke="currentColor" stroke-width="2" />
+                <line x1="58" y1="8" x2="58" y2="72" stroke="currentColor" stroke-width="1.5" />
+                <line x1="102" y1="8" x2="102" y2="72" stroke="currentColor" stroke-width="1.5" />
+                <rect x="18" y="12" width="36" height="56" fill="currentColor" fill-opacity="0.18" stroke="currentColor" stroke-width="0.8" />
+                <rect x="62" y="12" width="36" height="56" fill="currentColor" fill-opacity="0.18" stroke="currentColor" stroke-width="0.8" />
+                <rect x="106" y="12" width="36" height="56" fill="currentColor" fill-opacity="0.18" stroke="currentColor" stroke-width="0.8" />
+                <circle cx="80" cy="42" r="1.5" fill="currentColor" />
+              </template>
               <template v-else>
                 <rect x="66" y="12" width="6" height="52" fill="currentColor" fill-opacity="0.25" stroke="currentColor" stroke-width="0.8" />
               </template>

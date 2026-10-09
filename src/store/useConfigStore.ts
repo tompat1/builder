@@ -294,6 +294,14 @@ export const DOORS_OPTIONS: OptionItem[] = [
     spec: 'Mått 20×21, 3-glas isoler',
     priceDelta: 14500,
     doorType: 'sliding'
+  },
+  {
+    id: 'SKJUTDORR3',
+    name: 'FALSTERBO',
+    desc: 'Skjutdörr helglasad i aluminium, tre lufter, 30x21',
+    spec: 'Mått 30×21, 3-glas isoler',
+    priceDelta: 21900,
+    doorType: 'sliding'
   }
 ];
 
@@ -374,6 +382,8 @@ export interface WallSlot {
   itemId?: string;
   canAcceptDoor?: boolean;
   isUpper?: boolean;
+  /** Lower bay covered by a three-pane slider hosted on another slot. */
+  coveredBy?: string;
 }
 
 const PANEL_COUNTS = { front: 4, back: 4, left: 3, right: 3 } as const;
@@ -1057,12 +1067,45 @@ export const useConfigStore = defineStore('config', () => {
     noteAnchors.value = next;
   }
 
+  function releaseWideDoor(slotId: string) {
+    const slot = wallSlots.value[slotId];
+    if (!slot) return;
+    if (slot.itemId === 'SKJUTDORR3') {
+      for (const other of Object.values(wallSlots.value)) {
+        if (other.coveredBy === slotId) other.coveredBy = undefined;
+      }
+    }
+    const hostId = slot.coveredBy;
+    if (!hostId) return;
+    slot.coveredBy = undefined;
+    const host = wallSlots.value[hostId];
+    if (host?.itemId !== 'SKJUTDORR3') return;
+    host.type = 'empty';
+    host.itemId = undefined;
+    for (const other of Object.values(wallSlots.value)) {
+      if (other.coveredBy === hostId) other.coveredBy = undefined;
+    }
+  }
+
   function assignSlotItem(slotId: string, type: 'empty' | 'door' | 'window' | 'gate', itemId?: string) {
     const slot = wallSlots.value[slotId];
     if (!slot) return;
     if ((type === 'door' || type === 'gate') && slot.canAcceptDoor === false) return;
+    releaseWideDoor(slotId);
     slot.type = type;
     slot.itemId = itemId;
+    slot.coveredBy = undefined;
+    if (itemId === 'SKJUTDORR3' && !slot.isUpper) {
+      const count = slot.wall === 'front' || slot.wall === 'back' ? 4 : 3;
+      const partnerIndex = slot.index + 1 < count ? slot.index + 1 : slot.index - 1;
+      const partner = wallSlots.value[`${slot.wall}-${partnerIndex}`];
+      if (partner && !partner.isUpper) {
+        releaseWideDoor(partner.id);
+        partner.type = 'empty';
+        partner.itemId = undefined;
+        partner.coveredBy = slotId;
+      }
+    }
     saveSnapshot();
   }
 

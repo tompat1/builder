@@ -1061,6 +1061,11 @@ const en = {
     LERVIK: {
       desc: 'Stabil exterior door, plain, with a vertical light, 10×21'
     },
+    SKJUTDORR3: {
+      name: 'FALSTERBO',
+      desc: 'Fully glazed aluminium sliding door, three panes, 30×21',
+      spec: 'Size 30×21, triple insulating glass'
+    },
     'standard-single': {
       name: 'Triple-glazed tilt window',
       desc: 'A practical tilt window, cleaned from inside, with a child lock.',

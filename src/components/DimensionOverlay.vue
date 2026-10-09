@@ -1,5 +1,5 @@
 <template>
-  <div v-if="store.showDimensions" class="pointer-events-none absolute inset-0 z-10 select-none overflow-hidden" aria-hidden="true">
+  <div v-if="store.showDimensions && store.viewMode === 'utsida'" class="pointer-events-none absolute inset-0 z-10 select-none overflow-hidden" aria-hidden="true">
     <div
       id="dim-front-annotation"
       class="absolute -translate-x-1/2 -translate-y-1/2 bg-white/90 backdrop-blur-xs px-3 py-1 rounded-md border border-slate-300/80 shadow-2xs text-center"
@@ -53,9 +53,10 @@
         <Cms v-else k="dims.overall" />
       </span>
     </div>
+  </div>
 
+  <div v-if="store.showDimensions && store.viewMode === 'insida'" class="pointer-events-none absolute inset-0 z-10 select-none overflow-hidden" aria-hidden="true">
     <div
-      v-if="store.viewMode === 'insida'"
       id="dim-inside-height"
       class="absolute -translate-x-1/2 -translate-y-1/2 bg-white/95 backdrop-blur-xs px-2.5 py-1 rounded-md border border-slate-300 shadow-2xs text-center"
       :style="labelStyle('ceiling')"
