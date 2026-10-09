@@ -154,77 +154,12 @@
         </li>
       </ul>
     </div>
-
-    <!-- Admin Tools for Knowledge Base -->
-    <div v-if="session.user?.role === 'admin'" class="mt-4 pt-3 border-t border-slate-200/80">
-      <div class="flex items-center justify-between mb-2">
-        <p class="text-[11px] font-bold text-slate-900 uppercase tracking-wider"><Cms k="account.knowledge" fallback="Admin: Knowledge Tools" /></p>
-        <button
-          type="button"
-          @click="showAdminTools = !showAdminTools"
-          class="text-xs font-semibold text-slate-500 hover:text-slate-900"
-        >
-          <Cms v-if="showAdminTools" k="panel.hide" />
-          <Cms v-else k="panel.show" />
-        </button>
-      </div>
-
-      <div v-if="showAdminTools" class="space-y-4">
-        <p v-if="adminNotice" class="text-[10px] text-emerald-800">{{ adminNotice }}</p>
-        <p v-if="adminError" class="text-[10px] text-red-800">{{ adminError }}</p>
-
-        <!-- Resource Form -->
-        <form class="space-y-1.5 bg-slate-50 p-2.5 rounded-xl border border-slate-200" @submit.prevent="addResource">
-          <p class="font-bold text-slate-900 text-xs"><Cms k="account.resources" /></p>
-          <label class="block font-semibold text-slate-600 text-[10px]" for="resource-title"><Cms k="account.resourceTitle" /></label>
-          <input id="resource-title" v-model="resourceTitle" class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-slate-900 text-xs" />
-          <label class="block font-semibold text-slate-600 text-[10px]" for="resource-body"><Cms k="account.resourceBody" /></label>
-          <textarea id="resource-body" v-model="resourceBody" rows="3" class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-slate-900 text-xs"></textarea>
-          <label class="block font-semibold text-slate-600 text-[10px]" for="resource-keywords"><Cms k="account.resourceKeywords" /></label>
-          <input id="resource-keywords" v-model="resourceKeywords" class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-slate-900 text-xs" />
-          <label class="block font-semibold text-slate-600 text-[10px]" for="resource-link"><Cms k="account.resourceLink" /></label>
-          <input id="resource-link" v-model="resourceLink" type="url" class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-slate-900 text-xs" />
-          <button type="submit" class="w-full rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50" :disabled="resourceBusy">
-            <Cms k="account.resourceAdd" />
-          </button>
-          <ul v-if="resources.items.length" class="space-y-1 pt-1 mt-2 border-t border-slate-200">
-            <li v-for="item in resources.items" :key="item.id" class="flex items-center justify-between gap-2 text-[11px]">
-              <span class="truncate text-slate-800">{{ item.title }}</span>
-              <button type="button" class="shrink-0 font-semibold text-slate-500 hover:text-slate-900" @click="removeResource(item.id)">
-                <Cms k="account.resourceRemove" />
-              </button>
-            </li>
-          </ul>
-        </form>
-
-        <!-- Source Form -->
-        <form class="space-y-1.5 bg-slate-50 p-2.5 rounded-xl border border-slate-200" @submit.prevent="addSource">
-          <p class="font-bold text-slate-900 text-xs"><Cms k="account.references" /></p>
-          <label class="sr-only" for="reference-url"><Cms k="account.references" /></label>
-          <input id="reference-url" v-model="referenceUrl" type="url" placeholder="https://" class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-slate-900 text-xs" />
-          <button type="submit" class="w-full rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:opacity-50" :disabled="referenceBusy">
-            <Cms k="account.referenceAdd" />
-          </button>
-          <ul v-if="sources.items.length" class="space-y-1 pt-1 mt-2 border-t border-slate-200">
-            <li v-for="site in sources.items" :key="site" class="flex items-center justify-between gap-2 text-[11px]">
-              <a :href="site" target="_blank" rel="noopener noreferrer" class="truncate font-semibold text-slate-800 underline underline-offset-2">{{ site }}</a>
-              <button type="button" class="shrink-0 font-semibold text-slate-500 hover:text-slate-900" @click="removeSource(site)">
-                <Cms k="account.resourceRemove" />
-              </button>
-            </li>
-          </ul>
-        </form>
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue';
 import { useConfigStore } from '../store/useConfigStore';
-import { useSessionStore } from '../store/useSessionStore';
-import { useResourceStore } from '../store/useResourceStore';
-import { useSourceStore } from '../store/useSourceStore';
 import { useLabels } from '../i18n';
 import { allKnowledgeEntries, askKnowledge, type KnowledgeApply, type KnowledgeEntry, type KnowledgeHit, type KnowledgeLang } from '../knowledge/hub';
 import { askKnowledgeWorker, type RetrievedPassage, type WebAnswer } from '../services/knowledgeWorker';
@@ -233,89 +168,8 @@ import CmsImage from './CmsImage.vue';
 import Cms from './Cms.vue';
 
 const store = useConfigStore();
-const session = useSessionStore();
-const resources = useResourceStore();
-const sources = useSourceStore();
 const { t, locale } = useLabels();
 
-const showAdminTools = ref(false);
-const resourceTitle = ref('');
-const resourceBody = ref('');
-const resourceKeywords = ref('');
-const resourceLink = ref('');
-const resourceBusy = ref(false);
-
-const referenceUrl = ref('');
-const referenceBusy = ref(false);
-const adminNotice = ref('');
-const adminError = ref('');
-
-const messages: Record<string, string> = {
-  bad_resource: 'account.badResource',
-  bad_link: 'account.badLink'
-};
-
-function showAdminError(code: string) {
-  adminNotice.value = '';
-  const key = messages[code];
-  adminError.value = key ? t(key) : code;
-}
-
-async function addResource() {
-  adminError.value = '';
-  adminNotice.value = '';
-  resourceBusy.value = true;
-  try {
-    await resources.add({
-      title: resourceTitle.value,
-      body: resourceBody.value,
-      keywords: resourceKeywords.value,
-      linkHref: resourceLink.value
-    });
-    resourceTitle.value = '';
-    resourceBody.value = '';
-    resourceKeywords.value = '';
-    resourceLink.value = '';
-    adminNotice.value = t('account.resourceSaved');
-  } catch (caught) {
-    showAdminError(caught instanceof Error ? caught.message : 'bad_resource');
-  } finally {
-    resourceBusy.value = false;
-  }
-}
-
-async function removeResource(id: string) {
-  adminError.value = '';
-  try {
-    await resources.remove(id);
-  } catch (caught) {
-    showAdminError(caught instanceof Error ? caught.message : 'bad_resource');
-  }
-}
-
-async function addSource() {
-  adminError.value = '';
-  adminNotice.value = '';
-  referenceBusy.value = true;
-  try {
-    await sources.add(referenceUrl.value);
-    referenceUrl.value = '';
-    adminNotice.value = t('account.referenceSaved');
-  } catch (caught) {
-    showAdminError(caught instanceof Error ? caught.message : 'bad_link');
-  } finally {
-    referenceBusy.value = false;
-  }
-}
-
-async function removeSource(url: string) {
-  adminError.value = '';
-  try {
-    await sources.remove(url);
-  } catch (caught) {
-    showAdminError(caught instanceof Error ? caught.message : 'bad_link');
-  }
-}
 const customPrompt = ref('');
 const hit = ref<KnowledgeHit | null>(null);
 const miss = ref(false);

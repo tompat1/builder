@@ -218,6 +218,12 @@ const sv = {
     referenceAdd: 'Spara',
     referenceSaved: 'Adressen är sparad.'
   },
+  aiAdmin: {
+    open: 'AI',
+    title: 'AI-kunskap',
+    body: 'Lägg till vanliga frågor och svar, och de sidor assistenten får läsa.',
+    close: 'Stäng'
+  },
   panel: {
     label: 'Konfigurationspanel',
     title: 'Börja anpassa din byggnad',
@@ -697,6 +703,12 @@ const en = {
     references: 'Reference sites',
     referenceAdd: 'Save',
     referenceSaved: 'The address is saved.'
+  },
+  aiAdmin: {
+    open: 'AI',
+    title: 'AI knowledge',
+    body: 'Add common questions and answers, and the pages the assistant may read.',
+    close: 'Close'
   },
   panel: {
     label: 'Configuration panel',

@@ -109,6 +109,7 @@
 
     <!-- Price and Action Cluster -->
     <div class="flex items-center gap-2 md:gap-5 shrink-0">
+      <AdminAiPanel />
       <button
         v-if="session.user?.role === 'admin'"
         type="button"
@@ -195,6 +196,7 @@ import { useSessionStore } from '../store/useSessionStore';
 import { applyLocale, useLabels } from '../i18n';
 import { readLocalHouse } from '../services/houseSave';
 import SavedHouses from './SavedHouses.vue';
+import AdminAiPanel from './AdminAiPanel.vue';
 import Cms from './Cms.vue';
 
 const store = useConfigStore();
