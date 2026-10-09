@@ -748,23 +748,18 @@ export class HouseScene {
 
           let w = 2.0;
           let d = 2.0;
-          let color = 0x64748b;
+          if (roomType === 'bathroom') { w = 2.0; d = 2.0; }
+          if (roomType === 'bedroom') { w = 3.0; d = 3.0; }
+          if (roomType === 'kitchen') { w = 3.0; d = 2.0; }
+          if (roomType === 'storage') { w = 1.5; d = 1.5; }
 
-          if (roomType === 'bathroom') { w = 2.0; d = 2.0; color = 0x38bdf8; }
-          if (roomType === 'bedroom') { w = 3.0; d = 3.0; color = 0x4ade80; }
-          if (roomType === 'kitchen') { w = 3.0; d = 2.0; color = 0xfacc15; }
-          if (roomType === 'storage') { w = 1.5; d = 1.5; color = 0x94a3b8; }
-
-          // MVP: just place a solid block representing the room zone
-          const roomGeo = new THREE.BoxGeometry(w, 2.4, d);
-          const roomMat = new THREE.MeshStandardMaterial({ color, transparent: true, opacity: 0.5 });
-          const roomMesh = new THREE.Mesh(roomGeo, roomMat);
-          roomMesh.position.copy(vecPt);
-          roomMesh.position.y = 1.2;
-          roomMesh.userData.type = 'room_zone';
-
-          if (this.isValidInteriorPlacement(roomMesh)) {
-            this.interiorGroup.add(roomMesh);
+          const roomGroup = this.createRoomGroup(roomType, w, d);
+          roomGroup.position.copy(vecPt);
+          // Remove existing room of this type (only allow 1 bathroom, 1 kitchen, etc. for MVP)
+          const existing = this.interiorGroup.children.find(c => c.userData.type === 'room_zone' && c.userData.roomType === roomType);
+          if (this.isValidInteriorPlacement(roomGroup, existing)) {
+            if (existing) this.interiorGroup.remove(existing);
+            this.interiorGroup.add(roomGroup);
           }
         }
         return;
@@ -1615,7 +1610,7 @@ export class HouseScene {
     return (hit.userData.panelGroup as THREE.Object3D | undefined) ?? hit;
   }
 
-  private isValidInteriorPlacement(mesh: THREE.Mesh): boolean {
+  private isValidInteriorPlacement(mesh: THREE.Object3D, ignoredObject?: THREE.Object3D): boolean {
     mesh.updateMatrixWorld();
     const box = new THREE.Box3().setFromObject(mesh);
 
@@ -1628,7 +1623,7 @@ export class HouseScene {
 
     // Check collisions with other interior zones/cores
     for (const child of this.interiorGroup.children) {
-      if (child !== mesh && (child.userData.type === 'room_zone' || child.userData.type === 'utility_core')) {
+      if (child !== mesh && child !== ignoredObject && (child.userData.type === 'room_zone' || child.userData.type === 'utility_core')) {
         const otherBox = new THREE.Box3().setFromObject(child);
         if (box.intersectsBox(otherBox)) {
           return false; // Collision
@@ -3012,6 +3007,99 @@ export class HouseScene {
       outlet.userData.type = 'electrical_outlet';
       this.interiorGroup.add(outlet);
     }
+  }
+
+  private createRoomGroup(roomType: string, w: number, d: number): THREE.Group {
+    const group = new THREE.Group();
+    group.userData.type = 'room_zone';
+    group.userData.roomType = roomType;
+
+    // Floor
+    const floorGeo = new THREE.BoxGeometry(w, 0.05, d);
+    const floorMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0 });
+    const floor = new THREE.Mesh(floorGeo, floorMat);
+    floor.position.y = 0.025;
+    group.add(floor);
+
+    // Walls (inner walls)
+    const wallThick = 0.1;
+    const wallH = 2.4;
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc });
+    // back
+    const w1 = new THREE.Mesh(new THREE.BoxGeometry(w, wallH, wallThick), wallMat);
+    w1.position.set(0, wallH/2, -d/2 + wallThick/2);
+    group.add(w1);
+    // front (with a gap for door)
+    const w2a = new THREE.Mesh(new THREE.BoxGeometry(w/2 - 0.4, wallH, wallThick), wallMat);
+    w2a.position.set(-(w/4 + 0.2), wallH/2, d/2 - wallThick/2);
+    group.add(w2a);
+    const w2b = new THREE.Mesh(new THREE.BoxGeometry(w/2 - 0.4, wallH, wallThick), wallMat);
+    w2b.position.set(w/4 + 0.2, wallH/2, d/2 - wallThick/2);
+    group.add(w2b);
+    // door header
+    const w2c = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.3, wallThick), wallMat);
+    w2c.position.set(0, wallH - 0.15, d/2 - wallThick/2);
+    group.add(w2c);
+
+    // left
+    const w3 = new THREE.Mesh(new THREE.BoxGeometry(wallThick, wallH, d - wallThick*2), wallMat);
+    w3.position.set(-w/2 + wallThick/2, wallH/2, 0);
+    group.add(w3);
+    // right
+    const w4 = new THREE.Mesh(new THREE.BoxGeometry(wallThick, wallH, d - wallThick*2), wallMat);
+    w4.position.set(w/2 - wallThick/2, wallH/2, 0);
+    group.add(w4);
+
+    if (roomType === 'bathroom') {
+      // Shower
+      const showerGeo = new THREE.BoxGeometry(0.9, 0.1, 0.9);
+      const showerMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1 });
+      const shower = new THREE.Mesh(showerGeo, showerMat);
+      shower.position.set(-w/2 + 0.45 + wallThick, 0.05, -d/2 + 0.45 + wallThick);
+      group.add(shower);
+      // Shower glass
+      const glassGeo = new THREE.BoxGeometry(0.9, 2.0, 0.02);
+      const glassMat = new THREE.MeshStandardMaterial({ color: 0xbae6fd, transparent: true, opacity: 0.4 });
+      const glass = new THREE.Mesh(glassGeo, glassMat);
+      glass.position.set(-w/2 + 0.45 + wallThick, 1.0, -d/2 + 0.9 + wallThick);
+      group.add(glass);
+
+      // Toilet
+      const wcGeo = new THREE.BoxGeometry(0.4, 0.45, 0.5);
+      const wcMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+      const wc = new THREE.Mesh(wcGeo, wcMat);
+      wc.position.set(w/2 - 0.4 - wallThick, 0.225, -d/2 + 0.25 + wallThick);
+      group.add(wc);
+
+      // Sink
+      const sinkGeo = new THREE.BoxGeometry(0.6, 0.15, 0.4);
+      const sink = new THREE.Mesh(sinkGeo, wcMat);
+      sink.position.set(w/2 - 0.3 - wallThick, 0.85, 0);
+      group.add(sink);
+    } else if (roomType === 'kitchen') {
+      // Kitchen counter
+      const counterGeo = new THREE.BoxGeometry(w - wallThick*2, 0.9, 0.6);
+      const counterMat = new THREE.MeshStandardMaterial({ color: 0x334155 });
+      const counter = new THREE.Mesh(counterGeo, counterMat);
+      counter.position.set(0, 0.45, -d/2 + 0.3 + wallThick);
+      group.add(counter);
+    } else if (roomType === 'bedroom') {
+      // Bed
+      const bedGeo = new THREE.BoxGeometry(1.6, 0.5, 2.0);
+      const bedMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8 });
+      const bed = new THREE.Mesh(bedGeo, bedMat);
+      bed.position.set(0, 0.25, -d/2 + 1.0 + wallThick);
+      group.add(bed);
+    }
+
+    // To make it easy to click/drag or view bounds, add an invisible bounding box
+    const boundGeo = new THREE.BoxGeometry(w, wallH, d);
+    const boundMat = new THREE.MeshBasicMaterial({ visible: false });
+    const boundMesh = new THREE.Mesh(boundGeo, boundMat);
+    boundMesh.position.y = wallH/2;
+    group.add(boundMesh);
+
+    return group;
   }
 
   /** Parts a paper note can follow. Stored without rebuilding the house. */
