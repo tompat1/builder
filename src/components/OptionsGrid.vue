@@ -909,6 +909,7 @@
                 type="button"
                 @click="store.triggerGenerateElectrical()"
                 class="w-full p-2 border border-blue-600 rounded-lg bg-blue-600 text-xs font-bold text-white hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 shadow-sm"
+              >
                 <Cms k="interior.generateElec" fallback="Generera Standard-El" />
               </button>
             </div>
