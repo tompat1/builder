@@ -119,7 +119,9 @@ onMounted(() => {
       wallSlots: store.wallSlots,
       doorCanopy: store.doorCanopy,
       terrace: store.terrace,
-      terraceCeiling: store.terraceCeiling
+      terraceCeiling: store.terraceCeiling,
+      bigTerrace: store.bigTerrace,
+      terraceSide: store.terraceSide
     });
 
     // Wire raycast clicks & hover from 3D scene to store
@@ -347,9 +349,15 @@ watch(
 );
 
 watch(
-  [() => store.doorCanopy, () => store.terrace, () => store.terraceCeiling],
-  ([doorCanopy, terrace, terraceCeiling]) => {
-    engine?.updateConfig({ doorCanopy, terrace, terraceCeiling });
+  [
+    () => store.doorCanopy,
+    () => store.terrace,
+    () => store.terraceCeiling,
+    () => store.bigTerrace,
+    () => store.terraceSide
+  ],
+  ([doorCanopy, terrace, terraceCeiling, bigTerrace, terraceSide]) => {
+    engine?.updateConfig({ doorCanopy, terrace, terraceCeiling, bigTerrace, terraceSide });
   }
 );
 

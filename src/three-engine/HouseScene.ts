@@ -57,6 +57,9 @@ export interface SceneConfig {
   terrace?: boolean;
   /** Roof over the terrace. Only drawn when the terrace is on. */
   terraceCeiling?: boolean;
+  /** Covered deck running the full length of one wall. */
+  bigTerrace?: boolean;
+  terraceSide?: 'front' | 'back' | 'left' | 'right';
 }
 
 interface OutsideAnchor {
@@ -173,7 +176,9 @@ export class HouseScene {
       wallSlots: initialConfig?.wallSlots ?? {},
       doorCanopy: initialConfig?.doorCanopy ?? false,
       terrace: initialConfig?.terrace ?? false,
-      terraceCeiling: initialConfig?.terraceCeiling ?? false
+      terraceCeiling: initialConfig?.terraceCeiling ?? false,
+      bigTerrace: initialConfig?.bigTerrace ?? false,
+      terraceSide: initialConfig?.terraceSide ?? 'front'
     };
 
     this.scene = new THREE.Scene();
@@ -2130,8 +2135,15 @@ export class HouseScene {
     return { winW, winH, winY: (sill + head) / 2 - centerY, sill, head };
   }
 
+  /** Each wall group is rotated so its local +Z already points away from the house. */
   private outwardSign(wall: OutsideAnchor['wall']) {
-    return wall === 'left' || wall === 'right' ? -1 : 1;
+    const facingOut: Record<OutsideAnchor['wall'], number> = {
+      front: 1,
+      back: 1,
+      left: 1,
+      right: 1
+    };
+    return facingOut[wall];
   }
 
   /** Exterior doors, one per opening. A wide slider is listed once, on its host bay. */
@@ -2258,13 +2270,16 @@ export class HouseScene {
     ceilingMat: THREE.Material,
     ceiling: boolean,
     w: number,
-    d: number
+    d: number,
+    full = false
   ) {
     const outward = this.outwardSign(door.wall);
-    const depth = 1.8;
+    const depth = full ? 2.4 : 1.8;
     const wallSpan = door.wall === 'front' || door.wall === 'back' ? w : d;
-    const width = Math.min(Math.max(door.width + 1.5, 2.4), Math.max(1.6, wallSpan - 0.3));
-    const along = this.terraceShift(door, width, w, d);
+    const width = full
+      ? wallSpan
+      : Math.min(Math.max(door.width + 1.5, 2.4), Math.max(1.6, wallSpan - 0.3));
+    const along = full ? 0 : this.terraceShift(door, width, w, d);
     const deckTop = 0.36;
     const boardT = 0.028;
     const group = new THREE.Group();
@@ -2300,8 +2315,8 @@ export class HouseScene {
     group.add(rim);
 
     if (ceiling) {
-      const projection = depth + 0.22;
-      const roofW = width + 0.28;
+      const projection = depth + (full ? 0.28 : 0.22);
+      const roofW = width + (full ? 0.12 : 0.28);
       const pitch = (6 * Math.PI) / 180;
       const y = door.head + 0.34;
       const roof = new THREE.Mesh(new THREE.BoxGeometry(roofW, 0.04, projection), roofMat);
@@ -2326,25 +2341,59 @@ export class HouseScene {
       group.add(fascia);
 
       const postH = Math.max(1.4, y - deckTop - 0.08);
-      for (const side of [-1, 1]) {
+      const postCount = full ? Math.max(2, Math.ceil(width / 2.4) + 1) : 2;
+      const outerZ = outward * (0.08 + depth - 0.1);
+      for (let i = 0; i < postCount; i++) {
+        const x = postCount === 1
+          ? 0
+          : -width / 2 + 0.12 + (i * (width - 0.24)) / (postCount - 1);
         const post = new THREE.Mesh(new THREE.BoxGeometry(0.09, postH, 0.09), timber);
-        post.position.set(
-          along + side * (width / 2 - 0.1),
-          deckTop + postH / 2,
-          outward * (0.08 + depth - 0.1)
-        );
+        post.position.set(along + x, deckTop + postH / 2, outerZ);
         post.castShadow = true;
         group.add(post);
+      }
+      if (full) {
+        const beam = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.4, width - 0.2), 0.09, 0.09), timber);
+        beam.position.set(along, deckTop + postH - 0.02, outerZ);
+        beam.castShadow = true;
+        group.add(beam);
       }
     }
 
     this.wallsGroup.add(group);
   }
 
+  private sideAnchor(
+    wall: OutsideAnchor['wall'],
+    w: number,
+    d: number,
+    h: number
+  ): OutsideAnchor {
+    const cladding = 0.025;
+    const head = this.outsideAnchors(w, d, h)
+      .filter((door) => door.wall === wall)
+      .reduce((max, door) => Math.max(max, door.head), 2.2);
+    const span = wall === 'front' || wall === 'back' ? w : d;
+    if (wall === 'front') {
+      return { px: 0, pz: d / 2 - cladding / 2, rotY: 0, doorX: 0, width: span, head, wall };
+    }
+    if (wall === 'back') {
+      return { px: 0, pz: -d / 2 + cladding / 2, rotY: Math.PI, doorX: 0, width: span, head, wall };
+    }
+    if (wall === 'left') {
+      return { px: -w / 2 + cladding / 2, pz: 0, rotY: -Math.PI / 2, doorX: 0, width: span, head, wall };
+    }
+    return { px: w / 2 - cladding / 2, pz: 0, rotY: Math.PI / 2, doorX: 0, width: span, head, wall };
+  }
+
   private buildOutsideAdditions(w: number, d: number, h: number) {
     const canopyOn = Boolean(this.currentConfig.doorCanopy);
     const terraceOn = Boolean(this.currentConfig.terrace);
-    if (!canopyOn && !terraceOn) return;
+    const requestedSide = this.currentConfig.terraceSide;
+    const fullSide = this.currentConfig.bigTerrace
+      ? (requestedSide === 'back' || requestedSide === 'left' || requestedSide === 'right' ? requestedSide : 'front')
+      : null;
+    if (!canopyOn && !terraceOn && !fullSide) return;
 
     const found = this.outsideAnchors(w, d, h);
     const doors = found.length ? found : [this.fallbackDoor(d)];
@@ -2354,15 +2403,30 @@ export class HouseScene {
     const ceilingMat = new THREE.MeshStandardMaterial({ color: '#f3efe4', roughness: 0.72, metalness: 0.02 });
     const deckMat = new THREE.MeshStandardMaterial({ color: '#c4a574', roughness: 0.72, metalness: 0.02 });
     const ceiling = terraceOn && Boolean(this.currentConfig.terraceCeiling);
+    const doorDeckCovered = ceiling && terraceHost.wall !== fullSide;
 
     if (canopyOn) {
       for (const door of doors) {
-        if (ceiling && door === terraceHost) continue;
+        if (fullSide === door.wall) continue;
+        if (doorDeckCovered && door === terraceHost) continue;
         this.addDoorCanopy(door, timber, roofMat);
       }
     }
-    if (terraceOn) {
+    if (terraceOn && terraceHost.wall !== fullSide) {
       this.addTerrace(terraceHost, deckMat, timber, roofMat, ceilingMat, ceiling, w, d);
+    }
+    if (fullSide) {
+      this.addTerrace(
+        this.sideAnchor(fullSide, w, d, h),
+        deckMat,
+        timber,
+        roofMat,
+        ceilingMat,
+        true,
+        w,
+        d,
+        true
+      );
     }
   }
 

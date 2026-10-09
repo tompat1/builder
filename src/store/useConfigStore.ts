@@ -378,8 +378,11 @@ export const GATES_OPTIONS: OptionItem[] = [
 export const OUTSIDE_PRICES = {
   doorCanopy: 9600,
   terrace: 28400,
-  terraceCeiling: 14200
+  terraceCeiling: 14200,
+  bigTerrace: 72600
 } as const;
+
+export type TerraceSide = 'front' | 'back' | 'left' | 'right';
 
 export interface WallSlot {
   id: string;
@@ -504,6 +507,8 @@ export const useConfigStore = defineStore('config', () => {
   const doorCanopy = ref(false);
   const terrace = ref(false);
   const terraceCeiling = ref(false);
+  const bigTerrace = ref(false);
+  const terraceSide = ref<TerraceSide>('front');
 
   // Interior rooms
   const placedRooms = ref<Record<string, { type: string; w: number; d: number; x: number; y: number; z: number }>>({});
@@ -568,6 +573,8 @@ export const useConfigStore = defineStore('config', () => {
       doorCanopy: doorCanopy.value,
       terrace: terrace.value,
       terraceCeiling: terraceCeiling.value,
+      bigTerrace: bigTerrace.value,
+      terraceSide: terraceSide.value,
       activeMaterial: activeMaterial.value,
       savedPaints: savedPaints.value,
       activePaintId: activePaintId.value,
@@ -635,6 +642,10 @@ export const useConfigStore = defineStore('config', () => {
       doorCanopy.value = data.doorCanopy === true;
       terrace.value = data.terrace === true;
       terraceCeiling.value = terrace.value && data.terraceCeiling === true;
+      bigTerrace.value = data.bigTerrace === true;
+      if (data.terraceSide === 'front' || data.terraceSide === 'back' || data.terraceSide === 'left' || data.terraceSide === 'right') {
+        terraceSide.value = data.terraceSide;
+      }
       activeMaterial.value = MATERIAL_OPTIONS.some((item) => item.id === data.activeMaterial)
         ? data.activeMaterial
         : 'wood';
@@ -804,6 +815,7 @@ export const useConfigStore = defineStore('config', () => {
     if (doorCanopy.value) total += OUTSIDE_PRICES.doorCanopy;
     if (terrace.value) total += OUTSIDE_PRICES.terrace;
     if (terrace.value && terraceCeiling.value) total += OUTSIDE_PRICES.terraceCeiling;
+    if (bigTerrace.value) total += OUTSIDE_PRICES.bigTerrace;
 
     return total;
   });
@@ -982,6 +994,19 @@ export const useConfigStore = defineStore('config', () => {
     }
     if (terraceCeiling.value === on) return;
     terraceCeiling.value = on;
+    saveSnapshot();
+  }
+
+  function setBigTerrace(on: boolean) {
+    if (bigTerrace.value === on) return;
+    bigTerrace.value = on;
+    saveSnapshot();
+  }
+
+  function setTerraceSide(side: TerraceSide) {
+    if (terraceSide.value === side && bigTerrace.value) return;
+    terraceSide.value = side;
+    bigTerrace.value = true;
     saveSnapshot();
   }
 
@@ -1322,6 +1347,8 @@ export const useConfigStore = defineStore('config', () => {
     doorCanopy,
     terrace,
     terraceCeiling,
+    bigTerrace,
+    terraceSide,
     currentSize,
     currentMaterial,
     dimensions,
@@ -1367,6 +1394,8 @@ export const useConfigStore = defineStore('config', () => {
     setDoorCanopy,
     setTerrace,
     setTerraceCeiling,
+    setBigTerrace,
+    setTerraceSide,
     selectMaterial,
     selectPanelOrientation,
     selectCladdingSize,
