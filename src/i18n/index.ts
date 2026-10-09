@@ -1071,6 +1071,11 @@ const en = {
       desc: 'A floor-to-ceiling glazed section for a wide view.',
       spec: 'Size 16×21, triple energy glass'
     },
+    'panorama-portrait': {
+      name: 'Portrait panorama window',
+      desc: 'A fixed tall pane that fills a high wall section.',
+      spec: 'Size 10×21, triple energy glass'
+    },
     sprojat: {
       name: 'Two-light window with bars',
       desc: 'Side-hung windows with timber glazing bars.',

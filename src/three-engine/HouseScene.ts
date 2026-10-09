@@ -6,6 +6,7 @@ import { inferNoteNormal, noteAxes, noteCameraTransform, noteSheetTransform, not
 import { paintBoards } from '../color/paint';
 import { loftJoistTop, loftStairRun, loftStairTreads, isLoftRoom } from './loftLevel';
 import { ceilingStations, loftCeilingY, sliceStations, type CeilingStation, type RoofSlope } from './roofClearance';
+import { PORTRAIT_PANORAMA, portraitPane } from './windowFit';
 import { fitRoom, innerHalf, roomFootprint, shellSides, type ShellSides } from './roomWalls';
 
 const PULPET_PITCH_RAD = (PULPET_PITCH_DEG * Math.PI) / 180;
@@ -1984,6 +1985,13 @@ export class HouseScene {
       return { winW: doorW, winH: doorH, winY: (sill + head) / 2 - centerY, sill, head };
     }
 
+    if (itemId === PORTRAIT_PANORAMA) {
+      const pane = portraitPane(panelWidth, panelHeight, isUpper);
+      const sill = panelBase + pane.sill;
+      const head = sill + pane.height;
+      return { winW: pane.width, winH: pane.height, winY: (sill + head) / 2 - centerY, sill, head };
+    }
+
     let winH: number;
     let sill: number;
     if (isUpper) {
@@ -2303,6 +2311,14 @@ export class HouseScene {
     glass.renderOrder = 2;
     parent.add(glass);
     this.markSelectable(glass, userData);
+
+    if (windowId === PORTRAIT_PANORAMA && glassW > 0.7) {
+      const mullionMat = new THREE.MeshStandardMaterial({ color: '#f8fafc', roughness: 0.35 });
+      const mullion = new THREE.Mesh(new THREE.BoxGeometry(0.028, glassH, 0.03), mullionMat);
+      mullion.position.set(0, winY, 0.02);
+      parent.add(mullion);
+      this.markSelectable(mullion, userData);
+    }
 
     if (windowId === 'sprojat') {
       const mullionMat = new THREE.MeshStandardMaterial({ color: '#f8fafc', roughness: 0.35 });

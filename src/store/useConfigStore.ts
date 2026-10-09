@@ -313,6 +313,13 @@ export const WINDOWS_OPTIONS: OptionItem[] = [
     priceDelta: 7400
   },
   {
+    id: 'panorama-portrait',
+    name: 'Stående panoramafönster',
+    desc: 'Fast glas i stående format som fyller en hög väggsektion.',
+    spec: 'Mått 10×21, 3-glas energiglas',
+    priceDelta: 6400
+  },
+  {
     id: 'sprojat',
     name: 'Spröjsat 2-lufts',
     desc: 'Klassiska vackra sidohängda fönster med träspröjs.',

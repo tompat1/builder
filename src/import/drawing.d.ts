@@ -1,7 +1,7 @@
 export type DrawingRoof = 'pulpettak' | 'sadeltak' | 'sadeltak14' | 'flackt';
 export type DrawingCovering = 'felt' | 'metal' | 'tiles' | 'shingles';
 export type DrawingDoor = 'STEHAG' | 'SVANSHALL';
-export type DrawingWindow = 'standard-single' | 'panorama' | 'sprojat' | 'frost';
+export type DrawingWindow = 'standard-single' | 'panorama' | 'panorama-portrait' | 'sprojat' | 'frost';
 
 export interface DrawingReading {
   width: number | null;

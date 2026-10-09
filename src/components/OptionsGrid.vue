@@ -1091,6 +1091,12 @@
               <template v-if="win.id === 'panorama'">
                 <rect x="58" y="19" width="44" height="42" fill="currentColor" fill-opacity="0.18" />
               </template>
+              <template v-else-if="win.id === 'panorama-portrait'">
+                <rect x="46" y="8" width="30" height="64" rx="1" stroke="currentColor" stroke-width="2" />
+                <rect x="84" y="8" width="30" height="64" rx="1" stroke="currentColor" stroke-width="2" />
+                <rect x="49" y="11" width="24" height="58" fill="currentColor" fill-opacity="0.18" />
+                <rect x="87" y="11" width="24" height="58" fill="currentColor" fill-opacity="0.18" />
+              </template>
               <template v-else-if="win.id === 'sprojat'">
                 <line x1="80" y1="16" x2="80" y2="64" stroke="currentColor" stroke-width="1.2" />
                 <line x1="55" y1="40" x2="105" y2="40" stroke="currentColor" stroke-width="1.2" />

@@ -85,6 +85,7 @@ function doorOf(text) {
 }
 
 function windowOf(text) {
+  if (text.includes('panorama') && (text.includes('staende') || text.includes('portrait'))) return 'panorama-portrait';
   if (text.includes('panorama')) return 'panorama';
   if (text.includes('sprojs')) return 'sprojat';
   if (text.includes('frost')) return 'frost';
