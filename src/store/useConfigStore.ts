@@ -25,7 +25,14 @@ export type ViewMode = 'utsida' | 'insida' | 'blueprint';
 export type CategoryKey = 'size' | 'roof' | 'loft' | 'interior' | 'doors' | 'windows' | 'gates' | 'extras';
 export type MaterialKey = 'wood' | 'falurod' | 'grey' | 'white' | 'black';
 export type PanelOrientation = 'staende' | 'liggande';
-export type InteractionMode = 'default' | 'draw_wall' | 'place_utility';
+export type InteractionMode =
+  | 'default'
+  | 'draw_wall'
+  | 'place_utility'
+  | 'place_room_bathroom'
+  | 'place_room_bedroom'
+  | 'place_room_kitchen'
+  | 'place_room_storage';
 
 /** Common Swedish exterior boards. 22×145 mm is the usual standard. */
 export const CLADDING_SIZES = [

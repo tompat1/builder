@@ -748,16 +748,52 @@
           <div>
             <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2"><Cms k="interior.rooms" fallback="Dra & Släpp Rum" /></h4>
             <div class="grid grid-cols-2 gap-2">
-              <button type="button" class="p-2 border border-slate-300 rounded-lg bg-white text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-sm flex items-center justify-center gap-2">
+              <button
+                type="button"
+                @click="store.setInteractionMode(store.interactionMode === 'place_room_bedroom' ? 'default' : 'place_room_bedroom')"
+                :class="[
+                  'p-2 border rounded-lg text-xs font-bold shadow-sm flex items-center justify-center gap-2 transition-colors',
+                  store.interactionMode === 'place_room_bedroom'
+                    ? 'border-emerald-600 bg-emerald-600 text-white'
+                    : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                ]"
+              >
                 Sovrum
               </button>
-              <button type="button" class="p-2 border border-slate-300 rounded-lg bg-white text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-sm flex items-center justify-center gap-2">
+              <button
+                type="button"
+                @click="store.setInteractionMode(store.interactionMode === 'place_room_bathroom' ? 'default' : 'place_room_bathroom')"
+                :class="[
+                  'p-2 border rounded-lg text-xs font-bold shadow-sm flex items-center justify-center gap-2 transition-colors',
+                  store.interactionMode === 'place_room_bathroom'
+                    ? 'border-emerald-600 bg-emerald-600 text-white'
+                    : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                ]"
+              >
                 Badrum
               </button>
-              <button type="button" class="p-2 border border-slate-300 rounded-lg bg-white text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-sm flex items-center justify-center gap-2">
+              <button
+                type="button"
+                @click="store.setInteractionMode(store.interactionMode === 'place_room_kitchen' ? 'default' : 'place_room_kitchen')"
+                :class="[
+                  'p-2 border rounded-lg text-xs font-bold shadow-sm flex items-center justify-center gap-2 transition-colors',
+                  store.interactionMode === 'place_room_kitchen'
+                    ? 'border-emerald-600 bg-emerald-600 text-white'
+                    : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                ]"
+              >
                 Kök / Pentry
               </button>
-              <button type="button" class="p-2 border border-slate-300 rounded-lg bg-white text-xs font-bold text-slate-700 hover:bg-slate-50 shadow-sm flex items-center justify-center gap-2">
+              <button
+                type="button"
+                @click="store.setInteractionMode(store.interactionMode === 'place_room_storage' ? 'default' : 'place_room_storage')"
+                :class="[
+                  'p-2 border rounded-lg text-xs font-bold shadow-sm flex items-center justify-center gap-2 transition-colors',
+                  store.interactionMode === 'place_room_storage'
+                    ? 'border-emerald-600 bg-emerald-600 text-white'
+                    : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+                ]"
+              >
                 Förråd
               </button>
             </div>

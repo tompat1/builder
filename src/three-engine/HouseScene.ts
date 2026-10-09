@@ -19,7 +19,7 @@ export interface SceneConfig {
   loftAreaSqMeters?: number;
   hasLoftStair?: boolean;
   loftCount?: LoftCount;
-  interactionMode: 'default' | 'draw_wall' | 'place_utility';
+  interactionMode: 'default' | 'draw_wall' | 'place_utility' | 'place_room_bathroom' | 'place_room_bedroom' | 'place_room_kitchen' | 'place_room_storage';
   viewMode: 'utsida' | 'insida' | 'blueprint';
   /** Overhead cutaway used while the Loft category is open. */
   loftView: boolean;
@@ -54,6 +54,7 @@ export class HouseScene {
   private highlightBox: THREE.LineSegments | null = null;
   private contactShadow: THREE.Mesh | null = null;
   private hoverBox: THREE.Object3D | null = null;
+  private gridHelper: THREE.GridHelper | null = null;
 
   private interactivePanels: THREE.Mesh[] = [];
   private raycaster = new THREE.Raycaster();
@@ -729,6 +730,37 @@ export class HouseScene {
           coreMesh.position.y = 1.2;
           coreMesh.userData.type = 'utility_core';
           this.interiorGroup.add(coreMesh);
+        }
+        return;
+      }
+
+      if (this.currentConfig.interactionMode.startsWith('place_room_')) {
+        const pt = this.housePointAt(e.clientX, e.clientY);
+        if (pt) {
+          const roomType = this.currentConfig.interactionMode.split('_').pop()!;
+          const vecPt = new THREE.Vector3(
+            Math.round(pt.x * 10) / 10,
+            0,
+            Math.round(pt.z * 10) / 10
+          );
+
+          let w = 2.0;
+          let d = 2.0;
+          let color = 0x64748b;
+
+          if (roomType === 'bathroom') { w = 2.0; d = 2.0; color = 0x38bdf8; }
+          if (roomType === 'bedroom') { w = 3.0; d = 3.0; color = 0x4ade80; }
+          if (roomType === 'kitchen') { w = 3.0; d = 2.0; color = 0xfacc15; }
+          if (roomType === 'storage') { w = 1.5; d = 1.5; color = 0x94a3b8; }
+
+          // MVP: just place a solid block representing the room zone
+          const roomGeo = new THREE.BoxGeometry(w, 2.4, d);
+          const roomMat = new THREE.MeshStandardMaterial({ color, transparent: true, opacity: 0.5 });
+          const roomMesh = new THREE.Mesh(roomGeo, roomMat);
+          roomMesh.position.copy(vecPt);
+          roomMesh.position.y = 1.2;
+          roomMesh.userData.type = 'room_zone';
+          this.interiorGroup.add(roomMesh);
         }
         return;
       }
@@ -3147,21 +3179,31 @@ export class HouseScene {
       this.trussesGroup.visible = false;
       this.camera.position.set(0, 14, 0); // Top-down
       this.controls.target.set(0, 0, 0);
+
+      if (!this.gridHelper) {
+        this.gridHelper = new THREE.GridHelper(20, 40, 0x94a3b8, 0xe2e8f0);
+        this.gridHelper.position.y = 0.01; // Slightly above floor
+        this.scene.add(this.gridHelper);
+      }
+      this.gridHelper.visible = true;
     } else if (this.loftCutaway()) {
       this.roofGroup.visible = false;
       this.trussesGroup.visible = true;
       this.camera.position.set(3.4, 10.2, 6.4);
       this.controls.target.set(0, 1.55, -0.2);
+      if (this.gridHelper) this.gridHelper.visible = false;
     } else if (this.currentConfig.viewMode === 'insida') {
       this.roofGroup.visible = false;
       this.trussesGroup.visible = true;
       this.camera.position.set(0.5, 8.5, 7.8);
       this.controls.target.set(0, 1.2, 0);
+      if (this.gridHelper) this.gridHelper.visible = false;
     } else {
       this.roofGroup.visible = true;
       this.trussesGroup.visible = false;
       this.camera.position.set(0, 3.2, 13.5);
       this.controls.target.set(0, 2.2, 0);
+      if (this.gridHelper) this.gridHelper.visible = false;
     }
     this.controls.update();
   }
