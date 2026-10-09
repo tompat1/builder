@@ -243,7 +243,8 @@ const sv = {
     loft: 'Loft',
     doors: 'Dörrar',
     windows: 'Fönster',
-    gates: 'Portar'
+    gates: 'Portar',
+    extras: 'Ute'
   },
   category: {
     hint: 'Välj alternativ för att anpassa din byggnad',
@@ -264,6 +265,14 @@ const sv = {
     shinglesBody: 'Överlappande asfalt',
     loftTitle: 'Loft & Rymd',
     doorsTitle: 'Ytterdörrar',
+    extrasTitle: 'Uteplats',
+    outsidePlace: 'Sitter vid ytterdörren. Utan dörr hamnar det mitt på framsidan.',
+    doorCanopy: 'Skärmtak',
+    doorCanopyBody: 'Tak över ytterdörren.',
+    terrace: 'Altan',
+    terraceBody: 'Trädäck utanför dörren.',
+    terraceCeiling: 'Altantak',
+    terraceCeilingBody: 'Tak över altanen. Slår på altanen om den är av.',
     windowsTitle: 'Fönsterpartier',
     gatesTitle: 'Portar & Partier',
     measures: 'Byggmått & Area',
@@ -738,7 +747,8 @@ const en = {
     loft: 'Loft',
     doors: 'Doors',
     windows: 'Windows',
-    gates: 'Gates'
+    gates: 'Gates',
+    extras: 'Outside'
   },
   category: {
     hint: 'Choose an option to customise your building',
@@ -759,6 +769,14 @@ const en = {
     shinglesBody: 'Overlapping asphalt',
     loftTitle: 'Loft & volume',
     doorsTitle: 'Exterior doors',
+    extrasTitle: 'Outside',
+    outsidePlace: 'Sits at the exterior door. With no door, it sits centred on the front.',
+    doorCanopy: 'Door roof',
+    doorCanopyBody: 'A roof over the exterior door.',
+    terrace: 'Terrace',
+    terraceBody: 'A deck outside the door.',
+    terraceCeiling: 'Ceiling',
+    terraceCeilingBody: 'A roof over the terrace. Turns the terrace on if it is off.',
     windowsTitle: 'Windows',
     gatesTitle: 'Gates & openings',
     measures: 'Size & area',

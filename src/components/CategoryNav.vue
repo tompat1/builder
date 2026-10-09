@@ -62,6 +62,14 @@
           <path d="M3 15h18" />
           <path d="M10 18h4" />
         </svg>
+        <!-- Ute (Door roof and terrace) -->
+        <svg v-else-if="cat.id === 'extras'" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 10.5 12 5l9 5.5" />
+          <path d="M6 10.5V16" />
+          <path d="M18 10.5V16" />
+          <path d="M4 16h16" />
+          <path d="M3 19.5h18" />
+        </svg>
         <!-- Interiör (Interior walls/layout) -->
         <svg v-else-if="cat.id === 'interior'" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <rect x="3" y="3" width="18" height="18" rx="2" />
@@ -92,6 +100,7 @@ const categories: { id: CategoryKey }[] = [
   { id: 'loft' },
   { id: 'doors' },
   { id: 'windows' },
-  { id: 'gates' }
+  { id: 'gates' },
+  { id: 'extras' }
 ];
 </script>

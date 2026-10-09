@@ -116,7 +116,10 @@ onMounted(() => {
             : 145,
       showDimensions: store.showDimensions,
       selectedSlotId: store.selectedSlotId,
-      wallSlots: store.wallSlots
+      wallSlots: store.wallSlots,
+      doorCanopy: store.doorCanopy,
+      terrace: store.terrace,
+      terraceCeiling: store.terraceCeiling
     });
 
     // Wire raycast clicks & hover from 3D scene to store
@@ -341,6 +344,13 @@ watch(
     engine?.updateConfig({ wallSlots: slots });
   },
   { deep: true }
+);
+
+watch(
+  [() => store.doorCanopy, () => store.terrace, () => store.terraceCeiling],
+  ([doorCanopy, terrace, terraceCeiling]) => {
+    engine?.updateConfig({ doorCanopy, terrace, terraceCeiling });
+  }
 );
 
 watch(

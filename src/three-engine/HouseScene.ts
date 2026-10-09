@@ -51,6 +51,22 @@ export interface SceneConfig {
   selectedSlotId: string | null;
   wallSlots: Record<string, WallSlot>;
   isFullscreen?: boolean;
+  /** Small roof over each exterior door. */
+  doorCanopy?: boolean;
+  /** Deck outside the main exterior door. */
+  terrace?: boolean;
+  /** Roof over the terrace. Only drawn when the terrace is on. */
+  terraceCeiling?: boolean;
+}
+
+interface OutsideAnchor {
+  px: number;
+  pz: number;
+  rotY: number;
+  doorX: number;
+  width: number;
+  head: number;
+  wall: 'front' | 'back' | 'left' | 'right';
 }
 
 export class HouseScene {
@@ -154,7 +170,10 @@ export class HouseScene {
       panelWidthMm: initialConfig?.panelWidthMm ?? 145,
       showDimensions: initialConfig?.showDimensions ?? true,
       selectedSlotId: initialConfig?.selectedSlotId ?? null,
-      wallSlots: initialConfig?.wallSlots ?? {}
+      wallSlots: initialConfig?.wallSlots ?? {},
+      doorCanopy: initialConfig?.doorCanopy ?? false,
+      terrace: initialConfig?.terrace ?? false,
+      terraceCeiling: initialConfig?.terraceCeiling ?? false
     };
 
     this.scene = new THREE.Scene();
@@ -1222,6 +1241,7 @@ export class HouseScene {
     this.buildModularWall('back', 4, w, d, h, wallThick, exteriorMat, trimMat, casingMat);
     this.buildModularWall('left', 3, w, d, h, wallThick, exteriorMat, trimMat, casingMat);
     this.buildModularWall('right', 3, w, d, h, wallThick, exteriorMat, trimMat, casingMat);
+    this.buildOutsideAdditions(w, d, h);
     if (!this.interiorCut()) this.addBeltFlashing(w, d, h);
     if (!this.interiorCut()) {
       const rearTop = this.currentConfig.roofType === 'pulpettak'
@@ -2108,6 +2128,242 @@ export class HouseScene {
     }
     const head = sill + winH;
     return { winW, winH, winY: (sill + head) / 2 - centerY, sill, head };
+  }
+
+  private outwardSign(wall: OutsideAnchor['wall']) {
+    return wall === 'left' || wall === 'right' ? -1 : 1;
+  }
+
+  /** Exterior doors, one per opening. A wide slider is listed once, on its host bay. */
+  private outsideAnchors(w: number, d: number, h: number): OutsideAnchor[] {
+    const base = 0.25;
+    const cladding = 0.025;
+    const endInset = cladding - 0.008;
+    const anchors: OutsideAnchor[] = [];
+    const walls = ['front', 'back', 'left', 'right'] as const;
+    for (const wall of walls) {
+      const count = wall === 'front' || wall === 'back' ? 4 : 3;
+      const wallLength = wall === 'front' || wall === 'back' ? w : d - endInset * 2;
+      const panelWidth = wallLength / count;
+      const panelH = Math.max(1.8, h - base);
+      for (let i = 0; i < count; i++) {
+        const slot = this.currentConfig.wallSlots[`${wall}-${i}`];
+        if (!slot || slot.type !== 'door') continue;
+        const wide = slot.itemId === 'SKJUTDORR3' || slot.coveredBy
+          ? this.wideOpeningForPanel(wall, i, panelWidth, panelH, base)
+          : null;
+        if (wide && !wide.drawDoor) continue;
+        if (slot.coveredBy && !wide) continue;
+        const opening = wide ?? this.fittedOpening('door', slot.itemId, false, panelWidth, panelH, base);
+        let px = 0;
+        let pz = 0;
+        let rotY = 0;
+        if (wall === 'front') {
+          px = -w / 2 + (i + 0.5) * panelWidth;
+          pz = d / 2 - cladding / 2;
+          rotY = 0;
+        } else if (wall === 'back') {
+          px = w / 2 - (i + 0.5) * panelWidth;
+          pz = -d / 2 + cladding / 2;
+          rotY = Math.PI;
+        } else if (wall === 'left') {
+          px = -w / 2 + cladding / 2;
+          pz = d / 2 - endInset - (i + 0.5) * panelWidth;
+          rotY = -Math.PI / 2;
+        } else {
+          px = w / 2 - cladding / 2;
+          pz = -d / 2 + endInset + (i + 0.5) * panelWidth;
+          rotY = Math.PI / 2;
+        }
+        anchors.push({
+          px,
+          pz,
+          rotY,
+          doorX: wide?.x ?? 0,
+          width: opening.winW,
+          head: opening.head,
+          wall
+        });
+      }
+    }
+    return anchors;
+  }
+
+  private fallbackDoor(d: number): OutsideAnchor {
+    return {
+      px: 0,
+      pz: d / 2 - 0.0125,
+      rotY: 0,
+      doorX: 0,
+      width: 1,
+      head: 2.35,
+      wall: 'front'
+    };
+  }
+
+  /** Keep a deck centred on its door from running past the wall ends. */
+  private terraceShift(door: OutsideAnchor, width: number, w: number, d: number) {
+    const half = width / 2;
+    if (door.wall === 'front' || door.wall === 'back') {
+      const world = door.wall === 'front' ? door.px + door.doorX : door.px - door.doorX;
+      const clamped = Math.max(-w / 2 + half, Math.min(w / 2 - half, world));
+      return door.wall === 'front' ? clamped - door.px : door.px - clamped;
+    }
+    const worldZ = door.wall === 'left' ? door.pz - door.doorX : door.pz + door.doorX;
+    const clamped = Math.max(-d / 2 + half, Math.min(d / 2 - half, worldZ));
+    return door.wall === 'left' ? door.pz - clamped : clamped - door.pz;
+  }
+
+  private addDoorCanopy(door: OutsideAnchor, timber: THREE.Material, roofMat: THREE.Material) {
+    const outward = this.outwardSign(door.wall);
+    const projection = 0.92;
+    const width = door.width + 0.56;
+    const pitch = (8 * Math.PI) / 180;
+    const group = new THREE.Group();
+    group.position.set(door.px, 0, door.pz);
+    group.rotation.y = door.rotY;
+
+    const y = door.head + 0.18;
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(width, 0.04, projection), roofMat);
+    roof.position.set(door.doorX, y, outward * (projection / 2 + 0.02));
+    roof.rotation.x = outward * pitch;
+    roof.castShadow = true;
+    roof.receiveShadow = true;
+    group.add(roof);
+
+    const fascia = new THREE.Mesh(new THREE.BoxGeometry(width + 0.02, 0.09, 0.022), timber);
+    fascia.position.set(door.doorX, y - 0.06, outward * (projection + 0.03));
+    fascia.castShadow = true;
+    group.add(fascia);
+
+    for (const side of [-1, 1]) {
+      const bracket = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.07, projection * 0.78), timber);
+      bracket.position.set(
+        door.doorX + side * (width / 2 - 0.1),
+        y - 0.07,
+        outward * (projection * 0.42)
+      );
+      bracket.castShadow = true;
+      group.add(bracket);
+    }
+
+    this.wallsGroup.add(group);
+  }
+
+  private addTerrace(
+    door: OutsideAnchor,
+    deckMat: THREE.Material,
+    timber: THREE.Material,
+    roofMat: THREE.Material,
+    ceilingMat: THREE.Material,
+    ceiling: boolean,
+    w: number,
+    d: number
+  ) {
+    const outward = this.outwardSign(door.wall);
+    const depth = 1.8;
+    const wallSpan = door.wall === 'front' || door.wall === 'back' ? w : d;
+    const width = Math.min(Math.max(door.width + 1.5, 2.4), Math.max(1.6, wallSpan - 0.3));
+    const along = this.terraceShift(door, width, w, d);
+    const deckTop = 0.36;
+    const boardT = 0.028;
+    const group = new THREE.Group();
+    group.position.set(door.px, 0, door.pz);
+    group.rotation.y = door.rotY;
+
+    const boards = 7;
+    const gap = 0.012;
+    const boardD = (depth - gap * (boards + 1)) / boards;
+    for (let i = 0; i < boards; i++) {
+      const board = new THREE.Mesh(new THREE.BoxGeometry(width, boardT, boardD), deckMat);
+      const z0 = 0.04 + gap + i * (boardD + gap) + boardD / 2;
+      board.position.set(along, deckTop - boardT / 2, outward * z0);
+      board.castShadow = true;
+      board.receiveShadow = true;
+      group.add(board);
+    }
+
+    const joistCount = Math.max(3, Math.round(width / 0.55));
+    const joistStart = 0.22;
+    const joistLen = Math.max(0.4, depth - joistStart - 0.02);
+    for (let i = 0; i < joistCount; i++) {
+      const joist = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.12, joistLen), timber);
+      const x = -width / 2 + 0.08 + (i * (width - 0.16)) / Math.max(1, joistCount - 1);
+      joist.position.set(along + x, deckTop - boardT - 0.07, outward * (joistStart + joistLen / 2));
+      joist.castShadow = true;
+      group.add(joist);
+    }
+
+    const rim = new THREE.Mesh(new THREE.BoxGeometry(width, 0.14, 0.028), timber);
+    rim.position.set(along, deckTop - 0.1, outward * (0.04 + depth));
+    rim.castShadow = true;
+    group.add(rim);
+
+    if (ceiling) {
+      const projection = depth + 0.22;
+      const roofW = width + 0.28;
+      const pitch = (6 * Math.PI) / 180;
+      const y = door.head + 0.34;
+      const roof = new THREE.Mesh(new THREE.BoxGeometry(roofW, 0.04, projection), roofMat);
+      roof.position.set(along, y, outward * (projection / 2));
+      roof.rotation.x = outward * pitch;
+      roof.castShadow = true;
+      roof.receiveShadow = true;
+      group.add(roof);
+
+      const soffit = new THREE.Mesh(
+        new THREE.BoxGeometry(roofW - 0.06, 0.016, projection - 0.06),
+        ceilingMat
+      );
+      soffit.position.set(along, y - 0.045, outward * (projection / 2));
+      soffit.rotation.x = outward * pitch;
+      soffit.receiveShadow = true;
+      group.add(soffit);
+
+      const fascia = new THREE.Mesh(new THREE.BoxGeometry(roofW + 0.02, 0.11, 0.028), timber);
+      fascia.position.set(along, y - 0.08, outward * (projection + 0.01));
+      fascia.castShadow = true;
+      group.add(fascia);
+
+      const postH = Math.max(1.4, y - deckTop - 0.08);
+      for (const side of [-1, 1]) {
+        const post = new THREE.Mesh(new THREE.BoxGeometry(0.09, postH, 0.09), timber);
+        post.position.set(
+          along + side * (width / 2 - 0.1),
+          deckTop + postH / 2,
+          outward * (0.08 + depth - 0.1)
+        );
+        post.castShadow = true;
+        group.add(post);
+      }
+    }
+
+    this.wallsGroup.add(group);
+  }
+
+  private buildOutsideAdditions(w: number, d: number, h: number) {
+    const canopyOn = Boolean(this.currentConfig.doorCanopy);
+    const terraceOn = Boolean(this.currentConfig.terrace);
+    if (!canopyOn && !terraceOn) return;
+
+    const found = this.outsideAnchors(w, d, h);
+    const doors = found.length ? found : [this.fallbackDoor(d)];
+    const terraceHost = doors.find((door) => door.wall === 'front') ?? doors[0];
+    const timber = new THREE.MeshStandardMaterial({ color: '#e7d3b0', roughness: 0.62, metalness: 0.02 });
+    const roofMat = new THREE.MeshStandardMaterial({ color: '#4a534f', roughness: 0.42, metalness: 0.38 });
+    const ceilingMat = new THREE.MeshStandardMaterial({ color: '#f3efe4', roughness: 0.72, metalness: 0.02 });
+    const deckMat = new THREE.MeshStandardMaterial({ color: '#c4a574', roughness: 0.72, metalness: 0.02 });
+    const ceiling = terraceOn && Boolean(this.currentConfig.terraceCeiling);
+
+    if (canopyOn) {
+      for (const door of doors) {
+        if (ceiling && door === terraceHost) continue;
+        this.addDoorCanopy(door, timber, roofMat);
+      }
+    }
+    if (terraceOn) {
+      this.addTerrace(terraceHost, deckMat, timber, roofMat, ceilingMat, ceiling, w, d);
+    }
   }
 
   private frontOpenings(w: number, h: number, base: number) {

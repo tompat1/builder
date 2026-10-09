@@ -375,6 +375,12 @@ export const GATES_OPTIONS: OptionItem[] = [
   }
 ];
 
+export const OUTSIDE_PRICES = {
+  doorCanopy: 9600,
+  terrace: 28400,
+  terraceCeiling: 14200
+} as const;
+
 export interface WallSlot {
   id: string;
   wall: 'front' | 'back' | 'left' | 'right';
@@ -495,6 +501,9 @@ export const useConfigStore = defineStore('config', () => {
   const activeDoor = ref<string>('STEHAG');
   const activeWindow = ref<string>('standard-single');
   const activeGate = ref<string>('none');
+  const doorCanopy = ref(false);
+  const terrace = ref(false);
+  const terraceCeiling = ref(false);
 
   // Interior rooms
   const placedRooms = ref<Record<string, { type: string; w: number; d: number; x: number; y: number; z: number }>>({});
@@ -556,6 +565,9 @@ export const useConfigStore = defineStore('config', () => {
       activeDoor: activeDoor.value,
       activeWindow: activeWindow.value,
       activeGate: activeGate.value,
+      doorCanopy: doorCanopy.value,
+      terrace: terrace.value,
+      terraceCeiling: terraceCeiling.value,
       activeMaterial: activeMaterial.value,
       savedPaints: savedPaints.value,
       activePaintId: activePaintId.value,
@@ -620,6 +632,9 @@ export const useConfigStore = defineStore('config', () => {
       if (data.activeDoor) activeDoor.value = data.activeDoor;
       if (data.activeWindow) activeWindow.value = data.activeWindow;
       if (data.activeGate) activeGate.value = data.activeGate;
+      doorCanopy.value = data.doorCanopy === true;
+      terrace.value = data.terrace === true;
+      terraceCeiling.value = terrace.value && data.terraceCeiling === true;
       activeMaterial.value = MATERIAL_OPTIONS.some((item) => item.id === data.activeMaterial)
         ? data.activeMaterial
         : 'wood';
@@ -786,6 +801,10 @@ export const useConfigStore = defineStore('config', () => {
       }
     });
 
+    if (doorCanopy.value) total += OUTSIDE_PRICES.doorCanopy;
+    if (terrace.value) total += OUTSIDE_PRICES.terrace;
+    if (terrace.value && terraceCeiling.value) total += OUTSIDE_PRICES.terraceCeiling;
+
     return total;
   });
 
@@ -808,7 +827,7 @@ export const useConfigStore = defineStore('config', () => {
   let viewModeBeforeLoft: ViewMode | null = null;
 
   function selectCategory(category: CategoryKey) {
-    if (category === 'doors' || category === 'windows' || category === 'gates') {
+    if (category === 'doors' || category === 'windows' || category === 'gates' || category === 'extras') {
       viewMode.value = 'utsida';
       viewModeBeforeLoft = null;
     } else if (category === 'loft' && selectedCategory.value !== 'loft') {
@@ -938,6 +957,31 @@ export const useConfigStore = defineStore('config', () => {
 
   function selectGate(id: string) {
     activeGate.value = id;
+    saveSnapshot();
+  }
+
+  function setDoorCanopy(on: boolean) {
+    if (doorCanopy.value === on) return;
+    doorCanopy.value = on;
+    saveSnapshot();
+  }
+
+  function setTerrace(on: boolean) {
+    if (on === terrace.value && (on || !terraceCeiling.value)) return;
+    terrace.value = on;
+    if (!on) terraceCeiling.value = false;
+    saveSnapshot();
+  }
+
+  function setTerraceCeiling(on: boolean) {
+    if (on && !terrace.value) {
+      terrace.value = true;
+      terraceCeiling.value = true;
+      saveSnapshot();
+      return;
+    }
+    if (terraceCeiling.value === on) return;
+    terraceCeiling.value = on;
     saveSnapshot();
   }
 
@@ -1275,6 +1319,9 @@ export const useConfigStore = defineStore('config', () => {
     activeDoor,
     activeWindow,
     activeGate,
+    doorCanopy,
+    terrace,
+    terraceCeiling,
     currentSize,
     currentMaterial,
     dimensions,
@@ -1317,6 +1364,9 @@ export const useConfigStore = defineStore('config', () => {
     selectDoor,
     selectWindow,
     selectGate,
+    setDoorCanopy,
+    setTerrace,
+    setTerraceCeiling,
     selectMaterial,
     selectPanelOrientation,
     selectCladdingSize,

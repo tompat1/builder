@@ -1229,7 +1229,7 @@
     </template>
 
     <!-- Gates Options -->
-    <template v-else>
+    <template v-else-if="store.selectedCategory === 'gates'">
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
         <button
           v-for="gate in GATES_OPTIONS"
@@ -1279,6 +1279,81 @@
         </button>
       </div>
     </template>
+
+    <template v-else-if="store.selectedCategory === 'extras'">
+      <p class="text-[11px] text-slate-500"><Cms k="category.outsidePlace" /></p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+        <button
+          type="button"
+          id="option-door-canopy"
+          @click="store.setDoorCanopy(!store.doorCanopy)"
+          :aria-pressed="store.doorCanopy"
+          :class="outsideCardClass(store.doorCanopy)"
+        >
+          <div class="w-full h-24 bg-slate-100/80 rounded-lg flex items-center justify-center mb-2">
+            <svg class="w-full h-full text-slate-700" viewBox="0 0 160 80" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M28 34h104" />
+              <path d="M36 34 48 22h64l12 12" />
+              <path d="M52 34v22" />
+              <path d="M108 34v22" />
+              <rect x="70" y="40" width="20" height="22" />
+            </svg>
+          </div>
+          <div class="flex items-center justify-between gap-2">
+            <p class="text-xs font-bold text-slate-900"><Cms k="category.doorCanopy" /></p>
+            <span class="text-xs font-extrabold text-slate-900 tabular-nums whitespace-nowrap">{{ delta(OUTSIDE_PRICES.doorCanopy) }}</span>
+          </div>
+          <p class="text-[11px] text-slate-500 mt-0.5"><Cms k="category.doorCanopyBody" /></p>
+        </button>
+
+        <button
+          type="button"
+          id="option-terrace"
+          @click="store.setTerrace(!store.terrace)"
+          :aria-pressed="store.terrace"
+          :class="outsideCardClass(store.terrace)"
+        >
+          <div class="w-full h-24 bg-slate-100/80 rounded-lg flex items-center justify-center mb-2">
+            <svg class="w-full h-full text-slate-700" viewBox="0 0 160 80" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <path d="M24 46h112" />
+              <path d="M28 52h104" />
+              <path d="M32 58h96" />
+              <path d="M36 64h88" />
+              <rect x="72" y="22" width="16" height="24" />
+            </svg>
+          </div>
+          <div class="flex items-center justify-between gap-2">
+            <p class="text-xs font-bold text-slate-900"><Cms k="category.terrace" /></p>
+            <span class="text-xs font-extrabold text-slate-900 tabular-nums whitespace-nowrap">{{ delta(OUTSIDE_PRICES.terrace) }}</span>
+          </div>
+          <p class="text-[11px] text-slate-500 mt-0.5"><Cms k="category.terraceBody" /></p>
+        </button>
+
+        <button
+          type="button"
+          id="option-terrace-ceiling"
+          @click="store.setTerraceCeiling(!store.terraceCeiling)"
+          :aria-pressed="store.terraceCeiling"
+          :class="outsideCardClass(store.terraceCeiling)"
+        >
+          <div class="w-full h-24 bg-slate-100/80 rounded-lg flex items-center justify-center mb-2">
+            <svg class="w-full h-full text-slate-700" viewBox="0 0 160 80" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M22 28h116" />
+              <path d="M30 28 42 16h76l12 12" />
+              <path d="M36 28v30" />
+              <path d="M124 28v30" />
+              <path d="M30 58h100" />
+              <path d="M34 64h92" />
+            </svg>
+          </div>
+          <div class="flex items-center justify-between gap-2">
+            <p class="text-xs font-bold text-slate-900"><Cms k="category.terraceCeiling" /></p>
+            <span class="shrink-0 text-xs font-extrabold text-slate-900 tabular-nums whitespace-nowrap">{{ delta(OUTSIDE_PRICES.terraceCeiling) }}</span>
+          </div>
+          <p class="text-[11px] text-slate-500 mt-0.5"><Cms k="category.terraceCeilingBody" /></p>
+        </button>
+      </div>
+    </template>
   </div>
 </template>
 
@@ -1298,7 +1373,8 @@ import {
   LOFT_OPTIONS,
   DOORS_OPTIONS,
   WINDOWS_OPTIONS,
-  GATES_OPTIONS
+  GATES_OPTIONS,
+  OUTSIDE_PRICES
 } from '../store/useConfigStore';
 import { useLabels } from '../i18n';
 import CustomPaint from './CustomPaint.vue';
@@ -1318,6 +1394,15 @@ function sizeTabClass(active: boolean) {
     active
       ? 'border-slate-900 text-slate-900'
       : 'border-transparent text-slate-400 hover:text-slate-600'
+  ];
+}
+
+function outsideCardClass(active: boolean) {
+  return [
+    'text-left p-3 rounded-xl border transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
+    active
+      ? 'border-slate-900 ring-1 ring-slate-900 bg-slate-50/70 shadow-sm'
+      : 'border-slate-200/90 bg-white hover:border-slate-300 hover:bg-slate-50/40'
   ];
 }
 
@@ -1396,6 +1481,8 @@ const currentOptionsCount = computed(() => {
       return WINDOWS_OPTIONS.length;
     case 'gates':
       return GATES_OPTIONS.length;
+    case 'extras':
+      return 3;
     default:
       return 0;
   }
