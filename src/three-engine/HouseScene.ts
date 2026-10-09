@@ -63,7 +63,7 @@ export class HouseScene {
   private roomDragHandles: THREE.Mesh[] = [];
   private draggingRoom: {
     roomId: string;
-    side: 'left' | 'right' | 'front' | 'back';
+    side: 'left' | 'right' | 'front' | 'back' | 'center';
     startW: number;
     startD: number;
     startX: number;
@@ -736,6 +736,13 @@ export class HouseScene {
           } else if (this.draggingRoom.side === 'back') {
             newD = Math.max(1.0, this.draggingRoom.startD - dz);
             newZ = this.draggingRoom.startZ - (newD - this.draggingRoom.startD) / 2;
+          } else if (this.draggingRoom.side === 'center') {
+            const hw = this.currentConfig.widthMm / 1000 / 2;
+            const hd = this.currentConfig.depthMm / 1000 / 2;
+            newX = this.draggingRoom.startX + dx;
+            newZ = this.draggingRoom.startZ + dz;
+            newX = Math.max(-hw + newW/2 + 0.05, Math.min(hw - newW/2 - 0.05, newX));
+            newZ = Math.max(-hd + newD/2 + 0.05, Math.min(hd - newD/2 - 0.05, newZ));
           }
 
           newW = Math.round(newW * 10) / 10;
@@ -752,17 +759,37 @@ export class HouseScene {
       this.raycaster.setFromCamera(this.mouse, this.camera);
 
       // Check room handles for hover
-      if (this.currentConfig.interactionMode === 'default' && this.roomDragHandles.length > 0) {
-        const dragIntersects = this.raycaster.intersectObjects(this.roomDragHandles, false);
-        if (dragIntersects.length > 0) {
-          const side = dragIntersects[0].object.userData.side;
-          if (side === 'left' || side === 'right') {
-            this.container.style.cursor = 'ew-resize';
-          } else {
-            this.container.style.cursor = 'ns-resize';
+      if (this.currentConfig.interactionMode === 'default') {
+        let hoveringHandle = false;
+        if (this.roomDragHandles.length > 0) {
+          const dragIntersects = this.raycaster.intersectObjects(this.roomDragHandles, false);
+          if (dragIntersects.length > 0) {
+            hoveringHandle = true;
+            const side = dragIntersects[0].object.userData.side;
+            if (side === 'left' || side === 'right') {
+              this.container.style.cursor = 'ew-resize';
+            } else {
+              this.container.style.cursor = 'ns-resize';
+            }
           }
-          return;
         }
+
+        if (!hoveringHandle && this.interiorGroup.children.length > 0) {
+          // Check if hovering over room floor to move it
+          const roomMeshes: THREE.Mesh[] = [];
+          this.interiorGroup.children.forEach(group => {
+            if (group.userData.type === 'room_zone') {
+              roomMeshes.push(...(group.children.filter(c => c instanceof THREE.Mesh) as THREE.Mesh[]));
+            }
+          });
+          const roomIntersects = this.raycaster.intersectObjects(roomMeshes, false);
+          if (roomIntersects.length > 0) {
+            this.container.style.cursor = 'move';
+            return;
+          }
+        }
+
+        if (hoveringHandle) return;
       }
 
       const intersects = this.raycaster.intersectObjects(this.interactivePanels, false);
@@ -938,6 +965,44 @@ export class HouseScene {
                 startPt: pt
               };
               this.controls.enabled = false; // Disable orbit controls while dragging
+              return;
+            }
+          }
+        }
+      }
+
+      // Check if clicking on the room itself to move it
+      if (this.currentConfig.interactionMode === 'default' && this.interiorGroup.children.length > 0) {
+        const roomMeshes: THREE.Mesh[] = [];
+        this.interiorGroup.children.forEach(group => {
+          if (group.userData.type === 'room_zone') {
+            roomMeshes.push(...(group.children.filter(c => c instanceof THREE.Mesh) as THREE.Mesh[]));
+          }
+        });
+        const roomIntersects = this.raycaster.intersectObjects(roomMeshes, false);
+        if (roomIntersects.length > 0) {
+          const hit = roomIntersects[0].object as THREE.Mesh;
+          const roomGroup = hit.parent as THREE.Group;
+          if (roomGroup && roomGroup.userData.type === 'room_zone') {
+            const { roomId } = roomGroup.userData;
+            const wBox = new THREE.Box3().setFromObject(roomGroup);
+            const startW = wBox.max.x - wBox.min.x;
+            const startD = wBox.max.z - wBox.min.z;
+
+            const pt = this.housePointAt(e.clientX, e.clientY);
+            if (pt) {
+              this.draggingRoom = {
+                roomId,
+                side: 'center',
+                startW,
+                startD,
+                startX: roomGroup.position.x,
+                startZ: roomGroup.position.z,
+                startY: roomGroup.position.y,
+                roomType: roomGroup.userData.roomType,
+                startPt: pt
+              };
+              this.controls.enabled = false;
               return;
             }
           }
