@@ -100,6 +100,7 @@ onMounted(() => {
       interactionMode: store.interactionMode,
       viewMode: store.viewMode,
       loftView: store.selectedCategory === 'loft',
+      interiorView: store.selectedCategory === 'interior',
       material: store.activeMaterial,
       customHex: store.paintPreview ?? store.customPaint?.hex ?? null,
       panelOrientation: store.panelOrientation,
@@ -152,6 +153,20 @@ onMounted(() => {
     engine.onMeasureScreen = (screen) => {
       store.setMeasureScreen(screen);
     };
+    engine.onRoomPlaced = (id, type, w, d) => {
+      store.placedRooms[id] = { type, w, d, x: 0, z: 0 };
+    };
+    engine.onRoomResize = (id, w, d, x, z) => {
+      if (store.placedRooms[id]) {
+        store.placedRooms[id].w = w;
+        store.placedRooms[id].d = d;
+        store.placedRooms[id].x = x;
+        store.placedRooms[id].z = z;
+      }
+    };
+    engine.onInteractionComplete = () => {
+      store.setInteractionMode('default');
+    };
     engine.setNoteTargets(noteTargetIds());
     syncNotePins();
 
@@ -191,7 +206,8 @@ watch(
     engine?.updateConfig({
       viewMode: mode,
       interactionMode: interaction,
-      loftView: category === 'loft'
+      loftView: category === 'loft',
+      interiorView: category === 'interior'
     });
   }
 );
@@ -245,6 +261,16 @@ watch(
   (covering) => {
     engine?.updateConfig({ roofCovering: covering });
   }
+);
+
+watch(
+  () => store.placedRooms,
+  (rooms) => {
+    for (const [id, info] of Object.entries(rooms)) {
+      engine?.updateRoomSize(id, info.w, info.d, info.x, info.z);
+    }
+  },
+  { deep: true }
 );
 
 // Watch loft toggle and settings

@@ -23,6 +23,8 @@ export interface SceneConfig {
   viewMode: 'utsida' | 'insida' | 'blueprint';
   /** Overhead cutaway used while the Loft category is open. */
   loftView: boolean;
+  /** True when the Interior category is open. */
+  interiorView: boolean;
   material: MaterialKey;
   /** Painted facade. When set, the boards use this colour instead of a catalog stain. */
   customHex: string | null;
@@ -57,6 +59,16 @@ export class HouseScene {
   private gridHelper: THREE.GridHelper | null = null;
 
   private interactivePanels: THREE.Mesh[] = [];
+  private roomDragHandles: THREE.Mesh[] = [];
+  private draggingRoom: {
+    roomId: string;
+    side: 'left' | 'right' | 'front' | 'back';
+    startW: number;
+    startD: number;
+    startX: number;
+    startZ: number;
+    startPt: { x: number; y: number; z: number };
+  } | null = null;
   private raycaster = new THREE.Raycaster();
   private labelRaycaster = new THREE.Raycaster();
   private mouse = new THREE.Vector2();
@@ -77,6 +89,9 @@ export class HouseScene {
     start: { x: number; y: number; visible: boolean };
     end: { x: number; y: number; visible: boolean };
   } | null) => void;
+  public onRoomPlaced?: (id: string, type: string, w: number, d: number) => void;
+  public onRoomResize?: (id: string, w: number, d: number, x: number, z: number) => void;
+  public onInteractionComplete?: () => void;
   private measuring = false;
   private measureDown: { x: number; y: number } | null = null;
   private measureFrom: THREE.Vector3 | null = null;
@@ -110,6 +125,7 @@ export class HouseScene {
       loftCount: initialConfig?.loftCount ?? 'ett',
       viewMode: initialConfig?.viewMode ?? 'utsida',
       loftView: initialConfig?.loftView ?? false,
+      interiorView: initialConfig?.interiorView ?? false,
       material: initialConfig?.material ?? 'wood',
       customHex: initialConfig?.customHex ?? null,
       panelOrientation: initialConfig?.panelOrientation ?? 'staende',
@@ -623,6 +639,41 @@ export class HouseScene {
     this.scene.add(grid);
   }
 
+  private roomPreviewGroup: THREE.Mesh | null = null;
+
+  private updateRoomPreview(roomType: string | null, pt?: { x: number, y: number, z: number }) {
+    if (!roomType || !pt) {
+      if (this.roomPreviewGroup) {
+        this.roomPreviewGroup.visible = false;
+      }
+      return;
+    }
+
+    let w = 2.0; let d = 2.0;
+    if (roomType === 'bathroom') { w = 2.0; d = 2.0; }
+    if (roomType === 'bedroom') { w = 3.0; d = 3.0; }
+    if (roomType === 'kitchen') { w = 3.0; d = 2.0; }
+    if (roomType === 'storage') { w = 1.5; d = 1.5; }
+
+    if (!this.roomPreviewGroup || this.roomPreviewGroup.userData.roomType !== roomType) {
+      if (this.roomPreviewGroup) {
+        this.scene.remove(this.roomPreviewGroup);
+      }
+      const geo = new THREE.BoxGeometry(w, 2.4, d);
+      const mat = new THREE.MeshStandardMaterial({ color: 0x3b82f6, transparent: true, opacity: 0.5 });
+      this.roomPreviewGroup = new THREE.Mesh(geo, mat);
+      this.roomPreviewGroup.userData.roomType = roomType;
+      this.scene.add(this.roomPreviewGroup);
+    }
+
+    this.roomPreviewGroup.visible = true;
+    this.roomPreviewGroup.position.set(
+      Math.round(pt.x * 10) / 10,
+      1.2,
+      Math.round(pt.z * 10) / 10
+    );
+  }
+
   private setupRaycasting() {
     this.container.addEventListener('pointermove', (e) => {
       if (this.measuring) {
@@ -630,19 +681,86 @@ export class HouseScene {
         this.container.style.cursor = 'crosshair';
         this.updateHoverBox(null);
         this.onPanelHover?.(null, 0, 0);
+        this.updateRoomPreview(null);
         return;
       }
       if (this.currentConfig.isFullscreen) {
         this.container.style.cursor = 'default';
         this.updateHoverBox(null);
         this.onPanelHover?.(null, 0, 0);
+        this.updateRoomPreview(null);
         return;
+      }
+
+      if (this.currentConfig.interactionMode.startsWith('place_room_')) {
+        const pt = this.housePointAt(e.clientX, e.clientY);
+        if (pt) {
+          const roomType = this.currentConfig.interactionMode.split('_').pop()!;
+          this.updateRoomPreview(roomType, pt);
+        } else {
+          this.updateRoomPreview(null);
+        }
+        // Still allow hover? Or just preview? Let's just return to avoid other hovers
+        return;
+      } else {
+        this.updateRoomPreview(null);
       }
       const rect = this.container.getBoundingClientRect();
       this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
 
+      if (this.draggingRoom) {
+        const pt = this.housePointAt(e.clientX, e.clientY);
+        if (pt) {
+          const dx = pt.x - this.draggingRoom.startPt.x;
+          const dz = pt.z - this.draggingRoom.startPt.z;
+
+          let newW = this.draggingRoom.startW;
+          let newD = this.draggingRoom.startD;
+          let newX = this.draggingRoom.startX;
+          let newZ = this.draggingRoom.startZ;
+
+          if (this.draggingRoom.side === 'right') {
+            newW = Math.max(1.0, this.draggingRoom.startW + dx);
+            newX = this.draggingRoom.startX + (newW - this.draggingRoom.startW) / 2;
+          } else if (this.draggingRoom.side === 'left') {
+            newW = Math.max(1.0, this.draggingRoom.startW - dx);
+            newX = this.draggingRoom.startX - (newW - this.draggingRoom.startW) / 2;
+          } else if (this.draggingRoom.side === 'front') {
+            newD = Math.max(1.0, this.draggingRoom.startD + dz);
+            newZ = this.draggingRoom.startZ + (newD - this.draggingRoom.startD) / 2;
+          } else if (this.draggingRoom.side === 'back') {
+            newD = Math.max(1.0, this.draggingRoom.startD - dz);
+            newZ = this.draggingRoom.startZ - (newD - this.draggingRoom.startD) / 2;
+          }
+
+          newW = Math.round(newW * 10) / 10;
+          newD = Math.round(newD * 10) / 10;
+          newX = Math.round(newX * 10) / 10;
+          newZ = Math.round(newZ * 10) / 10;
+
+          this.updateRoomSize(this.draggingRoom.roomId, newW, newD, newX, newZ);
+          this.onRoomResize?.(this.draggingRoom.roomId, newW, newD, newX, newZ);
+        }
+        return;
+      }
+
       this.raycaster.setFromCamera(this.mouse, this.camera);
+
+      // Check room handles for hover
+      if (this.currentConfig.interactionMode === 'default' && this.roomDragHandles.length > 0) {
+        const dragIntersects = this.raycaster.intersectObjects(this.roomDragHandles, false);
+        if (dragIntersects.length > 0) {
+          const side = dragIntersects[0].object.userData.side;
+          if (side === 'left' || side === 'right') {
+            this.container.style.cursor = 'ew-resize';
+          } else {
+            this.container.style.cursor = 'ns-resize';
+          }
+          return;
+        }
+      }
+
       const intersects = this.raycaster.intersectObjects(this.interactivePanels, false);
 
       if (intersects.length > 0) {
@@ -675,6 +793,7 @@ export class HouseScene {
       this.container.style.cursor = 'default';
       this.updateHoverBox(null);
       this.onPanelHover?.(null, 0, 0);
+      this.updateRoomPreview(null);
     });
 
     this.container.addEventListener('pointerdown', (e) => {
@@ -754,13 +873,26 @@ export class HouseScene {
           if (roomType === 'storage') { w = 1.5; d = 1.5; }
 
           const roomGroup = this.createRoomGroup(roomType, w, d);
-          roomGroup.position.copy(vecPt);
-          // Remove existing room of this type (only allow 1 bathroom, 1 kitchen, etc. for MVP)
-          const existing = this.interiorGroup.children.find(c => c.userData.type === 'room_zone' && c.userData.roomType === roomType);
-          if (this.isValidInteriorPlacement(roomGroup, existing)) {
-            if (existing) this.interiorGroup.remove(existing);
-            this.interiorGroup.add(roomGroup);
+
+          const hw = this.currentConfig.widthMm / 1000 / 2;
+          const hd = this.currentConfig.depthMm / 1000 / 2;
+          const snappedX = Math.max(-hw + w/2 + 0.05, Math.min(hw - w/2 - 0.05, vecPt.x));
+          const snappedZ = Math.max(-hd + d/2 + 0.05, Math.min(hd - d/2 - 0.05, vecPt.z));
+
+          roomGroup.position.set(snappedX, 0, snappedZ);
+
+          let existingCount = 1;
+          let roomId = `${roomType}_${existingCount}`;
+          while (this.interiorGroup.children.some(c => c.userData.roomId === roomId)) {
+            existingCount++;
+            roomId = `${roomType}_${existingCount}`;
           }
+          roomGroup.userData.roomId = roomId;
+
+          this.interiorGroup.add(roomGroup);
+          this.onRoomPlaced?.(roomId, roomType, w, d);
+          this.updateRoomPreview(null);
+          this.onInteractionComplete?.();
         }
         return;
       }
@@ -770,6 +902,38 @@ export class HouseScene {
       this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
 
       this.raycaster.setFromCamera(this.mouse, this.camera);
+
+      // Check for room drag handles first if we are in default mode
+      if (this.currentConfig.interactionMode === 'default' && this.roomDragHandles.length > 0) {
+        const dragIntersects = this.raycaster.intersectObjects(this.roomDragHandles, false);
+        if (dragIntersects.length > 0) {
+          const hit = dragIntersects[0].object as THREE.Mesh;
+          const { roomId, side } = hit.userData;
+          const roomGroup = this.interiorGroup.children.find(c => c.userData.type === 'room_zone' && c.userData.roomId === roomId);
+          if (roomGroup) {
+            // Find current bounds
+            const wBox = new THREE.Box3().setFromObject(roomGroup);
+            const startW = wBox.max.x - wBox.min.x;
+            const startD = wBox.max.z - wBox.min.z;
+
+            const pt = this.housePointAt(e.clientX, e.clientY);
+            if (pt) {
+              this.draggingRoom = {
+                roomId,
+                side,
+                startW,
+                startD,
+                startX: roomGroup.position.x,
+                startZ: roomGroup.position.z,
+                startPt: pt
+              };
+              this.controls.enabled = false; // Disable orbit controls while dragging
+              return;
+            }
+          }
+        }
+      }
+
       const intersects = this.raycaster.intersectObjects(this.interactivePanels, false);
 
       if (intersects.length > 0) {
@@ -785,6 +949,11 @@ export class HouseScene {
     });
 
     this.container.addEventListener('pointerup', (e) => {
+      if (this.draggingRoom) {
+        this.draggingRoom = null;
+        this.controls.enabled = true;
+        return;
+      }
       if (!this.measuring || e.button !== 0 || !this.measureDown) return;
       const moved = Math.hypot(e.clientX - this.measureDown.x, e.clientY - this.measureDown.y);
       this.measureDown = null;
@@ -794,6 +963,10 @@ export class HouseScene {
     });
 
     this.container.addEventListener('pointercancel', () => {
+      if (this.draggingRoom) {
+        this.draggingRoom = null;
+        this.controls.enabled = true;
+      }
       this.measureDown = null;
     });
   }
@@ -826,6 +999,7 @@ export class HouseScene {
       this.highlightBox = null;
     }
     this.interactivePanels = [];
+    this.roomDragHandles = [];
 
     const w = this.currentConfig.widthMm / 1000;
     const d = this.currentConfig.depthMm / 1000;
@@ -2966,7 +3140,8 @@ export class HouseScene {
   public updateConfig(config: Partial<SceneConfig>) {
     const viewChanged =
       (config.viewMode !== undefined && config.viewMode !== this.currentConfig.viewMode) ||
-      (config.loftView !== undefined && config.loftView !== this.currentConfig.loftView);
+      (config.loftView !== undefined && config.loftView !== this.currentConfig.loftView) ||
+      (config.interiorView !== undefined && config.interiorView !== this.currentConfig.interiorView);
     const cameraPosition = this.camera.position.clone();
     const cameraTarget = this.controls.target.clone();
     const interactionChanged = config.interactionMode !== undefined && config.interactionMode !== this.currentConfig.interactionMode;
@@ -3092,14 +3267,64 @@ export class HouseScene {
       group.add(bed);
     }
 
-    // To make it easy to click/drag or view bounds, add an invisible bounding box
-    const boundGeo = new THREE.BoxGeometry(w, wallH, d);
-    const boundMat = new THREE.MeshBasicMaterial({ visible: false });
-    const boundMesh = new THREE.Mesh(boundGeo, boundMat);
-    boundMesh.position.y = wallH/2;
-    group.add(boundMesh);
+    // To make it easy to click/drag or view bounds, add invisible drag handles for the 4 walls
+    const handleMat = new THREE.MeshBasicMaterial({ visible: false });
+    const handleThickness = 0.4; // make them thick enough to easily click
+
+    const leftHandle = new THREE.Mesh(new THREE.BoxGeometry(handleThickness, wallH, d), handleMat);
+    leftHandle.position.set(-w/2, wallH/2, 0);
+    leftHandle.userData = { type: 'room_drag', side: 'left', roomId: null }; // roomId set later
+    group.add(leftHandle);
+    this.roomDragHandles.push(leftHandle);
+
+    const rightHandle = new THREE.Mesh(new THREE.BoxGeometry(handleThickness, wallH, d), handleMat);
+    rightHandle.position.set(w/2, wallH/2, 0);
+    rightHandle.userData = { type: 'room_drag', side: 'right', roomId: null };
+    group.add(rightHandle);
+    this.roomDragHandles.push(rightHandle);
+
+    const frontHandle = new THREE.Mesh(new THREE.BoxGeometry(w, wallH, handleThickness), handleMat);
+    frontHandle.position.set(0, wallH/2, d/2);
+    frontHandle.userData = { type: 'room_drag', side: 'front', roomId: null };
+    group.add(frontHandle);
+    this.roomDragHandles.push(frontHandle);
+
+    const backHandle = new THREE.Mesh(new THREE.BoxGeometry(w, wallH, handleThickness), handleMat);
+    backHandle.position.set(0, wallH/2, -d/2);
+    backHandle.userData = { type: 'room_drag', side: 'back', roomId: null };
+    group.add(backHandle);
+    this.roomDragHandles.push(backHandle);
 
     return group;
+  }
+
+  public updateRoomSize(roomId: string, w: number, d: number, x?: number, z?: number) {
+    const existing = this.interiorGroup.children.find(c => c.userData.type === 'room_zone' && c.userData.roomId === roomId);
+    if (existing) {
+      const currentX = existing.position.x;
+      const currentZ = existing.position.z;
+      const roomType = existing.userData.roomType;
+      this.interiorGroup.remove(existing);
+
+      // Cleanup drag handles for this room
+      this.roomDragHandles = this.roomDragHandles.filter(h => h.userData.roomId !== roomId);
+
+      const newRoom = this.createRoomGroup(roomType, w, d);
+      newRoom.userData.roomId = roomId;
+      // Set roomId on handles
+      newRoom.children.forEach(c => {
+        if (c.userData.type === 'room_drag') c.userData.roomId = roomId;
+      });
+      newRoom.position.set(x ?? currentX, 1.2, z ?? currentZ);
+
+      if (this.isValidInteriorPlacement(newRoom)) {
+        this.interiorGroup.add(newRoom);
+      } else {
+        // If the new size is invalid, we could revert to the old one.
+        // For now, let's just add it back so it doesn't disappear, but this could be improved.
+        this.interiorGroup.add(existing);
+      }
+    }
   }
 
   /** Parts a paper note can follow. Stored without rebuilding the house. */
@@ -3305,6 +3530,8 @@ export class HouseScene {
     if (this.currentConfig.viewMode === 'blueprint') {
       this.roofGroup.visible = false;
       this.trussesGroup.visible = false;
+      this.loftGroup.visible = false;
+      this.dimensionsGroup.visible = false;
       this.camera.position.set(0, 14, 0); // Top-down
       this.controls.target.set(0, 0, 0);
 
@@ -3317,18 +3544,28 @@ export class HouseScene {
     } else if (this.loftCutaway()) {
       this.roofGroup.visible = false;
       this.trussesGroup.visible = true;
+      this.loftGroup.visible = true;
+      this.dimensionsGroup.visible = false;
       this.camera.position.set(3.4, 10.2, 6.4);
       this.controls.target.set(0, 1.55, -0.2);
       if (this.gridHelper) this.gridHelper.visible = false;
-    } else if (this.currentConfig.viewMode === 'insida') {
+    } else if (this.currentConfig.viewMode === 'insida' || this.currentConfig.interiorView) {
       this.roofGroup.visible = false;
-      this.trussesGroup.visible = true;
-      this.camera.position.set(0.5, 8.5, 7.8);
+      this.trussesGroup.visible = false;
+      this.loftGroup.visible = true;
+      this.dimensionsGroup.visible = false;
+
+      // If we are just inside 'insida' mode we should place camera inside.
+      // If we are in 'utsida' mode but interiorView is true, we could keep the camera where it is or switch it.
+      // We'll just set it to 'insida' view camera.
+      this.camera.position.set(0, 7.5, 4.0);
       this.controls.target.set(0, 1.2, 0);
       if (this.gridHelper) this.gridHelper.visible = false;
     } else {
       this.roofGroup.visible = true;
       this.trussesGroup.visible = false;
+      this.loftGroup.visible = true;
+      this.dimensionsGroup.visible = true;
       this.camera.position.set(0, 3.2, 13.5);
       this.controls.target.set(0, 2.2, 0);
       if (this.gridHelper) this.gridHelper.visible = false;

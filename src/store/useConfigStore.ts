@@ -476,6 +476,9 @@ export const useConfigStore = defineStore('config', () => {
   const activeWindow = ref<string>('standard-single');
   const activeGate = ref<string>('none');
 
+  // Interior rooms
+  const placedRooms = ref<Record<string, { type: string; w: number; d: number; x: number; z: number }>>({});
+
   // Wall panel modular slots (matching Skånska Byggvaror reference layout)
   const wallSlots = ref<Record<string, WallSlot>>(createWallSlots());
 
@@ -514,7 +517,8 @@ export const useConfigStore = defineStore('config', () => {
       panelOrientation: panelOrientation.value,
       claddingSizeId: claddingSizeId.value,
       wallSlots: wallSlots.value,
-      notes: notes.value
+      notes: notes.value,
+      placedRooms: placedRooms.value
     };
   }
 
@@ -588,6 +592,7 @@ export const useConfigStore = defineStore('config', () => {
         ? data.claddingSizeId
         : '22x145';
       wallSlots.value = mergeWallSlots(data.wallSlots);
+      if (data.placedRooms) placedRooms.value = data.placedRooms;
       notes.value = acceptNotes(data.notes);
       if (notes.value.length) showNotes.value = true;
     } catch {
@@ -1183,6 +1188,7 @@ export const useConfigStore = defineStore('config', () => {
     selectedLoftSize,
     hasLoftStair,
     loftTab,
+    placedRooms,
     availableLoftSizes,
     totalPriceSek,
     selectedSlotCanAcceptDoor,

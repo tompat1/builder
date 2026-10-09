@@ -758,7 +758,10 @@
                     : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
                 ]"
               >
-                Sovrum
+                <div class="flex flex-col items-center">
+                  <span>Sovrum</span>
+                  <span class="text-[10px] font-normal opacity-75">3.0 x 3.0 m</span>
+                </div>
               </button>
               <button
                 type="button"
@@ -770,7 +773,10 @@
                     : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
                 ]"
               >
-                Badrum
+                <div class="flex flex-col items-center">
+                  <span>Badrum</span>
+                  <span class="text-[10px] font-normal opacity-75">2.0 x 2.0 m</span>
+                </div>
               </button>
               <button
                 type="button"
@@ -782,7 +788,10 @@
                     : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
                 ]"
               >
-                Kök / Pentry
+                <div class="flex flex-col items-center">
+                  <span>Kök / Pentry</span>
+                  <span class="text-[10px] font-normal opacity-75">3.0 x 2.0 m</span>
+                </div>
               </button>
               <button
                 type="button"
@@ -794,10 +803,33 @@
                     : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
                 ]"
               >
-                Förråd
+                <div class="flex flex-col items-center">
+                  <span>Förråd</span>
+                  <span class="text-[10px] font-normal opacity-75">1.5 x 1.5 m</span>
+                </div>
               </button>
             </div>
             <p class="text-[11px] text-slate-500 mt-2"><Cms k="interior.layoutHint" fallback="Dra in zoner för att automatiskt generera innerväggar runt dem." /></p>
+
+            <div v-if="Object.keys(store.placedRooms).length > 0" class="mt-4 pt-4 border-t border-slate-200">
+              <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2"><Cms k="interior.placedRooms" fallback="Placerade Rum" /></h4>
+              <div v-for="(room, id) in store.placedRooms" :key="id" class="mb-3 space-y-1">
+                <div class="flex justify-between items-center text-xs font-semibold text-slate-700">
+                  <span class="capitalize">{{ room.type === 'bedroom' ? 'Sovrum' : room.type === 'bathroom' ? 'Badrum' : room.type === 'kitchen' ? 'Kök / Pentry' : 'Förråd' }} {{ id.split('_')[1] }}</span>
+                  <span class="text-[10px] tabular-nums">{{ room.w.toFixed(1) }} × {{ room.d.toFixed(1) }} m</span>
+                </div>
+                <div class="flex gap-2">
+                  <label class="flex-1 flex items-center gap-2 text-[10px] font-medium text-slate-600">
+                    Bredd:
+                    <input type="range" min="1.0" max="6.0" step="0.1" v-model.number="room.w" class="w-full accent-slate-900" />
+                  </label>
+                  <label class="flex-1 flex items-center gap-2 text-[10px] font-medium text-slate-600">
+                    Djup:
+                    <input type="range" min="1.0" max="6.0" step="0.1" v-model.number="room.d" class="w-full accent-slate-900" />
+                  </label>
+                </div>
+              </div>
+            </div>
           </div>
 
           <div class="pt-2">
