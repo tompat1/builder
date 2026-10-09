@@ -7,7 +7,15 @@
       :style="panelStyle"
     >
       <div class="mb-2 flex items-center justify-between">
-        <p class="font-bold text-slate-900"><Cms k="header.houses" /></p>
+        <div class="flex items-center gap-2">
+          <p class="font-bold text-slate-900"><Cms k="header.houses" /></p>
+          <span
+            class="rounded-full px-2 py-0.5 text-[10px] font-medium"
+            :class="autoSaveOn ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'"
+          >
+            <Cms :k="autoSaveOn ? 'header.autoSaveOn' : 'header.autoSaveOff'" />
+          </span>
+        </div>
         <button type="button" class="text-slate-400 hover:text-slate-700" :aria-label="t('header.houseClose')" @click="emit('close')">
           <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <path d="M6 6 L18 18 M18 6 L6 18" />
@@ -74,7 +82,7 @@
 </template>
 
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { nextTick, onBeforeUnmount, onMounted, ref, watch, computed } from 'vue';
 import { useConfigStore } from '../store/useConfigStore';
 import { useSessionStore } from '../store/useSessionStore';
 import { useLabels } from '../i18n';
@@ -110,6 +118,8 @@ const houses = ref<SavedHouse[]>([]);
 const busy = ref(false);
 const notice = ref('');
 const error = ref('');
+const activeId = ref(readActiveHouseId());
+const autoSaveOn = computed(() => !!(session.user && activeId.value));
 const panelStyle = ref({ top: '64px', left: '12px' });
 let draft = '';
 let saveTimer = 0;
@@ -176,6 +186,7 @@ async function refresh() {
     active = houses.value[0].id;
     writeActiveHouseId(active);
   }
+  activeId.value = active;
   if (active && !houseThumb(active)) attachThumb(active);
 }
 
@@ -193,6 +204,7 @@ async function adoptWorkingHouse() {
       return;
     }
   }
+  activeId.value = active;
   if (active && !houseThumb(active)) attachThumb(active);
 }
 
@@ -236,6 +248,7 @@ async function save() {
   try {
     const saved = await saveNamedHouse(title, config);
     writeActiveHouseId(saved.id);
+    activeId.value = saved.id;
     if (thumb) rememberHouseThumb(saved.id, thumb);
     name.value = '';
     notice.value = t('header.houseSaved');
@@ -255,6 +268,7 @@ async function openHouse(id: string) {
     const local = id === readActiveHouseId() ? readLocalHouse() : null;
     const config = local ?? (await openNamedHouse(id)).config;
     writeActiveHouseId(id);
+    activeId.value = id;
     store.importHouse(config);
     writeLocalHouse(config);
     draft = JSON.stringify(store.exportHouse());
@@ -272,7 +286,10 @@ async function remove(id: string) {
   try {
     await removeNamedHouse(id);
     forgetHouseThumb(id);
-    if (readActiveHouseId() === id) writeActiveHouseId('');
+    if (readActiveHouseId() === id) {
+      writeActiveHouseId('');
+      activeId.value = '';
+    }
     houses.value = houses.value.filter((house) => house.id !== id);
   } catch {
     error.value = t('header.saveFailed');
@@ -285,6 +302,7 @@ async function uploadPending() {
   try {
     const saved = await saveNamedHouse(pending.name, pending.config);
     writeActiveHouseId(saved.id);
+    activeId.value = saved.id;
     const thumb = houseThumb('pending');
     if (thumb) {
       rememberHouseThumb(saved.id, thumb);

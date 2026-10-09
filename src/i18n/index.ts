@@ -170,7 +170,9 @@ const sv = {
     houseNeedAccount: 'Logga in för att spara huset på kontot.',
     houseOpened: 'Huset är öppnat.',
     houseSaved: 'Huset är sparat.',
-    houseClose: 'Stäng'
+    houseClose: 'Stäng',
+    autoSaveOn: 'Autosparande är PÅ',
+    autoSaveOff: 'Autosparande är AV'
   },
   cms: {
     edit: 'Redigera',
@@ -662,7 +664,9 @@ const en = {
     houseNeedAccount: 'Sign in to save the house on the account.',
     houseOpened: 'The house is open.',
     houseSaved: 'The house is saved.',
-    houseClose: 'Close'
+    houseClose: 'Close',
+    autoSaveOn: 'Auto-save is ON',
+    autoSaveOff: 'Auto-save is OFF'
   },
   cms: {
     edit: 'Edit',
