@@ -91,21 +91,66 @@
             <span class="absolute right-2 text-xs font-extrabold text-emerald-900 pointer-events-none">m²</span>
           </div>
         </div>
-        <div class="grid grid-cols-3 gap-2">
-          <label v-for="field in measureFields" :key="field.axis" class="block">
+        <div class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_minmax(0,1fr)] items-end gap-2">
+          <label class="block min-w-0">
             <span class="block text-[11px] font-semibold text-slate-600 mb-1">
-              <Cms :k="field.label" />
+              <Cms k="category.width" />
               <span class="font-medium text-slate-400"> ({{ t('category.unitCm') }})</span>
             </span>
             <input
               type="number"
-              :id="`measure-${field.axis}`"
+              id="measure-width"
               class="w-full text-xs font-semibold tabular-nums bg-white border border-slate-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-slate-900"
-              :min="BUILDING_LIMITS[field.axis].min / 10"
-              :max="BUILDING_LIMITS[field.axis].max / 10"
+              :min="BUILDING_LIMITS.width.min / 10"
+              :max="BUILDING_LIMITS.width.max / 10"
               step="0.1"
-              :value="centimetres(store.dimensions[field.axis])"
-              @change="commitMeasure(field.axis, $event)"
+              :value="centimetres(store.dimensions.width)"
+              @change="commitMeasure('width', $event)"
+            />
+          </label>
+          <button
+            type="button"
+            id="btn-swap-plan"
+            class="mb-px flex h-[30px] w-7 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-600 hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus-visible:ring-1 focus-visible:ring-slate-900"
+            :aria-label="t('category.swapMeasures')"
+            :title="t('category.swapMeasures')"
+            @click="store.swapBuildingPlan()"
+          >
+            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M4 8h13M14 5l3 3-3 3" />
+              <path d="M20 16H7M10 13l-3 3 3 3" />
+            </svg>
+          </button>
+          <label class="block min-w-0">
+            <span class="block text-[11px] font-semibold text-slate-600 mb-1">
+              <Cms k="category.depth" />
+              <span class="font-medium text-slate-400"> ({{ t('category.unitCm') }})</span>
+            </span>
+            <input
+              type="number"
+              id="measure-depth"
+              class="w-full text-xs font-semibold tabular-nums bg-white border border-slate-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-slate-900"
+              :min="BUILDING_LIMITS.depth.min / 10"
+              :max="BUILDING_LIMITS.depth.max / 10"
+              step="0.1"
+              :value="centimetres(store.dimensions.depth)"
+              @change="commitMeasure('depth', $event)"
+            />
+          </label>
+          <label class="block min-w-0">
+            <span class="block text-[11px] font-semibold text-slate-600 mb-1">
+              <Cms k="category.height" />
+              <span class="font-medium text-slate-400"> ({{ t('category.unitCm') }})</span>
+            </span>
+            <input
+              type="number"
+              id="measure-height"
+              class="w-full text-xs font-semibold tabular-nums bg-white border border-slate-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-slate-900"
+              :min="BUILDING_LIMITS.height.min / 10"
+              :max="BUILDING_LIMITS.height.max / 10"
+              step="0.1"
+              :value="centimetres(store.dimensions.height)"
+              @change="commitMeasure('height', $event)"
             />
           </label>
         </div>
@@ -1303,12 +1348,6 @@ const coveringSwatch: Record<RoofCovering, string> = {
 const panelOrientations = [
   { id: 'staende' as const, label: 'category.standing' },
   { id: 'liggande' as const, label: 'category.lying' }
-];
-
-const measureFields = [
-  { axis: 'width' as const, label: 'category.width' },
-  { axis: 'depth' as const, label: 'category.depth' },
-  { axis: 'height' as const, label: 'category.height' }
 ];
 
 function centimetres(millimetres: number) {

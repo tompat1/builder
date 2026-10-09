@@ -7,9 +7,11 @@ import {
   LOFT_MIN_ABOVE_FLOOR,
   doorFrameTop,
   loftJoistTop,
+  curvedLoftStair,
   loftStairOpening,
   loftStairRun,
   loftStairTreads,
+  straightLoftStair,
   isLoftRoom
 } from '../src/three-engine/loftLevel.ts';
 import {
@@ -98,15 +100,59 @@ test('a taller rise keeps a walkable stair inside the room', () => {
 });
 
 test('each stair type gets a floor opening that fits inside the loft', () => {
-  const straight = loftStairOpening('straight', 2.4, 4.5);
-  const curved = loftStairOpening('curved', 2.4, 4.5);
+  const run = loftStairRun(2.5, 4.5);
+  const straight = loftStairOpening('straight', 2.4, 4.5, run);
+  const curved = loftStairOpening('curved', 2.4, 4.5, run);
 
-  assert.deepEqual(straight, { width: 0.75, depth: 1.1 });
-  assert.deepEqual(curved, { width: 1.35, depth: 1.35 });
+  assert.ok(straight.depth >= run);
+  assert.ok(straight.depth < 4.5);
   assert.ok(curved.width > straight.width);
-  assert.ok(curved.depth > straight.depth);
+  assert.ok(curved.depth > 1.2);
+  assert.ok(curved.depth < 4.5);
 
   const compact = loftStairOpening('curved', 1.2, 1.5);
   assert.ok(compact.width < 1.2);
   assert.ok(compact.depth < 1.5);
+});
+
+test('the straight stair lands on the deck and stays clear of the front wall', () => {
+  const interiorD = 3.14;
+  const frontZ = interiorD / 2;
+  const rise = 2.5;
+  const run = loftStairRun(rise, interiorD);
+  const opening = loftStairOpening('straight', 2.3, interiorD, run);
+  const stair = straightLoftStair({
+    frontZ,
+    edgeX: -0.4,
+    openSign: 1,
+    opening,
+    run,
+    rise
+  });
+
+  assert.ok(stair.zBottom <= frontZ - 0.12);
+  assert.equal(stair.zTop, frontZ - opening.depth);
+  assert.ok(stair.zBottom > stair.zTop);
+  assert.ok(stair.yTop - stair.yBottom === rise);
+  assert.ok(stair.x < -0.4);
+});
+
+test('the curved stair finishes at the deck edge and stays inside the well', () => {
+  const interiorD = 3.14;
+  const frontZ = interiorD / 2;
+  const opening = loftStairOpening('curved', 2.3, interiorD);
+  const stair = curvedLoftStair({
+    frontZ,
+    edgeX: -0.2,
+    openSign: 1,
+    opening,
+    rise: 2.5
+  });
+  const headerZ = frontZ - opening.depth;
+  const topZ = stair.centerZ + Math.sin(stair.topAngle) * stair.radius;
+  const frontMost = stair.centerZ + stair.radius;
+
+  assert.ok(Math.abs(topZ - headerZ) < 0.02);
+  assert.ok(frontMost < frontZ - 0.05);
+  assert.ok(stair.yTop - stair.yBottom === 2.5);
 });

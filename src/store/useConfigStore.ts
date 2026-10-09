@@ -864,6 +864,15 @@ export const useConfigStore = defineStore('config', () => {
     saveSnapshot();
   }
 
+  function swapBuildingPlan() {
+    const nextWidth = clampMeasure('width', buildingDepth.value);
+    const nextDepth = clampMeasure('depth', buildingWidth.value);
+    if (nextWidth === buildingWidth.value && nextDepth === buildingDepth.value) return;
+    buildingWidth.value = nextWidth;
+    buildingDepth.value = nextDepth;
+    saveSnapshot();
+  }
+
   function selectRoof(id: string) {
     activeRoof.value = id;
     saveSnapshot();
@@ -1294,6 +1303,7 @@ export const useConfigStore = defineStore('config', () => {
     selectCategory,
     selectSize,
     setBuildingMeasure,
+    swapBuildingPlan,
     selectRoof,
     selectRoofCovering,
     selectLoft,
