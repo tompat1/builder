@@ -80,7 +80,16 @@
           <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">
             <Cms k="category.customSize" />
           </h4>
-          <p id="custom-area" class="shrink-0 rounded-md bg-emerald-50 px-2 py-1 text-sm font-extrabold leading-none tabular-nums text-emerald-900 ring-1 ring-emerald-200">{{ customArea }}</p>
+          <div class="relative shrink-0 flex items-center">
+            <input
+              type="number"
+              class="w-20 rounded-md bg-emerald-50 px-2 py-1 text-sm font-extrabold leading-none tabular-nums text-emerald-900 ring-1 ring-emerald-200 focus:outline-none focus:ring-2 focus:ring-emerald-400 text-right pr-7"
+              :value="store.dimensions.areaSqMeters.toFixed(1)"
+              step="0.1"
+              @change="commitArea($event)"
+            />
+            <span class="absolute right-2 text-xs font-extrabold text-emerald-900 pointer-events-none">m²</span>
+          </div>
         </div>
         <div class="grid grid-cols-3 gap-2">
           <label v-for="field in measureFields" :key="field.axis" class="block">
@@ -1191,14 +1200,7 @@ function doorTabClass(active: boolean) {
       : 'font-semibold border-transparent text-slate-400 hover:text-slate-600'
   ];
 }
-const customArea = computed(() => {
-  const loc = locale.value === 'en' ? 'en-GB' : 'sv-SE';
-  const area = new Intl.NumberFormat(loc, {
-    minimumFractionDigits: 1,
-    maximumFractionDigits: 1
-  }).format(store.dimensions.areaSqMeters);
-  return `${area} m²`;
-});
+// Removed customArea computed as we now use an input field directly.
 const paintOpen = ref(false);
 const previewInk = computed(() => readableInk(store.paintPreview ?? '#ffffff'));
 
@@ -1234,6 +1236,27 @@ function commitMeasure(axis: 'width' | 'depth' | 'height', event: Event) {
   const raw = Number((event.target as HTMLInputElement).value);
   store.setBuildingMeasure(axis, Math.round(raw * 10));
   (event.target as HTMLInputElement).value = centimetres(store.dimensions[axis]);
+}
+
+function commitArea(event: Event) {
+  const target = event.target as HTMLInputElement;
+  const targetArea = Number(target.value);
+  if (isNaN(targetArea) || targetArea <= 0) {
+    target.value = store.dimensions.areaSqMeters.toFixed(1);
+    return;
+  }
+
+  const currentW = store.dimensions.width;
+  const currentD = store.dimensions.depth;
+  const ratio = currentW / currentD;
+
+  const newDepth = Math.sqrt((targetArea * 1_000_000) / ratio);
+  const newWidth = ratio * newDepth;
+
+  store.setBuildingMeasure('width', Math.round(newWidth));
+  store.setBuildingMeasure('depth', Math.round(newDepth));
+
+  target.value = store.dimensions.areaSqMeters.toFixed(1);
 }
 
 const currentOptionsCount = computed(() => {

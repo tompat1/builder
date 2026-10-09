@@ -25,6 +25,7 @@ export interface SceneConfig {
   loftView: boolean;
   /** True when the Interior category is open. */
   interiorView: boolean;
+  roofView: boolean;
   material: MaterialKey;
   /** Painted facade. When set, the boards use this colour instead of a catalog stain. */
   customHex: string | null;
@@ -67,6 +68,8 @@ export class HouseScene {
     startD: number;
     startX: number;
     startZ: number;
+    startY: number;
+    roomType: string;
     startPt: { x: number; y: number; z: number };
   } | null = null;
   private raycaster = new THREE.Raycaster();
@@ -89,8 +92,8 @@ export class HouseScene {
     start: { x: number; y: number; visible: boolean };
     end: { x: number; y: number; visible: boolean };
   } | null) => void;
-  public onRoomPlaced?: (id: string, type: string, w: number, d: number) => void;
-  public onRoomResize?: (id: string, w: number, d: number, x: number, z: number) => void;
+  public onRoomPlaced?: (id: string, type: string, w: number, d: number, x: number, y: number, z: number) => void;
+  public onRoomResize?: (id: string, w: number, d: number, x: number, y: number, z: number) => void;
   public onInteractionComplete?: () => void;
   private measuring = false;
   private measureDown: { x: number; y: number } | null = null;
@@ -126,6 +129,7 @@ export class HouseScene {
       viewMode: initialConfig?.viewMode ?? 'utsida',
       loftView: initialConfig?.loftView ?? false,
       interiorView: initialConfig?.interiorView ?? false,
+      roofView: initialConfig?.roofView ?? false,
       material: initialConfig?.material ?? 'wood',
       customHex: initialConfig?.customHex ?? null,
       panelOrientation: initialConfig?.panelOrientation ?? 'staende',
@@ -739,8 +743,8 @@ export class HouseScene {
           newX = Math.round(newX * 10) / 10;
           newZ = Math.round(newZ * 10) / 10;
 
-          this.updateRoomSize(this.draggingRoom.roomId, newW, newD, newX, newZ);
-          this.onRoomResize?.(this.draggingRoom.roomId, newW, newD, newX, newZ);
+          this.updateRoomSize(this.draggingRoom.roomId, this.draggingRoom.roomType, newW, newD, newX, undefined, newZ);
+          this.onRoomResize?.(this.draggingRoom.roomId, newW, newD, newX, this.draggingRoom.startY || 0.3, newZ);
         }
         return;
       }
@@ -879,7 +883,11 @@ export class HouseScene {
           const snappedX = Math.max(-hw + w/2 + 0.05, Math.min(hw - w/2 - 0.05, vecPt.x));
           const snappedZ = Math.max(-hd + d/2 + 0.05, Math.min(hd - d/2 - 0.05, vecPt.z));
 
-          roomGroup.position.set(snappedX, 0, snappedZ);
+          let baseY = 0.3;
+          if (pt.y > 1.0) {
+            baseY = Math.max(0.3, pt.y);
+          }
+          roomGroup.position.set(snappedX, baseY, snappedZ);
 
           let existingCount = 1;
           let roomId = `${roomType}_${existingCount}`;
@@ -890,7 +898,7 @@ export class HouseScene {
           roomGroup.userData.roomId = roomId;
 
           this.interiorGroup.add(roomGroup);
-          this.onRoomPlaced?.(roomId, roomType, w, d);
+          this.onRoomPlaced?.(roomId, roomType, w, d, snappedX, baseY, snappedZ);
           this.updateRoomPreview(null);
           this.onInteractionComplete?.();
         }
@@ -925,6 +933,8 @@ export class HouseScene {
                 startD,
                 startX: roomGroup.position.x,
                 startZ: roomGroup.position.z,
+                startY: roomGroup.position.y,
+                roomType: roomGroup.userData.roomType,
                 startPt: pt
               };
               this.controls.enabled = false; // Disable orbit controls while dragging
@@ -988,9 +998,7 @@ export class HouseScene {
     while (this.loftGroup.children.length > 0) {
       this.loftGroup.remove(this.loftGroup.children[0]);
     }
-    while (this.interiorGroup.children.length > 0) {
-      this.interiorGroup.remove(this.interiorGroup.children[0]);
-    }
+    // We preserve interiorGroup so rooms don't disappear when resizing the house or changing materials.
     while (this.dimensionsGroup.children.length > 0) {
       this.dimensionsGroup.remove(this.dimensionsGroup.children[0]);
     }
@@ -3141,7 +3149,8 @@ export class HouseScene {
     const viewChanged =
       (config.viewMode !== undefined && config.viewMode !== this.currentConfig.viewMode) ||
       (config.loftView !== undefined && config.loftView !== this.currentConfig.loftView) ||
-      (config.interiorView !== undefined && config.interiorView !== this.currentConfig.interiorView);
+      (config.interiorView !== undefined && config.interiorView !== this.currentConfig.interiorView) ||
+      (config.roofView !== undefined && config.roofView !== this.currentConfig.roofView);
     const cameraPosition = this.camera.position.clone();
     const cameraTarget = this.controls.target.clone();
     const interactionChanged = config.interactionMode !== undefined && config.interactionMode !== this.currentConfig.interactionMode;
@@ -3200,30 +3209,34 @@ export class HouseScene {
     const wallThick = 0.1;
     const wallH = 2.4;
     const wallMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc });
+    const edgeMat = new THREE.LineBasicMaterial({ color: 0x64748b });
+
+    const addWall = (geo: THREE.BoxGeometry, x: number, z: number) => {
+      const mesh = new THREE.Mesh(geo, wallMat);
+      mesh.position.set(x, wallH/2, z);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      const edges = new THREE.EdgesGeometry(geo);
+      const line = new THREE.LineSegments(edges, edgeMat);
+      mesh.add(line);
+      group.add(mesh);
+    };
+
     // back
-    const w1 = new THREE.Mesh(new THREE.BoxGeometry(w, wallH, wallThick), wallMat);
-    w1.position.set(0, wallH/2, -d/2 + wallThick/2);
-    group.add(w1);
+    addWall(new THREE.BoxGeometry(w, wallH, wallThick), 0, -d/2 + wallThick/2);
     // front (with a gap for door)
-    const w2a = new THREE.Mesh(new THREE.BoxGeometry(w/2 - 0.4, wallH, wallThick), wallMat);
-    w2a.position.set(-(w/4 + 0.2), wallH/2, d/2 - wallThick/2);
-    group.add(w2a);
-    const w2b = new THREE.Mesh(new THREE.BoxGeometry(w/2 - 0.4, wallH, wallThick), wallMat);
-    w2b.position.set(w/4 + 0.2, wallH/2, d/2 - wallThick/2);
-    group.add(w2b);
+    addWall(new THREE.BoxGeometry(w/2 - 0.4, wallH, wallThick), -(w/4 + 0.2), d/2 - wallThick/2);
+    addWall(new THREE.BoxGeometry(w/2 - 0.4, wallH, wallThick), w/4 + 0.2, d/2 - wallThick/2);
     // door header
-    const w2c = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.3, wallThick), wallMat);
-    w2c.position.set(0, wallH - 0.15, d/2 - wallThick/2);
-    group.add(w2c);
+    addWall(new THREE.BoxGeometry(0.8, 0.3, wallThick), 0, d/2 - wallThick/2); // Y is overridden below
+    // Fix door header Y
+    const headerMesh = group.children[group.children.length - 1] as THREE.Mesh;
+    headerMesh.position.set(0, wallH - 0.15, d/2 - wallThick/2);
 
     // left
-    const w3 = new THREE.Mesh(new THREE.BoxGeometry(wallThick, wallH, d - wallThick*2), wallMat);
-    w3.position.set(-w/2 + wallThick/2, wallH/2, 0);
-    group.add(w3);
+    addWall(new THREE.BoxGeometry(wallThick, wallH, d - wallThick*2), -w/2 + wallThick/2, 0);
     // right
-    const w4 = new THREE.Mesh(new THREE.BoxGeometry(wallThick, wallH, d - wallThick*2), wallMat);
-    w4.position.set(w/2 - wallThick/2, wallH/2, 0);
-    group.add(w4);
+    addWall(new THREE.BoxGeometry(wallThick, wallH, d - wallThick*2), w/2 - wallThick/2, 0);
 
     if (roomType === 'bathroom') {
       // Shower
@@ -3298,33 +3311,33 @@ export class HouseScene {
     return group;
   }
 
-  public updateRoomSize(roomId: string, w: number, d: number, x?: number, z?: number) {
+  public updateRoomSize(roomId: string, expectedRoomType: string, w: number, d: number, x?: number, y?: number, z?: number) {
     const existing = this.interiorGroup.children.find(c => c.userData.type === 'room_zone' && c.userData.roomId === roomId);
+    let currentX = x ?? 0;
+    let currentY = y ?? 0.3;
+    let currentZ = z ?? 0;
+    let roomType = expectedRoomType;
+
     if (existing) {
-      const currentX = existing.position.x;
-      const currentZ = existing.position.z;
-      const roomType = existing.userData.roomType;
+      currentX = existing.position.x;
+      currentY = existing.position.y;
+      currentZ = existing.position.z;
+      roomType = existing.userData.roomType;
       this.interiorGroup.remove(existing);
-
-      // Cleanup drag handles for this room
-      this.roomDragHandles = this.roomDragHandles.filter(h => h.userData.roomId !== roomId);
-
-      const newRoom = this.createRoomGroup(roomType, w, d);
-      newRoom.userData.roomId = roomId;
-      // Set roomId on handles
-      newRoom.children.forEach(c => {
-        if (c.userData.type === 'room_drag') c.userData.roomId = roomId;
-      });
-      newRoom.position.set(x ?? currentX, 1.2, z ?? currentZ);
-
-      if (this.isValidInteriorPlacement(newRoom)) {
-        this.interiorGroup.add(newRoom);
-      } else {
-        // If the new size is invalid, we could revert to the old one.
-        // For now, let's just add it back so it doesn't disappear, but this could be improved.
-        this.interiorGroup.add(existing);
-      }
     }
+
+    // Cleanup drag handles for this room
+    this.roomDragHandles = this.roomDragHandles.filter(h => h.userData.roomId !== roomId);
+
+    const newRoom = this.createRoomGroup(roomType, w, d);
+    newRoom.userData.roomId = roomId;
+    // Set roomId on handles
+    newRoom.children.forEach(c => {
+      if (c.userData.type === 'room_drag') c.userData.roomId = roomId;
+    });
+    newRoom.position.set(x ?? currentX, y ?? currentY, z ?? currentZ);
+
+    this.interiorGroup.add(newRoom);
   }
 
   /** Parts a paper note can follow. Stored without rebuilding the house. */
@@ -3530,7 +3543,8 @@ export class HouseScene {
     if (this.currentConfig.viewMode === 'blueprint') {
       this.roofGroup.visible = false;
       this.trussesGroup.visible = false;
-      this.loftGroup.visible = false;
+      this.framingGroup.visible = false;
+      this.loftGroup.visible = this.currentConfig.hasLoft;
       this.dimensionsGroup.visible = false;
       this.camera.position.set(0, 14, 0); // Top-down
       this.controls.target.set(0, 0, 0);
@@ -3544,6 +3558,7 @@ export class HouseScene {
     } else if (this.loftCutaway()) {
       this.roofGroup.visible = false;
       this.trussesGroup.visible = true;
+      this.framingGroup.visible = true;
       this.loftGroup.visible = true;
       this.dimensionsGroup.visible = false;
       this.camera.position.set(3.4, 10.2, 6.4);
@@ -3552,6 +3567,7 @@ export class HouseScene {
     } else if (this.currentConfig.viewMode === 'insida' || this.currentConfig.interiorView) {
       this.roofGroup.visible = false;
       this.trussesGroup.visible = false;
+      this.framingGroup.visible = false;
       this.loftGroup.visible = true;
       this.dimensionsGroup.visible = false;
 
@@ -3564,10 +3580,18 @@ export class HouseScene {
     } else {
       this.roofGroup.visible = true;
       this.trussesGroup.visible = false;
+      this.framingGroup.visible = true;
       this.loftGroup.visible = true;
-      this.dimensionsGroup.visible = true;
-      this.camera.position.set(0, 3.2, 13.5);
-      this.controls.target.set(0, 2.2, 0);
+      this.dimensionsGroup.visible = this.currentConfig.showDimensions;
+
+      if (this.currentConfig.roofView) {
+        this.camera.position.set(0, 10, 8);
+        this.controls.target.set(0, 2.5, 0);
+      } else {
+        this.camera.position.set(0, 3.2, 13.5);
+        this.controls.target.set(0, 2.2, 0);
+      }
+
       if (this.gridHelper) this.gridHelper.visible = false;
     }
     this.controls.update();

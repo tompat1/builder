@@ -146,11 +146,11 @@ export const SIZE_OPTIONS: SizeOption[] = [
     name: 'Attefallshus Max 30 m²',
     badge: 'Mest vald',
     width: 6040,
-    depth: 3503,
+    depth: 4950,
     height: 5000,
     areaSqMeters: 29.9,
     basePrice: 103634,
-    desc: '6040 × 3503 mm. Maximal bygglovsfri boendeyta.'
+    desc: '6040 × 4950 mm. Maximal bygglovsfri boendeyta.'
   },
   {
     id: 'size-40',
@@ -477,7 +477,7 @@ export const useConfigStore = defineStore('config', () => {
   const activeGate = ref<string>('none');
 
   // Interior rooms
-  const placedRooms = ref<Record<string, { type: string; w: number; d: number; x: number; z: number }>>({});
+  const placedRooms = ref<Record<string, { type: string; w: number; d: number; x: number; y: number; z: number }>>({});
 
   // Wall panel modular slots (matching Skånska Byggvaror reference layout)
   const wallSlots = ref<Record<string, WallSlot>>(createWallSlots());

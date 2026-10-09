@@ -101,6 +101,7 @@ onMounted(() => {
       viewMode: store.viewMode,
       loftView: store.selectedCategory === 'loft',
       interiorView: store.selectedCategory === 'interior',
+      roofView: store.selectedCategory === 'roof',
       material: store.activeMaterial,
       customHex: store.paintPreview ?? store.customPaint?.hex ?? null,
       panelOrientation: store.panelOrientation,
@@ -153,14 +154,15 @@ onMounted(() => {
     engine.onMeasureScreen = (screen) => {
       store.setMeasureScreen(screen);
     };
-    engine.onRoomPlaced = (id, type, w, d) => {
-      store.placedRooms[id] = { type, w, d, x: 0, z: 0 };
+    engine.onRoomPlaced = (id, type, w, d, x, y, z) => {
+      store.placedRooms[id] = { type, w, d, x, y, z };
     };
-    engine.onRoomResize = (id, w, d, x, z) => {
+    engine.onRoomResize = (id, w, d, x, y, z) => {
       if (store.placedRooms[id]) {
         store.placedRooms[id].w = w;
         store.placedRooms[id].d = d;
         store.placedRooms[id].x = x;
+        store.placedRooms[id].y = y;
         store.placedRooms[id].z = z;
       }
     };
@@ -207,7 +209,8 @@ watch(
       viewMode: mode,
       interactionMode: interaction,
       loftView: category === 'loft',
-      interiorView: category === 'interior'
+      interiorView: category === 'interior',
+      roofView: category === 'roof'
     });
   }
 );
@@ -267,7 +270,7 @@ watch(
   () => store.placedRooms,
   (rooms) => {
     for (const [id, info] of Object.entries(rooms)) {
-      engine?.updateRoomSize(id, info.w, info.d, info.x, info.z);
+      engine?.updateRoomSize(id, info.type, info.w, info.d, info.x, info.y, info.z);
     }
   },
   { deep: true }
