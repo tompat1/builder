@@ -3,6 +3,20 @@
     <!-- Top Header Bar -->
     <HeaderBar v-if="!store.isFullscreen" @open-export="isExportOpen = true" />
 
+    <div
+      v-if="sunShown"
+      class="pointer-events-none absolute inset-y-0 left-0 z-30 md:right-[434px]"
+      :style="store.isFullscreen ? { right: '0px' } : undefined"
+      aria-hidden="true"
+    >
+      <div
+        id="day-sun"
+        class="day-sun absolute -translate-x-1/2 -translate-y-1/2"
+        :class="store.isFullscreen ? 'top-10' : 'top-16 md:top-[5.5rem]'"
+        :style="{ left: sunLeft }"
+      ></div>
+    </div>
+
     <!-- 3D Scene In-Canvas Overlays (Aligned with the 3D Canvas Area) -->
     <div
       class="pointer-events-none absolute inset-0 z-10 overflow-hidden transition-all duration-300 md:right-[434px]"
@@ -88,8 +102,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useConfigStore } from '../store/useConfigStore';
+import { headingForFacing, sunAlongDay, sunPlacement } from '../three-engine/sunPosition';
 import { useLabels } from '../i18n';
 import HeaderBar from './HeaderBar.vue';
 import CategoryNav from './CategoryNav.vue';
@@ -106,6 +121,11 @@ import Cms from './Cms.vue';
 
 const store = useConfigStore();
 const { t } = useLabels();
+const sunShown = computed(() => {
+  if (store.viewMode !== 'utsida') return false;
+  return sunPlacement(store.sunHour, headingForFacing(store.facing)).altitude > 0.02;
+});
+const sunLeft = computed(() => `${(8 + sunAlongDay(store.sunHour) * 84).toFixed(1)}%`);
 const isExportOpen = ref(false);
 const isMobileCollapsed = ref(false);
 
@@ -124,3 +144,22 @@ defineEmits<{
   (e: 'mark-view'): void;
 }>();
 </script>
+
+<style scoped>
+.day-sun {
+  width: 92px;
+  height: 92px;
+  border-radius: 999px;
+  background: radial-gradient(
+    circle,
+    rgb(255 248 230 / 0.62) 0%,
+    rgb(255 186 80 / 0.34) 24%,
+    rgb(255 122 20 / 0.14) 46%,
+    transparent 68%
+  );
+  box-shadow:
+    0 0 16px 4px rgb(255 176 64 / 0.42),
+    0 0 46px 18px rgb(255 140 32 / 0.28);
+  transition: left 220ms ease-out;
+}
+</style>

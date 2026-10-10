@@ -325,32 +325,74 @@
 
       <div class="w-px h-7 bg-slate-200/60 my-auto"></div>
 
-      <button
-        type="button"
-        id="btn-tool-notes"
-        @click="store.toggleNotes()"
-        :class="[
-          'group relative w-12 h-12 rounded-xl flex items-center justify-center transition-colors',
-          store.showNotes
-            ? 'bg-slate-900 text-white shadow-2xs'
-            : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
-        ]"
-        :aria-label="t('notes.tool')"
-        :aria-pressed="store.showNotes"
-      >
-        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M6 4.5h9.5L19 8v11.5H6z" />
-          <path d="M15 4.5V8h4" />
-          <path d="M8.5 12h7" />
-          <path d="M8.5 15.5h5" />
-        </svg>
-        <span
-          v-if="store.notes.length && !store.showNotes"
-          class="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-[#8a6a2f]"
-          aria-hidden="true"
-        ></span>
-        <span class="tool-tip"><Cms k="notes.tool" /></span>
-      </button>
+      <div ref="notesBox" class="relative">
+        <div
+          id="note-tools"
+          class="absolute bottom-[calc(100%+8px)] z-30 origin-bottom-left transition-all duration-200 ease-out"
+          :class="notesOpen ? 'left-16 opacity-100' : 'pointer-events-none left-0 opacity-0'"
+          :inert="!notesOpen"
+          :aria-hidden="!notesOpen"
+        >
+          <div class="bg-white/95 backdrop-blur-md rounded-2xl shadow-md border border-slate-200/80 p-1.5 flex items-center gap-1">
+            <button
+              type="button"
+              id="btn-tool-notes-show"
+              @click="store.showNotes = !store.showNotes"
+              :class="toolButton(store.showNotes)"
+              :aria-label="t('notes.tool')"
+              :aria-pressed="store.showNotes"
+            >
+              <svg v-if="store.showNotes" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2.8 12S6.2 7 12 7s9.2 5 9.2 5-3.4 5-9.2 5S2.8 12 2.8 12Z" />
+                <circle cx="12" cy="12" r="2.2" />
+                <path d="M4 6.5 20 17.5" />
+              </svg>
+              <svg v-else class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M2.8 12S6.2 7 12 7s9.2 5 9.2 5-3.4 5-9.2 5S2.8 12 2.8 12Z" />
+                <circle cx="12" cy="12" r="2.2" />
+              </svg>
+              <span class="tool-tip"><Cms k="notes.tool" /></span>
+            </button>
+            <div class="w-px h-7 bg-slate-200/60"></div>
+            <button
+              type="button"
+              id="btn-add-note"
+              @click="store.addNote()"
+              :class="[...toolButton(false), 'disabled:opacity-40']"
+              :disabled="store.notes.length >= NOTE_LIMIT"
+              :aria-label="store.notes.length >= NOTE_LIMIT ? t('notes.limit') : t('notes.add')"
+            >
+              <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <path d="M12 5v14" />
+                <path d="M5 12h14" />
+              </svg>
+              <span class="tool-tip"><Cms :k="store.notes.length >= NOTE_LIMIT ? 'notes.limit' : 'notes.add'" /></span>
+            </button>
+          </div>
+        </div>
+        <button
+          type="button"
+          id="btn-tool-notes"
+          @click="toggleNotesTray"
+          :class="toolButton(notesOpen || store.showNotes)"
+          :aria-label="t('notes.tool')"
+          :aria-expanded="notesOpen"
+          aria-controls="note-tools"
+        >
+          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M6 4.5h9.5L19 8v11.5H6z" />
+            <path d="M15 4.5V8h4" />
+            <path d="M8.5 12h7" />
+            <path d="M8.5 15.5h5" />
+          </svg>
+          <span
+            v-if="!notesOpen"
+            class="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-[#8a6a2f]"
+            aria-hidden="true"
+          ></span>
+          <span class="tool-tip"><Cms k="notes.tool" /></span>
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -358,6 +400,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useConfigStore } from '../store/useConfigStore';
+import { NOTE_LIMIT } from '../notes/board';
 import { formatSunHour } from '../three-engine/sunPosition';
 import { useLabels } from '../i18n';
 import Cms from './Cms.vue';
@@ -382,9 +425,11 @@ const { t } = useLabels();
 const rulerOpen = ref(false);
 const sunOpen = ref(false);
 const viewOpen = ref(false);
+const notesOpen = ref(false);
 const rulerBox = ref<HTMLElement | null>(null);
 const sunBox = ref<HTMLElement | null>(null);
 const viewBox = ref<HTMLElement | null>(null);
+const notesBox = ref<HTMLElement | null>(null);
 
 const emit = defineEmits<{
   (e: 'zoom-in'): void;
@@ -407,6 +452,7 @@ function toggleSun() {
   if (sunOpen.value) {
     viewOpen.value = false;
     rulerOpen.value = false;
+    notesOpen.value = false;
   }
 }
 
@@ -415,6 +461,7 @@ function toggleView() {
   if (viewOpen.value) {
     sunOpen.value = false;
     rulerOpen.value = false;
+    notesOpen.value = false;
   }
 }
 
@@ -423,6 +470,16 @@ function toggleRuler() {
   if (rulerOpen.value) {
     sunOpen.value = false;
     viewOpen.value = false;
+    notesOpen.value = false;
+  }
+}
+
+function toggleNotesTray() {
+  notesOpen.value = !notesOpen.value;
+  if (notesOpen.value) {
+    sunOpen.value = false;
+    viewOpen.value = false;
+    rulerOpen.value = false;
   }
 }
 
@@ -442,6 +499,7 @@ function onDocumentPointerDown(event: PointerEvent) {
   if (rulerOpen.value && !rulerBox.value?.contains(target)) rulerOpen.value = false;
   if (sunOpen.value && !sunBox.value?.contains(target)) sunOpen.value = false;
   if (viewOpen.value && !viewBox.value?.contains(target)) viewOpen.value = false;
+  if (notesOpen.value && !notesBox.value?.contains(target)) notesOpen.value = false;
 }
 
 function onKey(event: KeyboardEvent) {
@@ -449,6 +507,7 @@ function onKey(event: KeyboardEvent) {
   rulerOpen.value = false;
   sunOpen.value = false;
   viewOpen.value = false;
+  notesOpen.value = false;
 }
 
 function syncFullscreen() {

@@ -94,7 +94,6 @@ export class HouseScene {
   private sunLight!: THREE.DirectionalLight;
   private skyFill!: THREE.DirectionalLight;
   private sunTarget!: THREE.Object3D;
-  private sunOrb!: THREE.Mesh;
   private sunHour = 12;
   private facingDeg = 180;
   private sunUp = true;
@@ -672,15 +671,6 @@ export class HouseScene {
     this.sunLight.shadow.camera.updateProjectionMatrix();
     this.scene.add(this.sunLight);
 
-    this.sunOrb = new THREE.Mesh(
-      new THREE.SphereGeometry(0.22, 24, 16),
-      new THREE.MeshBasicMaterial({ color: '#ffb15a', toneMapped: false })
-    );
-    this.sunOrb.castShadow = false;
-    this.sunOrb.receiveShadow = false;
-    this.sunOrb.raycast = () => {};
-    this.scene.add(this.sunOrb);
-
     const interiorFill = new THREE.PointLight(0xfff6ea, 0.55, 14, 2);
     interiorFill.position.set(0, 1.7, 0);
     this.scene.add(interiorFill);
@@ -751,17 +741,6 @@ export class HouseScene {
     this.sunLight.intensity = this.sunUp ? 0.4 + 1.3 * gain * gain : 0.08;
     this.sunLight.castShadow = this.sunUp;
     this.skyFill.position.set(-dir.x * 14, 12, -dir.z * 14);
-    // The light keeps the true direction. The disc sits above the roof so it does not cover the facade.
-    const horizontal = new THREE.Vector3(dir.x, 0, dir.z);
-    if (horizontal.lengthSq() < 1e-6) horizontal.set(0, 0, 1);
-    horizontal.normalize();
-    this.sunOrb.position.set(horizontal.x * 2.4, this.wallTopM() + 0.42, horizontal.z * 2.4);
-    this.syncDaylightChrome();
-  }
-
-  private syncDaylightChrome() {
-    const show = this.currentConfig.viewMode === 'utsida';
-    this.sunOrb.visible = show && this.sunUp;
   }
 
   /** Keep the corner compass pointing at world north as the camera orbits. */
@@ -4917,7 +4896,6 @@ export class HouseScene {
     this.controls.minDistance = inside ? 0.4 : 3.5;
     this.camera.near = inside ? 0.05 : 0.1;
     this.camera.updateProjectionMatrix();
-    this.syncDaylightChrome();
     this.controls.update();
   }
 

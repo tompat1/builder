@@ -27,6 +27,16 @@ export function clampSunHour(hour: number): number {
   return Math.min(SUN_HOUR_MAX, Math.max(SUN_HOUR_MIN, stepped));
 }
 
+/**
+ * Where the sun sits across the sky, from the morning side to the evening side.
+ * Noon is the middle. The camera does not move it.
+ */
+export function sunAlongDay(hour: number): number {
+  const h = clampSunHour(hour);
+  if (h <= 12) return ((h - SUN_HOUR_MIN) / (12 - SUN_HOUR_MIN)) * 0.5;
+  return 0.5 + ((h - 12) / (SUN_HOUR_MAX - 12)) * 0.5;
+}
+
 export function formatSunHour(hour: number): string {
   const total = Math.round(clampSunHour(hour) * 60);
   const h = Math.floor(total / 60);

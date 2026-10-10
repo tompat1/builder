@@ -5,6 +5,7 @@ import {
   compassDialDegrees,
   formatSunHour,
   headingForFacing,
+  sunAlongDay,
   sunPlacement
 } from '../src/three-engine/sunPosition.ts';
 
@@ -30,6 +31,14 @@ test('noon is behind the front when the front faces north', () => {
   const sun = sunPlacement(12, 0);
   assert.ok(sun.z < -0.7);
   assert.ok(sun.y > 0.4);
+});
+
+test('the on-screen sun crosses the sky only with the hour', () => {
+  assert.equal(sunAlongDay(5), 0);
+  assert.equal(sunAlongDay(12), 0.5);
+  assert.equal(sunAlongDay(21), 1);
+  assert.ok(sunAlongDay(8) < 0.5);
+  assert.ok(sunAlongDay(16) > 0.5);
 });
 
 test('the sun is down outside the equinox day', () => {

@@ -145,20 +145,6 @@
         </article>
       </div>
     </div>
-
-    <div class="pointer-events-auto absolute left-3 top-32 z-10 flex flex-col items-start gap-2">
-      <button
-        v-if="store.notes.length < NOTE_LIMIT"
-        id="btn-add-note"
-        type="button"
-        class="add-note"
-        @click="store.addNote()"
-      >
-        {{ t('notes.add') }}
-      </button>
-      <p v-else id="note-limit" class="limit" role="status">{{ t('notes.limit') }}</p>
-      <p v-if="!store.notes.length" class="empty">{{ t('notes.empty') }}</p>
-    </div>
   </div>
 </template>
 
@@ -166,7 +152,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useConfigStore } from '../store/useConfigStore';
 import { useLabels } from '../i18n';
-import { noteTargetId, NOTE_LIMIT, type HouseNote, type NotePin } from '../notes/board';
+import { noteTargetId, type HouseNote, type NotePin } from '../notes/board';
 import { noteAxes } from '../notes/surface';
 
 const store = useConfigStore();
@@ -563,8 +549,7 @@ onBeforeUnmount(() => observer?.disconnect());
 .remove:hover,
 .move:focus-visible,
 .remove:focus-visible,
-.writing:focus-visible,
-.add-note:focus-visible {
+.writing:focus-visible {
   outline: 2px solid var(--ink);
   outline-offset: 2px;
 }
@@ -596,14 +581,6 @@ onBeforeUnmount(() => observer?.disconnect());
   color: var(--ink);
 }
 
-.empty,
-.limit {
-  color: var(--muted);
-  font-size: 0.68rem;
-  font-weight: 700;
-  line-height: 1.35;
-}
-
 .fold {
   position: absolute;
   right: 0;
@@ -616,32 +593,6 @@ onBeforeUnmount(() => observer?.disconnect());
   background: linear-gradient(135deg, transparent 46%, rgb(58 42 16 / 0.2) 46%);
   cursor: nwse-resize;
   touch-action: none;
-}
-
-.add-note,
-.limit,
-.empty {
-  background: #f6e7a8;
-  color: #3c2f1c;
-  box-shadow: 0 10px 18px rgb(58 42 16 / 0.14);
-}
-
-.add-note {
-  border-radius: 2px;
-  padding: 0.45rem 0.7rem;
-  font-size: 0.75rem;
-  font-weight: 700;
-}
-
-.add-note:hover {
-  background: #f3e09a;
-}
-
-.empty,
-.limit {
-  max-width: 11rem;
-  border-radius: 2px;
-  padding: 0.45rem 0.6rem;
 }
 
 .note-line {
