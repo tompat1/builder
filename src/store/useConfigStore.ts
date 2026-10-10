@@ -505,7 +505,7 @@ export const useConfigStore = defineStore('config', () => {
   const claddingSizeId = ref<CladdingSizeId>('22x145');
   const isFullscreen = ref<boolean>(false);
   const showDimensions = ref<boolean>(true);
-  const showSun = ref(true);
+  const showSun = ref(false);
   const selectedSlotId = ref<string | null>(null);
   const hoveredSlotId = ref<string | null>(null);
   const hoveredSlotPos = ref<{ x: number; y: number } | null>(null);

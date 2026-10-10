@@ -45,6 +45,7 @@ test('a room on the loft deck counts as a loft room, and a ground-floor room doe
 test('the interior loft is solid only while a loft room is being edited', () => {
   assert.equal(loftIsGhosted('insida', false), true);
   assert.equal(loftIsGhosted('insida', true), false);
+  assert.equal(loftIsGhosted('insida', false, true), false);
   assert.equal(loftIsGhosted('utsida', false), false);
   assert.equal(loftIsGhosted('blueprint', false), false);
 });

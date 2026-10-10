@@ -4586,7 +4586,7 @@ export class HouseScene {
   private syncLoftPresentation() {
     const editingLoftRoom = this.roomPreviewGroup?.userData.onLoft === true
       || isLoftRoom(this.draggingRoom?.startY ?? 0);
-    const ghosted = loftIsGhosted(this.currentConfig.viewMode, editingLoftRoom);
+    const ghosted = loftIsGhosted(this.currentConfig.viewMode, editingLoftRoom, this.loftCutaway());
 
     this.presentGhost(this.loftGroup, ghosted);
     this.interiorGroup.children.forEach((child) => {
@@ -4599,7 +4599,6 @@ export class HouseScene {
   /** The same see-through treatment the loft deck uses in the interior overview. */
   private presentGhost(root: THREE.Object3D, ghosted: boolean) {
     root.traverse((object) => {
-      const drawn = object as THREE.Mesh;
       if (object instanceof THREE.Mesh) {
         const meshState = this.loftMeshState.get(object) ?? {
           castShadow: object.castShadow,
@@ -4611,9 +4610,13 @@ export class HouseScene {
         object.receiveShadow = ghosted ? false : meshState.receiveShadow;
         object.renderOrder = ghosted ? 1 : meshState.renderOrder;
       }
-      if (!drawn.material) return;
+      if (
+        !(object instanceof THREE.Mesh)
+        && !(object instanceof THREE.Line)
+        && !(object instanceof THREE.Points)
+      ) return;
 
-      const materials = Array.isArray(drawn.material) ? drawn.material : [drawn.material];
+      const materials = Array.isArray(object.material) ? object.material : [object.material];
       materials.forEach((material) => {
         const materialState = this.loftMaterialState.get(material) ?? {
           transparent: material.transparent,
@@ -4832,6 +4835,9 @@ export class HouseScene {
   }
 
   private applyViewMode() {
+    this.wallsGroup.visible = true;
+    if (this.contactShadow) this.contactShadow.visible = true;
+
     if (this.currentConfig.viewMode === 'blueprint') {
       this.roofGroup.visible = false;
       this.trussesGroup.visible = false;

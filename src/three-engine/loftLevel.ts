@@ -11,9 +11,13 @@ export function isLoftRoom(y: number) {
   return y > LOFT_ROOM_MIN_Y;
 }
 
-/** The interior overview ghosts the loft unless the user is actively editing on it. */
-export function loftIsGhosted(viewMode: 'utsida' | 'insida' | 'blueprint', editingLoftRoom: boolean) {
-  return viewMode === 'insida' && !editingLoftRoom;
+/** The interior overview ghosts the loft. The loft view keeps the deck solid. */
+export function loftIsGhosted(
+  viewMode: 'utsida' | 'insida' | 'blueprint',
+  editingLoftRoom: boolean,
+  loftView = false
+) {
+  return viewMode === 'insida' && !loftView && !editingLoftRoom;
 }
 
 /** Walking surface of the loft, measured up from the interior floor. */

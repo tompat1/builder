@@ -96,11 +96,11 @@ const { t } = useLabels();
 const categories: { id: CategoryKey }[] = [
   { id: 'size' },
   { id: 'roof' },
-  { id: 'interior' },
+  { id: 'extras' },
   { id: 'loft' },
+  { id: 'interior' },
   { id: 'doors' },
   { id: 'windows' },
-  { id: 'gates' },
-  { id: 'extras' }
+  { id: 'gates' }
 ];
 </script>
