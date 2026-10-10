@@ -9,14 +9,33 @@
       <div ref="sunBox" class="relative">
         <div
           id="sun-timebox"
-          class="absolute top-0 z-30 w-[168px] origin-left transition-all duration-200 ease-out"
+          class="absolute top-0 z-30 w-[240px] origin-left transition-all duration-200 ease-out"
           :class="sunOpen ? 'left-14 opacity-100' : 'pointer-events-none left-0 opacity-0'"
           :inert="!sunOpen"
           :aria-hidden="!sunOpen"
         >
           <div class="bg-white/95 backdrop-blur-md rounded-2xl shadow-md border border-slate-200/80 px-2.5 py-2">
             <div class="flex items-center justify-between gap-2">
-              <span class="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+              <button
+                type="button"
+                id="btn-tool-sun-show"
+                @click="store.toggleSunShown()"
+                :class="[...toolButton(store.showSun), 'shrink-0']"
+                :aria-label="t('tools.sun')"
+                :aria-pressed="store.showSun"
+              >
+                <svg v-if="store.showSun" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M2.8 12S6.2 7 12 7s9.2 5 9.2 5-3.4 5-9.2 5S2.8 12 2.8 12Z" />
+                  <circle cx="12" cy="12" r="2.2" />
+                  <path d="M4 6.5 20 17.5" />
+                </svg>
+                <svg v-else class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M2.8 12S6.2 7 12 7s9.2 5 9.2 5-3.4 5-9.2 5S2.8 12 2.8 12Z" />
+                  <circle cx="12" cy="12" r="2.2" />
+                </svg>
+                <span class="tool-tip"><Cms k="tools.sun" /></span>
+              </button>
+              <span class="min-w-0 flex-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
                 <Cms k="tools.facing" />
               </span>
               <span id="sun-time-label" class="text-[11px] font-bold tabular-nums text-slate-900">{{ sunClock }}</span>

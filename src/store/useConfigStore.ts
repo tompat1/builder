@@ -503,6 +503,7 @@ export const useConfigStore = defineStore('config', () => {
   const claddingSizeId = ref<CladdingSizeId>('22x145');
   const isFullscreen = ref<boolean>(false);
   const showDimensions = ref<boolean>(true);
+  const showSun = ref(true);
   const selectedSlotId = ref<string | null>(null);
   const hoveredSlotId = ref<string | null>(null);
   const hoveredSlotPos = ref<{ x: number; y: number } | null>(null);
@@ -1291,6 +1292,10 @@ export const useConfigStore = defineStore('config', () => {
     showDimensions.value = !showDimensions.value;
   }
 
+  function toggleSunShown() {
+    showSun.value = !showSun.value;
+  }
+
   const measuring = ref(false);
   const measureStart = ref<MeasurePoint | null>(null);
   const measureEnd = ref<MeasurePoint | null>(null);
@@ -1422,6 +1427,7 @@ export const useConfigStore = defineStore('config', () => {
     slotScreenPosition,
     dimensionLabels,
     showDimensions,
+    showSun,
     wallSlots,
     selectedSizeId,
     activeRoof,
@@ -1500,6 +1506,7 @@ export const useConfigStore = defineStore('config', () => {
     assignSlotItem,
     removeSlotItem,
     toggleDimensions,
+    toggleSunShown,
     measuring,
     measureStart,
     measureEnd,

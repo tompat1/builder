@@ -122,6 +122,7 @@ import Cms from './Cms.vue';
 const store = useConfigStore();
 const { t } = useLabels();
 const sunShown = computed(() => {
+  if (!store.showSun) return false;
   if (store.viewMode !== 'utsida') return false;
   return sunPlacement(store.sunHour, headingForFacing(store.facing)).altitude > 0.02;
 });
