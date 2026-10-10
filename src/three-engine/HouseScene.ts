@@ -1385,6 +1385,14 @@ export class HouseScene {
     return this.currentConfig.viewMode === 'utsida';
   }
 
+  /** Terraces and door roofs stay outside the interior and loft views. */
+  private syncOutsideAdditions() {
+    const show = this.currentConfig.viewMode !== 'insida';
+    this.wallsGroup.traverse((object) => {
+      if (object.userData.outsideAddition) object.visible = show;
+    });
+  }
+
   /** Waist-height cut used by the Insida tab. The loft cutaway keeps the shell intact. */
   private interiorCut() {
     return this.currentConfig.viewMode === 'insida' && !this.currentConfig.loftView;
@@ -2349,6 +2357,7 @@ export class HouseScene {
     }
 
     group.userData.skipNote = true;
+    group.userData.outsideAddition = true;
     this.wallsGroup.add(group);
   }
 
@@ -2492,6 +2501,7 @@ export class HouseScene {
     }
 
     group.userData.skipNote = true;
+    group.userData.outsideAddition = true;
     this.wallsGroup.add(group);
   }
 
@@ -4886,6 +4896,7 @@ export class HouseScene {
       if (this.gridHelper) this.gridHelper.visible = false;
     }
     this.interiorGroup.visible = !this.outsideShell();
+    this.syncOutsideAdditions();
     if (this.outsideShell()) {
       if (this.draggingRoom) {
         this.draggingRoom = null;
