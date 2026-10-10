@@ -13,6 +13,14 @@ import { fitRoom, innerHalf, roomFootprint, roomWallRuns, shellSides, type Shell
 
 const PULPET_PITCH_RAD = (PULPET_PITCH_DEG * Math.PI) / 180;
 
+function easeInOutCubic(t: number) {
+  return t < 0.5 ? 4 * t * t * t : 1 - ((-2 * t + 2) ** 3) / 2;
+}
+
+function motionReduced() {
+  return typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
 interface LoftStairPlan {
   edgeX: number;
   openSign: number;
@@ -109,6 +117,28 @@ export class HouseScene {
   private sunUp = true;
   private compassSent = Number.NaN;
   private defaultView: CameraView | null = null;
+  /** True once the opening frame has been placed, so later moves can ease. */
+  private cameraReady = false;
+  /** The camera is still on the framed pose, so a resize may ease it along. */
+  private followFrame = true;
+  private ghostShown = 0;
+  /** Rebuilds that are not a view change should not fade the loft from scratch. */
+  private ghostInstant = true;
+  private ghostFlight: { from: number; to: number; started: number; duration: number } | null = null;
+  private cameraFlight: {
+    fromPos: THREE.Vector3;
+    toPos: THREE.Vector3;
+    fromTarget: THREE.Vector3;
+    toTarget: THREE.Vector3;
+    started: number;
+    duration: number;
+    minDistance: number;
+    near: number;
+    restoreMin: number;
+    restoreNear: number;
+  } | null = null;
+  private shellFlight: { from: THREE.Vector3; started: number; duration: number } | null = null;
+  private shellNow = new THREE.Vector3(1, 1, 1);
 
   private interactivePanels: THREE.Mesh[] = [];
   private draggingRoom: {
@@ -230,6 +260,7 @@ export class HouseScene {
     this.controls.minDistance = 3.5;
     this.controls.maxDistance = 35;
     this.controls.target.set(0, 2.2, 0);
+    this.controls.addEventListener('start', this.onControlStart);
 
     this.setupLighting();
 
@@ -253,6 +284,7 @@ export class HouseScene {
 
     this.setupRaycasting();
     this.rebuildScene();
+    this.cameraReady = true;
     this.animate();
 
     window.addEventListener('resize', this.onResize);
@@ -3911,7 +3943,10 @@ export class HouseScene {
   }
 
   private projectAnchor(point: THREE.Vector3, occlude = true) {
-    const proj = point.clone().project(this.camera);
+    const placed = this.shellNow.x === 1 && this.shellNow.y === 1 && this.shellNow.z === 1
+      ? point
+      : point.clone().multiply(this.shellNow);
+    const proj = placed.clone().project(this.camera);
     const width = this.container.clientWidth;
     const height = this.container.clientHeight;
     const x = ((proj.x + 1) * width) / 2;
@@ -3919,7 +3954,7 @@ export class HouseScene {
     let visible = proj.z < 1 && x > -60 && x < width + 60 && y > -30 && y < height + 30;
 
     if (visible && occlude) {
-      const direction = point.clone().sub(this.camera.position);
+      const direction = placed.clone().sub(this.camera.position);
       const distance = direction.length();
       direction.normalize();
       this.labelRaycaster.set(this.camera.position, direction);
@@ -4061,8 +4096,14 @@ export class HouseScene {
       (config.loftView !== undefined && config.loftView !== this.currentConfig.loftView) ||
       (config.interiorView !== undefined && config.interiorView !== this.currentConfig.interiorView) ||
       (config.roofView !== undefined && config.roofView !== this.currentConfig.roofView);
-    const cameraPosition = this.camera.position.clone();
-    const cameraTarget = this.controls.target.clone();
+    const heldPosition = this.camera.position.clone();
+    const heldTarget = this.controls.target.clone();
+    const keepOrbit = !viewChanged && !this.followFrame;
+    const visualScale = this.houseGroup.scale.clone();
+    const prevW = this.currentConfig.widthMm;
+    const prevD = this.currentConfig.depthMm;
+    const prevH = this.currentConfig.heightMm;
+    this.ghostInstant = !viewChanged;
     const interactionChanged = config.interactionMode !== undefined && config.interactionMode !== this.currentConfig.interactionMode;
     Object.assign(this.currentConfig, config);
     if (interactionChanged) {
@@ -4078,11 +4119,20 @@ export class HouseScene {
       this.updateHoverBox(null);
     }
     this.rebuildScene();
-    if (!viewChanged) {
-      this.camera.position.copy(cameraPosition);
-      this.controls.target.copy(cameraTarget);
+    if (keepOrbit) {
+      if (this.cameraFlight) {
+        this.controls.minDistance = this.cameraFlight.restoreMin;
+        this.camera.near = this.cameraFlight.restoreNear;
+        this.camera.updateProjectionMatrix();
+        this.cameraFlight = null;
+      }
+      this.camera.position.copy(heldPosition);
+      this.controls.target.copy(heldTarget);
       this.controls.update();
+    } else if (viewChanged) {
+      this.followFrame = true;
     }
+    this.easeShell(visualScale, prevW, prevD, prevH);
   }
 
   public generateStandardElectrical() {
@@ -4583,21 +4633,37 @@ export class HouseScene {
   }
 
   /** Keep the ground floor readable until a loft room needs the deck as context. */
-  private syncLoftPresentation() {
+  private syncLoftPresentation(instant = false) {
     const editingLoftRoom = this.roomPreviewGroup?.userData.onLoft === true
       || isLoftRoom(this.draggingRoom?.startY ?? 0);
-    const ghosted = loftIsGhosted(this.currentConfig.viewMode, editingLoftRoom, this.loftCutaway());
+    const goal = loftIsGhosted(this.currentConfig.viewMode, editingLoftRoom, this.loftCutaway()) ? 1 : 0;
+    const arriving = this.ghostFlight?.to ?? this.ghostShown;
+    if (instant || motionReduced()) {
+      this.ghostShown = goal;
+      this.ghostFlight = null;
+    } else if (Math.abs(arriving - goal) > 0.001) {
+      this.ghostFlight = {
+        from: this.ghostShown,
+        to: goal,
+        started: performance.now(),
+        duration: 760
+      };
+    }
+    this.paintGhost();
+  }
 
-    this.presentGhost(this.loftGroup, ghosted);
+  private paintGhost() {
+    this.presentGhost(this.loftGroup);
     this.interiorGroup.children.forEach((child) => {
       if (child.userData.type === 'room_zone' && isLoftRoom(child.position.y)) {
-        this.presentGhost(child, ghosted);
+        this.presentGhost(child);
       }
     });
   }
 
   /** The same see-through treatment the loft deck uses in the interior overview. */
-  private presentGhost(root: THREE.Object3D, ghosted: boolean) {
+  private presentGhost(root: THREE.Object3D) {
+    const blend = this.ghostShown;
     root.traverse((object) => {
       if (object instanceof THREE.Mesh) {
         const meshState = this.loftMeshState.get(object) ?? {
@@ -4606,9 +4672,9 @@ export class HouseScene {
           renderOrder: object.renderOrder
         };
         if (!this.loftMeshState.has(object)) this.loftMeshState.set(object, meshState);
-        object.castShadow = ghosted ? false : meshState.castShadow;
-        object.receiveShadow = ghosted ? false : meshState.receiveShadow;
-        object.renderOrder = ghosted ? 1 : meshState.renderOrder;
+        object.castShadow = blend > 0.5 ? false : meshState.castShadow;
+        object.receiveShadow = blend > 0.5 ? false : meshState.receiveShadow;
+        object.renderOrder = blend > 0.5 ? 1 : meshState.renderOrder;
       }
       if (
         !(object instanceof THREE.Mesh)
@@ -4624,9 +4690,13 @@ export class HouseScene {
           depthWrite: material.depthWrite
         };
         if (!this.loftMaterialState.has(material)) this.loftMaterialState.set(material, materialState);
-        material.transparent = ghosted ? true : materialState.transparent;
-        material.opacity = ghosted ? Math.min(materialState.opacity, 0.14) : materialState.opacity;
-        material.depthWrite = ghosted ? false : materialState.depthWrite;
+        material.transparent = blend > 0.02 ? true : materialState.transparent;
+        material.opacity = THREE.MathUtils.lerp(
+          materialState.opacity,
+          Math.min(materialState.opacity, 0.14),
+          blend
+        );
+        material.depthWrite = blend > 0.02 ? false : materialState.depthWrite;
         material.needsUpdate = true;
       });
     });
@@ -4844,8 +4914,7 @@ export class HouseScene {
       this.framingGroup.visible = false;
       this.loftGroup.visible = this.currentConfig.hasLoft;
       this.dimensionsGroup.visible = false;
-      this.camera.position.set(0, 14, 0); // Top-down
-      this.controls.target.set(0, 0, 0);
+      this.frameCamera(0, 14, 0, 0, 0, 0);
 
       if (!this.gridHelper) {
         this.gridHelper = new THREE.GridHelper(20, 40, 0x94a3b8, 0xe2e8f0);
@@ -4859,8 +4928,7 @@ export class HouseScene {
       this.framingGroup.visible = true;
       this.loftGroup.visible = true;
       this.dimensionsGroup.visible = false;
-      this.camera.position.set(3.4, 10.2, 6.4);
-      this.controls.target.set(0, 1.55, -0.2);
+      this.frameCamera(3.4, 10.2, 6.4, 0, 1.55, -0.2);
       if (this.gridHelper) this.gridHelper.visible = false;
     } else if (this.currentConfig.viewMode === 'insida') {
       this.roofGroup.visible = false;
@@ -4870,10 +4938,7 @@ export class HouseScene {
       this.dimensionsGroup.visible = false;
 
       if (this.currentConfig.interiorView) this.frameInterior();
-      else {
-        this.camera.position.set(0, 7.5, 4.0);
-        this.controls.target.set(0, 1.2, 0);
-      }
+      else this.frameCamera(0, 7.5, 4.0, 0, 1.2, 0);
       if (this.gridHelper) this.gridHelper.visible = false;
     } else {
       this.roofGroup.visible = true;
@@ -4882,19 +4947,14 @@ export class HouseScene {
       this.loftGroup.visible = true;
       this.dimensionsGroup.visible = this.currentConfig.showDimensions;
 
-      if (this.currentConfig.roofView) {
-        this.camera.position.set(0, 10, 8);
-        this.controls.target.set(0, 2.5, 0);
-      } else {
-        this.camera.position.set(0, 3.2, 13.5);
-        this.controls.target.set(0, 2.2, 0);
-      }
+      if (this.currentConfig.roofView) this.frameCamera(0, 10, 8, 0, 2.5, 0);
+      else this.frameCamera(0, 3.2, 13.5, 0, 2.2, 0);
 
       if (this.gridHelper) this.gridHelper.visible = false;
     }
     this.interiorGroup.visible = !this.outsideShell();
     this.syncOutsideAdditions();
-    this.syncLoftPresentation();
+    this.syncLoftPresentation(this.ghostInstant);
     if (this.outsideShell()) {
       this.finishRoomDrag(false);
       this.clearRoomPreview();
@@ -4908,48 +4968,177 @@ export class HouseScene {
       this.updateHighlightBox(null);
       this.onPanelHover?.(null, 0, 0);
     }
+  }
+
+  /** Ease the camera onto a framed pose. The first frame, and reduced motion, land at once. */
+  private frameCamera(x: number, y: number, z: number, tx: number, ty: number, tz: number) {
     const inside = this.currentConfig.viewMode === 'insida';
-    this.controls.minDistance = inside ? 0.4 : 3.5;
-    this.camera.near = inside ? 0.05 : 0.1;
+    this.flyCamera(
+      new THREE.Vector3(x, y, z),
+      new THREE.Vector3(tx, ty, tz),
+      inside ? 0.4 : 3.5,
+      inside ? 0.05 : 0.1
+    );
+  }
+
+  private flyCamera(position: THREE.Vector3, target: THREE.Vector3, minDistance: number, near: number) {
+    const restoreMin = this.controls.minDistance;
+    const restoreNear = this.camera.near;
+    const travel = this.camera.position.distanceTo(position) + this.controls.target.distanceTo(target);
+    if (!this.cameraReady || motionReduced() || travel < 0.05) {
+      this.cameraFlight = null;
+      this.camera.position.copy(position);
+      this.controls.target.copy(target);
+      this.controls.minDistance = minDistance;
+      this.camera.near = near;
+      this.camera.updateProjectionMatrix();
+      this.controls.update();
+      return;
+    }
+    this.controls.minDistance = Math.min(restoreMin, minDistance);
+    this.camera.near = Math.min(restoreNear, near);
     this.camera.updateProjectionMatrix();
-    this.controls.update();
+    const distance = this.camera.position.distanceTo(position);
+    this.cameraFlight = {
+      fromPos: this.camera.position.clone(),
+      toPos: position.clone(),
+      fromTarget: this.controls.target.clone(),
+      toTarget: target.clone(),
+      started: performance.now(),
+      duration: Math.round(Math.min(1040, Math.max(520, 480 + distance * 48))),
+      minDistance,
+      near,
+      restoreMin,
+      restoreNear
+    };
+  }
+
+  private onControlStart = () => {
+    if (this.cameraFlight) {
+      this.controls.minDistance = this.cameraFlight.minDistance;
+      this.camera.near = this.cameraFlight.near;
+      this.camera.updateProjectionMatrix();
+      this.cameraFlight = null;
+    }
+    this.followFrame = false;
+  };
+
+  private stepCameraFlight() {
+    const flight = this.cameraFlight;
+    if (!flight) return;
+    const t = Math.min(1, (performance.now() - flight.started) / flight.duration);
+    const eased = easeInOutCubic(t);
+    this.camera.position.lerpVectors(flight.fromPos, flight.toPos, eased);
+    this.controls.target.lerpVectors(flight.fromTarget, flight.toTarget, eased);
+    if (t < 1) return;
+    this.controls.minDistance = flight.minDistance;
+    this.camera.near = flight.near;
+    this.camera.updateProjectionMatrix();
+    this.cameraFlight = null;
+  }
+
+  private stepGhost() {
+    const flight = this.ghostFlight;
+    if (!flight) return;
+    const t = Math.min(1, (performance.now() - flight.started) / flight.duration);
+    this.ghostShown = flight.from + (flight.to - flight.from) * easeInOutCubic(t);
+    this.paintGhost();
+    if (t >= 1) {
+      this.ghostShown = flight.to;
+      this.ghostFlight = null;
+    }
+  }
+
+  /** Grow or shrink the shell from the size it just had, instead of popping. */
+  private easeShell(visual: THREE.Vector3, prevW: number, prevD: number, prevH: number) {
+    const w = this.currentConfig.widthMm || 1;
+    const d = this.currentConfig.depthMm || 1;
+    const h = this.currentConfig.heightMm || 1;
+    const from = new THREE.Vector3(
+      visual.x * prevW / w,
+      visual.y * prevH / h,
+      visual.z * prevD / d
+    );
+    const settled = Math.abs(from.x - 1) < 0.004
+      && Math.abs(from.y - 1) < 0.004
+      && Math.abs(from.z - 1) < 0.004;
+    if (settled || motionReduced()) {
+      this.shellFlight = null;
+      this.applyShellScale(1, 1, 1);
+      return;
+    }
+    this.applyShellScale(from.x, from.y, from.z);
+    this.shellFlight = { from, started: performance.now(), duration: 720 };
+  }
+
+  private applyShellScale(x: number, y: number, z: number) {
+    this.shellNow.set(x, y, z);
+    this.houseGroup.scale.copy(this.shellNow);
+    this.dimensionsGroup.scale.copy(this.shellNow);
+    if (this.contactShadow) this.contactShadow.scale.set(x, z, 1);
+  }
+
+  private stepShell() {
+    const flight = this.shellFlight;
+    if (!flight) return;
+    const t = Math.min(1, (performance.now() - flight.started) / flight.duration);
+    const eased = easeInOutCubic(t);
+    this.shellNow.copy(flight.from).lerp(new THREE.Vector3(1, 1, 1), eased);
+    this.applyShellScale(this.shellNow.x, this.shellNow.y, this.shellNow.z);
+    if (t < 1) return;
+    this.applyShellScale(1, 1, 1);
+    this.shellFlight = null;
   }
 
   /** High three-quarter view of the whole floor, used when Interior is open. */
   private frameInterior() {
     const span = Math.max(this.currentConfig.widthMm, this.currentConfig.depthMm) / 1000;
     const distance = Math.max(span, 4) * 2.15;
-    this.camera.position.set(0, distance * 0.62, distance * 0.78);
-    this.controls.target.set(0, 0.4, 0);
+    this.frameCamera(0, distance * 0.62, distance * 0.78, 0, 0.4, 0);
   }
 
   /** Return the camera to the marked outside view, or the starting frame of this view. */
   public resetView() {
+    this.followFrame = true;
     const marked = this.defaultView;
     const outside = this.currentConfig.viewMode === 'utsida'
       && !this.currentConfig.roofView
       && !this.loftCutaway();
     if (marked && outside) {
-      this.camera.position.set(marked.x, marked.y, marked.z);
-      this.controls.target.set(marked.tx, marked.ty, marked.tz);
-      this.controls.update();
+      this.flyCamera(
+        new THREE.Vector3(marked.x, marked.y, marked.z),
+        new THREE.Vector3(marked.tx, marked.ty, marked.tz),
+        3.5,
+        0.1
+      );
       return;
     }
     this.applyViewMode();
   }
 
   public zoomIn() {
-    const dir = new THREE.Vector3();
-    this.camera.getWorldDirection(dir);
-    this.camera.position.addScaledVector(dir, 1.5);
-    this.controls.update();
+    this.nudgeZoom(1.5);
   }
 
   public zoomOut() {
+    this.nudgeZoom(-1.5);
+  }
+
+  private nudgeZoom(distance: number) {
+    this.followFrame = false;
+    if (this.cameraFlight) {
+      this.controls.minDistance = this.cameraFlight.minDistance;
+      this.camera.near = this.cameraFlight.near;
+      this.camera.updateProjectionMatrix();
+    }
     const dir = new THREE.Vector3();
     this.camera.getWorldDirection(dir);
-    this.camera.position.addScaledVector(dir, -1.5);
-    this.controls.update();
+    this.flyCamera(
+      this.camera.position.clone().addScaledVector(dir, distance),
+      this.controls.target.clone(),
+      this.controls.minDistance,
+      this.camera.near
+    );
   }
 
   public getCanvas(): HTMLCanvasElement {
@@ -4964,6 +5153,9 @@ export class HouseScene {
   private animate = () => {
     this.animFrameId = requestAnimationFrame(this.animate);
     this.controls.update();
+    this.stepCameraFlight();
+    this.stepGhost();
+    this.stepShell();
     this.renderer.render(this.scene, this.camera);
     this.publishDimensionLabels();
     this.publishNoteAnchors();
@@ -5005,6 +5197,7 @@ export class HouseScene {
 
   public destroy() {
     window.removeEventListener('resize', this.onResize);
+    this.controls.removeEventListener('start', this.onControlStart);
     if (this.animFrameId) cancelAnimationFrame(this.animFrameId);
     this.renderer.dispose();
   }

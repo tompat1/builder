@@ -227,7 +227,7 @@
             <circle cx="12" cy="12" r="3" />
           </svg>
           <span
-            v-if="store.defaultView && !viewOpen"
+            v-if="!viewOpen"
             class="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-[#8a6a2f]"
             aria-hidden="true"
           ></span>

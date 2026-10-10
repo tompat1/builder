@@ -1,5 +1,6 @@
 <template>
-  <div class="space-y-4">
+  <Transition name="menu-flow" mode="out-in">
+  <div :key="store.selectedCategory" class="space-y-4">
     <!-- Active Category Header -->
     <div class="flex items-center justify-between">
       <div>
@@ -1444,6 +1445,7 @@
     </template>
 
   </div>
+  </Transition>
 </template>
 
 <script setup lang="ts">
@@ -1660,3 +1662,26 @@ function placeGate(gateId: string) {
   }
 }
 </script>
+
+<style scoped>
+.menu-flow-enter-active {
+  transition: opacity 280ms ease, transform 360ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.menu-flow-leave-active {
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+.menu-flow-enter-from {
+  opacity: 0;
+  transform: translateY(10px);
+}
+.menu-flow-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .menu-flow-enter-active,
+  .menu-flow-leave-active {
+    transition: none;
+  }
+}
+</style>
