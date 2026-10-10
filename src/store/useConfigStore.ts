@@ -576,6 +576,7 @@ export const useConfigStore = defineStore('config', () => {
   // Interior rooms
   const placedRooms = ref<Record<string, PlacedRoom>>({});
   const selectedRoomId = ref<string | null>(null);
+  const floorPlanDone = ref(false);
 
   function selectRoom(id: string | null) {
     selectedRoomId.value = id && placedRooms.value[id] ? id : null;
@@ -587,6 +588,14 @@ export const useConfigStore = defineStore('config', () => {
     delete next[id];
     placedRooms.value = next;
     if (selectedRoomId.value === id) selectedRoomId.value = null;
+    if (Object.keys(next).length === 0) floorPlanDone.value = false;
+  }
+
+  function setFloorPlanDone(done: boolean) {
+    if (done && Object.keys(placedRooms.value).length === 0) return;
+    if (floorPlanDone.value === done) return;
+    floorPlanDone.value = done;
+    commitHouse();
   }
 
   function toggleRoomWalls(id: string) {
@@ -612,7 +621,10 @@ export const useConfigStore = defineStore('config', () => {
       changed = true;
       if (selectedRoomId.value === id) selectedRoomId.value = null;
     }
-    if (changed) placedRooms.value = next;
+    if (changed) {
+      placedRooms.value = next;
+      if (Object.keys(next).length === 0) floorPlanDone.value = false;
+    }
   }
 
   // Wall panel modular slots (matching Skånska Byggvaror reference layout)
@@ -681,7 +693,8 @@ export const useConfigStore = defineStore('config', () => {
       claddingSizeId: claddingSizeId.value,
       wallSlots: wallSlots.value,
       notes: notes.value,
-      placedRooms: placedRooms.value
+      placedRooms: placedRooms.value,
+      floorPlanDone: floorPlanDone.value
     };
   }
 
@@ -765,6 +778,7 @@ export const useConfigStore = defineStore('config', () => {
         : '22x145';
       wallSlots.value = mergeWallSlots(data.wallSlots);
       placedRooms.value = acceptPlacedRooms(data.placedRooms);
+      floorPlanDone.value = data.floorPlanDone === true && Object.keys(placedRooms.value).length > 0;
       notes.value = acceptNotes(data.notes);
       if (notes.value.length) showNotes.value = true;
     } catch {
@@ -1546,6 +1560,8 @@ export const useConfigStore = defineStore('config', () => {
     loftStairPosition,
     loftTab,
     placedRooms,
+    floorPlanDone,
+    setFloorPlanDone,
     selectedRoomId,
     selectRoom,
     removePlacedRoom,

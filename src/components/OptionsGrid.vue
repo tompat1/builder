@@ -841,24 +841,50 @@
           <button
             type="button"
             @click="interiorTab = 'layout'"
-            :class="interiorTab === 'layout' ? 'text-xs font-bold pb-2 border-b-2 border-emerald-800 text-slate-900' : 'text-xs font-bold pb-2 border-b-2 border-transparent text-slate-400 hover:text-slate-600'"
+            :class="interiorTabClass('layout')"
           >
             <Cms k="interior.layout" fallback="Planlösning" />
           </button>
           <button
             type="button"
-            @click="interiorTab = 'plumbing'"
-            :class="interiorTab === 'plumbing' ? 'text-xs font-bold pb-2 border-b-2 border-emerald-800 text-slate-900' : 'text-xs font-bold pb-2 border-b-2 border-transparent text-slate-400 hover:text-slate-600'"
+            :disabled="!floorPlanOpen"
+            :aria-disabled="!floorPlanOpen"
+            :title="floorPlanOpen ? undefined : t('interior.planLocked')"
+            @click="openInteriorTab('plumbing')"
+            :class="interiorTabClass('plumbing', !floorPlanOpen)"
           >
             <Cms k="interior.plumbing" fallback="Våtrum & VVS" />
           </button>
           <button
             type="button"
-            @click="interiorTab = 'electrical'"
-            :class="interiorTab === 'electrical' ? 'text-xs font-bold pb-2 border-b-2 border-emerald-800 text-slate-900' : 'text-xs font-bold pb-2 border-b-2 border-transparent text-slate-400 hover:text-slate-600'"
+            :disabled="!floorPlanOpen"
+            :aria-disabled="!floorPlanOpen"
+            :title="floorPlanOpen ? undefined : t('interior.planLocked')"
+            @click="openInteriorTab('electrical')"
+            :class="interiorTabClass('electrical', !floorPlanOpen)"
           >
             <Cms k="interior.electrical" fallback="El & Ljus" />
           </button>
+        </div>
+
+        <div v-if="interiorTab === 'layout'" class="space-y-2">
+          <button
+            type="button"
+            class="h-11 w-full rounded-xl text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 disabled:cursor-not-allowed"
+            :class="Object.keys(store.placedRooms).length === 0
+              ? 'bg-slate-100 text-slate-400'
+              : store.floorPlanDone
+                ? 'bg-slate-900 text-white'
+                : 'border border-slate-300 bg-white text-slate-900 hover:bg-slate-50'"
+            :disabled="Object.keys(store.placedRooms).length === 0"
+            :aria-pressed="store.floorPlanDone"
+            @click="store.setFloorPlanDone(!store.floorPlanDone)"
+          >
+            <Cms k="interior.planDone" fallback="Planlösningen är klar" />
+          </button>
+          <p v-if="!floorPlanOpen" class="text-[11px] leading-relaxed text-slate-500">
+            <Cms k="interior.planDoneHint" fallback="Placera rummen, markera sedan planlösningen som klar." />
+          </p>
         </div>
 
         <!-- Layout Content -->
@@ -1449,7 +1475,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import Cms from './Cms.vue';
 import CmsImage from './CmsImage.vue';
 import {
@@ -1503,6 +1529,25 @@ const { t, catalog, money, delta, locale } = useLabels();
 const sizeTab = ref<'kulor' | 'panel'>('kulor');
 const doorTab = ref<'single' | 'double' | 'sliding'>('single');
 const interiorTab = ref<'layout' | 'plumbing' | 'electrical'>('layout');
+const floorPlanOpen = computed(() => store.floorPlanDone && Object.keys(store.placedRooms).length > 0);
+
+function interiorTabClass(id: 'layout' | 'plumbing' | 'electrical', locked = false) {
+  if (locked) {
+    return 'text-xs font-bold pb-2 border-b-2 border-transparent text-slate-300 cursor-not-allowed';
+  }
+  return interiorTab.value === id
+    ? 'text-xs font-bold pb-2 border-b-2 border-emerald-800 text-slate-900'
+    : 'text-xs font-bold pb-2 border-b-2 border-transparent text-slate-400 hover:text-slate-600';
+}
+
+function openInteriorTab(id: 'plumbing' | 'electrical') {
+  if (!floorPlanOpen.value) return;
+  interiorTab.value = id;
+}
+
+watch(floorPlanOpen, (open) => {
+  if (!open && interiorTab.value !== 'layout') interiorTab.value = 'layout';
+});
 const colourMaterials = MATERIAL_OPTIONS.filter((mat) => mat.id !== 'wood');
 const woodMaterial = MATERIAL_OPTIONS.find((mat) => mat.id === 'wood') ?? MATERIAL_OPTIONS[0];
 
