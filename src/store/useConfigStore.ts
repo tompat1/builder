@@ -643,6 +643,7 @@ export const useConfigStore = defineStore('config', () => {
       terrace.value = data.terrace === true;
       terraceCeiling.value = data.terraceCeiling === true;
       bigTerrace.value = data.bigTerrace === true;
+      if (bigTerrace.value && terrace.value) terrace.value = false;
       if (data.terraceSide === 'front' || data.terraceSide === 'back' || data.terraceSide === 'left' || data.terraceSide === 'right') {
         terraceSide.value = data.terraceSide;
       }
@@ -813,9 +814,12 @@ export const useConfigStore = defineStore('config', () => {
     });
 
     if (doorCanopy.value) total += OUTSIDE_PRICES.doorCanopy;
-    if (terrace.value) total += OUTSIDE_PRICES.terrace;
-    if (terrace.value && terraceCeiling.value) total += OUTSIDE_PRICES.terraceCeiling;
-    if (bigTerrace.value) total += OUTSIDE_PRICES.bigTerrace;
+    if (bigTerrace.value) {
+      total += OUTSIDE_PRICES.bigTerrace;
+    } else if (terrace.value) {
+      total += OUTSIDE_PRICES.terrace;
+      if (terraceCeiling.value) total += OUTSIDE_PRICES.terraceCeiling;
+    }
 
     return total;
   });
@@ -979,34 +983,53 @@ export const useConfigStore = defineStore('config', () => {
   }
 
   function setTerrace(on: boolean) {
-    if (on === terrace.value && (on || !terraceCeiling.value)) return;
-    terrace.value = on;
-    if (!on) terraceCeiling.value = false;
+    if (on) {
+      if (terrace.value && !bigTerrace.value) return;
+      terrace.value = true;
+      bigTerrace.value = false;
+      saveSnapshot();
+      return;
+    }
+    if (!terrace.value && !terraceCeiling.value) return;
+    terrace.value = false;
+    terraceCeiling.value = false;
     saveSnapshot();
   }
 
   function setTerraceCeiling(on: boolean) {
-    if (on && !terrace.value) {
+    if (on) {
+      if (terrace.value && terraceCeiling.value && !bigTerrace.value) return;
       terrace.value = true;
       terraceCeiling.value = true;
+      bigTerrace.value = false;
       saveSnapshot();
       return;
     }
-    if (terraceCeiling.value === on) return;
-    terraceCeiling.value = on;
+    if (!terraceCeiling.value) return;
+    terraceCeiling.value = false;
     saveSnapshot();
   }
 
   function setBigTerrace(on: boolean) {
-    if (bigTerrace.value === on) return;
-    bigTerrace.value = on;
+    if (on) {
+      if (bigTerrace.value && !terrace.value && !terraceCeiling.value) return;
+      bigTerrace.value = true;
+      terrace.value = false;
+      terraceCeiling.value = false;
+      saveSnapshot();
+      return;
+    }
+    if (!bigTerrace.value) return;
+    bigTerrace.value = false;
     saveSnapshot();
   }
 
   function setTerraceSide(side: TerraceSide) {
-    if (terraceSide.value === side && bigTerrace.value) return;
+    if (terraceSide.value === side && bigTerrace.value && !terrace.value && !terraceCeiling.value) return;
     terraceSide.value = side;
     bigTerrace.value = true;
+    terrace.value = false;
+    terraceCeiling.value = false;
     saveSnapshot();
   }
 

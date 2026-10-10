@@ -1228,58 +1228,6 @@
       </div>
     </template>
 
-    <!-- Gates Options -->
-    <template v-else-if="store.selectedCategory === 'gates'">
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-        <button
-          v-for="gate in GATES_OPTIONS"
-          :key="gate.id"
-          type="button"
-          :id="`option-${gate.id}`"
-          @click="placeGate(gate.id)"
-          :class="[
-            'text-left p-3 rounded-xl border transition-all duration-150 flex flex-col justify-between relative group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
-            store.activeGate === gate.id
-              ? 'border-slate-900 ring-1 ring-slate-900 bg-slate-50/70 shadow-sm'
-              : 'border-slate-200/90 bg-white hover:border-slate-300 hover:bg-slate-50/40'
-          ]"
-        >
-          <CmsImage :k="`picture.gate.${gate.id === 'none' ? 'gate-none' : gate.id}`" class="mb-2 h-20 w-full">
-          <div class="w-full h-20 bg-slate-100/80 rounded-lg flex items-center justify-center p-2 relative overflow-hidden">
-            <svg class="w-full h-full text-slate-700" viewBox="0 0 160 80" fill="none">
-              <rect x="45" y="14" width="70" height="52" rx="1" stroke="currentColor" stroke-width="2" />
-              <template v-if="gate.id.includes('overhead')">
-                <line x1="45" y1="27" x2="115" y2="27" stroke="currentColor" stroke-width="1" />
-                <line x1="45" y1="40" x2="115" y2="40" stroke="currentColor" stroke-width="1" />
-                <line x1="45" y1="53" x2="115" y2="53" stroke="currentColor" stroke-width="1" />
-              </template>
-              <template v-else-if="gate.id === 'wood-slag'">
-                <line x1="80" y1="14" x2="80" y2="66" stroke="currentColor" stroke-width="1.5" />
-                <line x1="56" y1="20" x2="72" y2="60" stroke="currentColor" stroke-width="1" />
-                <line x1="104" y1="20" x2="88" y2="60" stroke="currentColor" stroke-width="1" />
-              </template>
-              <template v-else>
-                <line x1="60" y1="14" x2="60" y2="66" stroke="currentColor" stroke-width="0.8" stroke-dasharray="2 2" />
-                <line x1="80" y1="14" x2="80" y2="66" stroke="currentColor" stroke-width="0.8" stroke-dasharray="2 2" />
-                <line x1="100" y1="14" x2="100" y2="66" stroke="currentColor" stroke-width="0.8" stroke-dasharray="2 2" />
-              </template>
-            </svg>
-          </div>
-          </CmsImage>
-
-          <div>
-            <div class="flex items-center justify-between">
-              <p class="text-xs font-bold text-slate-900"><Cms :k="`catalog.${gate.id === 'none' ? 'gate-none' : gate.id}.name`" :fallback="gate.name" /></p>
-              <span class="text-xs font-extrabold text-slate-900 tabular-nums">
-                {{ delta(gate.priceDelta) }}
-              </span>
-            </div>
-            <p class="text-[11px] text-slate-500 mt-0.5"><Cms :k="`catalog.${gate.id === 'none' ? 'gate-none' : gate.id}.spec`" :fallback="gate.spec ?? ''" /></p>
-          </div>
-        </button>
-      </div>
-    </template>
-
     <template v-else-if="store.selectedCategory === 'extras'">
       <p class="text-[11px] text-slate-500"><Cms k="category.outsidePlace" /></p>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -1402,6 +1350,59 @@
         </div>
       </div>
     </template>
+
+    <!-- Gates Options -->
+    <template v-else>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+        <button
+          v-for="gate in GATES_OPTIONS"
+          :key="gate.id"
+          type="button"
+          :id="`option-${gate.id}`"
+          @click="placeGate(gate.id)"
+          :class="[
+            'text-left p-3 rounded-xl border transition-all duration-150 flex flex-col justify-between relative group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
+            store.activeGate === gate.id
+              ? 'border-slate-900 ring-1 ring-slate-900 bg-slate-50/70 shadow-sm'
+              : 'border-slate-200/90 bg-white hover:border-slate-300 hover:bg-slate-50/40'
+          ]"
+        >
+          <CmsImage :k="`picture.gate.${gate.id === 'none' ? 'gate-none' : gate.id}`" class="mb-2 h-20 w-full">
+          <div class="w-full h-20 bg-slate-100/80 rounded-lg flex items-center justify-center p-2 relative overflow-hidden">
+            <svg class="w-full h-full text-slate-700" viewBox="0 0 160 80" fill="none">
+              <rect x="45" y="14" width="70" height="52" rx="1" stroke="currentColor" stroke-width="2" />
+              <template v-if="gate.id.includes('overhead')">
+                <line x1="45" y1="27" x2="115" y2="27" stroke="currentColor" stroke-width="1" />
+                <line x1="45" y1="40" x2="115" y2="40" stroke="currentColor" stroke-width="1" />
+                <line x1="45" y1="53" x2="115" y2="53" stroke="currentColor" stroke-width="1" />
+              </template>
+              <template v-else-if="gate.id === 'wood-slag'">
+                <line x1="80" y1="14" x2="80" y2="66" stroke="currentColor" stroke-width="1.5" />
+                <line x1="56" y1="20" x2="72" y2="60" stroke="currentColor" stroke-width="1" />
+                <line x1="104" y1="20" x2="88" y2="60" stroke="currentColor" stroke-width="1" />
+              </template>
+              <template v-else>
+                <line x1="60" y1="14" x2="60" y2="66" stroke="currentColor" stroke-width="0.8" stroke-dasharray="2 2" />
+                <line x1="80" y1="14" x2="80" y2="66" stroke="currentColor" stroke-width="0.8" stroke-dasharray="2 2" />
+                <line x1="100" y1="14" x2="100" y2="66" stroke="currentColor" stroke-width="0.8" stroke-dasharray="2 2" />
+              </template>
+            </svg>
+          </div>
+          </CmsImage>
+
+          <div>
+            <div class="flex items-center justify-between">
+              <p class="text-xs font-bold text-slate-900"><Cms :k="`catalog.${gate.id === 'none' ? 'gate-none' : gate.id}.name`" :fallback="gate.name" /></p>
+              <span class="text-xs font-extrabold text-slate-900 tabular-nums">
+                {{ delta(gate.priceDelta) }}
+              </span>
+            </div>
+            <p class="text-[11px] text-slate-500 mt-0.5"><Cms :k="`catalog.${gate.id === 'none' ? 'gate-none' : gate.id}.spec`" :fallback="gate.spec ?? ''" /></p>
+          </div>
+        </button>
+      </div>
+    </template>
+
   </div>
 </template>
 

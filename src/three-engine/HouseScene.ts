@@ -2388,7 +2388,7 @@ export class HouseScene {
 
   private buildOutsideAdditions(w: number, d: number, h: number) {
     const canopyOn = Boolean(this.currentConfig.doorCanopy);
-    const terraceOn = Boolean(this.currentConfig.terrace);
+    const terraceOn = Boolean(this.currentConfig.terrace) && !this.currentConfig.bigTerrace;
     const requestedSide = this.currentConfig.terraceSide;
     const fullSide = this.currentConfig.bigTerrace
       ? (requestedSide === 'back' || requestedSide === 'left' || requestedSide === 'right' ? requestedSide : 'front')
