@@ -2507,8 +2507,10 @@ export class HouseScene {
     return { px: w / 2 - cladding / 2, pz: 0, rotY: Math.PI / 2, doorX: 0, width: span, head, wall };
   }
 
-  /** A door on that wall, or the middle of the wall when there is no door. */
-  private terraceAnchor(side: TerraceSide, w: number, d: number, h: number): OutsideAnchor {
+  /** Full terraces use the wall centre; smaller terraces follow their door. */
+  private terraceAnchor(terrace: HouseTerrace, w: number, d: number, h: number): OutsideAnchor {
+    const { side } = terrace;
+    if (terrace.span === 'full') return this.sideAnchor(side, w, d, h);
     const door = this.outsideAnchors(w, d, h).find((item) => item.wall === side);
     if (door) return door;
     return { ...this.sideAnchor(side, w, d, h), width: 1 };
@@ -2534,7 +2536,7 @@ export class HouseScene {
     }
     for (const terrace of terraces) {
       this.addTerrace(
-        this.terraceAnchor(terrace.side, w, d, h),
+        this.terraceAnchor(terrace, w, d, h),
         deckMat,
         timber,
         roofMat,
