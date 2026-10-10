@@ -202,7 +202,7 @@ onMounted(() => {
       store.setMeasureScreen(screen);
     };
     engine.onRoomPlaced = (id, type, w, d, x, y, z) => {
-      store.placedRooms[id] = { type, w, d, x, y, z };
+      store.placedRooms[id] = { type, w, d, x, y, z, wallsVisible: true };
       store.selectRoom(id);
     };
     engine.onRoomResize = (id, w, d, x, y, z) => {
@@ -271,7 +271,7 @@ function syncPlacedRooms() {
       info.x = fitted.x;
       info.z = fitted.z;
     }
-    engine.updateRoomSize(id, info.type, fitted.w, fitted.d, fitted.x, info.y, fitted.z);
+    engine.updateRoomSize(id, info.type, fitted.w, fitted.d, fitted.x, info.y, fitted.z, info.wallsVisible);
   }
 }
 

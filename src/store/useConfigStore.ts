@@ -21,6 +21,7 @@ import {
 import { eaveLiftMm, gablePitchDegrees } from './roof';
 import { floorAreaSqMeters } from './area';
 import { isLoftRoom } from '../three-engine/loftLevel';
+import { acceptPlacedRooms, type PlacedRoom } from '../three-engine/roomWalls';
 import {
   acceptTerraces,
   TERRACE_DEPTHS,
@@ -544,7 +545,7 @@ export const useConfigStore = defineStore('config', () => {
   const defaultView = ref<CameraView | null>(null);
 
   // Interior rooms
-  const placedRooms = ref<Record<string, { type: string; w: number; d: number; x: number; y: number; z: number }>>({});
+  const placedRooms = ref<Record<string, PlacedRoom>>({});
   const selectedRoomId = ref<string | null>(null);
 
   function selectRoom(id: string | null) {
@@ -557,6 +558,16 @@ export const useConfigStore = defineStore('config', () => {
     delete next[id];
     placedRooms.value = next;
     if (selectedRoomId.value === id) selectedRoomId.value = null;
+  }
+
+  function toggleRoomWalls(id: string) {
+    const room = placedRooms.value[id];
+    if (!room) return;
+    placedRooms.value = {
+      ...placedRooms.value,
+      [id]: { ...room, wallsVisible: !room.wallsVisible }
+    };
+    commitHouse();
   }
 
   function clearLoftRooms() {
@@ -718,7 +729,7 @@ export const useConfigStore = defineStore('config', () => {
         ? data.claddingSizeId
         : '22x145';
       wallSlots.value = mergeWallSlots(data.wallSlots);
-      if (data.placedRooms) placedRooms.value = data.placedRooms;
+      placedRooms.value = acceptPlacedRooms(data.placedRooms);
       notes.value = acceptNotes(data.notes);
       if (notes.value.length) showNotes.value = true;
     } catch {
@@ -1470,6 +1481,7 @@ export const useConfigStore = defineStore('config', () => {
     selectedRoomId,
     selectRoom,
     removePlacedRoom,
+    toggleRoomWalls,
     availableLoftSizes,
     totalPriceSek,
     selectedSlotCanAcceptDoor,

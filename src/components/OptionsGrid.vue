@@ -965,6 +965,26 @@
                     <input type="range" min="1.0" max="6.0" step="0.1" v-model.number="room.d" class="w-full accent-slate-900" />
                   </label>
                 </div>
+                <button
+                  type="button"
+                  role="switch"
+                  class="flex min-h-11 w-full items-center justify-between rounded-lg px-2 text-[11px] font-semibold text-slate-700 transition-colors hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+                  :aria-checked="room.wallsVisible"
+                  :aria-label="room.wallsVisible ? t('interior.hideRoomWalls') : t('interior.showRoomWalls')"
+                  @click="store.toggleRoomWalls(String(id))"
+                >
+                  <Cms k="interior.roomWalls" fallback="Väggar" />
+                  <span
+                    class="relative h-5 w-9 rounded-full transition-colors"
+                    :class="room.wallsVisible ? 'bg-slate-900' : 'bg-slate-300'"
+                    aria-hidden="true"
+                  >
+                    <span
+                      class="absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform"
+                      :class="room.wallsVisible ? 'translate-x-[18px]' : 'translate-x-0.5'"
+                    ></span>
+                  </span>
+                </button>
               </div>
             </div>
           </div>

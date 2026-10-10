@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  acceptPlacedRooms,
   fitRoom,
   innerHalf,
   roomInsideShell,
@@ -71,4 +72,14 @@ test('fitting a room twice does not move it again', () => {
 
   assert.deepEqual(twice, once);
   assert.ok(roomInsideShell(twice, attefall.hx, attefall.hz));
+});
+
+test('saved rooms keep the wall toggle and older rooms default to walls', () => {
+  const rooms = acceptPlacedRooms({
+    bedroom_1: { type: 'bedroom', w: 3, d: 3, x: 0, y: 2.8, z: 0, wallsVisible: false },
+    storage_1: { type: 'storage', w: 1.5, d: 1.5, x: 1, y: 0.3, z: 1 }
+  });
+
+  assert.equal(rooms.bedroom_1.wallsVisible, false);
+  assert.equal(rooms.storage_1.wallsVisible, true);
 });

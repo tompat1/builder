@@ -4296,11 +4296,12 @@ export class HouseScene {
         d: Number(child.userData.d),
         x: child.position.x,
         y: child.position.y,
-        z: child.position.z
+        z: child.position.z,
+        wallsVisible: child.userData.wallsVisible !== false
       }));
     for (const room of rooms) {
       if (!Number.isFinite(room.w) || !Number.isFinite(room.d)) continue;
-      this.updateRoomSize(room.id, room.type, room.w, room.d, room.x, room.y, room.z);
+      this.updateRoomSize(room.id, room.type, room.w, room.d, room.x, room.y, room.z, room.wallsVisible);
     }
   }
 
@@ -4310,13 +4311,15 @@ export class HouseScene {
     d: number,
     open: ShellSides,
     place?: { y: number; z: number },
-    preview = false
+    preview = false,
+    wallsVisible = true
   ): THREE.Group {
     const group = new THREE.Group();
     group.userData.type = 'room_zone';
     group.userData.roomType = roomType;
     group.userData.w = w;
     group.userData.d = d;
+    group.userData.wallsVisible = wallsVisible;
     const loft = place && isLoftRoom(place.y) ? place : null;
     const ceiling = loft ? this.loftCeiling(loft.z, loft.y) : null;
 
@@ -4391,19 +4394,19 @@ export class HouseScene {
     const doorOrder = (ceiling ? ['front', 'back', 'right', 'left'] : ['front', 'right', 'back', 'left']) as readonly (keyof ShellSides)[];
     const doorSide = doorOrder.find((side) => !open[side]);
     const edgeHeight = (localZ: number) => (ceiling ? ceiling(localZ) - wallBase : wallH);
-    if (!open.back) {
+    if (wallsVisible && !open.back) {
       const { size, center } = run(w, trim(open.left), trim(open.right));
       const z = -d / 2 + wallThick / 2;
       const height = edgeHeight(z);
       if (height > 0.02) addRun('back', size, center, z, 'x', doorSide === 'back' && height >= 1.35, height);
     }
-    if (!open.front) {
+    if (wallsVisible && !open.front) {
       const { size, center } = run(w, trim(open.left), trim(open.right));
       const z = d / 2 - wallThick / 2;
       const height = edgeHeight(z);
       if (height > 0.02) addRun('front', size, center, z, 'x', doorSide === 'front' && height >= 1.35, height);
     }
-    if (!open.left) {
+    if (wallsVisible && !open.left) {
       if (ceiling && loft) {
         this.addLoftSide(
           group, 'left', -w / 2 + wallThick / 2,
@@ -4415,7 +4418,7 @@ export class HouseScene {
         addRun('left', size, center, -w / 2 + wallThick / 2, 'z', doorSide === 'left', wallH);
       }
     }
-    if (!open.right) {
+    if (wallsVisible && !open.right) {
       if (ceiling && loft) {
         this.addLoftSide(
           group, 'right', w / 2 - wallThick / 2,
@@ -4427,7 +4430,7 @@ export class HouseScene {
         addRun('right', size, center, w / 2 - wallThick / 2, 'z', doorSide === 'right', wallH);
       }
     }
-    if (ceiling && loft) this.addLoftCeiling(group, w, loft.z, ceiling, wallMat, edgeMat);
+    if (wallsVisible && ceiling && loft) this.addLoftCeiling(group, w, loft.z, ceiling, wallMat, edgeMat);
 
     const edge = (againstShell: boolean) => (againstShell ? 0.02 : wallThick);
     const fitUp = (height: number, bottom: number, currentY: number) => {
@@ -4506,18 +4509,20 @@ export class HouseScene {
     return group;
   }
 
-  public updateRoomSize(roomId: string, expectedRoomType: string, w: number, d: number, x?: number, y?: number, z?: number) {
+  public updateRoomSize(roomId: string, expectedRoomType: string, w: number, d: number, x?: number, y?: number, z?: number, wallsVisible?: boolean) {
     const existing = this.interiorGroup.children.find(c => c.userData.type === 'room_zone' && c.userData.roomId === roomId);
     let currentX = x ?? 0;
     let currentY = y ?? 0.3;
     let currentZ = z ?? 0;
     let roomType = expectedRoomType;
+    let showWalls = wallsVisible ?? true;
 
     if (existing) {
       currentX = existing.position.x;
       currentY = existing.position.y;
       currentZ = existing.position.z;
       roomType = existing.userData.roomType;
+      showWalls = wallsVisible ?? existing.userData.wallsVisible !== false;
       this.disposeObject(existing);
       this.interiorGroup.remove(existing);
     }
@@ -4532,7 +4537,9 @@ export class HouseScene {
       fitted.w,
       fitted.d,
       shellSides(fitted, hx, hz),
-      isLoftRoom(nextY) ? { y: nextY, z: fitted.z } : undefined
+      isLoftRoom(nextY) ? { y: nextY, z: fitted.z } : undefined,
+      false,
+      showWalls
     );
     newRoom.userData.roomId = roomId;
     newRoom.children.forEach(c => {

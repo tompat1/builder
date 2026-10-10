@@ -21,6 +21,38 @@ export interface ShellSides {
   back: boolean;
 }
 
+export interface PlacedRoom {
+  type: string;
+  w: number;
+  d: number;
+  x: number;
+  y: number;
+  z: number;
+  wallsVisible: boolean;
+}
+
+/** Restore room data while defaulting older saved rooms to their original closed state. */
+export function acceptPlacedRooms(value: unknown): Record<string, PlacedRoom> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const rooms: Record<string, PlacedRoom> = {};
+  for (const [id, entry] of Object.entries(value)) {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) continue;
+    const row = entry as Record<string, unknown>;
+    const numbers = [row.w, row.d, row.x, row.y, row.z].map(Number);
+    if (typeof row.type !== 'string' || numbers.some((item) => !Number.isFinite(item))) continue;
+    rooms[id] = {
+      type: row.type,
+      w: numbers[0],
+      d: numbers[1],
+      x: numbers[2],
+      y: numbers[3],
+      z: numbers[4],
+      wallsVisible: row.wallsVisible !== false
+    };
+  }
+  return rooms;
+}
+
 export function innerHalf(widthM: number, depthM: number) {
   return {
     hx: Math.max(widthM / 2 - SHELL_INSET, 0.5),
