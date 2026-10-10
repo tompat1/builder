@@ -22,6 +22,17 @@ import { eaveLiftMm, gablePitchDegrees } from './roof';
 import { floorAreaSqMeters } from './area';
 import { isLoftRoom } from '../three-engine/loftLevel';
 import {
+  acceptTerraces,
+  TERRACE_DEPTHS,
+  TERRACE_SIDES,
+  terracePrice,
+  terracesFromLegacy,
+  type HouseTerrace,
+  type TerraceDepth,
+  type TerraceSide,
+  type TerraceSpan
+} from '../outside/terrace';
+import {
   COMPASS_FACINGS,
   clampSunHour,
   type CompassFacing
@@ -400,7 +411,7 @@ export const OUTSIDE_PRICES = {
   bigTerrace: 72600
 } as const;
 
-export type TerraceSide = 'front' | 'back' | 'left' | 'right';
+export type { HouseTerrace, TerraceDepth, TerraceSide, TerraceSpan };
 
 export interface WallSlot {
   id: string;
@@ -523,10 +534,7 @@ export const useConfigStore = defineStore('config', () => {
   const activeWindow = ref<string>('standard-single');
   const activeGate = ref<string>('none');
   const doorCanopy = ref(false);
-  const terrace = ref(false);
-  const terraceCeiling = ref(false);
-  const bigTerrace = ref(false);
-  const terraceSide = ref<TerraceSide>('front');
+  const terraces = ref<HouseTerrace[]>([]);
   const facing = ref<CompassFacing>('south');
   const sunHour = ref(12);
   let sunHourAtSnapshot = 12;
@@ -612,10 +620,7 @@ export const useConfigStore = defineStore('config', () => {
       activeWindow: activeWindow.value,
       activeGate: activeGate.value,
       doorCanopy: doorCanopy.value,
-      terrace: terrace.value,
-      terraceCeiling: terraceCeiling.value,
-      bigTerrace: bigTerrace.value,
-      terraceSide: terraceSide.value,
+      terraces: terraces.value.map((item) => ({ ...item })),
       facing: facing.value,
       sunHour: sunHour.value,
       defaultView: defaultView.value ? { ...defaultView.value } : null,
@@ -684,13 +689,7 @@ export const useConfigStore = defineStore('config', () => {
       if (data.activeWindow) activeWindow.value = data.activeWindow;
       if (data.activeGate) activeGate.value = data.activeGate;
       doorCanopy.value = data.doorCanopy === true;
-      terrace.value = data.terrace === true;
-      terraceCeiling.value = data.terraceCeiling === true;
-      bigTerrace.value = data.bigTerrace === true;
-      if (bigTerrace.value && terrace.value) terrace.value = false;
-      if (data.terraceSide === 'front' || data.terraceSide === 'back' || data.terraceSide === 'left' || data.terraceSide === 'right') {
-        terraceSide.value = data.terraceSide;
-      }
+      terraces.value = Array.isArray(data.terraces) ? acceptTerraces(data.terraces) : terracesFromLegacy(data);
       facing.value = COMPASS_FACINGS.includes(data.facing) ? data.facing : 'south';
       sunHour.value = clampSunHour(typeof data.sunHour === 'number' ? data.sunHour : 12);
       sunHourAtSnapshot = sunHour.value;
@@ -862,12 +861,7 @@ export const useConfigStore = defineStore('config', () => {
     });
 
     if (doorCanopy.value) total += OUTSIDE_PRICES.doorCanopy;
-    if (bigTerrace.value) {
-      total += OUTSIDE_PRICES.bigTerrace;
-    } else if (terrace.value) {
-      total += OUTSIDE_PRICES.terrace;
-      if (terraceCeiling.value) total += OUTSIDE_PRICES.terraceCeiling;
-    }
+    for (const deck of terraces.value) total += terracePrice(deck);
 
     return total;
   });
@@ -1030,46 +1024,46 @@ export const useConfigStore = defineStore('config', () => {
     saveSnapshot();
   }
 
-  function setTerrace(on: boolean) {
-    if (on) {
-      if (terrace.value && !bigTerrace.value) return;
-      terrace.value = true;
-      bigTerrace.value = false;
-      saveSnapshot();
-      return;
-    }
-    if (!terrace.value && !terraceCeiling.value) return;
-    terrace.value = false;
-    terraceCeiling.value = false;
+  function replaceTerrace(side: TerraceSide, patch: Partial<HouseTerrace>) {
+    const current = terraces.value.find((item) => item.side === side);
+    if (!current) return;
+    const [next] = acceptTerraces([{ ...current, ...patch, side: patch.side ?? current.side }]);
+    if (!next) return;
+    if (next.side === current.side && next.depth === current.depth && next.span === current.span && next.roof === current.roof) return;
+    if (next.side !== current.side && terraces.value.some((item) => item.side === next.side)) return;
+    terraces.value = terraces.value.map((item) => (item.side === side ? next : item));
     saveSnapshot();
   }
 
-  function setTerraceCeiling(on: boolean) {
-    if (on) {
-      if (terrace.value && terraceCeiling.value && !bigTerrace.value) return;
-      terrace.value = true;
-      terraceCeiling.value = true;
-      bigTerrace.value = false;
-      saveSnapshot();
-      return;
-    }
-    if (!terraceCeiling.value) return;
-    terraceCeiling.value = false;
+  function addTerrace() {
+    const used = new Set(terraces.value.map((item) => item.side));
+    const side = TERRACE_SIDES.find((item) => !used.has(item));
+    if (!side) return;
+    terraces.value = [...terraces.value, { side, depth: 1.8, span: 'door', roof: false }];
     saveSnapshot();
   }
 
-  function setBigTerrace(on: boolean) {
-    if (on) {
-      if (bigTerrace.value && !terrace.value && !terraceCeiling.value) return;
-      bigTerrace.value = true;
-      terrace.value = false;
-      terraceCeiling.value = false;
-      saveSnapshot();
-      return;
-    }
-    if (!bigTerrace.value) return;
-    bigTerrace.value = false;
+  function removeTerrace(side: TerraceSide) {
+    if (!terraces.value.some((item) => item.side === side)) return;
+    terraces.value = terraces.value.filter((item) => item.side !== side);
     saveSnapshot();
+  }
+
+  function setTerraceSide(side: TerraceSide, next: TerraceSide) {
+    replaceTerrace(side, { side: next });
+  }
+
+  function setTerraceDepth(side: TerraceSide, depth: TerraceDepth) {
+    if (!TERRACE_DEPTHS.includes(depth)) return;
+    replaceTerrace(side, { depth });
+  }
+
+  function setTerraceSpan(side: TerraceSide, span: TerraceSpan) {
+    replaceTerrace(side, { span });
+  }
+
+  function setTerraceRoof(side: TerraceSide, roof: boolean) {
+    replaceTerrace(side, { roof });
   }
 
   function setFacing(next: CompassFacing) {
@@ -1095,15 +1089,6 @@ export const useConfigStore = defineStore('config', () => {
     if (!next) return;
     if (defaultView.value && viewsMatch(defaultView.value, next)) return;
     defaultView.value = next;
-    saveSnapshot();
-  }
-
-  function setTerraceSide(side: TerraceSide) {
-    if (terraceSide.value === side && bigTerrace.value && !terrace.value && !terraceCeiling.value) return;
-    terraceSide.value = side;
-    bigTerrace.value = true;
-    terrace.value = false;
-    terraceCeiling.value = false;
     saveSnapshot();
   }
 
@@ -1446,10 +1431,7 @@ export const useConfigStore = defineStore('config', () => {
     activeWindow,
     activeGate,
     doorCanopy,
-    terrace,
-    terraceCeiling,
-    bigTerrace,
-    terraceSide,
+    terraces,
     facing,
     sunHour,
     defaultView,
@@ -1496,10 +1478,12 @@ export const useConfigStore = defineStore('config', () => {
     selectWindow,
     selectGate,
     setDoorCanopy,
-    setTerrace,
-    setTerraceCeiling,
-    setBigTerrace,
+    addTerrace,
+    removeTerrace,
     setTerraceSide,
+    setTerraceDepth,
+    setTerraceSpan,
+    setTerraceRoof,
     setFacing,
     previewSunHour,
     commitSunHour,

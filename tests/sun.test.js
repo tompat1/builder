@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   compassAxes,
+  compassDialDegrees,
   formatSunHour,
   headingForFacing,
   sunPlacement
@@ -36,6 +37,14 @@ test('the sun is down outside the equinox day', () => {
   assert.ok(sunPlacement(20, 180).altitude < 0);
   assert.ok(sunPlacement(7, 180).altitude > 0);
   assert.ok(sunPlacement(17, 180).altitude > 0);
+});
+
+test('the compass dial keeps north at the top only while looking north', () => {
+  const north = compassAxes(180).north;
+  assert.ok(Math.abs(compassDialDegrees(north, 180)) < 0.01);
+  const east = compassAxes(180).east;
+  const lookingEast = compassDialDegrees(east, 180);
+  assert.ok(lookingEast < -80 && lookingEast > -100);
 });
 
 test('east is on the right when looking at a south-facing front', () => {

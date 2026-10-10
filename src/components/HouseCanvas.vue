@@ -2,6 +2,24 @@
   <div class="relative w-full h-full">
     <div ref="canvasContainer" class="w-full h-full absolute inset-0 z-0"></div>
 
+    <div
+      v-if="store.viewMode === 'utsida'"
+      id="compass-rose"
+      class="compass-rose pointer-events-none absolute left-3 top-3 z-20"
+      role="img"
+      :aria-label="t('tools.facing')"
+    >
+      <span
+        v-for="mark in compassMarks"
+        :key="mark.id"
+        class="compass-mark"
+        :class="{ 'compass-north': mark.id === 'n' }"
+        :style="{ transform: `translate(-50%, -50%) translate(${mark.x}px, ${mark.y}px)` }"
+      >{{ mark.letter }}</span>
+      <span class="compass-needle" :style="{ transform: `rotate(${compassDial}deg)` }" aria-hidden="true"></span>
+      <span class="compass-hub" aria-hidden="true"></span>
+    </div>
+
     <!-- Drag to orbit hint -->
     <transition
       enter-active-class="transition duration-500 ease-out"
@@ -38,7 +56,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, watch } from 'vue';
+import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue';
 import { HouseScene } from '../three-engine/HouseScene';
 import { useConfigStore } from '../store/useConfigStore';
 import type { RoofId } from '../store/roof';
@@ -52,6 +70,25 @@ const store = useConfigStore();
 const { t } = useLabels();
 let engine: HouseScene | null = null;
 const showDragHint = ref(false);
+const compassDial = ref(0);
+const compassMarks = computed(() => {
+  const turn = (compassDial.value * Math.PI) / 180;
+  const radius = 26;
+  return [
+    { id: 'n', letter: t('tools.letterNorth'), angle: 0 },
+    { id: 'e', letter: t('tools.letterEast'), angle: Math.PI / 2 },
+    { id: 's', letter: t('tools.letterSouth'), angle: Math.PI },
+    { id: 'w', letter: t('tools.letterWest'), angle: -Math.PI / 2 }
+  ].map((mark) => {
+    const angle = mark.angle + turn;
+    return {
+      id: mark.id,
+      letter: mark.letter,
+      x: Math.sin(angle) * radius,
+      y: -Math.cos(angle) * radius
+    };
+  });
+});
 
 function noteTargetIds() {
   if (!store.showNotes) return [];
@@ -120,10 +157,7 @@ onMounted(() => {
       selectedSlotId: store.selectedSlotId,
       wallSlots: store.wallSlots,
       doorCanopy: store.doorCanopy,
-      terrace: store.terrace,
-      terraceCeiling: store.terraceCeiling,
-      bigTerrace: store.bigTerrace,
-      terraceSide: store.terraceSide
+      terraces: store.terraces.map((item) => ({ ...item }))
     });
 
     // Wire raycast clicks & hover from 3D scene to store
@@ -185,6 +219,9 @@ onMounted(() => {
     engine.setNoteTargets(noteTargetIds());
     syncNotePins();
 
+    engine.onCompassDial = (degrees) => {
+      compassDial.value = degrees;
+    };
     engine.setDaylight(store.sunHour, store.facing, compassLabels());
     engine.setDefaultView(store.defaultView);
     if (typeof window !== 'undefined') {
@@ -386,13 +423,13 @@ watch(
 watch(
   [
     () => store.doorCanopy,
-    () => store.terrace,
-    () => store.terraceCeiling,
-    () => store.bigTerrace,
-    () => store.terraceSide
+    () => store.terraces.map((item) => `${item.side}:${item.depth}:${item.span}:${item.roof ? 1 : 0}`).join('|')
   ],
-  ([doorCanopy, terrace, terraceCeiling, bigTerrace, terraceSide]) => {
-    engine?.updateConfig({ doorCanopy, terrace, terraceCeiling, bigTerrace, terraceSide });
+  () => {
+    engine?.updateConfig({
+      doorCanopy: store.doorCanopy,
+      terraces: store.terraces.map((item) => ({ ...item }))
+    });
   }
 );
 
@@ -454,3 +491,51 @@ defineExpose({
   }
 });
 </script>
+
+<style scoped>
+.compass-rose {
+  width: 72px;
+  height: 72px;
+  border-radius: 999px;
+  border: 1.5px solid #173d35;
+  background: rgb(245 243 236 / 0.94);
+  box-shadow: 0 8px 18px rgb(23 61 53 / 0.12);
+}
+
+.compass-mark {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  color: #173d35;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.compass-north {
+  color: #ff5a00;
+}
+
+.compass-needle {
+  position: absolute;
+  left: 50%;
+  top: calc(50% - 18px);
+  width: 2px;
+  height: 18px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: #ff5a00;
+  transform-origin: center bottom;
+}
+
+.compass-hub {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  border-radius: 999px;
+  background: #173d35;
+}
+</style>

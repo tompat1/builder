@@ -34,6 +34,23 @@ export function formatSunHour(hour: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
+/**
+ * Degrees to turn a compass dial so north stays at world north on screen.
+ * Zero means the camera is looking north, so N sits at the top.
+ */
+export function compassDialDegrees(
+  forward: { x: number; z: number },
+  headingDeg: number
+): number {
+  const { north } = compassAxes(headingDeg);
+  const length = Math.hypot(forward.x, forward.z) || 1;
+  const fx = forward.x / length;
+  const fz = forward.z / length;
+  const dot = fx * north.x + fz * north.z;
+  const cross = fx * north.z - fz * north.x;
+  return Math.atan2(cross, dot) * (180 / Math.PI);
+}
+
 /** North and east on the ground. The house front stays on +Z. */
 export function compassAxes(headingDeg: number): {
   north: { x: number; z: number };

@@ -1240,101 +1240,106 @@
           <p class="text-[11px] text-slate-500 mt-0.5"><Cms k="category.doorCanopyBody" /></p>
         </button>
 
-        <button
-          type="button"
-          id="option-terrace"
-          @click="store.setTerrace(!store.terrace)"
-          :aria-pressed="store.terrace"
-          :class="outsideCardClass(store.terrace)"
-        >
-          <div class="w-full h-24 bg-slate-100/80 rounded-lg flex items-center justify-center mb-2">
-            <svg class="w-full h-full text-slate-700" viewBox="0 0 160 80" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-              <path d="M24 46h112" />
-              <path d="M28 52h104" />
-              <path d="M32 58h96" />
-              <path d="M36 64h88" />
-              <rect x="72" y="22" width="16" height="24" />
-            </svg>
-          </div>
-          <div class="flex items-center justify-between gap-2">
-            <p class="text-xs font-bold text-slate-900"><Cms k="category.terrace" /></p>
-            <span class="text-xs font-extrabold text-slate-900 tabular-nums whitespace-nowrap">{{ delta(OUTSIDE_PRICES.terrace) }}</span>
-          </div>
-          <p class="text-[11px] text-slate-500 mt-0.5"><Cms k="category.terraceBody" /></p>
-        </button>
-
-        <button
-          type="button"
-          id="option-terrace-ceiling"
-          @click="store.setTerraceCeiling(!store.terraceCeiling)"
-          :aria-pressed="store.terraceCeiling"
-          :class="outsideCardClass(store.terraceCeiling)"
-        >
-          <div class="w-full h-24 bg-slate-100/80 rounded-lg flex items-center justify-center mb-2">
-            <svg class="w-full h-full text-slate-700" viewBox="0 0 160 80" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M22 28h116" />
-              <path d="M30 28 42 16h76l12 12" />
-              <path d="M36 28v30" />
-              <path d="M124 28v30" />
-              <path d="M30 58h100" />
-              <path d="M34 64h92" />
-            </svg>
-          </div>
-          <div class="flex items-center justify-between gap-2">
-            <p class="text-xs font-bold text-slate-900"><Cms k="category.terraceCeiling" /></p>
-            <span class="shrink-0 text-xs font-extrabold text-slate-900 tabular-nums whitespace-nowrap">{{ delta(OUTSIDE_PRICES.terraceCeiling) }}</span>
-          </div>
-          <p class="text-[11px] text-slate-500 mt-0.5"><Cms k="category.terraceCeilingBody" /></p>
-        </button>
-
-        <button
-          type="button"
-          id="option-big-terrace"
-          @click="store.setBigTerrace(!store.bigTerrace)"
-          :aria-pressed="store.bigTerrace"
-          :class="outsideCardClass(store.bigTerrace)"
-        >
-          <div class="w-full h-24 bg-slate-100/80 rounded-lg flex items-center justify-center mb-2">
-            <svg class="w-full h-full text-slate-700" viewBox="0 0 160 80" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M14 26h132" />
-              <path d="M22 26 32 14h96l10 12" />
-              <path d="M28 26v28" />
-              <path d="M80 26v28" />
-              <path d="M132 26v28" />
-              <path d="M20 54h120" />
-              <path d="M24 60h112" />
-              <path d="M28 66h104" />
-            </svg>
-          </div>
-          <div class="flex items-center justify-between gap-2">
-            <p class="min-w-0 text-xs font-bold text-slate-900"><Cms k="category.bigTerrace" /></p>
-            <span class="shrink-0 text-xs font-extrabold text-slate-900 tabular-nums whitespace-nowrap">{{ delta(OUTSIDE_PRICES.bigTerrace) }}</span>
-          </div>
-          <p class="text-[11px] text-slate-500 mt-0.5"><Cms k="category.bigTerraceBody" /></p>
-        </button>
       </div>
 
-      <div v-if="store.bigTerrace" class="space-y-1.5">
-        <p class="text-[11px] font-bold text-slate-700"><Cms k="category.terraceSide" /></p>
-        <div class="grid grid-cols-4 gap-1.5">
+      <section class="space-y-2">
+        <div class="flex items-center justify-between gap-2">
+          <p class="text-xs font-bold text-slate-800"><Cms k="category.terrace" /></p>
           <button
-            v-for="side in terraceSides"
-            :key="side"
+            v-if="store.terraces.length < terraceSides.length"
             type="button"
-            :id="`terrace-side-${side}`"
-            @click="store.setTerraceSide(side)"
-            :aria-pressed="store.terraceSide === side"
-            :class="[
-              'py-1.5 rounded-lg border text-[11px] font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
-              store.terraceSide === side
-                ? 'border-slate-900 bg-slate-900 text-white'
-                : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
-            ]"
+            id="btn-add-terrace"
+            class="rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-[11px] font-bold text-slate-800 hover:border-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+            @click="store.addTerrace()"
           >
-            <Cms :k="`category.${side}`" />
+            <Cms k="category.terraceAdd" />
           </button>
         </div>
-      </div>
+        <p v-if="!store.terraces.length" class="text-[11px] text-slate-500"><Cms k="category.terraceEmpty" /></p>
+        <article
+          v-for="deck in store.terraces"
+          :key="deck.side"
+          :id="`terrace-card-${deck.side}`"
+          class="space-y-2 rounded-xl border border-slate-200 bg-white p-3"
+        >
+          <div class="flex items-center justify-between gap-2">
+            <p class="text-xs font-bold text-slate-900">
+              <Cms :k="`category.${deck.side}`" />
+              <span class="ml-1.5 tabular-nums text-slate-500">{{ delta(terracePrice(deck)) }}</span>
+            </p>
+            <button
+              type="button"
+              :id="`terrace-remove-${deck.side}`"
+              class="text-[11px] font-bold text-slate-500 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+              @click="store.removeTerrace(deck.side)"
+            >
+              <Cms k="category.terraceRemove" />
+            </button>
+          </div>
+          <div class="grid grid-cols-4 gap-1.5">
+            <button
+              v-for="side in terraceSides"
+              :key="side"
+              type="button"
+              :id="`terrace-${deck.side}-side-${side}`"
+              :disabled="side !== deck.side && store.terraces.some((item) => item.side === side)"
+              :aria-pressed="deck.side === side"
+              :class="terraceChoiceClass(deck.side === side)"
+              @click="store.setTerraceSide(deck.side, side)"
+            >
+              <Cms :k="`category.${side}`" />
+            </button>
+          </div>
+          <div>
+            <p class="mb-1 text-[11px] font-bold text-slate-700"><Cms k="category.terraceDepth" /></p>
+            <div class="grid grid-cols-4 gap-1.5">
+              <button
+                v-for="depth in terraceDepths"
+                :key="depth"
+                type="button"
+                :id="`terrace-${deck.side}-depth-${Math.round(depth * 10)}`"
+                :aria-pressed="deck.depth === depth"
+                :class="terraceChoiceClass(deck.depth === depth)"
+                @click="store.setTerraceDepth(deck.side, depth)"
+              >
+                {{ depthLabel(depth) }}
+              </button>
+            </div>
+          </div>
+          <div>
+            <p class="mb-1 text-[11px] font-bold text-slate-700"><Cms k="category.terraceSpan" /></p>
+            <div class="grid grid-cols-2 gap-1.5">
+              <button
+                type="button"
+                :id="`terrace-${deck.side}-span-door`"
+                :aria-pressed="deck.span === 'door'"
+                :class="terraceChoiceClass(deck.span === 'door')"
+                @click="store.setTerraceSpan(deck.side, 'door')"
+              >
+                <Cms k="category.terraceSpanDoor" />
+              </button>
+              <button
+                type="button"
+                :id="`terrace-${deck.side}-span-full`"
+                :aria-pressed="deck.span === 'full'"
+                :class="terraceChoiceClass(deck.span === 'full')"
+                @click="store.setTerraceSpan(deck.side, 'full')"
+              >
+                <Cms k="category.terraceSpanFull" />
+              </button>
+            </div>
+          </div>
+          <button
+            type="button"
+            :id="`terrace-${deck.side}-roof`"
+            :aria-pressed="deck.roof"
+            :class="[terraceChoiceClass(deck.roof), 'w-full']"
+            @click="store.setTerraceRoof(deck.side, !deck.roof)"
+          >
+            <Cms k="category.terraceRoof" />
+          </button>
+        </article>
+      </section>
     </template>
 
     <!-- Gates Options -->
@@ -1412,6 +1417,7 @@ import {
   GATES_OPTIONS,
   OUTSIDE_PRICES
 } from '../store/useConfigStore';
+import { TERRACE_DEPTHS, TERRACE_SIDES, terracePrice, type TerraceDepth } from '../outside/terrace';
 import { useLabels } from '../i18n';
 import CustomPaint from './CustomPaint.vue';
 import { paintTitle, readableInk } from '../color/paint';
@@ -1439,7 +1445,22 @@ function sizeTabClass(active: boolean) {
   ];
 }
 
-const terraceSides = ['front', 'right', 'back', 'left'] as const;
+const terraceSides = TERRACE_SIDES;
+const terraceDepths = TERRACE_DEPTHS;
+
+function terraceChoiceClass(active: boolean) {
+  return [
+    'py-1.5 rounded-lg border text-[11px] font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 disabled:cursor-not-allowed disabled:opacity-40',
+    active
+      ? 'border-slate-900 bg-slate-900 text-white'
+      : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+  ];
+}
+
+function depthLabel(depth: TerraceDepth) {
+  const text = depth.toFixed(1);
+  return `${locale.value === 'sv' ? text.replace('.', ',') : text} m`;
+}
 
 function outsideCardClass(active: boolean) {
   return [

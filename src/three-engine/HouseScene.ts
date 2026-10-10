@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { PULPET_PITCH_DEG, type CameraView, type MaterialKey, type WallSlot, type LoftPlacement, type LoftCount, type LoftStairType, type PanelOrientation, type RoofCovering } from '../store/useConfigStore';
-import { compassAxes, headingForFacing, sunPlacement, type CompassFacing } from './sunPosition';
+import type { HouseTerrace, TerraceSide } from '../outside/terrace';
+import { compassDialDegrees, headingForFacing, sunPlacement, type CompassFacing } from './sunPosition';
 import { eaveLiftMm, gablePitchDegrees, isGableRoof, type RoofId } from '../store/roof';
 import { inferNoteNormal, noteAxes, noteCameraTransform, noteSheetTransform, noteTiltRadians, stickFacing, NOTE_SURFACE_SCALE } from '../notes/surface';
 import { paintBoards } from '../color/paint';
@@ -54,13 +55,8 @@ export interface SceneConfig {
   isFullscreen?: boolean;
   /** Small roof over each exterior door. */
   doorCanopy?: boolean;
-  /** Deck outside the main exterior door. */
-  terrace?: boolean;
-  /** Roof over the terrace. Only drawn when the terrace is on. */
-  terraceCeiling?: boolean;
-  /** Covered deck running the full length of one wall. */
-  bigTerrace?: boolean;
-  terraceSide?: 'front' | 'back' | 'left' | 'right';
+  /** Decks around the house. At most one on each side. */
+  terraces?: HouseTerrace[];
 }
 
 interface OutsideAnchor {
@@ -99,12 +95,10 @@ export class HouseScene {
   private skyFill!: THREE.DirectionalLight;
   private sunTarget!: THREE.Object3D;
   private sunOrb!: THREE.Mesh;
-  private compassGroup!: THREE.Group;
   private sunHour = 12;
   private facingDeg = 180;
   private sunUp = true;
-  private compassKey = '';
-  private compassLabels = { north: 'N', east: 'E', south: 'S', west: 'W' };
+  private compassSent = Number.NaN;
   private defaultView: CameraView | null = null;
 
   private interactivePanels: THREE.Mesh[] = [];
@@ -134,6 +128,8 @@ export class HouseScene {
   public onDimensionLabels?: (labels: Record<string, { x: number; y: number; visible: boolean }>) => void;
   public onNoteAnchors?: (anchors: Record<string, { x: number; y: number; visible: boolean }>) => void;
   public onNotePlanes?: (camera: string, planes: Record<string, { transform: string; visible: boolean }>) => void;
+  /** Screen compass. Degrees clockwise from the top of the view to world north. */
+  public onCompassDial?: (degrees: number) => void;
   public onMeasurePick?: (point: { x: number; y: number; z: number }) => void;
   public onMeasureCursor?: (point: { x: number; y: number; z: number } | null) => void;
   public onMeasureScreen?: (screen: {
@@ -189,10 +185,7 @@ export class HouseScene {
       selectedSlotId: initialConfig?.selectedSlotId ?? null,
       wallSlots: initialConfig?.wallSlots ?? {},
       doorCanopy: initialConfig?.doorCanopy ?? false,
-      terrace: initialConfig?.terrace ?? false,
-      terraceCeiling: initialConfig?.terraceCeiling ?? false,
-      bigTerrace: initialConfig?.bigTerrace ?? false,
-      terraceSide: initialConfig?.terraceSide ?? 'front'
+      terraces: initialConfig?.terraces ?? []
     };
 
     this.scene = new THREE.Scene();
@@ -680,16 +673,13 @@ export class HouseScene {
     this.scene.add(this.sunLight);
 
     this.sunOrb = new THREE.Mesh(
-      new THREE.SphereGeometry(0.16, 20, 12),
+      new THREE.SphereGeometry(0.48, 24, 16),
       new THREE.MeshBasicMaterial({ color: '#ffb15a', toneMapped: false })
     );
     this.sunOrb.castShadow = false;
     this.sunOrb.receiveShadow = false;
     this.sunOrb.raycast = () => {};
     this.scene.add(this.sunOrb);
-
-    this.compassGroup = new THREE.Group();
-    this.scene.add(this.compassGroup);
 
     const interiorFill = new THREE.PointLight(0xfff6ea, 0.55, 14, 2);
     interiorFill.position.set(0, 1.7, 0);
@@ -721,13 +711,12 @@ export class HouseScene {
   public setDaylight(
     hour: number,
     facing: CompassFacing,
-    labels?: { north: string; east: string; south: string; west: string }
+    _labels?: { north: string; east: string; south: string; west: string }
   ) {
     this.sunHour = hour;
     this.facingDeg = headingForFacing(facing);
-    if (labels) this.compassLabels = labels;
     this.placeSun();
-    this.placeCompass();
+    this.compassSent = Number.NaN;
   }
 
   public setDefaultView(view: CameraView | null) {
@@ -762,132 +751,28 @@ export class HouseScene {
     this.sunLight.intensity = this.sunUp ? 0.4 + 1.3 * gain * gain : 0.08;
     this.sunLight.castShadow = this.sunUp;
     this.skyFill.position.set(-dir.x * 14, 12, -dir.z * 14);
-    this.sunOrb.position.copy(dir).multiplyScalar(8);
+    // The light keeps the true direction. The disc sits above the roof so it does not cover the facade.
+    const horizontal = new THREE.Vector3(dir.x, 0, dir.z);
+    if (horizontal.lengthSq() < 1e-6) horizontal.set(0, 0, 1);
+    horizontal.normalize();
+    this.sunOrb.position.set(horizontal.x * 2.4, this.wallTopM() + 0.9, horizontal.z * 2.4);
     this.syncDaylightChrome();
   }
 
   private syncDaylightChrome() {
     const show = this.currentConfig.viewMode === 'utsida';
-    this.compassGroup.visible = show;
     this.sunOrb.visible = show && this.sunUp;
   }
 
-  private clearCompass() {
-    for (const child of [...this.compassGroup.children]) {
-      this.compassGroup.remove(child);
-      child.traverse((node) => {
-        const drawn = node as THREE.Mesh;
-        drawn.geometry?.dispose();
-        const material = drawn.material;
-        if (!material || Array.isArray(material)) return;
-        const textured = material as THREE.Material & { map?: THREE.Texture | null };
-        textured.map?.dispose();
-        material.dispose();
-      });
-    }
-  }
-
-  private compassSprite(letter: string, color: string) {
-    const canvas = document.createElement('canvas');
-    canvas.width = 128;
-    canvas.height = 128;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return new THREE.Sprite();
-    ctx.clearRect(0, 0, 128, 128);
-    ctx.fillStyle = color;
-    ctx.font = '700 78px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(letter, 64, 70);
-    const map = new THREE.CanvasTexture(canvas);
-    map.colorSpace = THREE.SRGBColorSpace;
-    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
-      map,
-      transparent: true,
-      depthWrite: false
-    }));
-    sprite.scale.set(0.32, 0.32, 1);
-    sprite.raycast = () => {};
-    return sprite;
-  }
-
-  private placeCompass() {
-    const labels = this.compassLabels;
-    const key = [
-      this.facingDeg,
-      Math.round(this.currentConfig.depthMm),
-      labels.north,
-      labels.east,
-      labels.south,
-      labels.west
-    ].join('|');
-    const depth = this.currentConfig.depthMm / 1000;
-    // In front of the door, where the starting camera already looks.
-    this.compassGroup.position.set(1.35, 0, depth / 2 + 2.15);
-    if (key === this.compassKey && this.compassGroup.children.length > 0) {
-      this.syncDaylightChrome();
-      return;
-    }
-    this.compassKey = key;
-    this.clearCompass();
-
-    const ignore = () => {};
-    const ring = new THREE.Mesh(
-      new THREE.RingGeometry(0.58, 0.72, 48),
-      new THREE.MeshBasicMaterial({
-        color: '#173D35',
-        side: THREE.DoubleSide,
-        polygonOffset: true,
-        polygonOffsetFactor: -2,
-        polygonOffsetUnits: -2
-      })
-    );
-    ring.rotation.x = -Math.PI / 2;
-    ring.position.y = 0.035;
-    ring.raycast = ignore;
-    this.compassGroup.add(ring);
-
-    const heading = (this.facingDeg * Math.PI) / 180;
-    const { north, east } = compassAxes(this.facingDeg);
-    const needle = new THREE.Mesh(
-      new THREE.BoxGeometry(0.055, 0.02, 0.5),
-      new THREE.MeshBasicMaterial({ color: '#FF5A00' })
-    );
-    needle.rotation.y = heading;
-    needle.position.set(north.x * 0.22, 0.05, north.z * 0.22);
-    needle.raycast = ignore;
-    this.compassGroup.add(needle);
-
-    const tail = new THREE.Mesh(
-      new THREE.BoxGeometry(0.045, 0.016, 0.32),
-      new THREE.MeshBasicMaterial({ color: '#94a3b8' })
-    );
-    tail.rotation.y = heading;
-    tail.position.set(-north.x * 0.16, 0.05, -north.z * 0.16);
-    tail.raycast = ignore;
-    this.compassGroup.add(tail);
-
-    const cap = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.065, 0.065, 0.03, 16),
-      new THREE.MeshBasicMaterial({ color: '#173D35' })
-    );
-    cap.position.y = 0.07;
-    cap.raycast = ignore;
-    this.compassGroup.add(cap);
-
-    const radius = 0.78;
-    const marks: { letter: string; x: number; z: number; color: string }[] = [
-      { letter: labels.north, x: north.x, z: north.z, color: '#FF5A00' },
-      { letter: labels.south, x: -north.x, z: -north.z, color: '#173D35' },
-      { letter: labels.east, x: east.x, z: east.z, color: '#173D35' },
-      { letter: labels.west, x: -east.x, z: -east.z, color: '#173D35' }
-    ];
-    for (const mark of marks) {
-      const sprite = this.compassSprite(mark.letter, mark.color);
-      sprite.position.set(mark.x * radius, 0.28, mark.z * radius);
-      this.compassGroup.add(sprite);
-    }
-    this.syncDaylightChrome();
+  /** Keep the corner compass pointing at world north as the camera orbits. */
+  private publishCompassDial() {
+    if (!this.onCompassDial || this.currentConfig.viewMode !== 'utsida') return;
+    const forward = new THREE.Vector3();
+    this.camera.getWorldDirection(forward);
+    const degrees = Math.round(compassDialDegrees(forward, this.facingDeg));
+    if (degrees === this.compassSent) return;
+    this.compassSent = degrees;
+    this.onCompassDial(degrees);
   }
 
   private roomPreviewGroup: THREE.Object3D | null = null;
@@ -1481,7 +1366,6 @@ export class HouseScene {
     this.buildDimensionLines(w, d, h);
     this.buildContactShadow(w, d);
     this.refreshLoftRooms();
-    this.placeCompass();
 
     // View mode visibility
     this.applyViewMode();
@@ -2468,19 +2352,102 @@ export class HouseScene {
     this.wallsGroup.add(group);
   }
 
+  /** Rafters, a wall plate, and separate roof boards, so the timber reads up close. */
+  private addTerraceRoof(
+    group: THREE.Group,
+    door: OutsideAnchor,
+    timber: THREE.Material,
+    roofMat: THREE.Material,
+    along: number,
+    width: number,
+    depth: number,
+    deckTop: number,
+    outward: number
+  ) {
+    const pitch = (6 * Math.PI) / 180;
+    const wallY = door.head + 0.28;
+    const drop = Math.sin(pitch) * depth;
+    const outerY = wallY - drop;
+    const midY = (wallY + outerY) / 2;
+    const midZ = outward * (depth / 2 + 0.04);
+    const axisY = -Math.sin(pitch) * outward;
+    const axisZ = Math.cos(pitch) * outward;
+    const upY = Math.cos(pitch);
+    const upZ = Math.sin(pitch) * outward;
+    const roofW = width + 0.08;
+    const span = depth - 0.06;
+
+    const plate = new THREE.Mesh(new THREE.BoxGeometry(roofW, 0.095, 0.07), timber);
+    plate.position.set(along, wallY - 0.02, outward * 0.06);
+    plate.castShadow = true;
+    group.add(plate);
+
+    const rafterCount = Math.max(2, Math.ceil(width / 0.6) + 1);
+    const rafterLen = depth + 0.12;
+    for (let i = 0; i < rafterCount; i++) {
+      const x = rafterCount === 1
+        ? 0
+        : -width / 2 + 0.06 + (i * (width - 0.12)) / (rafterCount - 1);
+      const rafter = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.145, rafterLen), timber);
+      rafter.position.set(along + x, midY, midZ);
+      rafter.rotation.x = outward * pitch;
+      rafter.castShadow = true;
+      group.add(rafter);
+    }
+
+    const boardCount = Math.max(6, Math.round(depth / 0.13));
+    const boardStep = span / boardCount;
+    for (let i = 0; i < boardCount; i++) {
+      const t = -span / 2 + boardStep * (i + 0.5);
+      const board = new THREE.Mesh(
+        new THREE.BoxGeometry(roofW - 0.02, 0.022, Math.max(0.04, boardStep - 0.008)),
+        roofMat
+      );
+      board.position.set(
+        along,
+        midY + axisY * t + upY * 0.086,
+        midZ + axisZ * t + upZ * 0.086
+      );
+      board.rotation.x = outward * pitch;
+      board.castShadow = true;
+      board.receiveShadow = true;
+      group.add(board);
+    }
+
+    const outerZ = outward * (depth - 0.02);
+    const beam = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.4, width - 0.16), 0.095, 0.095), timber);
+    beam.position.set(along, outerY - 0.04, outerZ);
+    beam.castShadow = true;
+    group.add(beam);
+
+    const fascia = new THREE.Mesh(new THREE.BoxGeometry(roofW + 0.02, 0.14, 0.022), timber);
+    fascia.position.set(along, outerY + 0.02, outward * (depth + 0.06));
+    fascia.castShadow = true;
+    group.add(fascia);
+
+    const postH = Math.max(1.2, outerY - 0.06 - deckTop);
+    const postCount = Math.max(2, Math.ceil(width / 2.4) + 1);
+    for (let i = 0; i < postCount; i++) {
+      const x = -width / 2 + 0.1 + (i * (width - 0.2)) / (postCount - 1);
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.09, postH, 0.09), timber);
+      post.position.set(along + x, deckTop + postH / 2, outerZ);
+      post.castShadow = true;
+      group.add(post);
+    }
+  }
+
   private addTerrace(
     door: OutsideAnchor,
     deckMat: THREE.Material,
     timber: THREE.Material,
     roofMat: THREE.Material,
-    ceilingMat: THREE.Material,
-    ceiling: boolean,
+    terrace: HouseTerrace,
     w: number,
-    d: number,
-    full = false
+    d: number
   ) {
     const outward = this.outwardSign(door.wall);
-    const depth = full ? 2.4 : 1.8;
+    const depth = terrace.depth;
+    const full = terrace.span === 'full';
     const wallSpan = door.wall === 'front' || door.wall === 'back' ? w : d;
     const width = full
       ? wallSpan
@@ -2492,7 +2459,7 @@ export class HouseScene {
     group.position.set(door.px, 0, door.pz);
     group.rotation.y = door.rotY;
 
-    const boards = 7;
+    const boards = Math.max(4, Math.round(depth / 0.16));
     const gap = 0.012;
     const boardD = (depth - gap * (boards + 1)) / boards;
     for (let i = 0; i < boards; i++) {
@@ -2520,50 +2487,8 @@ export class HouseScene {
     rim.castShadow = true;
     group.add(rim);
 
-    if (ceiling) {
-      const projection = depth + (full ? 0.28 : 0.22);
-      const roofW = width + (full ? 0.12 : 0.28);
-      const pitch = (6 * Math.PI) / 180;
-      const y = door.head + 0.34;
-      const roof = new THREE.Mesh(new THREE.BoxGeometry(roofW, 0.04, projection), roofMat);
-      roof.position.set(along, y, outward * (projection / 2));
-      roof.rotation.x = outward * pitch;
-      roof.castShadow = true;
-      roof.receiveShadow = true;
-      group.add(roof);
-
-      const soffit = new THREE.Mesh(
-        new THREE.BoxGeometry(roofW - 0.06, 0.016, projection - 0.06),
-        ceilingMat
-      );
-      soffit.position.set(along, y - 0.045, outward * (projection / 2));
-      soffit.rotation.x = outward * pitch;
-      soffit.receiveShadow = true;
-      group.add(soffit);
-
-      const fascia = new THREE.Mesh(new THREE.BoxGeometry(roofW + 0.02, 0.11, 0.028), timber);
-      fascia.position.set(along, y - 0.08, outward * (projection + 0.01));
-      fascia.castShadow = true;
-      group.add(fascia);
-
-      const postH = Math.max(1.4, y - deckTop - 0.08);
-      const postCount = full ? Math.max(2, Math.ceil(width / 2.4) + 1) : 2;
-      const outerZ = outward * (0.08 + depth - 0.1);
-      for (let i = 0; i < postCount; i++) {
-        const x = postCount === 1
-          ? 0
-          : -width / 2 + 0.12 + (i * (width - 0.24)) / (postCount - 1);
-        const post = new THREE.Mesh(new THREE.BoxGeometry(0.09, postH, 0.09), timber);
-        post.position.set(along + x, deckTop + postH / 2, outerZ);
-        post.castShadow = true;
-        group.add(post);
-      }
-      if (full) {
-        const beam = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.4, width - 0.2), 0.09, 0.09), timber);
-        beam.position.set(along, deckTop + postH - 0.02, outerZ);
-        beam.castShadow = true;
-        group.add(beam);
-      }
+    if (terrace.roof) {
+      this.addTerraceRoof(group, door, timber, roofMat, along, width, depth, deckTop, outward);
     }
 
     group.userData.skipNote = true;
@@ -2593,46 +2518,40 @@ export class HouseScene {
     return { px: w / 2 - cladding / 2, pz: 0, rotY: Math.PI / 2, doorX: 0, width: span, head, wall };
   }
 
+  /** A door on that wall, or the middle of the wall when there is no door. */
+  private terraceAnchor(side: TerraceSide, w: number, d: number, h: number): OutsideAnchor {
+    const door = this.outsideAnchors(w, d, h).find((item) => item.wall === side);
+    if (door) return door;
+    return { ...this.sideAnchor(side, w, d, h), width: 1 };
+  }
+
   private buildOutsideAdditions(w: number, d: number, h: number) {
     const canopyOn = Boolean(this.currentConfig.doorCanopy);
-    const terraceOn = Boolean(this.currentConfig.terrace) && !this.currentConfig.bigTerrace;
-    const requestedSide = this.currentConfig.terraceSide;
-    const fullSide = this.currentConfig.bigTerrace
-      ? (requestedSide === 'back' || requestedSide === 'left' || requestedSide === 'right' ? requestedSide : 'front')
-      : null;
-    if (!canopyOn && !terraceOn && !fullSide) return;
+    const terraces = this.currentConfig.terraces ?? [];
+    if (!canopyOn && !terraces.length) return;
 
     const found = this.outsideAnchors(w, d, h);
     const doors = found.length ? found : [this.fallbackDoor(d)];
-    const terraceHost = doors.find((door) => door.wall === 'front') ?? doors[0];
     const timber = new THREE.MeshStandardMaterial({ color: '#e7d3b0', roughness: 0.62, metalness: 0.02 });
     const roofMat = new THREE.MeshStandardMaterial({ color: '#4a534f', roughness: 0.42, metalness: 0.38 });
-    const ceilingMat = new THREE.MeshStandardMaterial({ color: '#f3efe4', roughness: 0.72, metalness: 0.02 });
     const deckMat = new THREE.MeshStandardMaterial({ color: '#c4a574', roughness: 0.72, metalness: 0.02 });
-    const ceiling = terraceOn && Boolean(this.currentConfig.terraceCeiling);
-    const doorDeckCovered = ceiling && terraceHost.wall !== fullSide;
+    const covered = new Set(terraces.filter((item) => item.roof).map((item) => item.side));
 
     if (canopyOn) {
       for (const door of doors) {
-        if (fullSide === door.wall) continue;
-        if (doorDeckCovered && door === terraceHost) continue;
+        if (covered.has(door.wall)) continue;
         this.addDoorCanopy(door, timber, roofMat);
       }
     }
-    if (terraceOn && terraceHost.wall !== fullSide) {
-      this.addTerrace(terraceHost, deckMat, timber, roofMat, ceilingMat, ceiling, w, d);
-    }
-    if (fullSide) {
+    for (const terrace of terraces) {
       this.addTerrace(
-        this.sideAnchor(fullSide, w, d, h),
+        this.terraceAnchor(terrace.side, w, d, h),
         deckMat,
         timber,
         roofMat,
-        ceilingMat,
-        true,
+        terrace,
         w,
-        d,
-        true
+        d
       );
     }
   }
@@ -5045,6 +4964,7 @@ export class HouseScene {
     this.publishNoteAnchors();
     this.publishNotePlanes();
     this.publishMeasure();
+    this.publishCompassDial();
 
     // Update screen coordinates of selected panel for dynamic overlay tracking
     if (this.outsideShell() && this.currentConfig.selectedSlotId && this.onSlotScreenPositionUpdate) {
