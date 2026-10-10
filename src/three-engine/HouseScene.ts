@@ -673,7 +673,7 @@ export class HouseScene {
     this.scene.add(this.sunLight);
 
     this.sunOrb = new THREE.Mesh(
-      new THREE.SphereGeometry(0.48, 24, 16),
+      new THREE.SphereGeometry(0.22, 24, 16),
       new THREE.MeshBasicMaterial({ color: '#ffb15a', toneMapped: false })
     );
     this.sunOrb.castShadow = false;
@@ -755,7 +755,7 @@ export class HouseScene {
     const horizontal = new THREE.Vector3(dir.x, 0, dir.z);
     if (horizontal.lengthSq() < 1e-6) horizontal.set(0, 0, 1);
     horizontal.normalize();
-    this.sunOrb.position.set(horizontal.x * 2.4, this.wallTopM() + 0.9, horizontal.z * 2.4);
+    this.sunOrb.position.set(horizontal.x * 2.4, this.wallTopM() + 0.42, horizontal.z * 2.4);
     this.syncDaylightChrome();
   }
 

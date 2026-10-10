@@ -4,53 +4,77 @@
     :class="store.isFullscreen ? 'top-6 left-6 md:top-auto md:bottom-6 md:left-6' : 'top-20 left-3 md:top-auto md:bottom-6 md:left-6'"
     :aria-label="t('tools.label')"
   >
-    <div
-      id="sun-timebox"
-      class="bg-white/95 backdrop-blur-md rounded-2xl shadow-md border border-slate-200/80 px-2.5 py-2 w-[168px]"
-    >
-      <div class="flex items-center justify-between gap-2">
-        <span class="text-[10px] font-bold uppercase tracking-wide text-slate-500">
-          <Cms k="tools.facing" />
-        </span>
-        <span id="sun-time-label" class="text-[11px] font-bold tabular-nums text-slate-900">{{ sunClock }}</span>
-      </div>
-      <div class="mt-1.5 grid grid-cols-4 gap-1" role="group" :aria-label="t('tools.facing')">
-        <button
-          v-for="bearing in bearings"
-          :key="bearing.id"
-          type="button"
-          :id="`facing-${bearing.id}`"
-          @click="store.setFacing(bearing.id)"
-          :aria-label="t(bearing.name)"
-          :aria-pressed="store.facing === bearing.id"
-          :class="[
-            'flex h-7 items-center justify-center rounded-lg border text-[11px] font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
-            store.facing === bearing.id
-              ? 'border-slate-900 bg-slate-900 text-white'
-              : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
-          ]"
+    <!-- Camera toolbar: daylight, zoom, fullscreen, view -->
+    <div class="w-fit self-start bg-white/95 backdrop-blur-md rounded-2xl shadow-md border border-slate-200/80 p-1.5 flex flex-col gap-1">
+      <div ref="sunBox" class="relative">
+        <div
+          id="sun-timebox"
+          class="absolute top-0 z-30 w-[168px] origin-left transition-all duration-200 ease-out"
+          :class="sunOpen ? 'left-14 opacity-100' : 'pointer-events-none left-0 opacity-0'"
+          :inert="!sunOpen"
+          :aria-hidden="!sunOpen"
         >
-          <Cms :k="bearing.letter" />
+          <div class="bg-white/95 backdrop-blur-md rounded-2xl shadow-md border border-slate-200/80 px-2.5 py-2">
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                <Cms k="tools.facing" />
+              </span>
+              <span id="sun-time-label" class="text-[11px] font-bold tabular-nums text-slate-900">{{ sunClock }}</span>
+            </div>
+            <div class="mt-1.5 grid grid-cols-4 gap-1" role="group" :aria-label="t('tools.facing')">
+              <button
+                v-for="bearing in bearings"
+                :key="bearing.id"
+                type="button"
+                :id="`facing-${bearing.id}`"
+                @click="store.setFacing(bearing.id)"
+                :aria-label="t(bearing.name)"
+                :aria-pressed="store.facing === bearing.id"
+                :class="[
+                  'flex h-7 items-center justify-center rounded-lg border text-[11px] font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
+                  store.facing === bearing.id
+                    ? 'border-slate-900 bg-slate-900 text-white'
+                    : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                ]"
+              >
+                <Cms :k="bearing.letter" />
+              </button>
+            </div>
+            <label class="mt-2 block">
+              <span class="sr-only"><Cms k="tools.sunTime" /></span>
+              <input
+                id="sun-hour"
+                type="range"
+                min="5"
+                max="21"
+                step="0.25"
+                :value="store.sunHour"
+                class="sun-hour h-1.5 w-full cursor-pointer accent-slate-900"
+                @input="onSunInput"
+                @change="onSunCommit"
+              />
+            </label>
+          </div>
+        </div>
+        <button
+          type="button"
+          id="btn-tool-sun"
+          @click="toggleSun"
+          :class="toolButton(sunOpen)"
+          :aria-label="t('tools.sunTime')"
+          :aria-expanded="sunOpen"
+          aria-controls="sun-timebox"
+        >
+          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <circle cx="12" cy="12" r="4" />
+            <path d="M12 2v2.2M12 19.8V22M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M2 12h2.2M19.8 12H22M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6" />
+          </svg>
+          <span class="tool-tip"><Cms k="tools.sunTime" /></span>
         </button>
       </div>
-      <label class="mt-2 block">
-        <span class="sr-only"><Cms k="tools.sunTime" /></span>
-        <input
-          id="sun-hour"
-          type="range"
-          min="5"
-          max="21"
-          step="0.25"
-          :value="store.sunHour"
-          class="sun-hour h-1.5 w-full cursor-pointer accent-slate-900"
-          @input="onSunInput"
-          @change="onSunCommit"
-        />
-      </label>
-    </div>
 
-    <!-- Camera toolbar: Zoom, Fullscreen, Center view -->
-    <div class="w-fit self-start bg-white/95 backdrop-blur-md rounded-2xl shadow-md border border-slate-200/80 p-1.5 flex flex-col gap-1">
+      <div class="h-px bg-slate-100 mx-1"></div>
+
       <button
         type="button"
         id="btn-tool-zoom-in"
@@ -116,48 +140,76 @@
 
       <div class="h-px bg-slate-100 mx-1"></div>
 
-      <button
-        type="button"
-        id="btn-tool-reset-view"
-        @click="$emit('reset-view')"
-        class="group relative w-12 h-12 rounded-xl flex items-center justify-center text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-colors"
-        :aria-label="t('tools.resetView')"
-      >
-        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M3 7V5a2 2 0 0 1 2-2h2" />
-          <path d="M17 3h2a2 2 0 0 1 2 2v2" />
-          <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
-          <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
-          <circle cx="12" cy="12" r="3" />
-        </svg>
-        <span class="tool-tip"><Cms k="tools.resetView" /></span>
-      </button>
-
-      <div class="h-px bg-slate-100 mx-1"></div>
-
-      <button
-        type="button"
-        id="btn-tool-mark-view"
-        @click="$emit('mark-view')"
-        :aria-pressed="Boolean(store.defaultView)"
-        :aria-label="t('tools.markView')"
-        :class="[
-          'group relative w-12 h-12 rounded-xl flex items-center justify-center transition-colors',
-          store.defaultView
-            ? 'bg-slate-900 text-white shadow-2xs'
-            : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
-        ]"
-      >
-        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M3 7V5a2 2 0 0 1 2-2h2" />
-          <path d="M17 3h2a2 2 0 0 1 2 2v2" />
-          <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
-          <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
-          <line x1="12" y1="9" x2="12" y2="15" />
-          <line x1="9" y1="12" x2="15" y2="12" />
-        </svg>
-        <span class="tool-tip"><Cms k="tools.markView" /></span>
-      </button>
+      <div ref="viewBox" class="relative">
+        <div
+          id="view-tools"
+          class="absolute top-1/2 z-30 -translate-y-1/2 origin-left transition-all duration-200 ease-out"
+          :class="viewOpen ? 'left-14 opacity-100' : 'pointer-events-none left-0 opacity-0'"
+          :inert="!viewOpen"
+          :aria-hidden="!viewOpen"
+        >
+          <div class="bg-white/95 backdrop-blur-md rounded-2xl shadow-md border border-slate-200/80 p-1.5 flex items-center gap-1">
+            <button
+              type="button"
+              id="btn-tool-reset-apply"
+              @click="resetAndClose"
+              class="group relative w-12 h-12 rounded-xl flex items-center justify-center text-slate-700 hover:text-slate-900 hover:bg-slate-100 transition-colors"
+              :aria-label="t('tools.resetView')"
+            >
+              <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 7V5a2 2 0 0 1 2-2h2" />
+                <path d="M17 3h2a2 2 0 0 1 2 2v2" />
+                <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
+                <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
+                <circle cx="12" cy="12" r="3" />
+              </svg>
+              <span class="tool-tip"><Cms k="tools.resetView" /></span>
+            </button>
+            <div class="w-px h-7 bg-slate-200/60"></div>
+            <button
+              type="button"
+              id="btn-tool-mark-view"
+              @click="markAndClose"
+              :aria-pressed="Boolean(store.defaultView)"
+              :aria-label="t('tools.markView')"
+              :class="toolButton(Boolean(store.defaultView))"
+            >
+              <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 7V5a2 2 0 0 1 2-2h2" />
+                <path d="M17 3h2a2 2 0 0 1 2 2v2" />
+                <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
+                <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
+                <line x1="12" y1="9" x2="12" y2="15" />
+                <line x1="9" y1="12" x2="15" y2="12" />
+              </svg>
+              <span class="tool-tip"><Cms k="tools.markView" /></span>
+            </button>
+          </div>
+        </div>
+        <button
+          type="button"
+          id="btn-tool-reset-view"
+          @click="toggleView"
+          :class="toolButton(viewOpen)"
+          :aria-label="t('tools.resetView')"
+          :aria-expanded="viewOpen"
+          aria-controls="view-tools"
+        >
+          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 7V5a2 2 0 0 1 2-2h2" />
+            <path d="M17 3h2a2 2 0 0 1 2 2v2" />
+            <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
+            <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+          <span
+            v-if="store.defaultView && !viewOpen"
+            class="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-[#8a6a2f]"
+            aria-hidden="true"
+          ></span>
+          <span class="tool-tip"><Cms k="tools.resetView" /></span>
+        </button>
+      </div>
     </div>
 
     <!-- Bottom Button Row: Ruler toolbox / Undo / Redo / Notes -->
@@ -211,7 +263,7 @@
         <button
           type="button"
           id="btn-tool-measure"
-          @click="rulerOpen = !rulerOpen"
+          @click="toggleRuler"
           :class="toolButton(rulerOpen || store.measuring)"
           :aria-label="t('tools.ruler')"
           :aria-expanded="rulerOpen"
@@ -318,7 +370,18 @@ function onSunCommit(event: Event) {
 }
 const { t } = useLabels();
 const rulerOpen = ref(false);
+const sunOpen = ref(false);
+const viewOpen = ref(false);
 const rulerBox = ref<HTMLElement | null>(null);
+const sunBox = ref<HTMLElement | null>(null);
+const viewBox = ref<HTMLElement | null>(null);
+
+const emit = defineEmits<{
+  (e: 'zoom-in'): void;
+  (e: 'zoom-out'): void;
+  (e: 'reset-view'): void;
+  (e: 'mark-view'): void;
+}>();
 
 function toolButton(active: boolean) {
   return [
@@ -329,15 +392,53 @@ function toolButton(active: boolean) {
   ];
 }
 
+function toggleSun() {
+  sunOpen.value = !sunOpen.value;
+  if (sunOpen.value) {
+    viewOpen.value = false;
+    rulerOpen.value = false;
+  }
+}
+
+function toggleView() {
+  viewOpen.value = !viewOpen.value;
+  if (viewOpen.value) {
+    sunOpen.value = false;
+    rulerOpen.value = false;
+  }
+}
+
+function toggleRuler() {
+  rulerOpen.value = !rulerOpen.value;
+  if (rulerOpen.value) {
+    sunOpen.value = false;
+    viewOpen.value = false;
+  }
+}
+
+function resetAndClose() {
+  viewOpen.value = false;
+  emit('reset-view');
+}
+
+function markAndClose() {
+  viewOpen.value = false;
+  emit('mark-view');
+}
+
 function onDocumentPointerDown(event: PointerEvent) {
-  if (!rulerOpen.value) return;
   const target = event.target;
-  if (target instanceof Node && rulerBox.value?.contains(target)) return;
-  rulerOpen.value = false;
+  if (!(target instanceof Node)) return;
+  if (rulerOpen.value && !rulerBox.value?.contains(target)) rulerOpen.value = false;
+  if (sunOpen.value && !sunBox.value?.contains(target)) sunOpen.value = false;
+  if (viewOpen.value && !viewBox.value?.contains(target)) viewOpen.value = false;
 }
 
 function onKey(event: KeyboardEvent) {
-  if (event.key === 'Escape') rulerOpen.value = false;
+  if (event.key !== 'Escape') return;
+  rulerOpen.value = false;
+  sunOpen.value = false;
+  viewOpen.value = false;
 }
 
 function syncFullscreen() {
@@ -373,12 +474,6 @@ onBeforeUnmount(() => {
   document.removeEventListener('keydown', onKey);
 });
 
-defineEmits<{
-  (e: 'zoom-in'): void;
-  (e: 'zoom-out'): void;
-  (e: 'reset-view'): void;
-  (e: 'mark-view'): void;
-}>();
 </script>
 
 <style scoped>

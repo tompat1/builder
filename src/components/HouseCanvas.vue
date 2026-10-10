@@ -5,7 +5,7 @@
     <div
       v-if="store.viewMode === 'utsida'"
       id="compass-rose"
-      class="compass-rose pointer-events-none absolute left-3 top-3 z-20"
+      class="compass-rose pointer-events-none absolute left-3 top-24 z-20 md:left-6 md:top-28"
       role="img"
       :aria-label="t('tools.facing')"
     >
