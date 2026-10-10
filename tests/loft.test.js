@@ -7,6 +7,7 @@ import {
   LOFT_MIN_ABOVE_FLOOR,
   doorFrameTop,
   loftEndPoint,
+  loftIsGhosted,
   loftJoistTop,
   curvedLoftStair,
   loftStairOpening,
@@ -39,6 +40,13 @@ test('the loft deck is at least 2.5 m above the interior floor and above the doo
 test('a room on the loft deck counts as a loft room, and a ground-floor room does not', () => {
   assert.equal(isLoftRoom(INTERIOR_FLOOR_TOP), false);
   assert.equal(isLoftRoom(loftJoistTop(5) + LOFT_FLOORBOARD), true);
+});
+
+test('the interior loft is solid only while a loft room is being edited', () => {
+  assert.equal(loftIsGhosted('insida', false), true);
+  assert.equal(loftIsGhosted('insida', true), false);
+  assert.equal(loftIsGhosted('utsida', false), false);
+  assert.equal(loftIsGhosted('blueprint', false), false);
 });
 
 const pulpet = { kind: 'shed', degrees: 12, anchor: 'front', minRear: 2.4 };

@@ -6,7 +6,7 @@ import { compassDialDegrees, headingForFacing, sunPlacement, type CompassFacing 
 import { eaveLiftMm, gablePitchDegrees, isGableRoof, type RoofId } from '../store/roof';
 import { inferNoteNormal, noteAxes, noteCameraTransform, noteSheetTransform, noteTiltRadians, stickFacing, NOTE_SURFACE_SCALE } from '../notes/surface';
 import { paintBoards } from '../color/paint';
-import { INTERIOR_FLOOR_TOP, LOFT_FLOORBOARD, curvedLoftStair, loftEndRotation, loftJoistTop, loftStairOpening, loftStairRun, loftStairTreads, straightLoftStair, isLoftRoom } from './loftLevel';
+import { INTERIOR_FLOOR_TOP, LOFT_FLOORBOARD, curvedLoftStair, loftEndRotation, loftIsGhosted, loftJoistTop, loftStairOpening, loftStairRun, loftStairTreads, straightLoftStair, isLoftRoom } from './loftLevel';
 import { ceilingStations, loftCeilingY, sliceStations, type CeilingStation, type RoofSlope } from './roofClearance';
 import { PORTRAIT_PANORAMA, portraitPane } from './windowFit';
 import { fitRoom, innerHalf, roomFootprint, roomWallRuns, shellSides, type ShellSides } from './roomWalls';
@@ -82,6 +82,16 @@ export class HouseScene {
   private loftGroup: THREE.Group;
   /** Pieces of a front or back loft go here so the whole deck can turn. */
   private loftBuildParent: THREE.Group | null = null;
+  private loftMaterialState = new WeakMap<THREE.Material, {
+    transparent: boolean;
+    opacity: number;
+    depthWrite: boolean;
+  }>();
+  private loftMeshState = new WeakMap<THREE.Mesh, {
+    castShadow: boolean;
+    receiveShadow: boolean;
+    renderOrder: number;
+  }>();
   private wallsGroup: THREE.Group;
   private framingGroup: THREE.Group;
   private trussesGroup: THREE.Group;
@@ -793,6 +803,7 @@ export class HouseScene {
     this.scene.remove(preview);
     this.disposeObject(preview);
     this.roomPreviewGroup = null;
+    this.syncLoftPresentation();
   }
 
   private updateRoomPreview(roomType: string | null, pt?: { x: number, y: number, z: number }) {
@@ -825,8 +836,10 @@ export class HouseScene {
         material.depthWrite = false;
       });
       group.position.set(fitted.x, pt.y, fitted.z);
+      group.userData.onLoft = true;
       this.roomPreviewGroup = group;
       this.scene.add(group);
+      this.syncLoftPresentation();
       return;
     }
 
@@ -1106,6 +1119,7 @@ export class HouseScene {
               this.container.setPointerCapture(e.pointerId);
               this.container.style.cursor = 'grabbing';
               this.controls.enabled = false;
+              this.syncLoftPresentation();
               return;
             }
           }
@@ -4564,6 +4578,42 @@ export class HouseScene {
     this.draggingRoom = null;
     this.controls.enabled = true;
     this.container.style.cursor = 'move';
+    this.syncLoftPresentation();
+  }
+
+  /** Keep the ground floor readable until a loft room needs the deck as context. */
+  private syncLoftPresentation() {
+    const editingLoftRoom = this.roomPreviewGroup?.userData.onLoft === true
+      || isLoftRoom(this.draggingRoom?.startY ?? 0);
+    const ghosted = loftIsGhosted(this.currentConfig.viewMode, editingLoftRoom);
+
+    this.loftGroup.traverse((object) => {
+      if (!(object instanceof THREE.Mesh)) return;
+
+      const meshState = this.loftMeshState.get(object) ?? {
+        castShadow: object.castShadow,
+        receiveShadow: object.receiveShadow,
+        renderOrder: object.renderOrder
+      };
+      if (!this.loftMeshState.has(object)) this.loftMeshState.set(object, meshState);
+      object.castShadow = ghosted ? false : meshState.castShadow;
+      object.receiveShadow = ghosted ? false : meshState.receiveShadow;
+      object.renderOrder = ghosted ? 1 : meshState.renderOrder;
+
+      const materials = Array.isArray(object.material) ? object.material : [object.material];
+      materials.forEach((material) => {
+        const materialState = this.loftMaterialState.get(material) ?? {
+          transparent: material.transparent,
+          opacity: material.opacity,
+          depthWrite: material.depthWrite
+        };
+        if (!this.loftMaterialState.has(material)) this.loftMaterialState.set(material, materialState);
+        material.transparent = ghosted ? true : materialState.transparent;
+        material.opacity = ghosted ? Math.min(materialState.opacity, 0.14) : materialState.opacity;
+        material.depthWrite = ghosted ? false : materialState.depthWrite;
+        material.needsUpdate = true;
+      });
+    });
   }
 
   private hitIsVisible(item: THREE.Intersection) {
@@ -4825,6 +4875,7 @@ export class HouseScene {
     }
     this.interiorGroup.visible = !this.outsideShell();
     this.syncOutsideAdditions();
+    this.syncLoftPresentation();
     if (this.outsideShell()) {
       this.finishRoomDrag(false);
       this.clearRoomPreview();

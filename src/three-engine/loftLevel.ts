@@ -11,6 +11,11 @@ export function isLoftRoom(y: number) {
   return y > LOFT_ROOM_MIN_Y;
 }
 
+/** The interior overview ghosts the loft unless the user is actively editing on it. */
+export function loftIsGhosted(viewMode: 'utsida' | 'insida' | 'blueprint', editingLoftRoom: boolean) {
+  return viewMode === 'insida' && !editingLoftRoom;
+}
+
 /** Walking surface of the loft, measured up from the interior floor. */
 export const LOFT_MIN_ABOVE_FLOOR = 2.5;
 
