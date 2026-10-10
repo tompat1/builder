@@ -34,11 +34,26 @@
             </svg>
             <span class="absolute right-0.5 top-0.5 grid h-4 min-w-4 place-items-center rounded-full bg-clay px-1 text-[10px] font-bold tabular-nums text-ivory">{{ bag.count }}</span>
           </button>
+          <button
+            v-if="session.user"
+            type="button"
+            class="grid h-10 w-10 place-items-center rounded-full bg-[#FF5A00] text-graphite transition-colors hover:bg-[#e95000] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine disabled:cursor-wait disabled:opacity-60"
+            :aria-label="t('account.logout')"
+            :title="t('account.logout')"
+            :disabled="logoutBusy"
+            @click="signOut"
+          >
+            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+              <path d="M10 5H6.5A1.5 1.5 0 0 0 5 6.5v11A1.5 1.5 0 0 0 6.5 19H10" />
+              <path d="M13 8l4 4-4 4M17 12H9" />
+            </svg>
+          </button>
           <router-link
-            :to="session.user ? '/build' : '/login'"
-            class="grid h-10 w-10 place-items-center rounded-full transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine"
-            :class="session.user ? 'bg-[#FF5A00] text-graphite' : 'text-pine'"
-            :aria-label="session.user ? session.user.name : t('site.login')"
+            v-else
+            to="/login"
+            class="grid h-10 w-10 place-items-center rounded-full text-pine transition-colors hover:bg-pine/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine"
+            :aria-label="t('site.login')"
+            :title="t('site.login')"
           >
             <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
               <circle cx="12" cy="8" r="3.2" />
@@ -46,16 +61,6 @@
             </svg>
           </router-link>
         </div>
-        <button
-          v-if="session.user"
-          type="button"
-          class="group hidden items-center gap-2 whitespace-nowrap text-sm font-semibold text-pine hover:text-graphite focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-pine md:inline-flex disabled:opacity-60"
-          :disabled="logoutBusy"
-          @click="signOut"
-        >
-          <Cms k="account.logout" />
-          <ArrowMark />
-        </button>
         <button
           v-if="session.user?.role === 'admin'"
           type="button"
@@ -93,16 +98,6 @@
           <Cms v-else k="site.login" />
           <ArrowMark />
         </router-link>
-        <button
-          v-if="session.user"
-          type="button"
-          class="group inline-flex items-center gap-2 rounded-xl px-3 py-3 text-left text-base font-semibold text-pine"
-          :disabled="logoutBusy"
-          @click="signOut"
-        >
-          <Cms k="account.logout" />
-          <ArrowMark />
-        </button>
         <BuildAction prominent tone="graphite" class="mt-2 w-full" @click="open = false" />
       </nav>
     </div>

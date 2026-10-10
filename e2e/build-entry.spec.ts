@@ -43,8 +43,8 @@ test('a signed-in account with a saved house sees Continue building everywhere',
 
   await page.goto('/');
   if (isMobile) await page.getByRole('button', { name: 'Meny' }).click();
-  await expect(page.getByLabel('Builder Test')).toHaveClass(/bg-\[#FF5A00\]/);
-  await expect(page.getByRole('button', { name: 'Logga ut' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Logga ut' })).toHaveClass(/bg-\[#FF5A00\]/);
+  await expect(page.getByText('Logga ut', { exact: true })).toHaveCount(0);
   await expect(page.getByRole('button', { name: 'Fortsätt bygg' })).toHaveCount(3);
   await page.getByRole('button', { name: 'Fortsätt bygg' }).first().click();
   await expect(page).toHaveURL(/\/build$/);
