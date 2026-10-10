@@ -1209,7 +1209,7 @@ export const useConfigStore = defineStore('config', () => {
     replaceNote(id, place);
   }
 
-  function setNotePin(id: string, pin: { x: number; y: number; z: number; nx?: number; ny?: number; nz?: number } | null) {
+  function setNotePin(id: string, pin: { x: number; y: number; z: number; nx?: number; ny?: number; nz?: number; scope?: 'outside' | 'inside' } | null) {
     replaceNote(id, { pin: pin ? parseNotePin(pin) : null });
   }
 

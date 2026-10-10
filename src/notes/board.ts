@@ -10,6 +10,7 @@ export const NOTE_HEIGHT_MAX = 260;
 export type NoteColor = (typeof NOTE_COLORS)[number];
 export const NOTE_LIMIT = 24;
 export const NOTE_TEXT_LIMIT = 240;
+export type NoteScope = 'outside' | 'inside';
 
 export type NoteWall = 'front' | 'back' | 'left' | 'right';
 
@@ -29,6 +30,8 @@ export interface NotePin {
   nx?: number;
   ny?: number;
   nz?: number;
+  /** View where the sheet was attached. Older pins without this field are exterior. */
+  scope?: NoteScope;
 }
 
 export interface HouseNote {
@@ -60,6 +63,13 @@ export function noteTargetId(link: NoteLink): string | null {
   if (link.kind === 'wall') return `wall-${link.wall}`;
   if (link.kind === 'slot') return `slot:${link.slotId}`;
   return link.kind;
+}
+
+/** Exterior sheets never bleed into the cutaway interior view. */
+export function noteVisibleInView(note: HouseNote, viewMode: 'utsida' | 'insida' | 'blueprint') {
+  if (viewMode !== 'insida') return true;
+  if (note.pin) return note.pin.scope === 'inside';
+  return note.link.kind === 'board' || note.link.kind === 'floor' || note.link.kind === 'loft';
 }
 
 export function parseNoteLink(value: unknown): NoteLink {
@@ -109,6 +119,8 @@ export function parseNotePin(value: unknown): NotePin | null {
     stuck.ny = clamp(ny, -1, 1, 0);
     stuck.nz = clamp(nz, -1, 1, 1);
   }
+  const scope = (pin as { scope?: unknown }).scope;
+  if (scope === 'outside' || scope === 'inside') stuck.scope = scope;
   return stuck;
 }
 

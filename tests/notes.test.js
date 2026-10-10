@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { acceptNotes, linkFromValue, linkToValue, NOTE_WIDTH, noteTargetId, parseNotePin } from '../src/notes/board.ts';
+import { acceptNotes, linkFromValue, linkToValue, NOTE_WIDTH, noteTargetId, noteVisibleInView, parseNotePin } from '../src/notes/board.ts';
 import { inferNoteNormal, noteAxes, NOTE_SURFACE_SCALE, stickFacing } from '../src/notes/surface.ts';
 
 test('a note keeps its writing and a link to one part of the house', () => {
@@ -73,10 +73,40 @@ test('a link value names the board or one house part', () => {
 });
 
 test('a stuck note keeps the facing of the panel', () => {
-  const pin = parseNotePin({ x: 0.25, y: 1.4, z: 1.75, nx: 0, ny: 0, nz: 1 });
-  assert.deepEqual(pin, { x: 0.25, y: 1.4, z: 1.75, nx: 0, ny: 0, nz: 1 });
+  const pin = parseNotePin({ x: 0.25, y: 1.4, z: 1.75, nx: 0, ny: 0, nz: 1, scope: 'outside' });
+  assert.deepEqual(pin, { x: 0.25, y: 1.4, z: 1.75, nx: 0, ny: 0, nz: 1, scope: 'outside' });
   const unfaced = parseNotePin({ x: 0.25, y: 1.4, z: 1.75, nx: 0, ny: 0, nz: 0 });
   assert.deepEqual(unfaced, { x: 0.25, y: 1.4, z: 1.75 });
+});
+
+test('the interior view hides exterior notes and keeps interior notes', () => {
+  const outsidePin = acceptNotes([{
+    id: 'note_outside1',
+    pin: { x: 0, y: 1.4, z: 1.75, nx: 0, ny: 0, nz: 1, scope: 'outside' }
+  }])[0];
+  const insidePin = acceptNotes([{
+    id: 'note_inside01',
+    pin: { x: 0, y: 1.4, z: -1.5, nx: 0, ny: 0, nz: 1, scope: 'inside' }
+  }])[0];
+  const legacyPin = acceptNotes([{
+    id: 'note_legacy01',
+    pin: { x: 0, y: 1.4, z: 1.75, nx: 0, ny: 0, nz: 1 }
+  }])[0];
+  const outsideLink = acceptNotes([{
+    id: 'note_wall0001',
+    link: { kind: 'wall', wall: 'front' }
+  }])[0];
+  const insideLink = acceptNotes([{
+    id: 'note_floor001',
+    link: { kind: 'floor' }
+  }])[0];
+
+  assert.equal(noteVisibleInView(outsidePin, 'insida'), false);
+  assert.equal(noteVisibleInView(legacyPin, 'insida'), false);
+  assert.equal(noteVisibleInView(outsideLink, 'insida'), false);
+  assert.equal(noteVisibleInView(insidePin, 'insida'), true);
+  assert.equal(noteVisibleInView(insideLink, 'insida'), true);
+  assert.equal(noteVisibleInView(outsidePin, 'utsida'), true);
 });
 
 test('a sheet on the front wall faces outward and stands upright', () => {

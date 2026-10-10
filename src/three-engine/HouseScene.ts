@@ -4706,7 +4706,10 @@ export class HouseScene {
       return this.hitIsVisible(item) && !this.skipsNotes(item.object);
     });
     if (!hit) return null;
-    return this.pointFromHit(hit, true);
+    return {
+      ...this.pointFromHit(hit, true),
+      scope: this.outsideShell() ? 'outside' as const : 'inside' as const
+    };
   }
 
   private anchorFor(id: string) {

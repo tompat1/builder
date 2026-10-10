@@ -60,7 +60,7 @@ import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue';
 import { HouseScene } from '../three-engine/HouseScene';
 import { useConfigStore } from '../store/useConfigStore';
 import type { RoofId } from '../store/roof';
-import { noteTargetId } from '../notes/board';
+import { noteTargetId, noteVisibleInView } from '../notes/board';
 import { fitRoom, innerHalf } from '../three-engine/roomWalls';
 import { useLabels } from '../i18n';
 import Cms from './Cms.vue';
@@ -94,6 +94,7 @@ function noteTargetIds() {
   if (!store.showNotes) return [];
   return [...new Set(
     store.notes
+      .filter((note) => noteVisibleInView(note, store.viewMode))
       .map((note) => noteTargetId(note.link))
       .filter((id): id is string => Boolean(id))
   )];
@@ -102,7 +103,9 @@ function noteTargetIds() {
 function syncNotePins() {
   engine?.setNotePins(
     store.showNotes
-      ? store.notes.flatMap((note) => (note.pin ? [{ id: note.id, ...note.pin }] : []))
+      ? store.notes
+        .filter((note) => noteVisibleInView(note, store.viewMode))
+        .flatMap((note) => (note.pin ? [{ id: note.id, ...note.pin }] : []))
       : []
   );
 }
@@ -444,7 +447,8 @@ watch(
 );
 
 watch(
-  () => store.notes.map((note) => (note.pin ? `${note.id}:${note.pin.x},${note.pin.y},${note.pin.z},${note.pin.nx ?? ''},${note.pin.ny ?? ''},${note.pin.nz ?? ''}` : '')).join('|')
+  () => store.notes.map((note) => (note.pin ? `${note.id}:${note.pin.x},${note.pin.y},${note.pin.z},${note.pin.nx ?? ''},${note.pin.ny ?? ''},${note.pin.nz ?? ''},${note.pin.scope ?? ''}` : '')).join('|')
+    + `:${store.viewMode}`
     + (store.showNotes ? ':on' : ':off'),
   () => syncNotePins()
 );

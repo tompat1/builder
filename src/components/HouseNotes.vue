@@ -152,7 +152,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useConfigStore } from '../store/useConfigStore';
 import { useLabels } from '../i18n';
-import { noteTargetId, type HouseNote, type NotePin } from '../notes/board';
+import { noteTargetId, noteVisibleInView, type HouseNote, type NotePin, type NoteScope } from '../notes/board';
 import { noteAxes } from '../notes/surface';
 
 const store = useConfigStore();
@@ -171,7 +171,7 @@ let resizeY = 0;
 let resizeW = 0;
 let resizeH = 0;
 
-type StickPoint = { x: number; y: number; z: number; nx?: number; ny?: number; nz?: number };
+type StickPoint = { x: number; y: number; z: number; nx?: number; ny?: number; nz?: number; scope?: NoteScope };
 
 function paperStyle(note: HouseNote, extra: Record<string, string>) {
   return {
@@ -233,7 +233,8 @@ function layout(note: HouseNote) {
   };
 }
 
-const placed = computed(() => store.notes.map((note) => ({ note, ...layout(note) })));
+const visibleNotes = computed(() => store.notes.filter((note) => noteVisibleInView(note, store.viewMode)));
+const placed = computed(() => visibleNotes.value.map((note) => ({ note, ...layout(note) })));
 const stuck = computed(() => placed.value.filter((item) => item.stuck));
 const loose = computed(() => placed.value.filter((item) => !item.stuck));
 
@@ -287,7 +288,8 @@ function pinsClose(pin: NotePin, next: StickPoint) {
     && Math.abs(pin.z - next.z) < 0.004
     && Math.abs((pin.nx ?? 0) - (next.nx ?? 0)) < 0.02
     && Math.abs((pin.ny ?? 0) - (next.ny ?? 0)) < 0.02
-    && Math.abs((pin.nz ?? 0) - (next.nz ?? 0)) < 0.02;
+    && Math.abs((pin.nz ?? 0) - (next.nz ?? 0)) < 0.02
+    && pin.scope === next.scope;
 }
 
 function onDown(event: PointerEvent, note: HouseNote) {
@@ -331,7 +333,8 @@ function onMove(event: PointerEvent, note: HouseNote) {
       z: hit.z + axes.right.z * grab.u + axes.up.z * grab.v,
       nx: hit.nx,
       ny: hit.ny,
-      nz: hit.nz
+      nz: hit.nz,
+      scope: hit.scope
     };
     if (pinsClose(note.pin, next)) return;
     store.setNotePin(note.id, next);
