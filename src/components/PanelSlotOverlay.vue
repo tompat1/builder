@@ -12,42 +12,48 @@
       </div>
     </div>
 
-    <!-- Active Selected Slot Cluster -->
     <div
       v-if="store.viewMode === 'utsida' && store.selectedSlotId && activeSlot"
-      class="pointer-events-auto absolute z-20 flex flex-col items-center gap-2 animate-fade-in transition-all duration-100"
+      class="pointer-events-auto absolute z-20 w-[17.5rem] rounded-2xl bg-white text-slate-900 shadow-[0_18px_40px_-16px_rgba(15,23,42,0.45)]"
       :style="overlayStyle"
     >
-      <!-- Horizontal Navigation Cluster with Left/Right Arrows (Matching Skånska Byggvaror) -->
-      <div class="flex items-center gap-2 relative">
-        <!-- Prev Panel Arrow Button -->
+      <div class="flex items-center gap-0.5 px-1.5 pt-1.5">
         <button
           type="button"
           id="btn-slot-prev"
           @click="store.cycleSlot('prev')"
-          class="w-7 h-7 rounded-full bg-white/90 hover:bg-white text-slate-700 hover:text-slate-900 shadow-md border border-slate-200 flex items-center justify-center transition-transform hover:scale-105"
+          class="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-slate-700 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
           :title="t('slot.prev')"
           :aria-label="t('slot.prev')"
         >
-          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
             <polyline points="15 18 9 12 15 6" />
           </svg>
         </button>
+        <p class="min-w-0 flex-1 text-center text-sm font-semibold leading-tight">{{ placeLabel }}</p>
+        <button
+          type="button"
+          id="btn-slot-next"
+          @click="store.cycleSlot('next')"
+          class="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-slate-700 hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+          :title="t('slot.next')"
+          :aria-label="t('slot.next')"
+        >
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+        </button>
+      </div>
 
-        <!-- Slot Action Cluster (Pill) -->
-        <div class="flex items-center gap-2 bg-white/95 backdrop-blur-md px-3 py-2 rounded-2xl shadow-xl border border-slate-300">
-          <!-- Plus Icon Circle (matching Image 1 & 2) -->
-          <div class="w-7 h-7 rounded-full bg-emerald-700 text-white flex items-center justify-center font-bold text-sm shadow-xs shrink-0">
-            +
-          </div>
-
-          <template v-if="activeSlot.type !== 'empty'">
-            <span class="text-xs font-semibold text-slate-900 px-1 max-w-[9rem] truncate">{{ placedLabel }}</span>
+      <div class="px-3 pb-3 pt-1">
+        <template v-if="activeSlot.type !== 'empty'">
+          <p class="truncate text-sm leading-5 text-slate-600">{{ placedLabel }}</p>
+          <div class="mt-3 flex flex-col gap-1.5">
             <button
               type="button"
               id="btn-replace-slot"
               @click="replacePlaced()"
-              class="text-xs font-semibold px-3 py-1.5 rounded-xl bg-slate-900 text-white hover:bg-slate-800"
+              class="h-11 rounded-xl bg-slate-900 px-3 text-sm font-semibold text-white hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
             >
               <Cms k="slot.replace" />
             </button>
@@ -56,98 +62,57 @@
               type="button"
               id="btn-switch-slot-type"
               @click="openCategory(alternateCategory)"
-              class="text-xs font-semibold px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800"
+              class="h-11 rounded-xl bg-slate-100 px-3 text-sm font-semibold text-slate-800 hover:bg-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
             >
               <Cms v-if="alternateCategory === 'doors'" k="slot.chooseDoor" />
               <Cms v-else k="slot.chooseWindow" />
             </button>
-            <button
-              type="button"
-              id="btn-remove-slot-item"
-              @click="store.removeSlotItem(activeSlot.id)"
-              class="text-xs text-rose-600 hover:text-rose-700 hover:bg-rose-50 px-2 py-1.5 rounded-lg font-medium transition-colors"
-              :title="t('slot.clear')"
-            >
-              <Cms k="slot.remove" />
-            </button>
-          </template>
+          </div>
+        </template>
 
-          <template v-else>
-            <button
-              v-if="store.selectedSlotCanAcceptDoor"
-              type="button"
-              id="btn-choose-door"
-              @click="openCategory('doors')"
-              class="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800"
-            >
-              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M4 21h16M5 21V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v17" />
-              </svg>
-              <span><Cms k="slot.chooseDoor" /></span>
-            </button>
-
-            <button
-              type="button"
-              id="btn-choose-window"
-              @click="openCategory('windows')"
-              class="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800"
-            >
-              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="3" width="18" height="18" rx="2" />
-                <path d="M12 3v18M3 12h18" />
-              </svg>
-              <span><Cms k="slot.chooseWindow" /></span>
-            </button>
-          </template>
+        <div v-else class="mt-2 flex flex-col gap-1.5">
+          <button
+            v-if="store.selectedSlotCanAcceptDoor"
+            type="button"
+            id="btn-choose-door"
+            @click="openCategory('doors')"
+            class="h-11 rounded-xl bg-slate-900 px-3 text-sm font-semibold text-white hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
+          >
+            <Cms k="slot.chooseDoor" />
+          </button>
+          <button
+            type="button"
+            id="btn-choose-window"
+            @click="openCategory('windows')"
+            :class="store.selectedSlotCanAcceptDoor
+              ? 'h-11 rounded-xl bg-slate-100 px-3 text-sm font-semibold text-slate-800 hover:bg-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2'
+              : 'h-11 rounded-xl bg-slate-900 px-3 text-sm font-semibold text-white hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2'"
+          >
+            <Cms k="slot.chooseWindow" />
+          </button>
         </div>
 
-        <!-- Next Panel Arrow Button -->
-        <button
-          type="button"
-          id="btn-slot-next"
-          @click="store.cycleSlot('next')"
-          class="w-7 h-7 rounded-full bg-white/90 hover:bg-white text-slate-700 hover:text-slate-900 shadow-md border border-slate-200 flex items-center justify-center transition-transform hover:scale-105"
-          :title="t('slot.next')"
-          :aria-label="t('slot.next')"
-        >
-          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <polyline points="9 18 15 12 9 6" />
-          </svg>
-        </button>
-      </div>
-
-      <!-- Action Confirmation & Badge Row (Matching Skånska Byggvaror check/cross) -->
-      <div class="flex items-center gap-2">
-        <span class="text-[11px] font-semibold text-slate-700 bg-white/90 backdrop-blur-xs px-2.5 py-0.5 rounded-full border border-slate-200 shadow-2xs">
-          {{ t('slot.marked', { wall: markedWall }) }}
-        </span>
-
-        <!-- Confirm Selection Button -->
-        <button
-          type="button"
-          id="btn-confirm-slot"
-          @click="store.deselectSlot()"
-          class="w-6 h-6 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center shadow-xs transition-colors"
-          :title="t('slot.done')"
-        >
-          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-            <polyline points="20 6 9 17 4 12" />
-          </svg>
-        </button>
-
-        <!-- Deselect Button -->
-        <button
-          type="button"
-          id="btn-deselect-slot"
-          @click="store.deselectSlot()"
-          class="w-6 h-6 rounded-full bg-slate-200 hover:bg-slate-300 text-slate-700 flex items-center justify-center shadow-xs transition-colors"
-          :title="t('slot.cancel')"
-        >
-          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
+        <div class="mt-1 flex items-center" :class="activeSlot.type === 'empty' ? 'justify-center' : 'justify-between'">
+          <button
+            v-if="activeSlot.type !== 'empty'"
+            type="button"
+            id="btn-remove-slot-item"
+            @click="store.removeSlotItem(activeSlot.id)"
+            class="h-11 px-1 text-sm font-medium text-rose-700 hover:text-rose-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+            :title="t('slot.clear')"
+          >
+            <Cms k="slot.remove" />
+          </button>
+          <button
+            type="button"
+            id="btn-deselect-slot"
+            @click="store.deselectSlot()"
+            class="h-11 px-1 text-sm font-semibold text-slate-900 hover:text-slate-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+            :title="t('slot.done')"
+          >
+            <Cms k="slot.done" />
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -166,11 +131,19 @@ const activeSlot = computed(() => {
   return store.selectedSlotId ? store.wallSlots[store.selectedSlotId] : null;
 });
 
-const markedWall = computed(() => {
+const WALL_LABEL = {
+  front: 'notes.wallFront',
+  back: 'notes.wallBack',
+  left: 'notes.wallLeft',
+  right: 'notes.wallRight'
+} as const;
+
+const placeLabel = computed(() => {
   const slot = activeSlot.value;
   if (!slot) return '';
-  const name = `${slot.wall.toUpperCase()}-${slot.index + 1}`;
-  return slot.isUpper ? `${name} ${t('slot.upper')}` : name;
+  const wall = t(WALL_LABEL[slot.wall]);
+  const band = t(slot.isUpper ? 'notes.upper' : 'notes.lower');
+  return `${wall} · ${band}`;
 });
 
 const placedLabel = computed(() => productName(activeSlot.value));
@@ -194,9 +167,9 @@ const hoverText = computed(() => {
 const overlayStyle = computed(() => {
   if (store.slotScreenPosition && store.slotScreenPosition.visible) {
     return {
-      left: `clamp(168px, ${store.slotScreenPosition.x}px, calc(100% - 168px))`,
-      top: `clamp(88px, ${store.slotScreenPosition.y}px, calc(100% - 72px))`,
-      transform: 'translate(-50%, -50%)'
+      left: `clamp(min(240px, 50%), ${store.slotScreenPosition.x}px, calc(100% - min(160px, 50%)))`,
+      top: `clamp(100px, ${store.slotScreenPosition.y + 18}px, calc(100% - 340px))`,
+      transform: 'translate(-50%, 0)'
     };
   }
   return {
