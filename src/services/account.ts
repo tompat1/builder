@@ -94,8 +94,11 @@ export async function loginWithPassword(login: string, password: string) {
 }
 
 export async function logoutAccount() {
-  await accountFetch('/api/auth/logout', { method: 'POST' });
-  saveSession('');
+  try {
+    await accountFetch('/api/auth/logout', { method: 'POST' });
+  } finally {
+    saveSession('');
+  }
 }
 
 export async function savePassword(password: string, current: string) {

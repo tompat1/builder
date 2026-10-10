@@ -43,7 +43,30 @@ test('a signed-in account with a saved house sees Continue building everywhere',
 
   await page.goto('/');
   if (isMobile) await page.getByRole('button', { name: 'Meny' }).click();
+  await expect(page.getByLabel('Builder Test')).toHaveClass(/bg-\[#FF5A00\]/);
+  await expect(page.getByRole('button', { name: 'Logga ut' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Fortsätt bygg' })).toHaveCount(3);
   await page.getByRole('button', { name: 'Fortsätt bygg' }).first().click();
   await expect(page).toHaveURL(/\/build$/);
+});
+
+test('the authenticated header can log out', async ({ page, isMobile }) => {
+  await page.addInitScript(() => sessionStorage.setItem('builder.session', 'test-token'));
+  await page.route('**/api/auth/me', async (route) => {
+    await route.fulfill({ json: { user } });
+  });
+  await page.route('**/api/houses', async (route) => {
+    await route.fulfill({ json: { houses: [] } });
+  });
+  await page.route('**/api/auth/logout', async (route) => {
+    await route.fulfill({ json: { ok: true } });
+  });
+
+  await page.goto('/');
+  if (isMobile) await page.getByRole('button', { name: 'Meny' }).click();
+  await page.getByRole('button', { name: 'Logga ut' }).click();
+
+  await expect(page.getByRole('link', { name: 'Logga in' }).first()).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Börja bygga' }).first()).toBeVisible();
+  await expect.poll(() => page.evaluate(() => sessionStorage.getItem('builder.session'))).toBeNull();
 });

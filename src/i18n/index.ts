@@ -714,7 +714,7 @@ const en = {
   },
   account: {
     login: 'Sign in',
-    logout: 'Sign out',
+    logout: 'Log out',
     close: 'Close account',
     github: 'Continue with GitHub',
     githubMissing: 'GitHub login still needs client keys on the worker.',

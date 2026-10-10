@@ -36,16 +36,26 @@
           </button>
           <router-link
             :to="session.user ? '/build' : '/login'"
-            class="grid h-10 w-10 place-items-center rounded-full text-pine focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine"
+            class="grid h-10 w-10 place-items-center rounded-full transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine"
+            :class="session.user ? 'bg-[#FF5A00] text-graphite' : 'text-pine'"
             :aria-label="session.user ? session.user.name : t('site.login')"
           >
-            <img v-if="session.user?.avatarUrl" :src="session.user.avatarUrl" alt="" class="h-7 w-7 rounded-full object-cover" />
-            <svg v-else class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
               <circle cx="12" cy="8" r="3.2" />
               <path d="M5.5 19.2a6.5 6.5 0 0 1 13 0" />
             </svg>
           </router-link>
         </div>
+        <button
+          v-if="session.user"
+          type="button"
+          class="group hidden items-center gap-2 whitespace-nowrap text-sm font-semibold text-pine hover:text-graphite focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-pine md:inline-flex disabled:opacity-60"
+          :disabled="logoutBusy"
+          @click="signOut"
+        >
+          <Cms k="account.logout" />
+          <ArrowMark />
+        </button>
         <button
           v-if="session.user?.role === 'admin'"
           type="button"
@@ -83,6 +93,16 @@
           <Cms v-else k="site.login" />
           <ArrowMark />
         </router-link>
+        <button
+          v-if="session.user"
+          type="button"
+          class="group inline-flex items-center gap-2 rounded-xl px-3 py-3 text-left text-base font-semibold text-pine"
+          :disabled="logoutBusy"
+          @click="signOut"
+        >
+          <Cms k="account.logout" />
+          <ArrowMark />
+        </button>
         <BuildAction prominent tone="graphite" class="mt-2 w-full" @click="open = false" />
       </nav>
     </div>
@@ -102,6 +122,7 @@ import { applyLocale, useLabels } from '../../i18n';
 import { useBagStore } from '../../store/useBagStore';
 import { useSessionStore } from '../../store/useSessionStore';
 import { useContentStore } from '../../store/useContentStore';
+import { logoutAccount } from '../../services/account';
 
 const { t, locale } = useLabels();
 const bag = useBagStore();
@@ -109,9 +130,25 @@ const session = useSessionStore();
 const content = useContentStore();
 const route = useRoute();
 const open = ref(false);
+const logoutBusy = ref(false);
 
 function toggleLocale() {
   applyLocale(locale.value === 'en' ? 'sv' : 'en');
+}
+
+async function signOut() {
+  if (logoutBusy.value) return;
+  logoutBusy.value = true;
+  try {
+    await logoutAccount();
+  } catch {
+    // A failed server sign-out must not leave the browser session active.
+  } finally {
+    session.clearAccount();
+    content.editing = false;
+    open.value = false;
+    logoutBusy.value = false;
+  }
 }
 
 const links = [
