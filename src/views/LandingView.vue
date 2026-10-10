@@ -15,7 +15,7 @@
           </h1>
           <p class="mt-5 max-w-[36ch] text-lg leading-relaxed text-pine/80"><Cms k="site.heroLead" /></p>
           <div class="mt-8 flex flex-wrap items-center gap-3">
-            <ActionControl to="/build" prominent><Cms k="site.start" /></ActionControl>
+            <BuildAction prominent />
             <ActionControl to="/homes" appearance="outline"><Cms k="site.explore" /></ActionControl>
           </div>
         </div>
@@ -69,6 +69,7 @@
 
 <script setup lang="ts">
 import ActionControl from '../components/site/ActionControl.vue';
+import BuildAction from '../components/site/BuildAction.vue';
 import ArrowMark from '../components/site/ArrowMark.vue';
 import SiteFrame from '../components/site/SiteFrame.vue';
 import Cms from '../components/Cms.vue';

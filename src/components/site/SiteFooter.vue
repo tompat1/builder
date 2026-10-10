@@ -16,7 +16,7 @@
       <div>
         <p class="text-xs font-semibold uppercase tracking-[0.14em] text-sage"><Cms k="site.footerSupport" /></p>
         <ul class="mt-3 space-y-2 text-sm">
-          <li><ActionControl to="/build" appearance="text" class="hover:text-sage"><Cms k="site.start" /></ActionControl></li>
+          <li><BuildAction appearance="text" class="hover:text-sage" /></li>
           <li><ActionControl to="/login" appearance="text" class="hover:text-sage"><Cms k="site.login" /></ActionControl></li>
         </ul>
       </div>
@@ -43,6 +43,7 @@ import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import BrandLockup from '../brand/BrandLockup.vue';
 import ActionControl from './ActionControl.vue';
+import BuildAction from './BuildAction.vue';
 import Cms from '../Cms.vue';
 import { applyLocale, useLabels, type AppLocale } from '../../i18n';
 

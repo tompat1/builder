@@ -125,8 +125,12 @@ async function submit() {
     const user = mode.value === 'login'
       ? await loginWithPassword(login.value, password.value)
       : await registerAccount(login.value, password.value, displayName.value || login.value);
-    session.setUser(user);
-    await router.push('/build');
+    session.finishAuthentication(user);
+    await session.refreshSavedHouseStatus();
+    const redirect = typeof route.query.redirect === 'string' && /^\/(?!\/)/.test(route.query.redirect)
+      ? route.query.redirect
+      : '/build';
+    await router.push(redirect);
   } catch (caught) {
     showError(caught instanceof Error ? caught.message : 'bad_login');
   } finally {

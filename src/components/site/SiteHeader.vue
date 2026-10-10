@@ -55,7 +55,7 @@
         >
           {{ content.editing ? t('cms.done') : t('cms.edit') }}
         </button>
-        <ActionControl to="/build" prominent tone="graphite" class="max-md:hidden"><Cms k="site.start" /></ActionControl>
+        <BuildAction prominent tone="graphite" class="max-md:hidden" />
         <button
           type="button"
           class="grid h-10 w-10 place-items-center rounded-full text-pine focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine md:hidden"
@@ -83,7 +83,7 @@
           <Cms v-else k="site.login" />
           <ArrowMark />
         </router-link>
-        <ActionControl to="/build" prominent tone="graphite" class="mt-2 w-full" @click="open = false"><Cms k="site.start" /></ActionControl>
+        <BuildAction prominent tone="graphite" class="mt-2 w-full" @click="open = false" />
       </nav>
     </div>
   </header>
@@ -94,7 +94,7 @@
 import { ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import BrandLockup from '../brand/BrandLockup.vue';
-import ActionControl from './ActionControl.vue';
+import BuildAction from './BuildAction.vue';
 import ArrowMark from './ArrowMark.vue';
 import BagDrawer from './BagDrawer.vue';
 import Cms from '../Cms.vue';

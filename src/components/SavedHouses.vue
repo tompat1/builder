@@ -190,6 +190,7 @@ async function refresh() {
     ...house,
     thumb: house.thumb || houseThumb(house.id)
   }));
+  session.setSavedHouseCount(houses.value.length);
   let active = readActiveHouseId();
   if (!active && houses.value.length === 1) {
     active = houses.value[0].id;
@@ -262,6 +263,7 @@ async function save() {
     name.value = '';
     notice.value = t('header.houseSaved');
     houses.value = [{ ...saved, thumb }, ...houses.value.filter((house) => house.id !== saved.id)].slice(0, 24);
+    session.setSavedHouseCount(houses.value.length);
   } catch {
     error.value = t('header.saveFailed');
   } finally {
@@ -300,6 +302,7 @@ async function remove(id: string) {
       activeId.value = '';
     }
     houses.value = houses.value.filter((house) => house.id !== id);
+    session.setSavedHouseCount(houses.value.length);
   } catch {
     error.value = t('header.saveFailed');
   }
@@ -321,6 +324,7 @@ async function uploadPending() {
     name.value = '';
     error.value = '';
     notice.value = t('header.houseSaved');
+    session.setSavedHouseCount(Math.max(1, session.savedHouseCount));
     if (props.open) await refresh();
   } catch {
     // The named copy stays in this browser until the next save.

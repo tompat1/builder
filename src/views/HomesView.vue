@@ -49,13 +49,13 @@
           <p class="mt-1.5 max-w-[28ch] text-sm leading-relaxed text-pine/75"><Cms :k="step.body" /></p>
         </li>
       </ol>
-      <ActionControl to="/build" prominent class="mt-10"><Cms k="site.start" /></ActionControl>
+      <BuildAction prominent class="mt-10" />
     </section>
   </SiteFrame>
 </template>
 
 <script setup lang="ts">
-import ActionControl from '../components/site/ActionControl.vue';
+import BuildAction from '../components/site/BuildAction.vue';
 import SiteFrame from '../components/site/SiteFrame.vue';
 import Cms from '../components/Cms.vue';
 import CmsImage from '../components/CmsImage.vue';
