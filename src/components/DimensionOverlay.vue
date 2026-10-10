@@ -83,8 +83,8 @@ function labelStyle(id: string) {
     return { left: '0px', top: '0px', visibility: 'hidden' as const };
   }
   return {
-    left: `${label.x}px`,
-    top: `${label.y}px`,
+    left: `clamp(3.25rem, ${label.x}px, calc(100% - 3.25rem))`,
+    top: `clamp(6.5rem, ${label.y}px, calc(100% - 3.25rem))`,
     visibility: 'visible' as const
   };
 }

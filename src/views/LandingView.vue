@@ -1,6 +1,6 @@
 <template>
   <SiteFrame>
-    <section class="relative flex flex-1 flex-col overflow-hidden">
+    <section class="relative flex flex-1 flex-col">
       <CmsImage k="landing.heroDesktop" class="pointer-events-none absolute inset-0 hidden h-full w-full object-cover object-[46%_48%] md:block" style="mask-image: linear-gradient(102deg, transparent 0%, transparent 22%, #000 58%, #000 100%); -webkit-mask-image: linear-gradient(102deg, transparent 0%, transparent 22%, #000 58%, #000 100%)">
         <img
           src="/brand/landing.webp"
@@ -22,7 +22,7 @@
         <CmsImage k="landing.heroMobile" class="mt-8 h-64 w-full object-cover object-[75%_center] md:hidden">
           <img src="/brand/landing.webp" alt="" class="h-full w-full object-cover object-[75%_center]" />
         </CmsImage>
-        <ul class="relative mt-12 grid gap-x-10 gap-y-8 sm:grid-cols-2 md:mb-10 md:mt-auto md:max-w-2xl md:before:pointer-events-none md:before:absolute md:before:-bottom-4 md:before:-left-8 md:before:top-0 md:before:w-[46rem] md:before:bg-gradient-to-r md:before:from-ivory md:before:from-70% md:before:to-transparent md:before:content-['']">
+        <ul class="relative mt-12 grid gap-x-10 gap-y-8 sm:grid-cols-2 md:mt-auto md:max-w-2xl [@media(min-width:1280px)_and_(min-height:1040px)]:mb-10 md:before:pointer-events-none md:before:absolute md:before:-bottom-4 md:before:-left-8 md:before:top-0 md:before:w-[46rem] md:before:bg-gradient-to-r md:before:from-ivory md:before:from-70% md:before:to-transparent md:before:content-['']">
           <li v-for="point in points" :key="point.title" class="relative z-10">
             <img v-if="point.icon === 'concierge'" src="/brand/icon_aiconcierge.svg" alt="" class="h-11 w-[3.2rem]" />
             <svg v-else class="h-9 w-9 text-pine" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
@@ -48,7 +48,7 @@
 
       <router-link
         to="/merch"
-        class="group relative z-10 mx-4 mb-6 mt-2 flex items-stretch self-end overflow-hidden rounded-2xl bg-white text-pine shadow-[0_12px_28px_-16px_rgba(23,61,53,0.55)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine xl:absolute xl:bottom-6 xl:right-6 xl:mx-0 xl:mb-0 xl:mt-0 xl:w-[18.5rem]"
+        class="group relative z-10 mx-4 mb-3 mt-2 flex w-[min(100%-2rem,18.5rem)] items-stretch self-end overflow-hidden rounded-2xl bg-white text-pine shadow-[0_12px_28px_-16px_rgba(23,61,53,0.55)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine [@media(min-width:1280px)_and_(min-height:1040px)]:absolute [@media(min-width:1280px)_and_(min-height:1040px)]:bottom-6 [@media(min-width:1280px)_and_(min-height:1040px)]:right-6 [@media(min-width:1280px)_and_(min-height:1040px)]:mx-0 [@media(min-width:1280px)_and_(min-height:1040px)]:mb-0 [@media(min-width:1280px)_and_(min-height:1040px)]:mt-0 [@media(min-width:1280px)_and_(min-height:1040px)]:w-[18.5rem]"
       >
           <span class="absolute inset-y-0 left-0 w-[5.25rem]">
             <img :src="ctaProduct.cta ?? `/merch/cta/${ctaProduct.id}.webp`" alt="" class="h-full w-full object-contain" />

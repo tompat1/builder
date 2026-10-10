@@ -1,7 +1,7 @@
 <template>
   <div
     class="pointer-events-auto absolute transition-all duration-300 flex flex-col items-start gap-2 z-20"
-    :class="store.isFullscreen ? 'top-6 left-6 md:top-auto md:bottom-6 md:left-6' : 'top-20 left-3 md:top-auto md:bottom-6 md:left-6'"
+    :class="store.isFullscreen ? 'top-6 left-6 min-[1180px]:top-auto min-[1180px]:bottom-[max(1.5rem,env(safe-area-inset-bottom))] min-[1180px]:left-6' : 'top-28 right-3 min-[1180px]:top-auto min-[1180px]:right-auto min-[1180px]:bottom-[max(1.5rem,env(safe-area-inset-bottom))] min-[1180px]:left-6'"
     :aria-label="t('tools.label')"
   >
     <!-- Camera toolbar: daylight, zoom, fullscreen, view -->

@@ -5,21 +5,21 @@
 
     <div
       v-if="sunShown"
-      class="pointer-events-none absolute inset-y-0 left-0 z-30 md:right-[434px]"
+      class="pointer-events-none absolute inset-y-0 left-0 z-30 min-[1180px]:right-[434px]"
       :style="store.isFullscreen ? { right: '0px' } : undefined"
       aria-hidden="true"
     >
       <div
         id="day-sun"
         class="day-sun absolute -translate-x-1/2 -translate-y-1/2"
-        :class="store.isFullscreen ? 'top-10' : 'top-16 md:top-[5.5rem]'"
+        :class="store.isFullscreen ? 'top-10' : 'top-16 md:top-[5.5rem] min-[1180px]:max-xl:top-[8.75rem]'"
         :style="{ left: sunLeft }"
       ></div>
     </div>
 
     <!-- 3D Scene In-Canvas Overlays (Aligned with the 3D Canvas Area) -->
     <div
-      class="pointer-events-none absolute inset-0 z-10 overflow-hidden transition-all duration-300 md:right-[434px]"
+      class="pointer-events-none absolute inset-0 z-10 overflow-hidden transition-all duration-300 min-[1180px]:right-[434px]"
       :style="{ right: store.isFullscreen ? '0px' : undefined }"
     >
       <!-- 3D Dimension Overlay -->
@@ -43,12 +43,12 @@
     <!-- Right Sidebar / Mobile Bottom Sheet -->
     <aside
       v-if="!store.isFullscreen"
-      class="pointer-events-auto bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-slate-200/80 transition-all duration-300 flex flex-col justify-between mt-auto w-full md:w-[410px] md:absolute md:right-6 md:top-24 md:bottom-6 max-h-[62vh] md:max-h-[calc(100vh-7.5rem)] z-40"
-      :class="isMobileCollapsed ? 'h-auto max-h-[140px]' : 'h-[62vh] md:h-auto'"
+      class="pointer-events-auto bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-slate-200/80 transition-all duration-300 flex flex-col justify-between mt-auto w-full min-[1180px]:w-[410px] min-[1180px]:absolute min-[1180px]:right-6 min-[1180px]:top-24 min-[1180px]:bottom-[max(1.5rem,env(safe-area-inset-bottom))] max-h-[62dvh] min-[1180px]:max-h-[calc(100dvh-7.5rem)] z-40"
+      :class="isMobileCollapsed ? 'h-auto max-h-[140px]' : 'h-[62dvh] min-[1180px]:h-auto'"
       :aria-label="t('panel.label')"
     >
       <!-- Mobile Drawer Drag Handle & Collapse Header -->
-      <div class="md:hidden flex items-center justify-between px-4 py-2 border-b border-slate-100 bg-slate-50/80 rounded-t-2xl">
+      <div class="min-[1180px]:hidden flex items-center justify-between px-4 py-2 border-b border-slate-100 bg-slate-50/80 rounded-t-2xl">
         <div class="flex items-center gap-2">
           <span class="w-8 h-1 bg-slate-300 rounded-full mx-auto block"></span>
           <span class="text-xs font-bold text-slate-700"><Cms k="panel.title" /></span>
@@ -65,7 +65,7 @@
       </div>
 
       <!-- Main Panel Title (Desktop) -->
-      <div class="hidden md:block px-5 pt-4 pb-2 border-b border-slate-100">
+      <div class="hidden min-[1180px]:block px-5 pt-4 pb-2 border-b border-slate-100">
         <h2 class="text-base font-extrabold text-slate-900 tracking-tight">
           <Cms k="panel.title" />
         </h2>
@@ -162,5 +162,14 @@ defineEmits<{
     0 0 16px 4px rgb(255 176 64 / 0.42),
     0 0 46px 18px rgb(255 140 32 / 0.28);
   transition: left 220ms ease-out;
+}
+
+/* 11" landscape: the noon sun would land on the header controls. */
+@media (min-width: 1180px) and (max-width: 1279px) {
+  .day-sun {
+    box-shadow:
+      0 0 12px 2px rgb(255 176 64 / 0.35),
+      0 0 22px 6px rgb(255 140 32 / 0.18);
+  }
 }
 </style>

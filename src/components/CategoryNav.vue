@@ -1,5 +1,5 @@
 <template>
-  <nav class="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none" :aria-label="t('nav.label')">
+  <nav class="grid grid-cols-4 gap-1.5" :aria-label="t('nav.label')">
     <button
       v-for="(cat, idx) in categories"
       :key="cat.id"
@@ -7,7 +7,7 @@
       type="button"
       @click="store.selectCategory(cat.id)"
       :class="[
-        'flex flex-col items-center justify-center min-w-[58px] min-h-[52px] py-2 px-1.5 rounded-xl transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
+        'flex flex-col items-center justify-center min-h-11 py-2 px-1 rounded-xl transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
         store.selectedCategory === cat.id
           ? 'bg-slate-900 text-white shadow-sm border border-slate-900'
           : 'bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-slate-200/60 hover:border-[#FF5A00]'
