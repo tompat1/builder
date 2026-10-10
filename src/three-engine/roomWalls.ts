@@ -21,6 +21,28 @@ export interface ShellSides {
   back: boolean;
 }
 
+export interface RoomWallRun {
+  size: number;
+  center: number;
+}
+
+/**
+ * Front and back walls own each corner. Side walls butt into them so two
+ * shortened walls never leave a square hole where they meet.
+ */
+export function roomWallRuns(w: number, d: number, open: ShellSides, wallThick = 0.1) {
+  const run = (length: number, trimStart: number, trimEnd: number): RoomWallRun => ({
+    size: Math.max(length - trimStart - trimEnd, 0.05),
+    center: (trimStart - trimEnd) / 2
+  });
+  return {
+    front: run(w, 0, 0),
+    back: run(w, 0, 0),
+    left: run(d, open.back ? 0 : wallThick, open.front ? 0 : wallThick),
+    right: run(d, open.back ? 0 : wallThick, open.front ? 0 : wallThick)
+  };
+}
+
 export interface PlacedRoom {
   type: string;
   w: number;

@@ -570,6 +570,10 @@ export const useConfigStore = defineStore('config', () => {
     commitHouse();
   }
 
+  function commitRooms() {
+    commitHouse();
+  }
+
   function clearLoftRooms() {
     const next = { ...placedRooms.value };
     let changed = false;
@@ -1482,6 +1486,7 @@ export const useConfigStore = defineStore('config', () => {
     selectRoom,
     removePlacedRoom,
     toggleRoomWalls,
+    commitRooms,
     availableLoftSizes,
     totalPriceSek,
     selectedSlotCanAcceptDoor,

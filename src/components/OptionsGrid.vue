@@ -929,7 +929,8 @@
             <p class="text-[11px] text-slate-500 mt-2"><Cms k="interior.layoutHint" fallback="Dra in zoner för att automatiskt generera innerväggar runt dem." /></p>
 
             <div v-if="Object.keys(store.placedRooms).length > 0" class="mt-4 pt-4 border-t border-slate-200">
-              <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2"><Cms k="interior.placedRooms" fallback="Placerade Rum" /></h4>
+              <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider"><Cms k="interior.placedRooms" fallback="Placerade Rum" /></h4>
+              <p class="mb-2 mt-1 text-[11px] leading-relaxed text-slate-500"><Cms k="interior.placedRoomsHint" fallback="Dra rummet i vyn. Ändra storlek här." /></p>
               <div
                 v-for="(room, id) in store.placedRooms"
                 :key="id"
@@ -958,11 +959,11 @@
                 <div class="flex gap-2">
                   <label class="flex-1 flex items-center gap-2 text-[10px] font-medium text-slate-600">
                     <Cms k="interior.width" fallback="Bredd:" />
-                    <input type="range" min="1.0" max="6.0" step="0.1" v-model.number="room.w" class="w-full accent-slate-900" />
+                    <input type="range" min="1.0" max="6.0" step="0.1" v-model.number="room.w" class="w-full accent-slate-900" @change="store.commitRooms()" />
                   </label>
                   <label class="flex-1 flex items-center gap-2 text-[10px] font-medium text-slate-600">
                     <Cms k="interior.depth" fallback="Djup:" />
-                    <input type="range" min="1.0" max="6.0" step="0.1" v-model.number="room.d" class="w-full accent-slate-900" />
+                    <input type="range" min="1.0" max="6.0" step="0.1" v-model.number="room.d" class="w-full accent-slate-900" @change="store.commitRooms()" />
                   </label>
                 </div>
                 <button

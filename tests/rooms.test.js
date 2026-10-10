@@ -5,6 +5,7 @@ import {
   fitRoom,
   innerHalf,
   roomInsideShell,
+  roomWallRuns,
   shellSides
 } from '../src/three-engine/roomWalls.ts';
 
@@ -82,4 +83,18 @@ test('saved rooms keep the wall toggle and older rooms default to walls', () => 
 
   assert.equal(rooms.bedroom_1.wallsVisible, false);
   assert.equal(rooms.storage_1.wallsVisible, true);
+});
+
+test('room partitions meet at closed corners without leaving a square gap', () => {
+  const closed = roomWallRuns(3, 2, { left: false, right: false, front: false, back: false });
+  assert.deepEqual(closed.front, { size: 3, center: 0 });
+  assert.deepEqual(closed.back, { size: 3, center: 0 });
+  assert.ok(Math.abs(closed.left.size - 1.8) < 1e-9);
+  assert.ok(Math.abs(closed.right.size - 1.8) < 1e-9);
+  assert.equal(closed.left.center, 0);
+  assert.equal(closed.right.center, 0);
+
+  const openFront = roomWallRuns(3, 2, { left: false, right: false, front: true, back: false });
+  assert.ok(Math.abs(openFront.left.size - 1.9) < 1e-9);
+  assert.equal(openFront.left.center, 0.05);
 });

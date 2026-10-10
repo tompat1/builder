@@ -204,6 +204,7 @@ onMounted(() => {
     engine.onRoomPlaced = (id, type, w, d, x, y, z) => {
       store.placedRooms[id] = { type, w, d, x, y, z, wallsVisible: true };
       store.selectRoom(id);
+      store.commitRooms();
     };
     engine.onRoomResize = (id, w, d, x, y, z) => {
       if (store.placedRooms[id]) {
@@ -212,6 +213,7 @@ onMounted(() => {
         store.placedRooms[id].x = x;
         store.placedRooms[id].y = y;
         store.placedRooms[id].z = z;
+        store.commitRooms();
       }
     };
     engine.onRoomSelect = (id) => {
