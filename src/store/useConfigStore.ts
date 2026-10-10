@@ -21,6 +21,23 @@ import {
 import { eaveLiftMm, gablePitchDegrees } from './roof';
 import { floorAreaSqMeters } from './area';
 import { isLoftRoom } from '../three-engine/loftLevel';
+import {
+  COMPASS_FACINGS,
+  clampSunHour,
+  type CompassFacing
+} from '../three-engine/sunPosition';
+
+export type { CompassFacing };
+
+/** Camera pose restored by the toolbar reset for the ordinary outside view. */
+export type CameraView = {
+  x: number;
+  y: number;
+  z: number;
+  tx: number;
+  ty: number;
+  tz: number;
+};
 
 export type ViewMode = 'utsida' | 'insida' | 'blueprint';
 export type CategoryKey = 'size' | 'roof' | 'loft' | 'interior' | 'doors' | 'windows' | 'gates' | 'extras';
@@ -219,7 +236,8 @@ export const ROOF_OPTIONS: OptionItem[] = [
 ];
 
 export type LoftCount = 'ett' | 'tva';
-export type LoftPlacement = 'vanster' | 'hoger';
+export const LOFT_PLACEMENTS = ['vanster', 'hoger', 'fram', 'bak'] as const;
+export type LoftPlacement = (typeof LOFT_PLACEMENTS)[number];
 export type LoftTab = 'planlosning' | 'golv';
 export type LoftStairType = 'straight' | 'curved';
 
@@ -509,6 +527,10 @@ export const useConfigStore = defineStore('config', () => {
   const terraceCeiling = ref(false);
   const bigTerrace = ref(false);
   const terraceSide = ref<TerraceSide>('front');
+  const facing = ref<CompassFacing>('south');
+  const sunHour = ref(12);
+  let sunHourAtSnapshot = 12;
+  const defaultView = ref<CameraView | null>(null);
 
   // Interior rooms
   const placedRooms = ref<Record<string, { type: string; w: number; d: number; x: number; y: number; z: number }>>({});
@@ -552,6 +574,25 @@ export const useConfigStore = defineStore('config', () => {
   const history = ref<string[]>([]);
   const historyIndex = ref<number>(-1);
 
+  function parseCameraView(value: unknown): CameraView | null {
+    if (!value || typeof value !== 'object') return null;
+    const record = value as Record<string, unknown>;
+    const numbers = [record.x, record.y, record.z, record.tx, record.ty, record.tz].map(Number);
+    if (numbers.some((entry) => !Number.isFinite(entry) || Math.abs(entry) > 80)) return null;
+    return {
+      x: numbers[0],
+      y: numbers[1],
+      z: numbers[2],
+      tx: numbers[3],
+      ty: numbers[4],
+      tz: numbers[5]
+    };
+  }
+
+  function viewsMatch(a: CameraView, b: CameraView) {
+    return (['x', 'y', 'z', 'tx', 'ty', 'tz'] as const).every((key) => Math.abs(a[key] - b[key]) < 0.01);
+  }
+
   function houseState() {
     return {
       selectedSizeId: selectedSizeId.value,
@@ -575,6 +616,9 @@ export const useConfigStore = defineStore('config', () => {
       terraceCeiling: terraceCeiling.value,
       bigTerrace: bigTerrace.value,
       terraceSide: terraceSide.value,
+      facing: facing.value,
+      sunHour: sunHour.value,
+      defaultView: defaultView.value ? { ...defaultView.value } : null,
       activeMaterial: activeMaterial.value,
       savedPaints: savedPaints.value,
       activePaintId: activePaintId.value,
@@ -632,7 +676,7 @@ export const useConfigStore = defineStore('config', () => {
         activeLoft.value = data.activeLoft;
       }
       if (data.loftCount) loftCount.value = data.loftCount;
-      if (data.loftPlacement) loftPlacement.value = data.loftPlacement;
+      if (LOFT_PLACEMENTS.includes(data.loftPlacement)) loftPlacement.value = data.loftPlacement;
       if (data.selectedLoftSize) selectedLoftSize.value = data.selectedLoftSize;
       if (data.hasLoftStair !== undefined) hasLoftStair.value = data.hasLoftStair;
       loftStairType.value = data.loftStairType === 'curved' ? 'curved' : 'straight';
@@ -647,6 +691,10 @@ export const useConfigStore = defineStore('config', () => {
       if (data.terraceSide === 'front' || data.terraceSide === 'back' || data.terraceSide === 'left' || data.terraceSide === 'right') {
         terraceSide.value = data.terraceSide;
       }
+      facing.value = COMPASS_FACINGS.includes(data.facing) ? data.facing : 'south';
+      sunHour.value = clampSunHour(typeof data.sunHour === 'number' ? data.sunHour : 12);
+      sunHourAtSnapshot = sunHour.value;
+      defaultView.value = parseCameraView(data.defaultView);
       activeMaterial.value = MATERIAL_OPTIONS.some((item) => item.id === data.activeMaterial)
         ? data.activeMaterial
         : 'wood';
@@ -1024,6 +1072,32 @@ export const useConfigStore = defineStore('config', () => {
     saveSnapshot();
   }
 
+  function setFacing(next: CompassFacing) {
+    if (facing.value === next) return;
+    facing.value = next;
+    saveSnapshot();
+  }
+
+  function previewSunHour(hour: number) {
+    sunHour.value = clampSunHour(hour);
+  }
+
+  function commitSunHour(hour: number) {
+    const next = clampSunHour(hour);
+    sunHour.value = next;
+    if (next === sunHourAtSnapshot) return;
+    sunHourAtSnapshot = next;
+    saveSnapshot();
+  }
+
+  function markDefaultView(view: CameraView) {
+    const next = parseCameraView(view);
+    if (!next) return;
+    if (defaultView.value && viewsMatch(defaultView.value, next)) return;
+    defaultView.value = next;
+    saveSnapshot();
+  }
+
   function setTerraceSide(side: TerraceSide) {
     if (terraceSide.value === side && bigTerrace.value && !terrace.value && !terraceCeiling.value) return;
     terraceSide.value = side;
@@ -1141,6 +1215,10 @@ export const useConfigStore = defineStore('config', () => {
 
   function setNotePin(id: string, pin: { x: number; y: number; z: number; nx?: number; ny?: number; nz?: number } | null) {
     replaceNote(id, { pin: pin ? parseNotePin(pin) : null });
+  }
+
+  function resizeNote(id: string, width: number, height: number) {
+    replaceNote(id, { width, height });
   }
 
   function setNotePlanes(camera: string, planes: Record<string, { transform: string; visible: boolean }>) {
@@ -1372,6 +1450,9 @@ export const useConfigStore = defineStore('config', () => {
     terraceCeiling,
     bigTerrace,
     terraceSide,
+    facing,
+    sunHour,
+    defaultView,
     currentSize,
     currentMaterial,
     dimensions,
@@ -1419,6 +1500,10 @@ export const useConfigStore = defineStore('config', () => {
     setTerraceCeiling,
     setBigTerrace,
     setTerraceSide,
+    setFacing,
+    previewSunHour,
+    commitSunHour,
+    markDefaultView,
     selectMaterial,
     selectPanelOrientation,
     selectCladdingSize,
@@ -1461,6 +1546,7 @@ export const useConfigStore = defineStore('config', () => {
     setNoteLink,
     moveNote,
     setNotePin,
+    resizeNote,
     commitNotes,
     toggleNotes,
     setNoteAnchors

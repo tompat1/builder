@@ -6,6 +6,7 @@ import {
   LOFT_JOIST,
   LOFT_MIN_ABOVE_FLOOR,
   doorFrameTop,
+  loftEndPoint,
   loftJoistTop,
   curvedLoftStair,
   loftStairOpening,
@@ -113,6 +114,18 @@ test('each stair type gets a floor opening that fits inside the loft', () => {
   const compact = loftStairOpening('curved', 1.2, 1.5);
   assert.ok(compact.width < 1.2);
   assert.ok(compact.depth < 1.5);
+});
+
+test('a front loft sits on the front wall, and a back loft sits on the back wall', () => {
+  const depth = 4.95;
+  const wall = 0.18;
+  const outer = -depth / 2 + wall;
+  const front = loftEndPoint('fram', outer, 0);
+  const back = loftEndPoint('bak', outer, 0);
+  assert.ok(Math.abs(front.z - (depth / 2 - wall)) < 1e-6);
+  assert.ok(Math.abs(front.x) < 1e-6);
+  assert.ok(Math.abs(back.z - (-depth / 2 + wall)) < 1e-6);
+  assert.ok(Math.abs(back.x) < 1e-6);
 });
 
 test('the straight stair lands on the deck and stays clear of the front wall', () => {

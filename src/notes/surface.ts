@@ -13,10 +13,27 @@ export interface NoteAxes {
 }
 
 const NOTE_WIDTH_M = 1.6;
-const NOTE_WIDTH_PX = 176;
+/** Fresh paper width in CSS pixels. Keep this equal to NOTE_WIDTH in board.ts. */
+const NOTE_PAPER_PX = 176;
 
 /** World size of the paper divided by its CSS width, so the sheet stays on the wall. */
-export const NOTE_SURFACE_SCALE = NOTE_WIDTH_M / NOTE_WIDTH_PX;
+export const NOTE_SURFACE_SCALE = NOTE_WIDTH_M / NOTE_PAPER_PX;
+
+/** Wall and roof faces are square to the house. A noisy hit should not tilt the sheet. */
+export function stickFacing(normal: NoteNormal): NoteNormal {
+  const length = Math.hypot(normal.x, normal.y, normal.z) || 1;
+  const x = normal.x / length;
+  const y = normal.y / length;
+  const z = normal.z / length;
+  const ax = Math.abs(x);
+  const ay = Math.abs(y);
+  const az = Math.abs(z);
+  const max = Math.max(ax, ay, az);
+  if (max < 0.92) return { x, y, z };
+  if (ax === max) return { x: Math.sign(x) || 1, y: 0, z: 0 };
+  if (ay === max) return { x: 0, y: Math.sign(y) || 1, z: 0 };
+  return { x: 0, y: 0, z: Math.sign(z) || 1 };
+}
 
 /** A small roll so each sheet is not perfectly square to the boards. */
 export function noteTiltRadians(id: string) {

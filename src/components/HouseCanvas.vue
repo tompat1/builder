@@ -44,10 +44,12 @@ import { useConfigStore } from '../store/useConfigStore';
 import type { RoofId } from '../store/roof';
 import { noteTargetId } from '../notes/board';
 import { fitRoom, innerHalf } from '../three-engine/roomWalls';
+import { useLabels } from '../i18n';
 import Cms from './Cms.vue';
 
 const canvasContainer = ref<HTMLElement | null>(null);
 const store = useConfigStore();
+const { t } = useLabels();
 let engine: HouseScene | null = null;
 const showDragHint = ref(false);
 
@@ -183,6 +185,8 @@ onMounted(() => {
     engine.setNoteTargets(noteTargetIds());
     syncNotePins();
 
+    engine.setDaylight(store.sunHour, store.facing, compassLabels());
+    engine.setDefaultView(store.defaultView);
     if (typeof window !== 'undefined') {
       (window as any).__houseScene = engine;
     }
@@ -198,6 +202,15 @@ function onRoomKey(event: KeyboardEvent) {
   if (store.selectedCategory !== 'interior' || !store.selectedRoomId) return;
   event.preventDefault();
   store.removePlacedRoom(store.selectedRoomId);
+}
+
+function compassLabels() {
+  return {
+    north: t('tools.letterNorth'),
+    east: t('tools.letterEast'),
+    south: t('tools.letterSouth'),
+    west: t('tools.letterWest')
+  };
 }
 
 function syncPlacedRooms() {
@@ -349,6 +362,28 @@ watch(
 );
 
 watch(
+  () => [
+    store.sunHour,
+    store.facing,
+    t('tools.letterNorth'),
+    t('tools.letterEast'),
+    t('tools.letterSouth'),
+    t('tools.letterWest')
+  ],
+  () => {
+    engine?.setDaylight(store.sunHour, store.facing, compassLabels());
+  }
+);
+
+watch(
+  () => store.defaultView,
+  (view) => {
+    engine?.setDefaultView(view);
+  },
+  { deep: true }
+);
+
+watch(
   [
     () => store.doorCanopy,
     () => store.terrace,
@@ -412,6 +447,10 @@ defineExpose({
   getCanvas: () => engine?.getCanvas(),
   zoomIn: () => engine?.zoomIn(),
   zoomOut: () => engine?.zoomOut(),
-  resetView: () => engine?.resetView()
+  resetView: () => engine?.resetView(),
+  markView: () => {
+    const view = engine?.captureView();
+    if (view) store.markDefaultView(view);
+  }
 });
 </script>

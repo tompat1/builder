@@ -1,6 +1,12 @@
 /** Paper notes on the house board. A note sits on the board, or follows one part of the house. */
 
 export const NOTE_COLORS = ['sand', 'moss', 'sky'] as const;
+export const NOTE_WIDTH = 176;
+export const NOTE_HEIGHT = 156;
+export const NOTE_WIDTH_MIN = 132;
+export const NOTE_WIDTH_MAX = 280;
+export const NOTE_HEIGHT_MIN = 120;
+export const NOTE_HEIGHT_MAX = 260;
 export type NoteColor = (typeof NOTE_COLORS)[number];
 export const NOTE_LIMIT = 24;
 export const NOTE_TEXT_LIMIT = 240;
@@ -35,6 +41,9 @@ export interface HouseNote {
   offsetY: number;
   link: NoteLink;
   pin: NotePin | null;
+  /** Paper size in CSS pixels. The stuck sheet uses the same box. */
+  width: number;
+  height: number;
 }
 
 const WALLS = new Set<NoteWall>(['front', 'back', 'left', 'right']);
@@ -120,7 +129,9 @@ export function acceptNotes(value: unknown): HouseNote[] {
       offsetX: clamp(Number(row.offsetX), -480, 480, 20),
       offsetY: clamp(Number(row.offsetY), -480, 480, -128),
       link: parseNoteLink(row.link),
-      pin: parseNotePin(row.pin)
+      pin: parseNotePin(row.pin),
+      width: clamp(Number(row.width), NOTE_WIDTH_MIN, NOTE_WIDTH_MAX, NOTE_WIDTH),
+      height: clamp(Number(row.height), NOTE_HEIGHT_MIN, NOTE_HEIGHT_MAX, NOTE_HEIGHT)
     });
     if (notes.length >= NOTE_LIMIT) break;
   }
@@ -137,6 +148,8 @@ export function freshNote(index: number, id: string): HouseNote {
     offsetX: 64,
     offsetY: -56,
     link: { kind: 'board' },
-    pin: null
+    pin: null,
+    width: NOTE_WIDTH,
+    height: NOTE_HEIGHT
   };
 }

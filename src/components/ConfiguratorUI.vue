@@ -23,6 +23,7 @@
       @zoom-in="$emit('zoom-in')"
       @zoom-out="$emit('zoom-out')"
       @reset-view="$emit('reset-view')"
+      @mark-view="$emit('mark-view')"
     />
 
     <!-- Right Sidebar / Mobile Bottom Sheet -->
@@ -120,5 +121,6 @@ defineEmits<{
   (e: 'zoom-in'): void;
   (e: 'zoom-out'): void;
   (e: 'reset-view'): void;
+  (e: 'mark-view'): void;
 }>();
 </script>

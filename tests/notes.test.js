@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { acceptNotes, linkFromValue, linkToValue, noteTargetId, parseNotePin } from '../src/notes/board.ts';
-import { inferNoteNormal, noteAxes } from '../src/notes/surface.ts';
+import { acceptNotes, linkFromValue, linkToValue, NOTE_WIDTH, noteTargetId, parseNotePin } from '../src/notes/board.ts';
+import { inferNoteNormal, noteAxes, NOTE_SURFACE_SCALE, stickFacing } from '../src/notes/surface.ts';
 
 test('a note keeps its writing and a link to one part of the house', () => {
   const notes = acceptNotes([
@@ -39,6 +39,28 @@ test('a note keeps its writing and a link to one part of the house', () => {
   assert.equal(notes[1].x, 90);
   assert.equal(notes[1].y, 2);
   assert.equal(notes[1].link.kind, 'board');
+  assert.equal(notes[0].width, 176);
+  assert.equal(notes[1].height, 156);
+});
+
+test('a note keeps a size inside the paper limits', () => {
+  const notes = acceptNotes([
+    { id: 'note_sizednote', text: 'Stor', width: 240, height: 200 },
+    { id: 'note_toobig001', text: 'För stor', width: 900, height: 12 }
+  ]);
+  assert.equal(notes[0].width, 240);
+  assert.equal(notes[0].height, 200);
+  assert.equal(notes[1].width, 280);
+  assert.equal(notes[1].height, 120);
+});
+
+test('a fresh sheet is 1.6 metres wide on the wall', () => {
+  assert.equal(Math.round(NOTE_SURFACE_SCALE * NOTE_WIDTH * 1000), 1600);
+});
+
+test('a wall hit keeps a square facing', () => {
+  assert.deepEqual(stickFacing({ x: 0.04, y: -0.02, z: 0.99 }), { x: 0, y: 0, z: 1 });
+  assert.deepEqual(stickFacing({ x: 0.2, y: 0.98, z: 0.05 }).y, 1);
 });
 
 test('a link value names the board or one house part', () => {

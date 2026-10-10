@@ -593,41 +593,27 @@
               </div>
             </div>
 
-            <!-- 2. Placering (Vänster / Höger) -->
+            <!-- 2. Placering (vänster, höger, fram, bak) -->
             <div v-if="store.loftCount === 'ett'">
               <h5 class="text-xs font-bold text-slate-800 mb-2"><Cms k="category.placement" /></h5>
-              <div class="flex gap-2">
+              <div class="grid grid-cols-2 gap-2">
                 <button
+                  v-for="place in loftPlaces"
+                  :key="place.id"
                   type="button"
-                  id="loft-place-vanster"
-                  @click="store.setLoftPlacement('vanster')"
+                  :id="`loft-place-${place.id}`"
+                  @click="store.setLoftPlacement(place.id)"
                   :class="[
-                    'flex-1 py-2 px-3 rounded-lg border text-xs font-bold flex items-center justify-center gap-1.5 transition-all',
-                    store.loftPlacement === 'vanster'
+                    'py-2 px-3 rounded-lg border text-xs font-bold flex items-center justify-center gap-1.5 transition-all',
+                    store.loftPlacement === place.id
                       ? 'border-emerald-800 bg-emerald-800 text-white shadow-xs'
                       : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400'
                   ]"
                 >
-                  <svg v-if="store.loftPlacement === 'vanster'" class="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                  <svg v-if="store.loftPlacement === place.id" class="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
-                  <Cms k="category.left" />
-                </button>
-                <button
-                  type="button"
-                  id="loft-place-hoger"
-                  @click="store.setLoftPlacement('hoger')"
-                  :class="[
-                    'flex-1 py-2 px-3 rounded-lg border text-xs font-bold flex items-center justify-center gap-1.5 transition-all',
-                    store.loftPlacement === 'hoger'
-                      ? 'border-emerald-800 bg-emerald-800 text-white shadow-xs'
-                      : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400'
-                  ]"
-                >
-                  <svg v-if="store.loftPlacement === 'hoger'" class="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                  <Cms k="category.right" />
+                  <Cms :k="place.label" />
                 </button>
               </div>
             </div>
@@ -1420,6 +1406,7 @@ import {
   ROOF_COVERINGS,
   type RoofCovering,
   LOFT_OPTIONS,
+  type LoftPlacement,
   DOORS_OPTIONS,
   WINDOWS_OPTIONS,
   GATES_OPTIONS,
@@ -1430,6 +1417,12 @@ import CustomPaint from './CustomPaint.vue';
 import { paintTitle, readableInk } from '../color/paint';
 
 const store = useConfigStore();
+const loftPlaces: { id: LoftPlacement; label: string }[] = [
+  { id: 'vanster', label: 'category.left' },
+  { id: 'hoger', label: 'category.right' },
+  { id: 'fram', label: 'category.front' },
+  { id: 'bak', label: 'category.back' }
+];
 const { t, catalog, money, delta, locale } = useLabels();
 const sizeTab = ref<'kulor' | 'panel'>('kulor');
 const doorTab = ref<'single' | 'double' | 'sliding'>('single');

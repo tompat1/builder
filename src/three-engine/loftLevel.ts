@@ -56,6 +56,19 @@ export function loftWalkY(wallHeight: number): number {
   return loftJoistTop(wallHeight) + LOFT_FLOORBOARD;
 }
 
+/** Y rotation that turns a left-hand loft into one against the front or back wall. */
+export function loftEndRotation(placement: 'fram' | 'bak') {
+  return placement === 'fram' ? Math.PI / 2 : -Math.PI / 2;
+}
+
+/** A point built as a left loft, with width and depth swapped, landed in the house. */
+export function loftEndPoint(placement: 'fram' | 'bak', x: number, z: number) {
+  const turn = loftEndRotation(placement);
+  const c = Math.cos(turn);
+  const s = Math.sin(turn);
+  return { x: x * c + z * s, z: -x * s + z * c };
+}
+
 /** Keep the loft stair near the original 58° pitch as the rise grows. */
 export function loftStairRun(rise: number, interiorDepth: number): number {
   const preferred = rise / Math.tan((58 * Math.PI) / 180);

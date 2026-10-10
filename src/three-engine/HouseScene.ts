@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { PULPET_PITCH_DEG, type MaterialKey, type WallSlot, type LoftPlacement, type LoftCount, type LoftStairType, type PanelOrientation, type RoofCovering } from '../store/useConfigStore';
+import { PULPET_PITCH_DEG, type CameraView, type MaterialKey, type WallSlot, type LoftPlacement, type LoftCount, type LoftStairType, type PanelOrientation, type RoofCovering } from '../store/useConfigStore';
+import { compassAxes, headingForFacing, sunPlacement, type CompassFacing } from './sunPosition';
 import { eaveLiftMm, gablePitchDegrees, isGableRoof, type RoofId } from '../store/roof';
-import { inferNoteNormal, noteAxes, noteCameraTransform, noteSheetTransform, noteTiltRadians, NOTE_SURFACE_SCALE } from '../notes/surface';
+import { inferNoteNormal, noteAxes, noteCameraTransform, noteSheetTransform, noteTiltRadians, stickFacing, NOTE_SURFACE_SCALE } from '../notes/surface';
 import { paintBoards } from '../color/paint';
-import { INTERIOR_FLOOR_TOP, LOFT_FLOORBOARD, curvedLoftStair, loftJoistTop, loftStairOpening, loftStairRun, loftStairTreads, straightLoftStair, isLoftRoom } from './loftLevel';
+import { INTERIOR_FLOOR_TOP, LOFT_FLOORBOARD, curvedLoftStair, loftEndRotation, loftJoistTop, loftStairOpening, loftStairRun, loftStairTreads, straightLoftStair, isLoftRoom } from './loftLevel';
 import { ceilingStations, loftCeilingY, sliceStations, type CeilingStation, type RoofSlope } from './roofClearance';
 import { PORTRAIT_PANORAMA, portraitPane } from './windowFit';
 import { fitRoom, innerHalf, roomFootprint, shellSides, type ShellSides } from './roomWalls';
@@ -83,6 +84,8 @@ export class HouseScene {
   private houseGroup: THREE.Group;
   private roofGroup: THREE.Group;
   private loftGroup: THREE.Group;
+  /** Pieces of a front or back loft go here so the whole deck can turn. */
+  private loftBuildParent: THREE.Group | null = null;
   private wallsGroup: THREE.Group;
   private framingGroup: THREE.Group;
   private trussesGroup: THREE.Group;
@@ -92,6 +95,17 @@ export class HouseScene {
   private contactShadow: THREE.Mesh | null = null;
   private hoverBox: THREE.Object3D | null = null;
   private gridHelper: THREE.GridHelper | null = null;
+  private sunLight!: THREE.DirectionalLight;
+  private skyFill!: THREE.DirectionalLight;
+  private sunTarget!: THREE.Object3D;
+  private sunOrb!: THREE.Mesh;
+  private compassGroup!: THREE.Group;
+  private sunHour = 12;
+  private facingDeg = 180;
+  private sunUp = true;
+  private compassKey = '';
+  private compassLabels = { north: 'N', east: 'E', south: 'S', west: 'W' };
+  private defaultView: CameraView | null = null;
 
   private interactivePanels: THREE.Mesh[] = [];
   private roomDragHandles: THREE.Mesh[] = [];
@@ -644,29 +658,47 @@ export class HouseScene {
     const ambientLight = new THREE.AmbientLight(0xfffaf3, 0.28);
     this.scene.add(ambientLight);
 
-    const sunLight = new THREE.DirectionalLight(0xfff3e4, 1.55);
-    sunLight.position.set(12, 22, 10);
-    sunLight.castShadow = true;
-    sunLight.shadow.mapSize.width = 2048;
-    sunLight.shadow.mapSize.height = 2048;
-    sunLight.shadow.camera.near = 0.5;
-    sunLight.shadow.camera.far = 60;
-    sunLight.shadow.camera.left = -14;
-    sunLight.shadow.camera.right = 14;
-    sunLight.shadow.camera.top = 14;
-    sunLight.shadow.camera.bottom = -14;
-    sunLight.shadow.bias = -0.0002;
-    sunLight.shadow.normalBias = 0.025;
-    sunLight.shadow.radius = 5;
-    this.scene.add(sunLight);
+    this.sunTarget = new THREE.Object3D();
+    this.sunTarget.position.set(0, 1.4, 0);
+    this.scene.add(this.sunTarget);
+
+    this.sunLight = new THREE.DirectionalLight(0xfff3e4, 1.55);
+    this.sunLight.target = this.sunTarget;
+    this.sunLight.castShadow = true;
+    this.sunLight.shadow.mapSize.width = 2048;
+    this.sunLight.shadow.mapSize.height = 2048;
+    this.sunLight.shadow.camera.near = 0.5;
+    this.sunLight.shadow.camera.far = 80;
+    this.sunLight.shadow.camera.left = -18;
+    this.sunLight.shadow.camera.right = 18;
+    this.sunLight.shadow.camera.top = 18;
+    this.sunLight.shadow.camera.bottom = -18;
+    this.sunLight.shadow.bias = -0.0002;
+    this.sunLight.shadow.normalBias = 0.025;
+    this.sunLight.shadow.radius = 5;
+    this.sunLight.shadow.camera.updateProjectionMatrix();
+    this.scene.add(this.sunLight);
+
+    this.sunOrb = new THREE.Mesh(
+      new THREE.SphereGeometry(0.16, 20, 12),
+      new THREE.MeshBasicMaterial({ color: '#ffb15a', toneMapped: false })
+    );
+    this.sunOrb.castShadow = false;
+    this.sunOrb.receiveShadow = false;
+    this.sunOrb.raycast = () => {};
+    this.scene.add(this.sunOrb);
+
+    this.compassGroup = new THREE.Group();
+    this.scene.add(this.compassGroup);
 
     const interiorFill = new THREE.PointLight(0xfff6ea, 0.55, 14, 2);
     interiorFill.position.set(0, 1.7, 0);
     this.scene.add(interiorFill);
 
-    const skyFill = new THREE.DirectionalLight(0xdbeafe, 0.28);
-    skyFill.position.set(-10, 12, -8);
-    this.scene.add(skyFill);
+    this.skyFill = new THREE.DirectionalLight(0xdbeafe, 0.28);
+    this.skyFill.position.set(-10, 12, -8);
+    this.scene.add(this.skyFill);
+    this.placeSun();
 
     // Ground platform
     const groundGeo = new THREE.PlaneGeometry(70, 70);
@@ -683,6 +715,179 @@ export class HouseScene {
     const grid = new THREE.GridHelper(40, 40, '#cbd5e1', '#e2e8f0');
     grid.position.y = 0;
     this.scene.add(grid);
+  }
+
+  /** Move the sun and its shadow. The house mesh stays put; the compass carries the bearing. */
+  public setDaylight(
+    hour: number,
+    facing: CompassFacing,
+    labels?: { north: string; east: string; south: string; west: string }
+  ) {
+    this.sunHour = hour;
+    this.facingDeg = headingForFacing(facing);
+    if (labels) this.compassLabels = labels;
+    this.placeSun();
+    this.placeCompass();
+  }
+
+  public setDefaultView(view: CameraView | null) {
+    this.defaultView = view
+      ? { x: view.x, y: view.y, z: view.z, tx: view.tx, ty: view.ty, tz: view.tz }
+      : null;
+  }
+
+  public captureView(): CameraView {
+    return {
+      x: this.camera.position.x,
+      y: this.camera.position.y,
+      z: this.camera.position.z,
+      tx: this.controls.target.x,
+      ty: this.controls.target.y,
+      tz: this.controls.target.z
+    };
+  }
+
+  private placeSun() {
+    const placement = sunPlacement(this.sunHour, this.facingDeg);
+    const dir = new THREE.Vector3(placement.x, placement.y, placement.z);
+    this.sunUp = placement.altitude > 0.02;
+    const aim = this.sunUp
+      ? dir
+      : new THREE.Vector3(dir.x, 0.05, dir.z).normalize();
+    this.sunLight.position.copy(this.sunTarget.position).addScaledVector(aim, 28);
+    const gain = Math.min(1, Math.max(0, placement.y) / 0.5);
+    const warm = new THREE.Color('#ff9a3c');
+    const noon = new THREE.Color('#fff3e4');
+    this.sunLight.color.copy(warm).lerp(noon, gain);
+    this.sunLight.intensity = this.sunUp ? 0.4 + 1.3 * gain * gain : 0.08;
+    this.sunLight.castShadow = this.sunUp;
+    this.skyFill.position.set(-dir.x * 14, 12, -dir.z * 14);
+    this.sunOrb.position.copy(dir).multiplyScalar(8);
+    this.syncDaylightChrome();
+  }
+
+  private syncDaylightChrome() {
+    const show = this.currentConfig.viewMode === 'utsida';
+    this.compassGroup.visible = show;
+    this.sunOrb.visible = show && this.sunUp;
+  }
+
+  private clearCompass() {
+    for (const child of [...this.compassGroup.children]) {
+      this.compassGroup.remove(child);
+      child.traverse((node) => {
+        const drawn = node as THREE.Mesh;
+        drawn.geometry?.dispose();
+        const material = drawn.material;
+        if (!material || Array.isArray(material)) return;
+        const textured = material as THREE.Material & { map?: THREE.Texture | null };
+        textured.map?.dispose();
+        material.dispose();
+      });
+    }
+  }
+
+  private compassSprite(letter: string, color: string) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return new THREE.Sprite();
+    ctx.clearRect(0, 0, 128, 128);
+    ctx.fillStyle = color;
+    ctx.font = '700 78px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(letter, 64, 70);
+    const map = new THREE.CanvasTexture(canvas);
+    map.colorSpace = THREE.SRGBColorSpace;
+    const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
+      map,
+      transparent: true,
+      depthWrite: false
+    }));
+    sprite.scale.set(0.32, 0.32, 1);
+    sprite.raycast = () => {};
+    return sprite;
+  }
+
+  private placeCompass() {
+    const labels = this.compassLabels;
+    const key = [
+      this.facingDeg,
+      Math.round(this.currentConfig.depthMm),
+      labels.north,
+      labels.east,
+      labels.south,
+      labels.west
+    ].join('|');
+    const depth = this.currentConfig.depthMm / 1000;
+    // In front of the door, where the starting camera already looks.
+    this.compassGroup.position.set(1.35, 0, depth / 2 + 2.15);
+    if (key === this.compassKey && this.compassGroup.children.length > 0) {
+      this.syncDaylightChrome();
+      return;
+    }
+    this.compassKey = key;
+    this.clearCompass();
+
+    const ignore = () => {};
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(0.58, 0.72, 48),
+      new THREE.MeshBasicMaterial({
+        color: '#173D35',
+        side: THREE.DoubleSide,
+        polygonOffset: true,
+        polygonOffsetFactor: -2,
+        polygonOffsetUnits: -2
+      })
+    );
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.y = 0.035;
+    ring.raycast = ignore;
+    this.compassGroup.add(ring);
+
+    const heading = (this.facingDeg * Math.PI) / 180;
+    const { north, east } = compassAxes(this.facingDeg);
+    const needle = new THREE.Mesh(
+      new THREE.BoxGeometry(0.055, 0.02, 0.5),
+      new THREE.MeshBasicMaterial({ color: '#FF5A00' })
+    );
+    needle.rotation.y = heading;
+    needle.position.set(north.x * 0.22, 0.05, north.z * 0.22);
+    needle.raycast = ignore;
+    this.compassGroup.add(needle);
+
+    const tail = new THREE.Mesh(
+      new THREE.BoxGeometry(0.045, 0.016, 0.32),
+      new THREE.MeshBasicMaterial({ color: '#94a3b8' })
+    );
+    tail.rotation.y = heading;
+    tail.position.set(-north.x * 0.16, 0.05, -north.z * 0.16);
+    tail.raycast = ignore;
+    this.compassGroup.add(tail);
+
+    const cap = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.065, 0.065, 0.03, 16),
+      new THREE.MeshBasicMaterial({ color: '#173D35' })
+    );
+    cap.position.y = 0.07;
+    cap.raycast = ignore;
+    this.compassGroup.add(cap);
+
+    const radius = 0.78;
+    const marks: { letter: string; x: number; z: number; color: string }[] = [
+      { letter: labels.north, x: north.x, z: north.z, color: '#FF5A00' },
+      { letter: labels.south, x: -north.x, z: -north.z, color: '#173D35' },
+      { letter: labels.east, x: east.x, z: east.z, color: '#173D35' },
+      { letter: labels.west, x: -east.x, z: -east.z, color: '#173D35' }
+    ];
+    for (const mark of marks) {
+      const sprite = this.compassSprite(mark.letter, mark.color);
+      sprite.position.set(mark.x * radius, 0.28, mark.z * radius);
+      this.compassGroup.add(sprite);
+    }
+    this.syncDaylightChrome();
   }
 
   private roomPreviewGroup: THREE.Object3D | null = null;
@@ -1276,6 +1481,7 @@ export class HouseScene {
     this.buildDimensionLines(w, d, h);
     this.buildContactShadow(w, d);
     this.refreshLoftRooms();
+    this.placeCompass();
 
     // View mode visibility
     this.applyViewMode();
@@ -2012,15 +2218,14 @@ export class HouseScene {
       }
     }
 
-    // Check collision with staircase
-    for (const child of this.loftGroup.children) {
-      if (child.userData.type === 'staircase') {
-        const stairBox = new THREE.Box3().setFromObject(child);
-        if (box.intersectsBox(stairBox)) {
-          return false;
-        }
-      }
-    }
+    // Check collision with staircase. A front or back flight sits inside a turned group.
+    let hitsStair = false;
+    this.loftGroup.traverse((child) => {
+      if (hitsStair || child.userData.type !== 'staircase') return;
+      const stairBox = new THREE.Box3().setFromObject(child);
+      if (box.intersectsBox(stairBox)) hitsStair = true;
+    });
+    if (hitsStair) return false;
 
     return true;
   }
@@ -2259,6 +2464,7 @@ export class HouseScene {
       group.add(bracket);
     }
 
+    group.userData.skipNote = true;
     this.wallsGroup.add(group);
   }
 
@@ -2360,6 +2566,7 @@ export class HouseScene {
       }
     }
 
+    group.userData.skipNote = true;
     this.wallsGroup.add(group);
   }
 
@@ -3266,11 +3473,27 @@ export class HouseScene {
     }
   }
 
-  // --- Loft Construction with Left/Right Placement, Area Sizes and 3D Stair ---
-  private buildLoft(w: number, d: number, h: number, wt: number) {
+  private addLoftPiece(object: THREE.Object3D) {
+    (this.loftBuildParent ?? this.loftGroup).add(object);
+  }
+
+  // --- Loft Construction with side or end placement, area sizes and a 3D stair ---
+  private buildLoft(width: number, depth: number, h: number, wt: number) {
     const loftArea = this.currentConfig.loftAreaSqMeters ?? 10.95;
     const placement = this.currentConfig.loftPlacement ?? 'vanster';
     const isTwoLofts = this.currentConfig.loftCount === 'tva';
+    const endOn = !isTwoLofts && (placement === 'fram' || placement === 'bak');
+    // A front or back deck is the left-hand loft, built with the axes swapped, then turned.
+    const w = endOn ? depth : width;
+    const d = endOn ? width : depth;
+    const side: LoftPlacement = endOn ? 'vanster' : placement;
+    this.loftBuildParent = this.loftGroup;
+    if (endOn) {
+      const host = new THREE.Group();
+      host.rotation.y = loftEndRotation(placement);
+      this.loftGroup.add(host);
+      this.loftBuildParent = host;
+    }
 
     // Total house footprint reference for size-30 is 27.38 m2
     const houseAreaRef = this.currentConfig.widthMm === 4800 ? 13.7
@@ -3403,7 +3626,7 @@ export class HouseScene {
         }
       }
 
-      this.loftGroup.add(sectionGroup);
+      this.addLoftPiece(sectionGroup);
     };
 
     if (isTwoLofts) {
@@ -3412,9 +3635,9 @@ export class HouseScene {
       buildSingleLoftSection(eachW, -w / 2 + wt, true, true);
       buildSingleLoftSection(eachW, w / 2 - wt - eachW, false, false);
     } else {
-      // Single loft: Left or Right placement
+      // Single loft: left, right, or a turned deck against the front or back
       const loftW = interiorW * areaFraction;
-      if (placement === 'vanster') {
+      if (side === 'vanster') {
         buildSingleLoftSection(loftW, -w / 2 + wt, true, true);
       } else {
         buildSingleLoftSection(loftW, w / 2 - wt - loftW, false, true);
@@ -3423,8 +3646,9 @@ export class HouseScene {
 
     // 4. Loft Stair (Lofttrappa i massiv furu) in 3D
     if (this.currentConfig.hasLoftStair) {
-      this.buildLoftStair(w, d, h, wt, loftElev, placement, isTwoLofts, areaFraction);
+      this.buildLoftStair(w, d, h, wt, loftElev, side, isTwoLofts, areaFraction);
     }
+    this.loftBuildParent = null;
   }
 
   // --- Solid Pine Loft Staircase / Ladder in 3D ---
@@ -3511,7 +3735,7 @@ export class HouseScene {
 
     stairGroup.position.set(flight.x, 0, 0);
     stairGroup.userData.type = 'staircase';
-    this.loftGroup.add(stairGroup);
+    this.addLoftPiece(stairGroup);
   }
 
   private loftStairPlan(
@@ -3618,7 +3842,7 @@ export class HouseScene {
     }
 
     stairGroup.userData.type = 'staircase';
-    this.loftGroup.add(stairGroup);
+    this.addLoftPiece(stairGroup);
   }
 
   // --- Dimension Lines with 3D/Screen Coordinate Projection ---
@@ -4477,41 +4701,80 @@ export class HouseScene {
     });
   }
 
-  /** The house surface under a screen point, or nothing when the point is on the empty canvas. */
-  public housePointAt(clientX: number, clientY: number) {
+  private rayFromScreen(clientX: number, clientY: number) {
     const rect = this.container.getBoundingClientRect();
-    if (rect.width < 1 || rect.height < 1) return null;
+    if (rect.width < 1 || rect.height < 1) return false;
     this.pickMouse.set(
       ((clientX - rect.left) / rect.width) * 2 - 1,
       -((clientY - rect.top) / rect.height) * 2 + 1
     );
     this.raycaster.setFromCamera(this.pickMouse, this.camera);
-    const hit = this.raycaster.intersectObjects([this.houseGroup], true).find((item) => {
-      let object: THREE.Object3D | null = item.object;
-      while (object) {
-        if (!object.visible) return false;
-        object = object.parent;
-      }
-      return true;
-    });
-    if (!hit) return null;
-    const point = hit.point;
-    const facing = { x: 0, y: 0, z: 1 };
-    if (hit.face) {
-      this.notePoint.copy(hit.face.normal).transformDirection(hit.object.matrixWorld);
-      if (this.notePoint.dot(this.raycaster.ray.direction) > 0) this.notePoint.negate();
-      facing.x = Math.round(this.notePoint.x * 1000) / 1000;
-      facing.y = Math.round(this.notePoint.y * 1000) / 1000;
-      facing.z = Math.round(this.notePoint.z * 1000) / 1000;
+    return true;
+  }
+
+  private hitIsVisible(item: THREE.Intersection) {
+    let object: THREE.Object3D | null = item.object;
+    while (object) {
+      if (!object.visible) return false;
+      object = object.parent;
     }
+    return true;
+  }
+
+  /** Terrace, porch roof, and door canopy are not part of the house shell. */
+  private skipsNotes(object: THREE.Object3D) {
+    let current: THREE.Object3D | null = object;
+    while (current) {
+      if (current.userData.skipNote) return true;
+      current = current.parent;
+    }
+    return false;
+  }
+
+  private facingOf(hit: THREE.Intersection) {
+    const facing = { x: 0, y: 0, z: 1 };
+    if (!hit.face) return facing;
+    this.notePoint.copy(hit.face.normal).transformDirection(hit.object.matrixWorld);
+    if (this.notePoint.dot(this.raycaster.ray.direction) > 0) this.notePoint.negate();
+    facing.x = this.notePoint.x;
+    facing.y = this.notePoint.y;
+    facing.z = this.notePoint.z;
+    return facing;
+  }
+
+  private pointFromHit(hit: THREE.Intersection, snapFacing: boolean) {
+    const point = hit.point;
+    const raw = this.facingOf(hit);
+    const facing = snapFacing ? stickFacing(raw) : raw;
     return {
       x: Math.round(point.x * 1000) / 1000,
       y: Math.round(point.y * 1000) / 1000,
       z: Math.round(point.z * 1000) / 1000,
-      nx: facing.x,
-      ny: facing.y,
-      nz: facing.z
+      nx: Math.round(facing.x * 1000) / 1000,
+      ny: Math.round(facing.y * 1000) / 1000,
+      nz: Math.round(facing.z * 1000) / 1000
     };
+  }
+
+  /** The house surface under a screen point, or nothing when the point is on the empty canvas. */
+  public housePointAt(clientX: number, clientY: number) {
+    if (!this.rayFromScreen(clientX, clientY)) return null;
+    const hit = this.raycaster.intersectObjects([this.houseGroup], true).find((item) => this.hitIsVisible(item));
+    if (!hit) return null;
+    return this.pointFromHit(hit, false);
+  }
+
+  /**
+   * Where a post-it may stick. Porch decks, posts, and canopies are skipped
+   * so the sheet lands on the wall or roof behind them.
+   */
+  public notePointAt(clientX: number, clientY: number) {
+    if (!this.rayFromScreen(clientX, clientY)) return null;
+    const hit = this.raycaster.intersectObjects([this.houseGroup], true).find((item) => {
+      return this.hitIsVisible(item) && !this.skipsNotes(item.object);
+    });
+    if (!hit) return null;
+    return this.pointFromHit(hit, true);
   }
 
   private anchorFor(id: string) {
@@ -4602,6 +4865,25 @@ export class HouseScene {
     this.onNotePlanes(camera, planes);
   }
 
+  /** A porch post is too thin to hide a whole sheet. The deck and roof still do. */
+  private noteOccluder(object: THREE.Object3D) {
+    let porch = false;
+    let current: THREE.Object3D | null = object;
+    while (current) {
+      if (current.userData.skipNote) porch = true;
+      current = current.parent;
+    }
+    if (!porch) return true;
+    const geometry = (object as THREE.Mesh).geometry;
+    if (!geometry) return true;
+    if (!geometry.boundingBox) geometry.computeBoundingBox();
+    const box = geometry.boundingBox;
+    if (!box) return true;
+    const size = [box.max.x - box.min.x, box.max.y - box.min.y, box.max.z - box.min.z];
+    const thin = size.filter((item) => item < 0.2).length >= 2;
+    return !thin;
+  }
+
   private noteBlocked(point: THREE.Vector3) {
     const direction = point.clone().sub(this.camera.position);
     const distance = direction.length();
@@ -4609,7 +4891,8 @@ export class HouseScene {
     direction.normalize();
     this.labelRaycaster.set(this.camera.position, direction);
     this.labelRaycaster.far = Math.max(distance - 0.15, 0.01);
-    return this.labelRaycaster.intersectObjects([this.wallsGroup, this.roofGroup], true).length > 0;
+    return this.labelRaycaster.intersectObjects([this.wallsGroup, this.roofGroup], true)
+      .some((hit) => this.noteOccluder(hit.object));
   }
 
   /** Move the green outline without rebuilding the house or moving the camera. */
@@ -4704,6 +4987,7 @@ export class HouseScene {
     this.controls.minDistance = inside ? 0.4 : 3.5;
     this.camera.near = inside ? 0.05 : 0.1;
     this.camera.updateProjectionMatrix();
+    this.syncDaylightChrome();
     this.controls.update();
   }
 
@@ -4715,8 +4999,18 @@ export class HouseScene {
     this.controls.target.set(0, 0.4, 0);
   }
 
-  /** Return the camera to the starting frame for the current view. */
+  /** Return the camera to the marked outside view, or the starting frame of this view. */
   public resetView() {
+    const marked = this.defaultView;
+    const outside = this.currentConfig.viewMode === 'utsida'
+      && !this.currentConfig.roofView
+      && !this.loftCutaway();
+    if (marked && outside) {
+      this.camera.position.set(marked.x, marked.y, marked.z);
+      this.controls.target.set(marked.tx, marked.ty, marked.tz);
+      this.controls.update();
+      return;
+    }
     this.applyViewMode();
   }
 

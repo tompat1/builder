@@ -10,6 +10,7 @@
       @zoom-in="canvasRef?.zoomIn()"
       @zoom-out="canvasRef?.zoomOut()"
       @reset-view="canvasRef?.resetView()"
+      @mark-view="canvasRef?.markView()"
     />
   </main>
 </template>

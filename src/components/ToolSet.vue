@@ -1,9 +1,54 @@
 <template>
   <div
-    class="pointer-events-auto absolute transition-all duration-300 flex flex-col gap-2 z-20"
+    class="pointer-events-auto absolute transition-all duration-300 flex flex-col items-start gap-2 z-20"
     :class="store.isFullscreen ? 'top-6 left-6 md:top-auto md:bottom-6 md:left-6' : 'top-20 left-3 md:top-auto md:bottom-6 md:left-6'"
     :aria-label="t('tools.label')"
   >
+    <div
+      id="sun-timebox"
+      class="bg-white/95 backdrop-blur-md rounded-2xl shadow-md border border-slate-200/80 px-2.5 py-2 w-[168px]"
+    >
+      <div class="flex items-center justify-between gap-2">
+        <span class="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+          <Cms k="tools.facing" />
+        </span>
+        <span id="sun-time-label" class="text-[11px] font-bold tabular-nums text-slate-900">{{ sunClock }}</span>
+      </div>
+      <div class="mt-1.5 grid grid-cols-4 gap-1" role="group" :aria-label="t('tools.facing')">
+        <button
+          v-for="bearing in bearings"
+          :key="bearing.id"
+          type="button"
+          :id="`facing-${bearing.id}`"
+          @click="store.setFacing(bearing.id)"
+          :aria-label="t(bearing.name)"
+          :aria-pressed="store.facing === bearing.id"
+          :class="[
+            'flex h-7 items-center justify-center rounded-lg border text-[11px] font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
+            store.facing === bearing.id
+              ? 'border-slate-900 bg-slate-900 text-white'
+              : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+          ]"
+        >
+          <Cms :k="bearing.letter" />
+        </button>
+      </div>
+      <label class="mt-2 block">
+        <span class="sr-only"><Cms k="tools.sunTime" /></span>
+        <input
+          id="sun-hour"
+          type="range"
+          min="5"
+          max="21"
+          step="0.25"
+          :value="store.sunHour"
+          class="sun-hour h-1.5 w-full cursor-pointer accent-slate-900"
+          @input="onSunInput"
+          @change="onSunCommit"
+        />
+      </label>
+    </div>
+
     <!-- Camera toolbar: Zoom, Fullscreen, Center view -->
     <div class="w-fit self-start bg-white/95 backdrop-blur-md rounded-2xl shadow-md border border-slate-200/80 p-1.5 flex flex-col gap-1">
       <button
@@ -86,6 +131,32 @@
           <circle cx="12" cy="12" r="3" />
         </svg>
         <span class="tool-tip"><Cms k="tools.resetView" /></span>
+      </button>
+
+      <div class="h-px bg-slate-100 mx-1"></div>
+
+      <button
+        type="button"
+        id="btn-tool-mark-view"
+        @click="$emit('mark-view')"
+        :aria-pressed="Boolean(store.defaultView)"
+        :aria-label="t('tools.markView')"
+        :class="[
+          'group relative w-12 h-12 rounded-xl flex items-center justify-center transition-colors',
+          store.defaultView
+            ? 'bg-slate-900 text-white shadow-2xs'
+            : 'text-slate-700 hover:text-slate-900 hover:bg-slate-100'
+        ]"
+      >
+        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 7V5a2 2 0 0 1 2-2h2" />
+          <path d="M17 3h2a2 2 0 0 1 2 2v2" />
+          <path d="M21 17v2a2 2 0 0 1-2 2h-2" />
+          <path d="M7 21H5a2 2 0 0 1-2-2v-2" />
+          <line x1="12" y1="9" x2="12" y2="15" />
+          <line x1="9" y1="12" x2="15" y2="12" />
+        </svg>
+        <span class="tool-tip"><Cms k="tools.markView" /></span>
       </button>
     </div>
 
@@ -223,12 +294,28 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useConfigStore } from '../store/useConfigStore';
+import { formatSunHour } from '../three-engine/sunPosition';
 import { useLabels } from '../i18n';
 import Cms from './Cms.vue';
 
 const store = useConfigStore();
+const sunClock = computed(() => formatSunHour(store.sunHour));
+const bearings = [
+  { id: 'north', letter: 'tools.letterNorth', name: 'tools.north' },
+  { id: 'east', letter: 'tools.letterEast', name: 'tools.east' },
+  { id: 'south', letter: 'tools.letterSouth', name: 'tools.south' },
+  { id: 'west', letter: 'tools.letterWest', name: 'tools.west' }
+] as const;
+
+function onSunInput(event: Event) {
+  store.previewSunHour(Number((event.target as HTMLInputElement).value));
+}
+
+function onSunCommit(event: Event) {
+  store.commitSunHour(Number((event.target as HTMLInputElement).value));
+}
 const { t } = useLabels();
 const rulerOpen = ref(false);
 const rulerBox = ref<HTMLElement | null>(null);
@@ -290,6 +377,7 @@ defineEmits<{
   (e: 'zoom-in'): void;
   (e: 'zoom-out'): void;
   (e: 'reset-view'): void;
+  (e: 'mark-view'): void;
 }>();
 </script>
 

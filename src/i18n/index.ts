@@ -395,7 +395,18 @@ const sv = {
     redo: 'Gör om',
     fullscreen: 'Helskärm',
     exitFullscreen: 'Lämna helskärm',
-    resetView: 'Återställ vy'
+    resetView: 'Återställ vy',
+    markView: 'Markera vy',
+    facing: 'Framsida mot',
+    sunTime: 'Tid på dygnet',
+    letterNorth: 'N',
+    letterEast: 'Ö',
+    letterSouth: 'S',
+    letterWest: 'V',
+    north: 'Norr',
+    east: 'Öster',
+    south: 'Söder',
+    west: 'Väster'
   },
   notes: {
     tool: 'Anteckningar',
@@ -417,6 +428,7 @@ const sv = {
     upper: 'Övre',
     remove: 'Ta bort lappen',
     move: 'Flytta lappen',
+    resize: 'Ändra storlek',
     hidden: 'Den delen syns inte från den här vinkeln.',
     limit: 'Tavlan rymmer 24 lappar.',
     empty: 'Lägg en lapp på tavlan.'
@@ -904,7 +916,18 @@ const en = {
     redo: 'Redo',
     fullscreen: 'Fullscreen',
     exitFullscreen: 'Exit fullscreen',
-    resetView: 'Reset view'
+    resetView: 'Reset view',
+    markView: 'Mark view',
+    facing: 'Front faces',
+    sunTime: 'Time of day',
+    letterNorth: 'N',
+    letterEast: 'E',
+    letterSouth: 'S',
+    letterWest: 'W',
+    north: 'North',
+    east: 'East',
+    south: 'South',
+    west: 'West'
   },
   notes: {
     tool: 'Notes',
@@ -926,6 +949,7 @@ const en = {
     upper: 'Upper',
     remove: 'Remove note',
     move: 'Move note',
+    resize: 'Resize note',
     hidden: 'That part is hidden from this angle.',
     limit: 'The board holds 24 notes.',
     empty: 'Put a note on the board.'
