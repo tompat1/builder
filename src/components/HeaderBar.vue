@@ -1,22 +1,22 @@
 <template>
   <header
-    class="pointer-events-auto flex items-center justify-between bg-white/95 backdrop-blur-md shadow-sm rounded-2xl px-3 py-2 md:px-6 md:py-3 border border-slate-200/80 transition-all z-20"
+    class="pointer-events-auto flex items-center justify-between bg-white/95 backdrop-blur-md shadow-sm rounded-2xl px-3 py-2 min-[1180px]:px-6 min-[1180px]:py-3 border border-slate-200/80 transition-all z-20"
     role="banner"
   >
     <!-- Brand & Top Links (Matching Skånska Byggvaror) -->
-    <div class="flex items-center gap-3 md:gap-5">
+    <div class="flex items-center gap-3 min-[1180px]:gap-5">
       <!-- Logo Badge -->
       <router-link to="/" class="flex items-center gap-2.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5A00]">
         <BrandMark class="h-9 md:h-10 w-auto text-[#FF5A00]" />
         <div class="block">
           <div class="flex items-center gap-1.5 leading-none">
-            <span class="font-extrabold text-[#0E3524] tracking-tight text-sm md:text-base md:text-[22px]"><Cms k="brand.name" fallback="Builder" /></span>
+            <span class="font-extrabold text-[#0E3524] tracking-tight text-sm min-[1180px]:text-[22px]"><Cms k="brand.name" fallback="Builder" /></span>
           </div>
           <span class="text-[9px] uppercase tracking-wider text-slate-400 font-bold block mt-0.5"><Cms k="brand.tagline" /></span>
         </div>
       </router-link>
 
-      <div class="h-6 w-px bg-slate-200 hidden md:block"></div>
+      <div class="h-6 w-px bg-slate-200 hidden min-[1180px]:block"></div>
 
       <!-- Action Quick-links -->
       <div class="flex items-center gap-4">
@@ -47,7 +47,7 @@
           :aria-pressed="locale === 'sv'"
           @click="applyLocale('sv')"
           :class="[
-            'flex items-center justify-center px-2.5 md:px-3 py-1 text-xs md:text-sm font-bold rounded-lg transition-all duration-200 min-h-[30px] md:min-h-[34px]',
+            'flex items-center justify-center px-2.5 min-[1180px]:px-3 py-1 text-xs min-[1180px]:text-sm font-bold rounded-lg transition-all duration-200 min-h-[30px] min-[1180px]:min-h-[34px]',
             locale === 'sv'
               ? 'bg-[#FF5A00] text-graphite shadow-sm'
               : 'text-ivory hover:text-white'
@@ -61,7 +61,7 @@
           :aria-pressed="locale === 'en'"
           @click="applyLocale('en')"
           :class="[
-            'flex items-center justify-center px-2.5 md:px-3 py-1 text-xs md:text-sm font-bold rounded-lg transition-all duration-200 min-h-[30px] md:min-h-[34px]',
+            'flex items-center justify-center px-2.5 min-[1180px]:px-3 py-1 text-xs min-[1180px]:text-sm font-bold rounded-lg transition-all duration-200 min-h-[30px] min-[1180px]:min-h-[34px]',
             locale === 'en'
               ? 'bg-[#FF5A00] text-graphite shadow-sm'
               : 'text-ivory hover:text-white'
@@ -80,7 +80,7 @@
         :aria-selected="store.viewMode === 'utsida'"
         @click="store.setViewMode('utsida')"
         :class="[
-          'flex items-center gap-1 px-2.5 md:px-4 py-1 text-xs md:text-sm font-semibold rounded-lg transition-all duration-200 min-h-[30px] md:min-h-[34px]',
+          'flex items-center gap-1 px-2.5 min-[1180px]:px-4 py-1 text-xs min-[1180px]:text-sm font-semibold rounded-lg transition-all duration-200 min-h-[30px] min-[1180px]:min-h-[34px]',
           store.viewMode === 'utsida'
             ? 'bg-[#FF5A00] text-graphite shadow-sm'
             : 'text-ivory hover:text-white'
@@ -96,7 +96,7 @@
         :aria-selected="store.viewMode === 'insida'"
         @click="store.setViewMode('insida')"
         :class="[
-          'flex items-center gap-1 px-2.5 md:px-4 py-1 text-xs md:text-sm font-semibold rounded-lg transition-all duration-200 min-h-[30px] md:min-h-[34px]',
+          'flex items-center gap-1 px-2.5 min-[1180px]:px-4 py-1 text-xs min-[1180px]:text-sm font-semibold rounded-lg transition-all duration-200 min-h-[30px] min-[1180px]:min-h-[34px]',
           store.viewMode === 'insida'
             ? 'bg-[#FF5A00] text-graphite shadow-sm'
             : 'text-ivory hover:text-white'
@@ -108,7 +108,7 @@
     </div>
 
     <!-- Price and Action Cluster -->
-    <div class="flex items-center gap-2 md:gap-5 shrink-0">
+    <div class="flex items-center gap-2 min-[1180px]:gap-5 shrink-0">
       <AdminAiPanel />
       <button
         v-if="session.user?.role === 'admin'"
@@ -122,8 +122,8 @@
       </button>
       <div class="flex items-center gap-1 text-right">
         <div>
-          <span class="hidden md:block text-[10px] uppercase font-bold text-slate-400 leading-none"><Cms k="header.total" /></span>
-          <span class="font-extrabold text-xs sm:text-sm md:text-lg text-slate-900 tabular-nums whitespace-nowrap">
+          <span class="hidden min-[1180px]:block text-[10px] uppercase font-bold text-slate-400 leading-none"><Cms k="header.total" /></span>
+          <span class="font-extrabold text-xs sm:text-sm min-[1180px]:text-lg text-slate-900 tabular-nums whitespace-nowrap">
             {{ money(store.totalPriceSek) }}
           </span>
         </div>

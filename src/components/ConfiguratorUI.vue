@@ -44,7 +44,7 @@
     <aside
       v-if="!store.isFullscreen"
       class="pointer-events-auto bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-slate-200/80 transition-all duration-300 flex flex-col justify-between mt-auto w-full min-[1180px]:w-[410px] min-[1180px]:absolute min-[1180px]:right-6 min-[1180px]:top-24 min-[1180px]:bottom-[max(1.5rem,env(safe-area-inset-bottom))] max-h-[62dvh] min-[1180px]:max-h-[calc(100dvh-7.5rem)] z-40"
-      :class="isMobileCollapsed ? 'h-auto max-h-[140px]' : 'h-[62dvh] min-[1180px]:h-auto'"
+      :class="isMobileCollapsed ? 'h-auto max-h-[140px]' : 'h-[min(62dvh,calc(100dvh-31.5rem))] min-[1180px]:h-auto'"
       :aria-label="t('panel.label')"
     >
       <!-- Mobile Drawer Drag Handle & Collapse Header -->
