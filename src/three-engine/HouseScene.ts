@@ -4261,16 +4261,9 @@ export class HouseScene {
     const loft = place && isLoftRoom(place.y) ? place : null;
     const ceiling = loft ? this.loftCeiling(loft.z, loft.y) : null;
 
-    const floorGeo = new THREE.BoxGeometry(w, 0.05, d);
-    const floorMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0 });
-    const floor = new THREE.Mesh(floorGeo, floorMat);
-    floor.position.y = 0.025;
-    floor.userData.part = 'floor';
-    group.add(floor);
-
     const wallThick = 0.1;
     const wallH = 2.4;
-    const wallBase = 0.05;
+    const wallBase = 0;
     const wallMat = new THREE.MeshStandardMaterial({
       color: 0xf8fafc,
       side: THREE.DoubleSide,
@@ -4450,6 +4443,7 @@ export class HouseScene {
 
     this.interiorGroup.add(newRoom);
     this.paintRoomSelection();
+    this.syncLoftPresentation();
   }
 
   public removeRoom(roomId: string) {
@@ -4482,13 +4476,20 @@ export class HouseScene {
   private paintRoomSelection() {
     for (const group of this.interiorGroup.children) {
       if (group.userData.type !== 'room_zone') continue;
-      const floor = group.children.find(child => child.userData.part === 'floor') as THREE.Mesh | undefined;
-      const material = floor?.material;
-      if (!(material instanceof THREE.MeshStandardMaterial)) continue;
       const selected = group.userData.roomId === this.selectedRoomId;
-      material.color.set(selected ? 0xd6def8 : 0xe2e8f0);
-      material.emissive.set(selected ? 0x1e293b : 0x000000);
-      material.emissiveIntensity = selected ? 0.18 : 0;
+      const seen = new Set<THREE.Material>();
+      group.traverse((child) => {
+        if (!(child instanceof THREE.Mesh)) return;
+        if (child.userData.partition == null && child.userData.part !== 'ceiling') return;
+        const materials = Array.isArray(child.material) ? child.material : [child.material];
+        materials.forEach((material) => {
+          if (!(material instanceof THREE.MeshStandardMaterial) || seen.has(material)) return;
+          seen.add(material);
+          material.color.set(selected ? 0xd6def8 : 0xf8fafc);
+          material.emissive.set(selected ? 0x1e293b : 0x000000);
+          material.emissiveIntensity = selected ? 0.18 : 0;
+        });
+      });
     }
   }
 
@@ -4587,20 +4588,32 @@ export class HouseScene {
       || isLoftRoom(this.draggingRoom?.startY ?? 0);
     const ghosted = loftIsGhosted(this.currentConfig.viewMode, editingLoftRoom);
 
-    this.loftGroup.traverse((object) => {
-      if (!(object instanceof THREE.Mesh)) return;
+    this.presentGhost(this.loftGroup, ghosted);
+    this.interiorGroup.children.forEach((child) => {
+      if (child.userData.type === 'room_zone' && isLoftRoom(child.position.y)) {
+        this.presentGhost(child, ghosted);
+      }
+    });
+  }
 
-      const meshState = this.loftMeshState.get(object) ?? {
-        castShadow: object.castShadow,
-        receiveShadow: object.receiveShadow,
-        renderOrder: object.renderOrder
-      };
-      if (!this.loftMeshState.has(object)) this.loftMeshState.set(object, meshState);
-      object.castShadow = ghosted ? false : meshState.castShadow;
-      object.receiveShadow = ghosted ? false : meshState.receiveShadow;
-      object.renderOrder = ghosted ? 1 : meshState.renderOrder;
+  /** The same see-through treatment the loft deck uses in the interior overview. */
+  private presentGhost(root: THREE.Object3D, ghosted: boolean) {
+    root.traverse((object) => {
+      const drawn = object as THREE.Mesh;
+      if (object instanceof THREE.Mesh) {
+        const meshState = this.loftMeshState.get(object) ?? {
+          castShadow: object.castShadow,
+          receiveShadow: object.receiveShadow,
+          renderOrder: object.renderOrder
+        };
+        if (!this.loftMeshState.has(object)) this.loftMeshState.set(object, meshState);
+        object.castShadow = ghosted ? false : meshState.castShadow;
+        object.receiveShadow = ghosted ? false : meshState.receiveShadow;
+        object.renderOrder = ghosted ? 1 : meshState.renderOrder;
+      }
+      if (!drawn.material) return;
 
-      const materials = Array.isArray(object.material) ? object.material : [object.material];
+      const materials = Array.isArray(drawn.material) ? drawn.material : [drawn.material];
       materials.forEach((material) => {
         const materialState = this.loftMaterialState.get(material) ?? {
           transparent: material.transparent,
