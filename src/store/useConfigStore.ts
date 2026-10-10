@@ -192,6 +192,17 @@ export const SIZE_OPTIONS: SizeOption[] = [
     areaSqMeters: 40.0,
     basePrice: 145000,
     desc: '8000 × 5000 mm. Rymligt fritidshus med generösa rum.'
+  },
+  {
+    id: 'size-cube',
+    name: 'Modern skandi-kub',
+    badge: 'Kub',
+    width: 6000,
+    depth: 6000,
+    height: 4800,
+    areaSqMeters: 36.0,
+    basePrice: 138000,
+    desc: '6000 × 6000 mm. Kvadratisk kub med panoramafönster, skjutdörr mot en täckt altan och skärmtak över entrén.'
   }
 ];
 
@@ -455,6 +466,22 @@ export function createWallSlots(): Record<string, WallSlot> {
   return slots;
 }
 
+/** Empty bays, then the modern cube's openings. */
+export function cubeWallSlots(): Record<string, WallSlot> {
+  const slots = createWallSlots();
+  for (const slot of Object.values(slots)) {
+    slot.type = 'empty';
+    slot.itemId = undefined;
+    slot.coveredBy = undefined;
+  }
+  slots['front-1'] = { ...slots['front-1'], type: 'door', itemId: 'LERVIK' };
+  slots['front-1u'] = { ...slots['front-1u'], type: 'window', itemId: 'panorama-portrait' };
+  slots['right-1'] = { ...slots['right-1'], type: 'window', itemId: 'panorama' };
+  slots['back-1'] = { ...slots['back-1'], type: 'door', itemId: 'SKJUTDORR' };
+  slots['back-2'] = { ...slots['back-2'], type: 'empty', itemId: undefined, coveredBy: 'back-1' };
+  return slots;
+}
+
 function mergeWallSlots(saved: Record<string, WallSlot> | undefined): Record<string, WallSlot> {
   const slots = createWallSlots();
   if (!saved) return slots;
@@ -502,6 +529,8 @@ export const useConfigStore = defineStore('config', () => {
   const customPaint = computed(() => savedPaints.value.find((paint) => paint.id === activePaintId.value) ?? null);
   const paintPreview = ref<string | null>(null);
   const panelOrientation = ref<PanelOrientation>('staende');
+  /** Horizontal cladding keeps upright boards on the front door bay. */
+  const verticalDoorBay = ref(false);
   const claddingSizeId = ref<CladdingSizeId>('22x145');
   const isFullscreen = ref<boolean>(false);
   const showDimensions = ref<boolean>(true);
@@ -648,6 +677,7 @@ export const useConfigStore = defineStore('config', () => {
       activePaintId: activePaintId.value,
       customPaint: customPaint.value,
       panelOrientation: panelOrientation.value,
+      verticalDoorBay: verticalDoorBay.value,
       claddingSizeId: claddingSizeId.value,
       wallSlots: wallSlots.value,
       notes: notes.value,
@@ -729,6 +759,7 @@ export const useConfigStore = defineStore('config', () => {
         : undefined;
       activePaintId.value = (fromId ?? fromPaint)?.id ?? null;
       panelOrientation.value = data.panelOrientation === 'liggande' ? 'liggande' : 'staende';
+      verticalDoorBay.value = data.verticalDoorBay === true;
       claddingSizeId.value = CLADDING_SIZES.some((size) => size.id === data.claddingSizeId)
         ? data.claddingSizeId
         : '22x145';
@@ -942,9 +973,41 @@ export const useConfigStore = defineStore('config', () => {
     buildingHeight.value = preset.height;
   }
 
+  function applyCubeShell() {
+    panelOrientation.value = 'liggande';
+    verticalDoorBay.value = true;
+    doorCanopy.value = true;
+    terraces.value = [{ side: 'back', depth: 3, span: 'full', roof: true }];
+    activeRoof.value = 'flackt';
+    roofCovering.value = 'metal';
+    activeMaterial.value = 'black';
+    activePaintId.value = null;
+    activeLoft.value = 'none';
+    wallSlots.value = cubeWallSlots();
+    activeDoor.value = 'LERVIK';
+    activeWindow.value = 'panorama';
+    selectedSlotId.value = null;
+  }
+
+  function applyPlainShell() {
+    panelOrientation.value = 'staende';
+    verticalDoorBay.value = false;
+    doorCanopy.value = false;
+    terraces.value = [];
+    activeRoof.value = 'pulpettak';
+    roofCovering.value = 'felt';
+    wallSlots.value = createWallSlots();
+    activeDoor.value = 'STEHAG';
+    activeWindow.value = 'standard-single';
+    selectedSlotId.value = null;
+  }
+
   function selectSize(id: string) {
+    const leavingCube = selectedSizeId.value === 'size-cube' && id !== 'size-cube';
     selectedSizeId.value = id;
     applyPresetSize(id);
+    if (id === 'size-cube') applyCubeShell();
+    else if (leavingCube) applyPlainShell();
     // Ensure selectedLoftSize is valid for this new size
     const available = availableLoftSizes.value;
     if (available.length > 0 && !available.some((s) => Math.abs(s.areaSqMeters - selectedLoftSize.value) < 0.1)) {
@@ -1270,7 +1333,7 @@ export const useConfigStore = defineStore('config', () => {
   function releaseWideDoor(slotId: string) {
     const slot = wallSlots.value[slotId];
     if (!slot) return;
-    if (slot.itemId === 'SKJUTDORR3') {
+    if (slot.itemId === 'SKJUTDORR' || slot.itemId === 'SKJUTDORR3') {
       for (const other of Object.values(wallSlots.value)) {
         if (other.coveredBy === slotId) other.coveredBy = undefined;
       }
@@ -1279,7 +1342,7 @@ export const useConfigStore = defineStore('config', () => {
     if (!hostId) return;
     slot.coveredBy = undefined;
     const host = wallSlots.value[hostId];
-    if (host?.itemId !== 'SKJUTDORR3') return;
+    if (host?.itemId !== 'SKJUTDORR' && host?.itemId !== 'SKJUTDORR3') return;
     host.type = 'empty';
     host.itemId = undefined;
     for (const other of Object.values(wallSlots.value)) {
@@ -1295,7 +1358,7 @@ export const useConfigStore = defineStore('config', () => {
     slot.type = type;
     slot.itemId = itemId;
     slot.coveredBy = undefined;
-    if (itemId === 'SKJUTDORR3' && !slot.isUpper) {
+    if ((itemId === 'SKJUTDORR' || itemId === 'SKJUTDORR3') && !slot.isUpper) {
       const count = slot.wall === 'front' || slot.wall === 'back' ? 4 : 3;
       const partnerIndex = slot.index + 1 < count ? slot.index + 1 : slot.index - 1;
       const partner = wallSlots.value[`${slot.wall}-${partnerIndex}`];
@@ -1445,6 +1508,7 @@ export const useConfigStore = defineStore('config', () => {
     setCustomPaint,
     selectSavedPaint,
     panelOrientation,
+    verticalDoorBay,
     claddingSizeId,
     selectedSlotId,
     hoveredSlotId,

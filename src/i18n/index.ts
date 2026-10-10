@@ -1123,6 +1123,11 @@ const en = {
       badge: 'More space',
       desc: '8000 × 5000 mm. A roomy holiday house.'
     },
+    'size-cube': {
+      name: 'Modern Scandi cube',
+      badge: 'Cube',
+      desc: '6000 × 6000 mm. A square cube with a panorama window, a sliding door onto a covered terrace, and a roof over the entrance.'
+    },
     pulpettak: {
       name: 'Mono-pitch 12°',
       desc: 'A single slope, a modern outline, and clear drainage.',

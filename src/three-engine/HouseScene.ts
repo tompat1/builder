@@ -55,6 +55,8 @@ export interface SceneConfig {
   /** Painted facade. When set, the boards use this colour instead of a catalog stain. */
   customHex: string | null;
   panelOrientation: PanelOrientation;
+  /** Upright boards on the front door bay while the rest of the facade lies flat. */
+  verticalDoorBay?: boolean;
   /** Visible board width, millimetres. 145 is the standard 22×145 board. */
   panelWidthMm: number;
   showDimensions: boolean;
@@ -221,6 +223,7 @@ export class HouseScene {
       material: initialConfig?.material ?? 'wood',
       customHex: initialConfig?.customHex ?? null,
       panelOrientation: initialConfig?.panelOrientation ?? 'staende',
+      verticalDoorBay: initialConfig?.verticalDoorBay ?? false,
       panelWidthMm: initialConfig?.panelWidthMm ?? 145,
       showDimensions: initialConfig?.showDimensions ?? true,
       selectedSlotId: initialConfig?.selectedSlotId ?? null,
@@ -291,7 +294,7 @@ export class HouseScene {
   }
 
   // --- Procedural Canvas Textures for Authentic Scandinavian Timber ---
-  private createVerticalPlankTexture(materialKey: MaterialKey): THREE.CanvasTexture {
+  private createVerticalPlankTexture(materialKey: MaterialKey, upright = false): THREE.CanvasTexture {
     const canvas = document.createElement('canvas');
     canvas.width = 1024;
     canvas.height = 1024;
@@ -418,18 +421,18 @@ export class HouseScene {
     }
 
     ctx.globalAlpha = 1.0;
-    const texture = new THREE.CanvasTexture(this.orientBoards(canvas));
+    const texture = new THREE.CanvasTexture(this.orientBoards(canvas, upright));
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.anisotropy = 8;
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
-    this.applyCladdingRepeat(texture);
+    this.applyCladdingRepeat(texture, upright);
     return texture;
   }
 
   /** Turn vertical boards onto their side for liggande cladding. */
-  private orientBoards(source: HTMLCanvasElement) {
-    if (this.currentConfig.panelOrientation !== 'liggande') return source;
+  private orientBoards(source: HTMLCanvasElement, upright = false) {
+    if (upright || this.currentConfig.panelOrientation !== 'liggande') return source;
     const turned = document.createElement('canvas');
     turned.width = source.width;
     turned.height = source.height;
@@ -441,11 +444,11 @@ export class HouseScene {
   }
 
   /** Four boards per tile. Repeat so each board is the chosen width. */
-  private applyCladdingRepeat(texture: THREE.Texture) {
+  private applyCladdingRepeat(texture: THREE.Texture, upright = false) {
     const cover = Math.max(0.07, this.currentConfig.panelWidthMm / 1000);
     const moduleM = 4 * cover;
     const along = 2.4;
-    if (this.currentConfig.panelOrientation === 'liggande') {
+    if (!upright && this.currentConfig.panelOrientation === 'liggande') {
       texture.repeat.set(1 / along, 1 / moduleM);
     } else {
       texture.repeat.set(1 / moduleM, 1 / along);
@@ -622,7 +625,7 @@ export class HouseScene {
     });
   }
 
-  private createVerticalPlankBumpMap(): THREE.CanvasTexture {
+  private createVerticalPlankBumpMap(upright = false): THREE.CanvasTexture {
     const canvas = document.createElement('canvas');
     canvas.width = 1024;
     canvas.height = 1024;
@@ -653,10 +656,10 @@ export class HouseScene {
       ctx.fillRect(px, 0, Math.max(1, Math.round(seam * 0.35)), 1024);
     }
 
-    const bumpTexture = new THREE.CanvasTexture(this.orientBoards(canvas));
+    const bumpTexture = new THREE.CanvasTexture(this.orientBoards(canvas, upright));
     bumpTexture.wrapS = THREE.RepeatWrapping;
     bumpTexture.wrapT = THREE.RepeatWrapping;
-    this.applyCladdingRepeat(bumpTexture);
+    this.applyCladdingRepeat(bumpTexture, upright);
     return bumpTexture;
   }
 
@@ -1239,6 +1242,11 @@ export class HouseScene {
       metalness: 0.02,
       side: THREE.DoubleSide
     });
+    const doorBayMat = exteriorMat.clone();
+    if (this.currentConfig.verticalDoorBay && this.currentConfig.panelOrientation === 'liggande') {
+      doorBayMat.map = this.createVerticalPlankTexture(this.currentConfig.material, true);
+      doorBayMat.bumpMap = this.createVerticalPlankBumpMap(true);
+    }
 
     const framingMat = new THREE.MeshStandardMaterial({
       color: '#eedec5',
@@ -1283,10 +1291,10 @@ export class HouseScene {
     this.wallsGroup.add(floor);
 
     // 3. Modular Exterior Walls Construction (outer wood siding, inside left open for beams)
-    this.buildModularWall('front', 4, w, d, h, wallThick, exteriorMat, trimMat, casingMat);
-    this.buildModularWall('back', 4, w, d, h, wallThick, exteriorMat, trimMat, casingMat);
-    this.buildModularWall('left', 3, w, d, h, wallThick, exteriorMat, trimMat, casingMat);
-    this.buildModularWall('right', 3, w, d, h, wallThick, exteriorMat, trimMat, casingMat);
+    this.buildModularWall('front', 4, w, d, h, wallThick, exteriorMat, doorBayMat, trimMat, casingMat);
+    this.buildModularWall('back', 4, w, d, h, wallThick, exteriorMat, doorBayMat, trimMat, casingMat);
+    this.buildModularWall('left', 3, w, d, h, wallThick, exteriorMat, doorBayMat, trimMat, casingMat);
+    this.buildModularWall('right', 3, w, d, h, wallThick, exteriorMat, doorBayMat, trimMat, casingMat);
     this.buildOutsideAdditions(w, d, h);
     if (!this.interiorCut()) this.addBeltFlashing(w, d, h);
     if (!this.interiorCut()) {
@@ -1446,6 +1454,7 @@ export class HouseScene {
     h: number,
     wallThick: number,
     exteriorMat: THREE.Material,
+    doorBayMat: THREE.Material,
     trimMat: THREE.Material,
     casingMat: THREE.Material
   ) {
@@ -1509,6 +1518,15 @@ export class HouseScene {
 
       const slope = this.alongWallSlope(wallSide);
       for (const band of bands) {
+        const bay = this.currentConfig.wallSlots[band.slotId];
+        const uprightDoor = Boolean(
+          this.currentConfig.verticalDoorBay
+          && !band.upper
+          && wallSide === 'front'
+          && bay?.type === 'door'
+          && bay.itemId !== 'SKJUTDORR'
+          && bay.itemId !== 'SKJUTDORR3'
+        );
         this.buildWallBand(
           band,
           px,
@@ -1521,7 +1539,7 @@ export class HouseScene {
           i,
           i > 0 && (wallSide === 'left' || wallSide === 'right') || i < panelCount - 1 && wallSide !== 'left' && wallSide !== 'right',
           slope,
-          exteriorMat,
+          uprightDoor ? doorBayMat : exteriorMat,
           casingMat
         );
       }
@@ -1746,7 +1764,7 @@ export class HouseScene {
       this.addOpeningCasing(panelGroup, opening, wide || slotType === 'door' ? 'door' : 'window', casingMat);
     }
     if (ownsOpening && opening && (wide || slotType === 'door')) {
-      this.addDoorFeature(panelGroup, opening, wide ? 'SKJUTDORR3' : slot?.itemId, userData);
+      this.addDoorFeature(panelGroup, opening, slot?.itemId, userData);
     } else if (slotType === 'window' && opening) {
       this.addWindowFeature(panelGroup, opening, slot?.itemId, userData);
     } else if (slotType === 'gate') {
@@ -2074,8 +2092,8 @@ export class HouseScene {
   }
 
   /**
-   * A three-pane slider occupies two bays. The host panel draws the door;
-   * the neighbour only cuts the cladding where the leaf crosses the joint.
+   * A sliding door occupies two bays. The host panel draws the leaves;
+   * the neighbour only cuts the cladding where the opening crosses the joint.
    */
   private wideOpeningForPanel(
     wall: 'front' | 'back' | 'left' | 'right',
@@ -2089,11 +2107,12 @@ export class HouseScene {
     const slot = slots[`${wall}-${index}`];
     let host = index;
     let partner: number | null = null;
-    if (slot?.itemId === 'SKJUTDORR3') {
+    const wideSlider = slot?.itemId === 'SKJUTDORR' || slot?.itemId === 'SKJUTDORR3';
+    if (wideSlider) {
       partner = index + 1 < count ? index + 1 : index > 0 ? index - 1 : null;
     } else if (slot?.coveredBy) {
       const hostSlot = slots[slot.coveredBy];
-      if (hostSlot?.itemId === 'SKJUTDORR3' && hostSlot.wall === wall) {
+      if ((hostSlot?.itemId === 'SKJUTDORR' || hostSlot?.itemId === 'SKJUTDORR3') && hostSlot.wall === wall) {
         host = hostSlot.index;
         partner = index;
       }
@@ -2106,7 +2125,9 @@ export class HouseScene {
     const side = 0.09;
     const edge = 0.045;
     const headBoard = 0.085;
-    const doorW = Math.min(3, panelWidth * 2 - side * 2 - edge * 2);
+    const hostSlot = slots[`${wall}-${host}`];
+    const leafSpan = hostSlot?.itemId === 'SKJUTDORR' ? 2 : 3;
+    const doorW = Math.min(leafSpan, panelWidth * 2 - side * 2 - edge * 2);
     const doorH = Math.min(2.1, Math.max(1.7, panelHeight - headBoard - 0.06));
     const sill = panelBase;
     const head = sill + doorH;
@@ -2209,7 +2230,7 @@ export class HouseScene {
       for (let i = 0; i < count; i++) {
         const slot = this.currentConfig.wallSlots[`${wall}-${i}`];
         if (!slot || slot.type !== 'door') continue;
-        const wide = slot.itemId === 'SKJUTDORR3' || slot.coveredBy
+        const wide = slot.itemId === 'SKJUTDORR' || slot.itemId === 'SKJUTDORR3' || slot.coveredBy
           ? this.wideOpeningForPanel(wall, i, panelWidth, panelH, base)
           : null;
         if (wide && !wide.drawDoor) continue;
@@ -2537,7 +2558,7 @@ export class HouseScene {
       for (const band of bands) {
         const slot = this.currentConfig.wallSlots[band.id];
         if (!slot || (slot.type !== 'door' && slot.type !== 'window')) continue;
-        if (slot.itemId === 'SKJUTDORR3' && !band.upper) {
+        if ((slot.itemId === 'SKJUTDORR' || slot.itemId === 'SKJUTDORR3') && !band.upper) {
           const wide = this.wideOpeningForPanel('front', p, panelW, band.panelH, band.panelBase);
           if (wide?.drawDoor) {
             openings.push({

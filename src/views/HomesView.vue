@@ -69,7 +69,8 @@ const images: Record<string, string> = {
   'size-15': '/homes/home-15m2.webp',
   'size-25': '/homes/home-25m2.webp',
   'size-30': '/homes/home-29-9m2.webp',
-  'size-40': '/homes/home-40m2.webp'
+  'size-40': '/homes/home-40m2.webp',
+  'size-cube': '/homes/home-cube.webp'
 };
 
 const homes = SIZE_OPTIONS.map((size) => ({ ...size, image: images[size.id] }));
