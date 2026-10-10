@@ -69,11 +69,10 @@ export function loftEndPoint(placement: 'fram' | 'bak', x: number, z: number) {
   return { x: x * c + z * s, z: -x * s + z * c };
 }
 
-/** Keep the loft stair near the original 58° pitch as the rise grows. */
-export function loftStairRun(rise: number, interiorDepth: number): number {
+/** Keep the loft stair near the original 58° pitch while it reaches into the open room. */
+export function loftStairRun(rise: number, clearDistance: number): number {
   const preferred = rise / Math.tan((58 * Math.PI) / 180);
-  // Leave deck behind the well, and air between the bottom step and the front wall.
-  const limit = Math.max(0.9, interiorDepth - 0.95);
+  const limit = Math.max(0.9, clearDistance - 0.2);
   return Math.min(Math.max(preferred, 0.9), limit);
 }
 
@@ -83,12 +82,11 @@ export function loftStairTreads(rise: number): number {
   return Math.max(5, risers - 1);
 }
 
-/** Clear floor opening at the inner/front corner where the stair meets the loft. */
+/** Clear floor opening at either end of the inner loft edge. */
 export function loftStairOpening(
   type: 'straight' | 'curved',
   sectionWidth: number,
-  loftDepth: number,
-  run = 1.45
+  loftDepth: number
 ): { width: number; depth: number } {
   const sideClear = 0.2;
   if (type === 'curved') {
@@ -98,47 +96,46 @@ export function loftStairOpening(
       depth: Math.min(side, Math.max(0.95, loftDepth - 0.45))
     };
   }
-  const wanted = Math.max(run + 0.22, 1.05);
-  const depth = Math.min(wanted, Math.max(0.85, loftDepth - 0.45));
-  const width = Math.min(0.86, Math.max(0.72, sectionWidth - 0.35));
+  const width = Math.min(0.92, Math.max(0.72, sectionWidth - 0.35));
+  const depth = Math.min(0.86, Math.max(0.72, loftDepth - 0.45));
   return {
     width: Math.min(width, Math.max(0.6, sectionWidth - sideClear)),
-    depth
+    depth: Math.min(depth, Math.max(0.6, loftDepth - sideClear))
   };
 }
 
 export interface StraightLoftStair {
-  x: number;
+  /** Bottom step in the open room. */
+  xBottom: number;
+  /** Top landing inside the loft opening. */
+  xTop: number;
+  z: number;
   width: number;
-  /** Bottom step, toward the front wall. */
-  zBottom: number;
-  /** Top landing, on the edge of the loft deck. */
-  zTop: number;
   yBottom: number;
   yTop: number;
 }
 
 /**
- * Straight flight inside the front well. The top is the deck edge, so the
- * last step is onto the loft instead of into the wall or under the joists.
+ * Straight flight from the loft opening into the room. The top lands inside
+ * the deck edge and the bottom projects perpendicular to the loft, not toward
+ * the nearest exterior wall.
  */
 export function straightLoftStair(args: {
-  frontZ: number;
   edgeX: number;
   /** +1 when the open floor is toward +X. */
   openSign: number;
+  stairZ: number;
   opening: { width: number; depth: number };
   run: number;
   rise: number;
 }): StraightLoftStair {
-  const width = Math.min(0.58, Math.max(0.48, args.opening.width - 0.16));
-  const zTop = args.frontZ - args.opening.depth;
-  const zBottom = Math.min(args.frontZ - 0.12, zTop + args.run);
+  const width = Math.min(0.58, Math.max(0.48, args.opening.depth - 0.16));
+  const xTop = args.edgeX - args.openSign * args.opening.width;
   return {
-    x: args.edgeX - args.openSign * (args.opening.width / 2),
+    xBottom: xTop + args.openSign * args.run,
+    xTop,
+    z: args.stairZ,
     width,
-    zBottom,
-    zTop,
     yBottom: INTERIOR_FLOOR_TOP,
     yTop: INTERIOR_FLOOR_TOP + args.rise
   };
@@ -148,7 +145,7 @@ export interface CurvedLoftStair {
   centerX: number;
   centerZ: number;
   radius: number;
-  /** Top step points toward the deck (−Z). */
+  /** Top step points into the loft deck. */
   topAngle: number;
   sweep: number;
   /** +1 winds so the bottom step faces the open floor. */
@@ -159,23 +156,21 @@ export interface CurvedLoftStair {
 
 /** Spiral kept inside the well, with the top step at the deck edge. */
 export function curvedLoftStair(args: {
-  frontZ: number;
   edgeX: number;
   openSign: number;
+  stairZ: number;
   opening: { width: number; depth: number };
   rise: number;
 }): CurvedLoftStair {
-  const headerZ = args.frontZ - args.opening.depth;
   const radius = Math.max(
     0.36,
     Math.min(0.5, args.opening.width / 2 - 0.1, args.opening.depth / 2 - 0.08)
   );
-  const centerZ = Math.min(headerZ + radius, args.frontZ - radius - 0.08);
   return {
-    centerX: args.edgeX - args.openSign * (args.opening.width / 2),
-    centerZ,
+    centerX: args.edgeX - args.openSign * (args.opening.width - radius),
+    centerZ: args.stairZ,
     radius,
-    topAngle: -Math.PI / 2,
+    topAngle: args.openSign > 0 ? Math.PI : 0,
     sweep: Math.PI * 1.15,
     direction: args.openSign,
     yBottom: INTERIOR_FLOOR_TOP,

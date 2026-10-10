@@ -251,6 +251,7 @@ export const LOFT_PLACEMENTS = ['vanster', 'hoger', 'fram', 'bak'] as const;
 export type LoftPlacement = (typeof LOFT_PLACEMENTS)[number];
 export type LoftTab = 'planlosning' | 'golv';
 export type LoftStairType = 'straight' | 'curved';
+export type LoftStairPosition = 'front' | 'back';
 
 export interface LoftSizeItem {
   areaSqMeters: number;
@@ -530,6 +531,7 @@ export const useConfigStore = defineStore('config', () => {
   const selectedLoftSize = ref<number>(10.95);
   const hasLoftStair = ref<boolean>(true);
   const loftStairType = ref<LoftStairType>('straight');
+  const loftStairPosition = ref<LoftStairPosition>('front');
   const loftTab = ref<LoftTab>('planlosning');
   const activeDoor = ref<string>('STEHAG');
   const activeWindow = ref<string>('standard-single');
@@ -617,6 +619,7 @@ export const useConfigStore = defineStore('config', () => {
       selectedLoftSize: selectedLoftSize.value,
       hasLoftStair: hasLoftStair.value,
       loftStairType: loftStairType.value,
+      loftStairPosition: loftStairPosition.value,
       activeDoor: activeDoor.value,
       activeWindow: activeWindow.value,
       activeGate: activeGate.value,
@@ -686,6 +689,7 @@ export const useConfigStore = defineStore('config', () => {
       if (data.selectedLoftSize) selectedLoftSize.value = data.selectedLoftSize;
       if (data.hasLoftStair !== undefined) hasLoftStair.value = data.hasLoftStair;
       loftStairType.value = data.loftStairType === 'curved' ? 'curved' : 'straight';
+      loftStairPosition.value = data.loftStairPosition === 'back' ? 'back' : 'front';
       if (data.activeDoor) activeDoor.value = data.activeDoor;
       if (data.activeWindow) activeWindow.value = data.activeWindow;
       if (data.activeGate) activeGate.value = data.activeGate;
@@ -996,6 +1000,12 @@ export const useConfigStore = defineStore('config', () => {
 
   function setLoftStairType(type: LoftStairType) {
     loftStairType.value = type;
+    hasLoftStair.value = true;
+    saveSnapshot();
+  }
+
+  function setLoftStairPosition(position: LoftStairPosition) {
+    loftStairPosition.value = position;
     hasLoftStair.value = true;
     saveSnapshot();
   }
@@ -1454,6 +1464,7 @@ export const useConfigStore = defineStore('config', () => {
     selectedLoftSize,
     hasLoftStair,
     loftStairType,
+    loftStairPosition,
     loftTab,
     placedRooms,
     selectedRoomId,
@@ -1479,6 +1490,7 @@ export const useConfigStore = defineStore('config', () => {
     setLoftSize,
     toggleLoftStair,
     setLoftStairType,
+    setLoftStairPosition,
     setLoftTab,
     selectDoor,
     selectWindow,

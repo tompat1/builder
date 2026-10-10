@@ -753,6 +753,34 @@
                   </span>
                 </button>
               </div>
+
+              <div v-if="store.hasLoftStair" class="mt-3">
+                <h6 class="text-[11px] font-bold text-slate-800"><Cms k="category.stairPosition" /></h6>
+                <p class="mt-0.5 text-[10px] leading-snug text-slate-500"><Cms k="category.stairPositionBody" /></p>
+                <div class="mt-2 grid grid-cols-2 gap-2" role="group" :aria-label="t('category.stairPosition')">
+                  <button
+                    v-for="position in loftStairPositions"
+                    :key="position.id"
+                    type="button"
+                    :id="`loft-stair-position-${position.id}`"
+                    @click="store.setLoftStairPosition(position.id)"
+                    :aria-pressed="store.loftStairPosition === position.id"
+                    :class="[
+                      'min-h-11 rounded-lg border px-3 py-2 text-xs font-bold transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700',
+                      store.loftStairPosition === position.id
+                        ? 'border-emerald-800 bg-emerald-800 text-white shadow-xs'
+                        : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400'
+                    ]"
+                  >
+                    <span class="flex items-center justify-center gap-1.5">
+                      <svg v-if="store.loftStairPosition === position.id" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true">
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                      <Cms :k="position.label" />
+                    </span>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -1412,6 +1440,7 @@ import {
   type RoofCovering,
   LOFT_OPTIONS,
   type LoftPlacement,
+  type LoftStairPosition,
   DOORS_OPTIONS,
   WINDOWS_OPTIONS,
   GATES_OPTIONS,
@@ -1429,6 +1458,24 @@ const loftPlaces: { id: LoftPlacement; label: string }[] = [
   { id: 'fram', label: 'category.front' },
   { id: 'bak', label: 'category.back' }
 ];
+const loftStairPositions = computed<{ id: LoftStairPosition; label: string }[]>(() => {
+  if (store.loftCount === 'tva' || store.loftPlacement === 'vanster' || store.loftPlacement === 'hoger') {
+    return [
+      { id: 'front', label: 'category.front' },
+      { id: 'back', label: 'category.back' }
+    ];
+  }
+  if (store.loftPlacement === 'fram') {
+    return [
+      { id: 'back', label: 'category.left' },
+      { id: 'front', label: 'category.right' }
+    ];
+  }
+  return [
+    { id: 'front', label: 'category.left' },
+    { id: 'back', label: 'category.right' }
+  ];
+});
 const { t, catalog, money, delta, locale } = useLabels();
 const sizeTab = ref<'kulor' | 'panel'>('kulor');
 const doorTab = ref<'single' | 'double' | 'sliding'>('single');

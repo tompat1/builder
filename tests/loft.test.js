@@ -101,14 +101,13 @@ test('a taller rise keeps a walkable stair inside the room', () => {
 });
 
 test('each stair type gets a floor opening that fits inside the loft', () => {
-  const run = loftStairRun(2.5, 4.5);
-  const straight = loftStairOpening('straight', 2.4, 4.5, run);
-  const curved = loftStairOpening('curved', 2.4, 4.5, run);
+  const straight = loftStairOpening('straight', 2.4, 4.5);
+  const curved = loftStairOpening('curved', 2.4, 4.5);
 
-  assert.ok(straight.depth >= run);
+  assert.ok(straight.width < 2.4);
   assert.ok(straight.depth < 4.5);
   assert.ok(curved.width > straight.width);
-  assert.ok(curved.depth > 1.2);
+  assert.ok(curved.depth > straight.depth);
   assert.ok(curved.depth < 4.5);
 
   const compact = loftStairOpening('curved', 1.2, 1.5);
@@ -128,44 +127,54 @@ test('a front loft sits on the front wall, and a back loft sits on the back wall
   assert.ok(Math.abs(back.x) < 1e-6);
 });
 
-test('the straight stair lands on the deck and stays clear of the front wall', () => {
+test('the straight stair lands on the deck and descends into the open room', () => {
   const interiorD = 3.14;
-  const frontZ = interiorD / 2;
   const rise = 2.5;
-  const run = loftStairRun(rise, interiorD);
-  const opening = loftStairOpening('straight', 2.3, interiorD, run);
+  const run = loftStairRun(rise, 3.2);
+  const opening = loftStairOpening('straight', 2.3, interiorD);
+  const edgeX = -0.4;
+  const stairZ = interiorD / 2 - opening.depth / 2;
   const stair = straightLoftStair({
-    frontZ,
-    edgeX: -0.4,
+    edgeX,
     openSign: 1,
+    stairZ,
     opening,
     run,
     rise
   });
 
-  assert.ok(stair.zBottom <= frontZ - 0.12);
-  assert.equal(stair.zTop, frontZ - opening.depth);
-  assert.ok(stair.zBottom > stair.zTop);
+  assert.equal(stair.xTop, edgeX - opening.width);
+  assert.ok(stair.xBottom > edgeX);
+  assert.equal(stair.z, stairZ);
   assert.ok(stair.yTop - stair.yBottom === rise);
-  assert.ok(stair.x < -0.4);
 });
 
-test('the curved stair finishes at the deck edge and stays inside the well', () => {
+test('front and back stair positions mirror along the loft edge', () => {
   const interiorD = 3.14;
   const frontZ = interiorD / 2;
   const opening = loftStairOpening('curved', 2.3, interiorD);
-  const stair = curvedLoftStair({
-    frontZ,
+  const frontStairZ = frontZ - opening.depth / 2;
+  const backStairZ = -frontStairZ;
+  const front = curvedLoftStair({
     edgeX: -0.2,
     openSign: 1,
+    stairZ: frontStairZ,
     opening,
     rise: 2.5
   });
-  const headerZ = frontZ - opening.depth;
-  const topZ = stair.centerZ + Math.sin(stair.topAngle) * stair.radius;
-  const frontMost = stair.centerZ + stair.radius;
+  const back = curvedLoftStair({
+    edgeX: -0.2,
+    openSign: 1,
+    stairZ: backStairZ,
+    opening,
+    rise: 2.5
+  });
+  const topX = front.centerX + Math.cos(front.topAngle) * front.radius;
+  const openingInnerX = -0.2 - opening.width;
 
-  assert.ok(Math.abs(topZ - headerZ) < 0.02);
-  assert.ok(frontMost < frontZ - 0.05);
-  assert.ok(stair.yTop - stair.yBottom === 2.5);
+  assert.ok(Math.abs(topX - openingInnerX) < 0.15);
+  assert.equal(front.centerZ, -back.centerZ);
+  assert.ok(front.centerZ + front.radius < frontZ);
+  assert.ok(back.centerZ - back.radius > -frontZ);
+  assert.ok(front.yTop - front.yBottom === 2.5);
 });

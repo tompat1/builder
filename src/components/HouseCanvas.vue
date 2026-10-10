@@ -138,6 +138,7 @@ onMounted(() => {
       loftAreaSqMeters: store.selectedLoftSize,
       hasLoftStair: store.hasLoftStair,
       loftStairType: store.loftStairType,
+      loftStairPosition: store.loftStairPosition,
       interactionMode: store.interactionMode,
       viewMode: store.viewMode,
       loftView: store.selectedCategory === 'loft',
@@ -375,15 +376,17 @@ watch(
     () => store.selectedLoftSize,
     () => store.hasLoftStair,
     () => store.loftStairType,
+    () => store.loftStairPosition,
     () => store.loftCount
   ],
-  ([loft, placement, size, stair, stairType, count]) => {
+  ([loft, placement, size, stair, stairType, stairPosition, count]) => {
     engine?.updateConfig({
       hasLoft: loft,
       loftPlacement: placement,
       loftAreaSqMeters: size,
       hasLoftStair: stair,
       loftStairType: stairType,
+      loftStairPosition: stairPosition,
       loftCount: count
     });
   }

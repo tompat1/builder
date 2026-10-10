@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { PULPET_PITCH_DEG, type CameraView, type MaterialKey, type WallSlot, type LoftPlacement, type LoftCount, type LoftStairType, type PanelOrientation, type RoofCovering } from '../store/useConfigStore';
+import { PULPET_PITCH_DEG, type CameraView, type MaterialKey, type WallSlot, type LoftPlacement, type LoftCount, type LoftStairPosition, type LoftStairType, type PanelOrientation, type RoofCovering } from '../store/useConfigStore';
 import type { HouseTerrace, TerraceSide } from '../outside/terrace';
 import { compassDialDegrees, headingForFacing, sunPlacement, type CompassFacing } from './sunPosition';
 import { eaveLiftMm, gablePitchDegrees, isGableRoof, type RoofId } from '../store/roof';
@@ -14,11 +14,10 @@ import { fitRoom, innerHalf, roomFootprint, shellSides, type ShellSides } from '
 const PULPET_PITCH_RAD = (PULPET_PITCH_DEG * Math.PI) / 180;
 
 interface LoftStairPlan {
-  frontZ: number;
   edgeX: number;
   openSign: number;
-  sectionW: number;
-  interiorD: number;
+  endSign: number;
+  stairZ: number;
   rise: number;
   run: number;
   opening: { width: number; depth: number };
@@ -35,6 +34,7 @@ export interface SceneConfig {
   loftAreaSqMeters?: number;
   hasLoftStair?: boolean;
   loftStairType?: LoftStairType;
+  loftStairPosition?: LoftStairPosition;
   loftCount?: LoftCount;
   interactionMode: 'default' | 'draw_wall' | 'place_utility' | 'place_room_bathroom' | 'place_room_bedroom' | 'place_room_kitchen' | 'place_room_storage';
   viewMode: 'utsida' | 'insida' | 'blueprint';
@@ -171,6 +171,7 @@ export class HouseScene {
       loftAreaSqMeters: initialConfig?.loftAreaSqMeters ?? 10.95,
       hasLoftStair: initialConfig?.hasLoftStair ?? true,
       loftStairType: initialConfig?.loftStairType ?? 'straight',
+      loftStairPosition: initialConfig?.loftStairPosition ?? 'front',
       loftCount: initialConfig?.loftCount ?? 'ett',
       viewMode: initialConfig?.viewMode ?? 'utsida',
       loftView: initialConfig?.loftView ?? false,
@@ -3418,9 +3419,6 @@ export class HouseScene {
     const loftD = interiorD;
     // Deck at least 2.5 m above the interior floor, with the joists above the door head.
     const loftElev = loftJoistTop(h);
-    const walkY = loftElev + LOFT_FLOORBOARD;
-    const stairRise = walkY - INTERIOR_FLOOR_TOP;
-    const stairRun = loftStairRun(stairRise, interiorD);
     const joistH = 0.195; // 195 mm floor joists (45x195 mm bjälklag)
     const joistW = 0.045; // 45 mm joist thickness
     const floorboardThick = 0.028; // 28 mm massive granplank
@@ -3446,8 +3444,9 @@ export class HouseScene {
       const sectionGroup = new THREE.Group();
       const edgeX = isLeftSection ? startX + sectionW : startX;
       const stairType = this.currentConfig.loftStairType ?? 'straight';
+      const stairEndSign = this.currentConfig.loftStairPosition === 'back' ? -1 : 1;
       const opening = stairAttached && this.currentConfig.hasLoftStair
-        ? loftStairOpening(stairType, sectionW, loftD, stairRun)
+        ? loftStairOpening(stairType, sectionW, loftD)
         : null;
       const openingInnerX = opening
         ? (isLeftSection ? edgeX - opening.width : edgeX + opening.width)
@@ -3463,7 +3462,11 @@ export class HouseScene {
         const joistDepth = crossesOpening ? loftD - opening.depth : loftD;
         const joistGeo = new THREE.BoxGeometry(joistW, joistH, joistDepth);
         const joistMesh = new THREE.Mesh(joistGeo, timberMat);
-        joistMesh.position.set(jx, loftElev - joistH / 2, crossesOpening ? -opening.depth / 2 : 0);
+        joistMesh.position.set(
+          jx,
+          loftElev - joistH / 2,
+          crossesOpening ? -stairEndSign * opening.depth / 2 : 0
+        );
         joistMesh.castShadow = true;
         sectionGroup.add(joistMesh);
       }
@@ -3472,7 +3475,11 @@ export class HouseScene {
       const rimDepth = opening ? loftD - opening.depth : loftD;
       const rimBeamGeo = new THREE.BoxGeometry(joistW * 1.5, joistH, rimDepth);
       const rimBeam = new THREE.Mesh(rimBeamGeo, timberMat);
-      rimBeam.position.set(edgeX, loftElev - joistH / 2, opening ? -opening.depth / 2 : 0);
+      rimBeam.position.set(
+        edgeX,
+        loftElev - joistH / 2,
+        opening ? -stairEndSign * opening.depth / 2 : 0
+      );
       rimBeam.castShadow = true;
       sectionGroup.add(rimBeam);
 
@@ -3490,14 +3497,24 @@ export class HouseScene {
       };
 
       if (opening) {
-        const backDepth = loftD - opening.depth;
-        addFloorPanel(sectionW, backDepth, startX + sectionW / 2, -opening.depth / 2);
+        const remainingDepth = loftD - opening.depth;
+        addFloorPanel(
+          sectionW,
+          remainingDepth,
+          startX + sectionW / 2,
+          -stairEndSign * opening.depth / 2
+        );
 
         const sideWidth = sectionW - opening.width;
         const sideX = isLeftSection
           ? startX + sideWidth / 2
           : startX + opening.width + sideWidth / 2;
-        addFloorPanel(sideWidth, opening.depth, sideX, loftD / 2 - opening.depth / 2);
+        addFloorPanel(
+          sideWidth,
+          opening.depth,
+          sideX,
+          stairEndSign * (loftD / 2 - opening.depth / 2)
+        );
 
         // Header beam closes the cut joists at the back edge of the stairwell.
         const header = new THREE.Mesh(
@@ -3507,7 +3524,7 @@ export class HouseScene {
         header.position.set(
           (edgeX + openingInnerX) / 2,
           loftElev - joistH / 2,
-          loftD / 2 - opening.depth
+          stairEndSign * (loftD / 2 - opening.depth)
         );
         header.castShadow = true;
         sectionGroup.add(header);
@@ -3523,13 +3540,14 @@ export class HouseScene {
 
         // Top Handrail
         const handrail = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.04, railLength), timberMat);
-        handrail.position.set(edgeX, loftElev + railH, -stairGap / 2);
+        const railCenterZ = -stairEndSign * stairGap / 2;
+        handrail.position.set(edgeX, loftElev + railH, railCenterZ);
         sectionGroup.add(handrail);
 
         // Balusters (Spjälor cc 120 mm)
         const balusterCount = Math.max(1, Math.floor(railLength / 0.12));
         for (let b = 0; b <= balusterCount; b++) {
-          const bz = -loftD / 2 + (railLength / balusterCount) * b;
+          const bz = railCenterZ - railLength / 2 + (railLength / balusterCount) * b;
           const baluster = new THREE.Mesh(new THREE.BoxGeometry(0.025, railH, 0.025), timberMat);
           baluster.position.set(edgeX, loftElev + railH / 2, bz);
           sectionGroup.add(baluster);
@@ -3584,9 +3602,9 @@ export class HouseScene {
       metalness: 0.02
     });
     const flight = straightLoftStair({
-      frontZ: plan.frontZ,
       edgeX: plan.edgeX,
       openSign: plan.openSign,
+      stairZ: plan.stairZ,
       opening: plan.opening,
       run: plan.run,
       rise: plan.rise
@@ -3595,17 +3613,17 @@ export class HouseScene {
     const stringerThick = 0.04;
     const stringerWidth = 0.16;
     const rise = flight.yTop - flight.yBottom;
-    const run = flight.zBottom - flight.zTop;
+    const run = Math.abs(flight.xBottom - flight.xTop);
     const stringerLen = Math.hypot(rise, run);
-    const stairAngle = Math.atan2(rise, run);
+    const stairAngle = Math.atan2(rise, flight.xTop - flight.xBottom);
+    const midX = (flight.xBottom + flight.xTop) / 2;
     const midY = (flight.yBottom + flight.yTop) / 2;
-    const midZ = (flight.zBottom + flight.zTop) / 2;
 
-    const stringerGeo = new THREE.BoxGeometry(stringerThick, stringerWidth, stringerLen);
+    const stringerGeo = new THREE.BoxGeometry(stringerLen, stringerWidth, stringerThick);
     for (const side of [-1, 1]) {
       const stringer = new THREE.Mesh(stringerGeo, pineMat);
-      stringer.position.set(side * flight.width / 2, midY, midZ);
-      stringer.rotation.x = stairAngle;
+      stringer.position.set(midX, midY, flight.z + side * flight.width / 2);
+      stringer.rotation.z = stairAngle;
       stringer.castShadow = true;
       stairGroup.add(stringer);
     }
@@ -3616,35 +3634,36 @@ export class HouseScene {
       const fraction = step / risers;
       const landing = step === risers;
       const tread = new THREE.Mesh(
-        new THREE.BoxGeometry(treadW, LOFT_FLOORBOARD, landing ? 0.28 : 0.22),
+        new THREE.BoxGeometry(landing ? 0.28 : 0.22, LOFT_FLOORBOARD, treadW),
         pineMat
       );
       tread.position.set(
-        0,
+        flight.xBottom + (flight.xTop - flight.xBottom) * fraction
+          - (landing ? plan.openSign * 0.15 : 0),
         flight.yBottom + rise * fraction - LOFT_FLOORBOARD / 2,
-        flight.zBottom + (flight.zTop - flight.zBottom) * fraction + (landing ? 0.15 : 0)
+        flight.z
       );
       tread.castShadow = true;
       stairGroup.add(tread);
     }
 
-    const railX = plan.openSign * (flight.width / 2 + 0.03);
-    const handrail = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, stringerLen), pineMat);
-    handrail.position.set(railX, midY + 0.9, midZ);
-    handrail.rotation.x = stairAngle;
+    const railZ = flight.z - plan.endSign * (flight.width / 2 + 0.03);
+    const handrail = new THREE.Mesh(new THREE.BoxGeometry(stringerLen, 0.04, 0.04), pineMat);
+    handrail.position.set(midX, midY + 0.9, railZ);
+    handrail.rotation.z = stairAngle;
     stairGroup.add(handrail);
 
     const postGeo = new THREE.BoxGeometry(0.03, 0.9, 0.03);
     for (const end of [0, 1]) {
       const post = new THREE.Mesh(postGeo, pineMat);
-      const z = flight.zBottom + (flight.zTop - flight.zBottom) * end;
+      const x = flight.xBottom + (flight.xTop - flight.xBottom) * end;
       const y = flight.yBottom + rise * end;
-      post.position.set(railX, y + 0.45, z);
+      post.position.set(x, y + 0.45, railZ);
       stairGroup.add(post);
     }
 
-    stairGroup.position.set(flight.x, 0, 0);
     stairGroup.userData.type = 'staircase';
+    stairGroup.userData.position = this.currentConfig.loftStairPosition ?? 'front';
     this.addLoftPiece(stairGroup);
   }
 
@@ -3665,21 +3684,23 @@ export class HouseScene {
       : interiorW * areaFraction;
     const edgeX = left ? -w / 2 + wt + sectionW : w / 2 - wt - sectionW;
     const rise = loftElev + LOFT_FLOORBOARD - INTERIOR_FLOOR_TOP;
-    const run = loftStairRun(rise, interiorD);
+    const openWidth = isTwoLofts ? interiorW - sectionW * 2 : interiorW - sectionW;
+    const run = loftStairRun(rise, openWidth);
     const type = this.currentConfig.loftStairType === 'curved' ? 'curved' : 'straight';
+    const endSign = this.currentConfig.loftStairPosition === 'back' ? -1 : 1;
+    const opening = loftStairOpening(type, sectionW, interiorD);
     return {
-      frontZ: interiorD / 2,
       edgeX,
       openSign: left ? 1 : -1,
-      sectionW,
-      interiorD,
+      endSign,
+      stairZ: endSign * (interiorD / 2 - opening.depth / 2),
       rise,
       run,
-      opening: loftStairOpening(type, sectionW, interiorD, run)
+      opening
     };
   }
 
-  /** Spiral inside the front well. The top step lands on the loft deck. */
+  /** Spiral inside the selected end of the loft opening. */
   private buildCurvedLoftStair(plan: LoftStairPlan) {
     const pineMat = new THREE.MeshStandardMaterial({
       color: '#dfcaa6',
@@ -3692,9 +3713,9 @@ export class HouseScene {
       metalness: 0.01
     });
     const spiral = curvedLoftStair({
-      frontZ: plan.frontZ,
       edgeX: plan.edgeX,
       openSign: plan.openSign,
+      stairZ: plan.stairZ,
       opening: plan.opening,
       rise: plan.rise
     });
@@ -3752,6 +3773,7 @@ export class HouseScene {
     }
 
     stairGroup.userData.type = 'staircase';
+    stairGroup.userData.position = this.currentConfig.loftStairPosition ?? 'front';
     this.addLoftPiece(stairGroup);
   }
 
