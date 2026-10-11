@@ -387,13 +387,29 @@
               </svg>
               <span class="tool-tip"><Cms :k="store.notes.length >= NOTE_LIMIT ? 'notes.limit' : 'notes.add'" /></span>
             </button>
+            <div class="w-px h-7 bg-slate-200/60"></div>
+            <button
+              type="button"
+              id="btn-tool-mood"
+              @click="toggleMood"
+              :class="toolButton(store.showMood)"
+              :aria-label="t('mood.tool')"
+              :aria-pressed="store.showMood"
+            >
+              <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">
+                <rect x="3.5" y="4" width="9" height="7.5" rx="1.2" />
+                <rect x="11.5" y="9" width="9" height="7.5" rx="1.2" />
+                <path d="M6.5 13.5h6.2V20H6.5z" />
+              </svg>
+              <span class="tool-tip"><Cms k="mood.tool" /></span>
+            </button>
           </div>
         </div>
         <button
           type="button"
           id="btn-tool-notes"
           @click="toggleNotesTray"
-          :class="toolButton(notesOpen || store.showNotes)"
+          :class="toolButton(notesOpen || store.showNotes || store.showMood)"
           :aria-label="t('notes.tool')"
           :aria-expanded="notesOpen"
           aria-controls="note-tools"
@@ -412,29 +428,6 @@
           <span class="tool-tip"><Cms k="notes.tool" /></span>
         </button>
       </div>
-
-      <div class="w-px h-7 bg-slate-200/60 my-auto"></div>
-
-      <button
-        type="button"
-        id="btn-tool-mood"
-        @click="toggleMood"
-        :class="toolButton(store.showMood)"
-        :aria-label="t('mood.tool')"
-        :aria-pressed="store.showMood"
-      >
-        <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round">
-          <rect x="3.5" y="4" width="9" height="7.5" rx="1.2" />
-          <rect x="11.5" y="9" width="9" height="7.5" rx="1.2" />
-          <path d="M6.5 13.5h6.2V20H6.5z" />
-        </svg>
-        <span
-          v-if="!store.showMood"
-          class="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-[#8a6a2f]"
-          aria-hidden="true"
-        ></span>
-        <span class="tool-tip"><Cms k="mood.tool" /></span>
-      </button>
 
       <div class="w-px h-7 bg-slate-200/60 my-auto"></div>
 

@@ -53,6 +53,9 @@ test.describe("3D Modular House Configurator", () => {
     const measureBtn = page.locator("#btn-tool-measure");
     const undoBtn = page.locator("#btn-tool-undo");
     const redoBtn = page.locator("#btn-tool-redo");
+    const notesBtn = page.locator("#btn-tool-notes");
+    const notesTray = page.locator("#note-tools");
+    const moodBtn = notesTray.locator("#btn-tool-mood");
 
     await expect(zoomInBtn).toBeVisible();
     await expect(zoomOutBtn).toBeVisible();
@@ -67,6 +70,16 @@ test.describe("3D Modular House Configurator", () => {
     // Toggle measurements
     await measureBtn.click();
     await measureBtn.click();
+
+    // Mood board belongs to the Notes tray rather than taking its own toolbar slot.
+    await expect(page.locator("#btn-tool-mood")).toHaveCount(1);
+    await expect(notesTray).toHaveAttribute("aria-hidden", "true");
+    await notesBtn.click();
+    await expect(notesTray).toHaveAttribute("aria-hidden", "false");
+    await moodBtn.click();
+    await expect(moodBtn).toHaveAttribute("aria-pressed", "true");
+    await page.locator("#btn-mood-close").click();
+    await expect(moodBtn).toHaveAttribute("aria-pressed", "false");
   });
 
   test("opens AI concierge from the toolbar instead of the configuration panel", async ({ page }) => {
