@@ -158,7 +158,7 @@ export const SIZE_OPTIONS: SizeOption[] = [
     height: 2500,
     areaSqMeters: 10.0,
     basePrice: 39900,
-    desc: '4000 × 2500 mm. En låg bod med dörr och ett litet fönster.'
+    desc: '4000 × 2500 mm. En låg bod med dörr och ett fönster.'
   },
   {
     id: 'size-sauna',
@@ -205,17 +205,6 @@ export const SIZE_OPTIONS: SizeOption[] = [
     desc: '6040 × 4950 mm. Maximal bygglovsfri boendeyta.'
   },
   {
-    id: 'size-40',
-    name: 'Fritidshus 40 m²',
-    badge: 'Större yta',
-    width: 8000,
-    depth: 5000,
-    height: 3600,
-    areaSqMeters: 40.0,
-    basePrice: 145000,
-    desc: '8000 × 5000 mm. Rymligt fritidshus med generösa rum.'
-  },
-  {
     id: 'size-cube',
     name: 'Modern skandi-kub',
     badge: 'Kub',
@@ -225,6 +214,17 @@ export const SIZE_OPTIONS: SizeOption[] = [
     areaSqMeters: 36.0,
     basePrice: 138000,
     desc: '6000 × 6000 mm. Dörr och lågt fönster till vänster, två fönster till höger, skjutdörrar bak och i hörnet, altan runt om.'
+  },
+  {
+    id: 'size-40',
+    name: 'Fritidshus 40 m²',
+    badge: 'Större yta',
+    width: 8000,
+    depth: 5000,
+    height: 3600,
+    areaSqMeters: 40.0,
+    basePrice: 145000,
+    desc: '8000 × 5000 mm. Rymligt fritidshus med generösa rum.'
   }
 ];
 

@@ -1188,7 +1188,7 @@ const en = {
     'size-shed': {
       name: 'Small shed',
       badge: 'Shed',
-      desc: '4000 × 2500 mm. A low shed with a door and a small window.'
+      desc: '4000 × 2500 mm. A low shed with a door and a window.'
     },
     pulpettak: {
       name: 'Mono-pitch 12°',
