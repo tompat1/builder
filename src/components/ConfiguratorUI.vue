@@ -32,6 +32,8 @@
       <HouseNotes />
     </div>
 
+    <MoodBoard v-if="store.showMood" />
+
     <!-- Lower-Left Toolset (Zoom, Fullscreen, Center, Measure, Undo, Redo, Notes) -->
     <ToolSet
       @zoom-in="$emit('zoom-in')"
@@ -117,6 +119,7 @@ import DimensionOverlay from './DimensionOverlay.vue';
 import MeasureRuler from './MeasureRuler.vue';
 import PanelSlotOverlay from './PanelSlotOverlay.vue';
 import HouseNotes from './HouseNotes.vue';
+import MoodBoard from './MoodBoard.vue';
 import Cms from './Cms.vue';
 
 const store = useConfigStore();

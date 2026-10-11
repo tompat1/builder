@@ -637,6 +637,7 @@ export const useConfigStore = defineStore('config', () => {
 
   const notes = ref<HouseNote[]>([]);
   const showNotes = ref(false);
+  const showMood = ref(false);
   const activeNoteId = ref<string | null>(null);
   const noteAnchors = ref<Record<string, { x: number; y: number; visible: boolean }>>({});
   const noteCamera = ref('');
@@ -1657,6 +1658,7 @@ export const useConfigStore = defineStore('config', () => {
     importHouse,
     notes,
     showNotes,
+    showMood,
     activeNoteId,
     noteAnchors,
     noteCamera,
