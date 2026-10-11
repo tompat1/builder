@@ -20,9 +20,9 @@ export interface PortraitPane {
  */
 export function portraitPane(panelWidth: number, panelHeight: number, isUpper: boolean): PortraitPane {
   const span = Math.max(0.46, panelWidth - SIDE * 2 - EDGE * 2);
-  const sill = isUpper ? SILL_BOARD + 0.05 : Math.min(0.4, panelHeight * 0.16);
-  const topGap = (isUpper ? 0.1 : 0.08) + HEAD_BOARD;
-  const height = Math.max(0.7, panelHeight - topGap - sill);
-  const width = Math.min(span, height * 0.86);
+  const sill = isUpper ? SILL_BOARD + 0.08 : 0.5;
+  const topGap = (isUpper ? 0.16 : 0.28) + HEAD_BOARD;
+  const height = Math.min(1.7, Math.max(0.9, panelHeight - topGap - sill));
+  const width = Math.min(span, 0.9, height * 0.56);
   return { width, height, sill };
 }

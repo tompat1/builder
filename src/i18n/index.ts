@@ -1132,7 +1132,7 @@ const en = {
     'size-cube': {
       name: 'Modern Scandi cube',
       badge: 'Cube',
-      desc: '6000 × 6000 mm. Door and a small window on the left, a large window and loft on the right, and a sliding door at the back corner.'
+      desc: '6000 × 6000 mm. A low window over the door, two windows on the right, sliding doors on the back and the side, and a terrace all around.'
     },
     pulpettak: {
       name: 'Mono-pitch 12°',

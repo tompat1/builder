@@ -202,7 +202,7 @@ export const SIZE_OPTIONS: SizeOption[] = [
     height: 4800,
     areaSqMeters: 36.0,
     basePrice: 138000,
-    desc: '6000 × 6000 mm. Dörr och litet fönster till vänster, stort fönster och loft till höger, skjutdörr i det bakre hörnet.'
+    desc: '6000 × 6000 mm. Dörr och lågt fönster till vänster, två fönster till höger, skjutdörrar bak och i hörnet, altan runt om.'
   }
 ];
 
@@ -477,9 +477,11 @@ export function cubeWallSlots(): Record<string, WallSlot> {
   slots['front-0'] = { ...slots['front-0'], type: 'door', itemId: 'LERVIK' };
   slots['front-0u'] = { ...slots['front-0u'], type: 'window', itemId: 'standard-single' };
   slots['front-3'] = { ...slots['front-3'], type: 'window', itemId: 'panorama' };
+  slots['front-3u'] = { ...slots['front-3u'], type: 'window', itemId: 'panorama' };
   slots['left-1'] = { ...slots['left-1'], type: 'window', itemId: 'panorama-portrait' };
   slots['right-0'] = { ...slots['right-0'], type: 'door', itemId: 'SKJUTDORR' };
   slots['right-1'] = { ...slots['right-1'], type: 'window', itemId: 'standard-single' };
+  slots['back-1'] = { ...slots['back-1'], type: 'door', itemId: 'SKJUTDORR' };
   return slots;
 }
 
@@ -997,7 +999,13 @@ export const useConfigStore = defineStore('config', () => {
     verticalDoorBay.value = true;
     doorCanopy.value = true;
     flushRoof.value = true;
-    terraces.value = [{ side: 'back', depth: 3, span: 'full', roof: true }];
+    claddingSizeId.value = '22x170';
+    terraces.value = [
+      { side: 'back', depth: 2.4, span: 'full', roof: true },
+      { side: 'front', depth: 1.8, span: 'full', roof: false },
+      { side: 'left', depth: 1.8, span: 'full', roof: false },
+      { side: 'right', depth: 1.8, span: 'full', roof: false }
+    ];
     activeRoof.value = 'flackt';
     roofCovering.value = 'metal';
     activeMaterial.value = 'black';
@@ -1017,6 +1025,7 @@ export const useConfigStore = defineStore('config', () => {
     verticalDoorBay.value = false;
     doorCanopy.value = false;
     flushRoof.value = false;
+    claddingSizeId.value = '22x145';
     activeLoft.value = 'none';
     loftPlacement.value = 'vanster';
     terraces.value = [];
