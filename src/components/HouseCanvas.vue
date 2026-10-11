@@ -176,6 +176,10 @@ onMounted(() => {
       else if (slot?.type === 'gate') store.selectCategory('gates');
     };
 
+    engine.onSlotMove = (fromSlotId, toSlotId) => {
+      return store.moveSlotItem(fromSlotId, toSlotId);
+    };
+
     engine.onPanelHover = (slotId, x, y) => {
       store.setHoveredSlot(slotId, slotId && x && y ? { x, y } : null);
     };

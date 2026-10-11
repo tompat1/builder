@@ -38,6 +38,7 @@ import {
   clampSunHour,
   type CompassFacing
 } from '../three-engine/sunPosition';
+import { moveWallSlot } from './slotMove';
 
 export type { CompassFacing };
 
@@ -1527,6 +1528,15 @@ export const useConfigStore = defineStore('config', () => {
     assignSlotItem(slotId, 'empty', undefined);
   }
 
+  function moveSlotItem(fromId: string, toId: string): boolean {
+    const success = moveWallSlot(wallSlots.value, fromId, toId);
+    if (success) {
+      selectedSlotId.value = toId;
+      saveSnapshot();
+    }
+    return success;
+  }
+
   function toggleDimensions() {
     showDimensions.value = !showDimensions.value;
   }
@@ -1762,6 +1772,7 @@ export const useConfigStore = defineStore('config', () => {
     deselectSlot,
     assignSlotItem,
     removeSlotItem,
+    moveSlotItem,
     toggleDimensions,
     toggleInnerWalls,
     setShowInnerWalls,

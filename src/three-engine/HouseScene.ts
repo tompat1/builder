@@ -179,6 +179,7 @@ export class HouseScene {
   // Callbacks for 3D interactions
   public onPanelClick?: (slotId: string, screenX: number, screenY: number) => void;
   public onPanelHover?: (slotId: string | null, screenX: number, screenY: number) => void;
+  public onSlotMove?: (fromSlotId: string, toSlotId: string) => boolean;
   public onSlotScreenPositionUpdate?: (pos: { x: number; y: number; visible: boolean; slotId: string }) => void;
   public onDimensionLabels?: (labels: Record<string, { x: number; y: number; visible: boolean }>) => void;
   public onNoteAnchors?: (anchors: Record<string, { x: number; y: number; visible: boolean }>) => void;
@@ -196,6 +197,16 @@ export class HouseScene {
   public onRoomSelect?: (id: string) => void;
   private selectedRoomId: string | null = null;
   public onInteractionComplete?: () => void;
+  private draggingSlot: {
+    slotId: string;
+    pointerId: number;
+    startX: number;
+    startY: number;
+    hasMoved: boolean;
+    hitMesh: THREE.Mesh;
+  } | null = null;
+  private dragTargetBox: THREE.Object3D | null = null;
+  private hoveredTargetSlotId: string | null = null;
   private measuring = false;
   private measureDown: { x: number; y: number } | null = null;
   private measureFrom: THREE.Vector3 | null = null;
@@ -1016,6 +1027,40 @@ export class HouseScene {
         }
       }
 
+      if (this.draggingSlot) {
+        const dx = e.clientX - this.draggingSlot.startX;
+        const dy = e.clientY - this.draggingSlot.startY;
+        if (!this.draggingSlot.hasMoved && Math.hypot(dx, dy) > 8) {
+          this.draggingSlot.hasMoved = true;
+          this.container.setPointerCapture(this.draggingSlot.pointerId);
+          this.container.style.cursor = 'grabbing';
+          this.updateHoverBox(null);
+        }
+        if (this.draggingSlot.hasMoved) {
+          this.updateHoverBox(null);
+          this.raycaster.setFromCamera(this.mouse, this.camera);
+          const hits = this.outsideShell()
+            ? this.raycaster.intersectObjects(this.interactivePanels, false)
+            : [];
+          if (hits.length > 0) {
+            const targetHit = hits[0].object as THREE.Mesh;
+            const targetSlotId = targetHit.userData.slotId as string;
+            const sourceSlot = this.currentConfig.wallSlots[this.draggingSlot.slotId];
+            const targetSlot = this.currentConfig.wallSlots[targetSlotId];
+            const isDoor = sourceSlot?.type === 'door' || sourceSlot?.type === 'gate';
+            const isInvalidUpper = isDoor && targetSlot?.canAcceptDoor === false;
+            const isValid = targetSlotId !== this.draggingSlot.slotId && !isInvalidUpper;
+            this.hoveredTargetSlotId = targetSlotId;
+            const hasCanopy = sourceSlot?.type === 'door' && Boolean(this.currentConfig.doorCanopy);
+            this.updateDragTargetBox(targetHit, isValid, hasCanopy);
+          } else {
+            this.hoveredTargetSlotId = null;
+            this.updateDragTargetBox(null, false);
+          }
+          return;
+        }
+      }
+
       const intersects = this.outsideShell()
         ? this.raycaster.intersectObjects(this.interactivePanels, false)
         : [];
@@ -1024,7 +1069,9 @@ export class HouseScene {
         const hit = intersects[0].object as THREE.Mesh;
         const slotId = hit.userData.slotId as string;
         if (slotId) {
-          this.container.style.cursor = 'pointer';
+          const slot = this.currentConfig.wallSlots[slotId];
+          const hasItem = slot && slot.type !== 'empty';
+          this.container.style.cursor = hasItem ? 'grab' : 'pointer';
           const bounds = this.boundsOf(hit);
           this.updateHoverBox(bounds);
 
@@ -1051,6 +1098,10 @@ export class HouseScene {
       this.updateHoverBox(null);
       this.onPanelHover?.(null, 0, 0);
       this.updateRoomPreview(null);
+      if (this.draggingSlot && !this.draggingSlot.hasMoved) {
+        this.controls.enabled = true;
+        this.draggingSlot = null;
+      }
     });
 
     this.container.addEventListener('pointerdown', (e) => {
@@ -1209,15 +1260,29 @@ export class HouseScene {
         const hit = intersects[0].object as THREE.Mesh;
         const slotId = hit.userData.slotId as string;
         if (slotId) {
-          if (e.pointerType === 'touch') {
-            this.panelTouchPress = {
-              pointerId: e.pointerId,
+          const slot = this.currentConfig.wallSlots[slotId];
+          const hasItem = slot && slot.type !== 'empty';
+          if (hasItem) {
+            this.draggingSlot = {
               slotId,
-              x: e.clientX,
-              y: e.clientY
+              pointerId: e.pointerId,
+              startX: e.clientX,
+              startY: e.clientY,
+              hasMoved: false,
+              hitMesh: hit
             };
+            this.controls.enabled = false;
           } else {
-            this.selectPanel(slotId, hit, e.clientX, e.clientY);
+            if (e.pointerType === 'touch') {
+              this.panelTouchPress = {
+                pointerId: e.pointerId,
+                slotId,
+                x: e.clientX,
+                y: e.clientY
+              };
+            } else {
+              this.selectPanel(slotId, hit, e.clientX, e.clientY);
+            }
           }
         }
       }
@@ -1228,6 +1293,27 @@ export class HouseScene {
         this.finishRoomDrag(true);
         if (this.container.hasPointerCapture(e.pointerId)) this.container.releasePointerCapture(e.pointerId);
         return;
+      }
+      if (this.draggingSlot && (e.pointerId === this.draggingSlot.pointerId || e.pointerType === 'mouse')) {
+        const drag = this.draggingSlot;
+        this.draggingSlot = null;
+        this.controls.enabled = true;
+        this.updateDragTargetBox(null, false);
+        this.container.style.cursor = 'default';
+        if (this.container.hasPointerCapture(drag.pointerId)) {
+          this.container.releasePointerCapture(drag.pointerId);
+        }
+
+        if (drag.hasMoved) {
+          if (this.hoveredTargetSlotId && this.hoveredTargetSlotId !== drag.slotId) {
+            this.onSlotMove?.(drag.slotId, this.hoveredTargetSlotId);
+          }
+          this.hoveredTargetSlotId = null;
+          return;
+        } else {
+          this.selectPanel(drag.slotId, drag.hitMesh, e.clientX, e.clientY);
+          return;
+        }
       }
       if (this.panelTouchPress?.pointerId === e.pointerId) {
         const press = this.panelTouchPress;
@@ -1248,6 +1334,17 @@ export class HouseScene {
     });
 
     this.container.addEventListener('pointercancel', (e) => {
+      if (this.draggingSlot && (e.pointerId === this.draggingSlot.pointerId || e.pointerType === 'mouse')) {
+        const drag = this.draggingSlot;
+        this.draggingSlot = null;
+        this.controls.enabled = true;
+        this.updateDragTargetBox(null, false);
+        this.hoveredTargetSlotId = null;
+        this.container.style.cursor = 'default';
+        if (this.container.hasPointerCapture(drag.pointerId)) {
+          this.container.releasePointerCapture(drag.pointerId);
+        }
+      }
       if (this.panelTouchPress?.pointerId === e.pointerId) this.panelTouchPress = null;
       this.finishRoomDrag(false);
       if (this.container.hasPointerCapture(e.pointerId)) this.container.releasePointerCapture(e.pointerId);
@@ -4829,6 +4926,61 @@ export class HouseScene {
     this.scene.add(this.hoverBox);
   }
 
+  private updateDragTargetBox(target: THREE.Object3D | null, valid: boolean, isDoorWithCanopy = false) {
+    if (this.dragTargetBox) {
+      this.scene.remove(this.dragTargetBox);
+      this.dragTargetBox = null;
+    }
+    if (!target) return;
+
+    const bbox = new THREE.Box3().setFromObject(target);
+    const size = new THREE.Vector3();
+    const center = new THREE.Vector3();
+    bbox.getSize(size);
+    bbox.getCenter(center);
+
+    const group = new THREE.Group();
+    const color = valid ? '#10b981' : '#f43f5e';
+
+    const boxGeo = new THREE.BoxGeometry(size.x + 0.05, size.y + 0.05, size.z + 0.05);
+    const edges = new THREE.EdgesGeometry(boxGeo);
+    const lineMat = new THREE.LineBasicMaterial({
+      color,
+      linewidth: 3
+    });
+    group.add(new THREE.LineSegments(edges, lineMat));
+
+    const glowMat = new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: valid ? 0.22 : 0.32,
+      depthWrite: false
+    });
+    group.add(new THREE.Mesh(boxGeo, glowMat));
+
+    // If dragging a door and door roof is enabled, preview the door roof over the target bay
+    if (isDoorWithCanopy && valid) {
+      const span = Math.max(size.x, size.z) + 0.56;
+      const canopyGeo = new THREE.BoxGeometry(
+        size.x > size.z ? span : 0.92,
+        0.06,
+        size.x > size.z ? 0.92 : span
+      );
+      const canopyEdges = new THREE.EdgesGeometry(canopyGeo);
+      const canopyWire = new THREE.LineSegments(canopyEdges, lineMat);
+      canopyWire.position.set(0, size.y / 2 + 0.22, 0);
+      group.add(canopyWire);
+
+      const canopyMesh = new THREE.Mesh(canopyGeo, glowMat);
+      canopyMesh.position.set(0, size.y / 2 + 0.22, 0);
+      group.add(canopyMesh);
+    }
+
+    group.position.copy(center);
+    this.dragTargetBox = group;
+    this.scene.add(this.dragTargetBox);
+  }
+
   public updateConfig(config: Partial<SceneConfig>) {
     const viewChanged =
       (config.viewMode !== undefined && config.viewMode !== this.currentConfig.viewMode) ||
@@ -5957,6 +6109,10 @@ export class HouseScene {
   public destroy() {
     window.removeEventListener('resize', this.onResize);
     this.controls.removeEventListener('start', this.onControlStart);
+    if (this.dragTargetBox) {
+      this.scene.remove(this.dragTargetBox);
+      this.dragTargetBox = null;
+    }
     if (this.animFrameId) cancelAnimationFrame(this.animFrameId);
     this.renderer.dispose();
   }
