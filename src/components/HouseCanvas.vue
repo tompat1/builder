@@ -162,6 +162,7 @@ onMounted(() => {
       selectedSlotId: store.selectedSlotId,
       wallSlots: store.wallSlots,
       doorCanopy: store.doorCanopy,
+      flushRoof: store.flushRoof,
       terraces: store.terraces.map((item) => ({ ...item }))
     });
 
@@ -358,10 +359,11 @@ watch(
 
 // Watch roof type
 watch(
-  () => store.activeRoof,
-  (roof) => {
+  [() => store.activeRoof, () => store.flushRoof],
+  ([roof, flushRoof]) => {
     engine?.updateConfig({
-      roofType: roof as RoofId
+      roofType: roof as RoofId,
+      flushRoof
     });
   }
 );

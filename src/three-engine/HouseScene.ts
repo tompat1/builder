@@ -65,6 +65,8 @@ export interface SceneConfig {
   isFullscreen?: boolean;
   /** Small roof over each exterior door. */
   doorCanopy?: boolean;
+  /** Roof sheet ends at the walls. A metal band covers the edge and the wall top. */
+  flushRoof?: boolean;
   /** Decks around the house. At most one on each side. */
   terraces?: HouseTerrace[];
 }
@@ -77,6 +79,7 @@ interface OutsideAnchor {
   width: number;
   head: number;
   wall: 'front' | 'back' | 'left' | 'right';
+  itemId?: string;
 }
 
 export class HouseScene {
@@ -229,6 +232,7 @@ export class HouseScene {
       selectedSlotId: initialConfig?.selectedSlotId ?? null,
       wallSlots: initialConfig?.wallSlots ?? {},
       doorCanopy: initialConfig?.doorCanopy ?? false,
+      flushRoof: initialConfig?.flushRoof ?? false,
       terraces: initialConfig?.terraces ?? []
     };
 
@@ -1508,7 +1512,9 @@ export class HouseScene {
 
       const belt = this.beltRise(h);
       const upperId = `${wallSide}-${i}u`;
-      const split = Boolean(this.currentConfig.wallSlots[upperId]) && panelWallH > belt + 0.4;
+      const lowerSlot = this.currentConfig.wallSlots[slotId];
+      const tallPortrait = lowerSlot?.type === 'window' && lowerSlot.itemId === PORTRAIT_PANORAMA;
+      const split = !tallPortrait && Boolean(this.currentConfig.wallSlots[upperId]) && panelWallH > belt + 0.4;
       const bands = split
         ? [
             { slotId, height: belt, base: baseElev, upper: false, reachesRoof: false },
@@ -1545,8 +1551,8 @@ export class HouseScene {
       }
     }
 
-    // Top eave trim and fascia to ensure 100% gapless junction with roof underside
-    if (wallSide === 'left' || wallSide === 'right') {
+    // A flush metal roof covers the wall top with its own band.
+    if (!this.currentConfig.flushRoof && (wallSide === 'left' || wallSide === 'right')) {
       const roof = this.currentConfig.roofType;
       if (!this.interiorCut() && (roof === 'pulpettak' || roof === 'flackt')) {
         const pitch = this.alongWallSlope('left');
@@ -1560,7 +1566,7 @@ export class HouseScene {
         eavesTrim.castShadow = true;
         this.wallsGroup.add(eavesTrim);
       }
-    } else if (wallSide === 'front') {
+    } else if (!this.currentConfig.flushRoof && wallSide === 'front') {
       if (!this.interiorCut()) {
         const frontTrimGeo = new THREE.BoxGeometry(w + 0.06, 0.14, 0.035);
         const frontTrim = new THREE.Mesh(frontTrimGeo, trimMat);
@@ -1568,7 +1574,7 @@ export class HouseScene {
         frontTrim.castShadow = true;
         this.wallsGroup.add(frontTrim);
       }
-    } else if (wallSide === 'back') {
+    } else if (!this.currentConfig.flushRoof && wallSide === 'back') {
       const backTrimGeo = new THREE.BoxGeometry(w + 0.05, 0.12, 0.03);
       const backTrim = new THREE.Mesh(backTrimGeo, trimMat);
       backTrim.position.set(0, rearH - 0.06, -d / 2 - 0.01);
@@ -1653,27 +1659,73 @@ export class HouseScene {
       this.wallsGroup.add(mesh);
     };
 
-    const place = (length: number, axis: 'x' | 'z', sign: number, claddingOuter: number) => {
+    const place = (
+      length: number,
+      axis: 'x' | 'z',
+      sign: number,
+      claddingOuter: number,
+      gaps: { center: number; half: number }[]
+    ) => {
       const center = claddingOuter + sign * (standOff + proj / 2);
       const lip = center + sign * (proj / 2 + 0.006);
       const shade = claddingOuter + sign * 0.004;
-      if (axis === 'z') {
-        add([length, faceH, proj], [0, y, center], faceMat);
-        add([length, 0.01, proj + 0.012], [0, y + faceH / 2 - 0.004, center + sign * 0.006], lipMat);
-        add([length, 0.016, 0.018], [0, y - faceH / 2 + 0.006, lip], lipMat);
-        add([length, 0.03, 0.004], [0, y - faceH / 2 - 0.012, shade], shadeMat);
-      } else {
-        add([proj, faceH, length], [center, y, 0], faceMat);
-        add([proj + 0.012, 0.01, length], [center + sign * 0.006, y + faceH / 2 - 0.004, 0], lipMat);
-        add([0.018, 0.016, length], [lip, y - faceH / 2 + 0.006, 0], lipMat);
-        add([0.004, 0.03, length], [shade, y - faceH / 2 - 0.012, 0], shadeMat);
+      const start = -length / 2;
+      const end = length / 2;
+      const cuts = gaps
+        .map((gap) => [Math.max(start, gap.center - gap.half), Math.min(end, gap.center + gap.half)] as [number, number])
+        .filter(([from, to]) => to > from + 0.02)
+        .sort((a, b) => a[0] - b[0]);
+      const runs: [number, number][] = [];
+      let cursor = start;
+      for (const [from, to] of cuts) {
+        if (from > cursor + 0.05) runs.push([cursor, from]);
+        cursor = Math.max(cursor, to);
+      }
+      if (end > cursor + 0.05) runs.push([cursor, end]);
+
+      for (const [from, to] of runs) {
+        const seg = to - from;
+        const mid = (from + to) / 2;
+        if (axis === 'z') {
+          add([seg, faceH, proj], [mid, y, center], faceMat);
+          add([seg, 0.01, proj + 0.012], [mid, y + faceH / 2 - 0.004, center + sign * 0.006], lipMat);
+          add([seg, 0.016, 0.018], [mid, y - faceH / 2 + 0.006, lip], lipMat);
+          add([seg, 0.03, 0.004], [mid, y - faceH / 2 - 0.012, shade], shadeMat);
+        } else {
+          add([proj, faceH, seg], [center, y, mid], faceMat);
+          add([proj + 0.012, 0.01, seg], [center + sign * 0.006, y + faceH / 2 - 0.004, 0], lipMat);
+          add([0.018, 0.016, seg], [lip, y - faceH / 2 + 0.006, mid], lipMat);
+          add([0.004, 0.03, seg], [shade, y - faceH / 2 - 0.012, mid], shadeMat);
+        }
       }
     };
 
-    place(w - inset * 2, 'z', 1, d / 2);
-    place(w - inset * 2, 'z', -1, -d / 2);
-    place(d - face * 2, 'x', -1, -w / 2);
-    place(d - face * 2, 'x', 1, w / 2);
+    place(w - inset * 2, 'z', 1, d / 2, this.portraitBeltGaps('front', w, 4));
+    place(w - inset * 2, 'z', -1, -d / 2, this.portraitBeltGaps('back', w, 4));
+    place(d - face * 2, 'x', -1, -w / 2, this.portraitBeltGaps('left', d, 3));
+    place(d - face * 2, 'x', 1, w / 2, this.portraitBeltGaps('right', d, 3));
+  }
+
+  /** Where a portrait panorama crosses the mid-rail, so the belt stops at the frame. */
+  private portraitBeltGaps(wall: 'front' | 'back' | 'left' | 'right', span: number, count: number) {
+    const frontOrBack = wall === 'front' || wall === 'back';
+    const endInset = frontOrBack ? 0 : 0.017;
+    const panelWidth = (frontOrBack ? span : span - endInset * 2) / count;
+    const gaps: { center: number; half: number }[] = [];
+    for (let i = 0; i < count; i += 1) {
+      const slot = this.currentConfig.wallSlots[`${wall}-${i}`];
+      if (slot?.type !== 'window' || slot.itemId !== PORTRAIT_PANORAMA) continue;
+      const center = wall === 'front'
+        ? -span / 2 + panelWidth / 2 + i * panelWidth
+        : wall === 'back'
+          ? span / 2 - panelWidth / 2 - i * panelWidth
+          : wall === 'left'
+            ? span / 2 - endInset - panelWidth / 2 - i * panelWidth
+            : -span / 2 + endInset + panelWidth / 2 + i * panelWidth;
+      const pane = portraitPane(panelWidth, 4, false);
+      gaps.push({ center, half: pane.width / 2 + 0.02 });
+    }
+    return gaps;
   }
 
   /** Rise of the roof along a side wall, in metres of height per metre of local panel X. */
@@ -2108,7 +2160,9 @@ export class HouseScene {
     let host = index;
     let partner: number | null = null;
     const wideSlider = slot?.itemId === 'SKJUTDORR' || slot?.itemId === 'SKJUTDORR3';
-    if (wideSlider) {
+    const clear = panelWidth - 0.09 * 2 - 0.045 * 2;
+    const needsNeighbour = slot?.itemId === 'SKJUTDORR3' ? clear < 2.4 : clear < 1.65;
+    if (wideSlider && needsNeighbour) {
       partner = index + 1 < count ? index + 1 : index > 0 ? index - 1 : null;
     } else if (slot?.coveredBy) {
       const hostSlot = slots[slot.coveredBy];
@@ -2171,6 +2225,14 @@ export class HouseScene {
       const sill = panelBase;
       const head = sill + doorH;
       return { winW: doorW, winH: doorH, winY: (sill + head) / 2 - centerY, sill, head };
+    }
+
+    if (itemId === 'standard-single' && !isUpper && panelWidth >= 1.8) {
+      const width = Math.min(1.05, winW);
+      const height = 0.72;
+      const sill = panelBase + 1.05;
+      const head = sill + height;
+      return { winW: width, winH: height, winY: (sill + head) / 2 - centerY, sill, head };
     }
 
     if (itemId === PORTRAIT_PANORAMA) {
@@ -2263,7 +2325,8 @@ export class HouseScene {
           doorX: wide?.x ?? 0,
           width: opening.winW,
           head: opening.head,
-          wall
+          wall,
+          itemId: slot.itemId
         });
       }
     }
@@ -2524,6 +2587,7 @@ export class HouseScene {
     if (canopyOn) {
       for (const door of doors) {
         if (covered.has(door.wall)) continue;
+        if (door.itemId === 'SKJUTDORR' || door.itemId === 'SKJUTDORR3') continue;
         this.addDoorCanopy(door, timber, roofMat);
       }
     }
@@ -3065,7 +3129,7 @@ export class HouseScene {
 
   private buildRoof(w: number, d: number, h: number) {
     const { roofType } = this.currentConfig;
-    const overhang = 0.4;
+    const overhang = this.currentConfig.flushRoof ? 0.02 : 0.4;
     const roofMat = this.roofSurfaceMaterial();
 
     const whiteTrimMat = new THREE.MeshStandardMaterial({
@@ -3076,7 +3140,10 @@ export class HouseScene {
     if (isGableRoof(roofType)) {
       this.addGableRoof(w, d, h, overhang, roofMat, whiteTrimMat);
     } else if (roofType === 'flackt') {
-      this.addShallowRoof(w, d, h, overhang, 2, roofMat, whiteTrimMat);
+      const frameMat = this.currentConfig.flushRoof
+        ? new THREE.MeshStandardMaterial({ color: '#d5d8dc', roughness: 0.32, metalness: 0.72 })
+        : whiteTrimMat;
+      this.addShallowRoof(w, d, h, overhang, 2, roofMat, frameMat);
     } else {
       // Pulpettak. The slab, barge boards, and fascia share one rotated assembly
       // so each board meets the next at an edge instead of occupying the same face.
@@ -3184,14 +3251,30 @@ export class HouseScene {
     roofMesh.receiveShadow = true;
     assembly.add(roofMesh);
 
-    const fasciaT = 0.03;
-    const fascia = new THREE.Mesh(
-      new THREE.BoxGeometry(roofW + 0.02, roofThick + 0.01, fasciaT),
-      trimMat
-    );
-    fascia.position.set(0, -0.004, slopeLen / 2 + fasciaT / 2 + 0.001);
-    fascia.castShadow = true;
-    assembly.add(fascia);
+    const fasciaT = 0.028;
+    if (overhang < 0.08) {
+      const drop = 0.12;
+      const frameH = roofThick + drop;
+      const frameY = -drop / 2 + 0.01;
+      const band = (width: number, height: number, depth: number, x: number, z: number) => {
+        const piece = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), trimMat);
+        piece.position.set(x, frameY, z);
+        piece.castShadow = true;
+        assembly.add(piece);
+      };
+      band(roofW + fasciaT * 2, frameH, fasciaT, 0, slopeLen / 2 + fasciaT / 2);
+      band(roofW + fasciaT * 2, frameH, fasciaT, 0, -(slopeLen / 2 + fasciaT / 2));
+      band(fasciaT, frameH, slopeLen, -(roofW / 2 + fasciaT / 2), 0);
+      band(fasciaT, frameH, slopeLen, roofW / 2 + fasciaT / 2, 0);
+    } else {
+      const fascia = new THREE.Mesh(
+        new THREE.BoxGeometry(roofW + 0.02, roofThick + 0.01, fasciaT),
+        trimMat
+      );
+      fascia.position.set(0, -0.004, slopeLen / 2 + fasciaT / 2 + 0.001);
+      fascia.castShadow = true;
+      assembly.add(fascia);
+    }
 
     this.roofGroup.add(assembly);
   }

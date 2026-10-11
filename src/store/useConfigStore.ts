@@ -202,7 +202,7 @@ export const SIZE_OPTIONS: SizeOption[] = [
     height: 4800,
     areaSqMeters: 36.0,
     basePrice: 138000,
-    desc: '6000 × 6000 mm. Kvadratisk kub med panoramafönster, skjutdörr mot en täckt altan och skärmtak över entrén.'
+    desc: '6000 × 6000 mm. Dörr och litet fönster till vänster, stort fönster och loft till höger, skjutdörr i det bakre hörnet.'
   }
 ];
 
@@ -474,11 +474,12 @@ export function cubeWallSlots(): Record<string, WallSlot> {
     slot.itemId = undefined;
     slot.coveredBy = undefined;
   }
-  slots['front-1'] = { ...slots['front-1'], type: 'door', itemId: 'LERVIK' };
-  slots['front-1u'] = { ...slots['front-1u'], type: 'window', itemId: 'panorama-portrait' };
-  slots['right-1'] = { ...slots['right-1'], type: 'window', itemId: 'panorama' };
-  slots['back-1'] = { ...slots['back-1'], type: 'door', itemId: 'SKJUTDORR' };
-  slots['back-2'] = { ...slots['back-2'], type: 'empty', itemId: undefined, coveredBy: 'back-1' };
+  slots['front-0'] = { ...slots['front-0'], type: 'door', itemId: 'LERVIK' };
+  slots['front-0u'] = { ...slots['front-0u'], type: 'window', itemId: 'standard-single' };
+  slots['front-3'] = { ...slots['front-3'], type: 'window', itemId: 'panorama' };
+  slots['left-1'] = { ...slots['left-1'], type: 'window', itemId: 'panorama-portrait' };
+  slots['right-0'] = { ...slots['right-0'], type: 'door', itemId: 'SKJUTDORR' };
+  slots['right-1'] = { ...slots['right-1'], type: 'window', itemId: 'standard-single' };
   return slots;
 }
 
@@ -567,6 +568,8 @@ export const useConfigStore = defineStore('config', () => {
   const activeWindow = ref<string>('standard-single');
   const activeGate = ref<string>('none');
   const doorCanopy = ref(false);
+  /** Tin roof ends at the walls, with a metal band over the roof edge. */
+  const flushRoof = ref(false);
   const terraces = ref<HouseTerrace[]>([]);
   const facing = ref<CompassFacing>('south');
   const sunHour = ref(12);
@@ -680,6 +683,7 @@ export const useConfigStore = defineStore('config', () => {
       activeWindow: activeWindow.value,
       activeGate: activeGate.value,
       doorCanopy: doorCanopy.value,
+      flushRoof: flushRoof.value,
       terraces: terraces.value.map((item) => ({ ...item })),
       facing: facing.value,
       sunHour: sunHour.value,
@@ -752,6 +756,7 @@ export const useConfigStore = defineStore('config', () => {
       if (data.activeWindow) activeWindow.value = data.activeWindow;
       if (data.activeGate) activeGate.value = data.activeGate;
       doorCanopy.value = data.doorCanopy === true;
+      flushRoof.value = data.flushRoof === true;
       terraces.value = Array.isArray(data.terraces) ? acceptTerraces(data.terraces) : terracesFromLegacy(data);
       facing.value = COMPASS_FACINGS.includes(data.facing) ? data.facing : 'south';
       sunHour.value = clampSunHour(typeof data.sunHour === 'number' ? data.sunHour : 12);
@@ -991,12 +996,16 @@ export const useConfigStore = defineStore('config', () => {
     panelOrientation.value = 'liggande';
     verticalDoorBay.value = true;
     doorCanopy.value = true;
+    flushRoof.value = true;
     terraces.value = [{ side: 'back', depth: 3, span: 'full', roof: true }];
     activeRoof.value = 'flackt';
     roofCovering.value = 'metal';
     activeMaterial.value = 'black';
     activePaintId.value = null;
-    activeLoft.value = 'none';
+    activeLoft.value = 'sleeping';
+    loftCount.value = 'ett';
+    loftPlacement.value = 'hoger';
+    selectedLoftSize.value = 14.6;
     wallSlots.value = cubeWallSlots();
     activeDoor.value = 'LERVIK';
     activeWindow.value = 'panorama';
@@ -1007,6 +1016,9 @@ export const useConfigStore = defineStore('config', () => {
     panelOrientation.value = 'staende';
     verticalDoorBay.value = false;
     doorCanopy.value = false;
+    flushRoof.value = false;
+    activeLoft.value = 'none';
+    loftPlacement.value = 'vanster';
     terraces.value = [];
     activeRoof.value = 'pulpettak';
     roofCovering.value = 'felt';
@@ -1540,6 +1552,7 @@ export const useConfigStore = defineStore('config', () => {
     activeWindow,
     activeGate,
     doorCanopy,
+    flushRoof,
     terraces,
     facing,
     sunHour,
