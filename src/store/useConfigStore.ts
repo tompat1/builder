@@ -573,6 +573,7 @@ export const useConfigStore = defineStore('config', () => {
   const viewMode = ref<ViewMode>('utsida');
   const interactionMode = ref<InteractionMode>('default');
   const generateElectricalSignal = ref(0);
+  const interiorFocusSignal = ref(0);
   const selectedCategory = ref<CategoryKey>('size');
   const activeMaterial = ref<MaterialKey>('wood');
   const savedPaints = ref<SavedPaint[]>([]);
@@ -1027,12 +1028,17 @@ export const useConfigStore = defineStore('config', () => {
     if (category === 'doors' || category === 'windows' || category === 'gates' || category === 'extras') {
       viewMode.value = 'utsida';
       viewModeBeforeLoft = null;
-    } else if (category === 'loft' && selectedCategory.value !== 'loft') {
-      viewModeBeforeLoft = viewMode.value;
+    } else if (category === 'loft') {
+      if (selectedCategory.value !== 'loft') {
+        viewModeBeforeLoft = viewMode.value;
+      }
       viewMode.value = 'insida';
-    } else if (category === 'interior' && selectedCategory.value !== 'interior') {
-      viewModeBeforeLoft = viewMode.value;
+    } else if (category === 'interior') {
+      if (selectedCategory.value !== 'interior') {
+        viewModeBeforeLoft = viewMode.value;
+      }
       viewMode.value = 'insida';
+      interiorFocusSignal.value++;
     } else if (['loft', 'interior'].includes(selectedCategory.value) && !['loft', 'interior'].includes(category) && viewModeBeforeLoft) {
       viewMode.value = viewModeBeforeLoft;
       viewModeBeforeLoft = null;
@@ -1652,6 +1658,7 @@ export const useConfigStore = defineStore('config', () => {
     viewMode,
     interactionMode,
     generateElectricalSignal,
+    interiorFocusSignal,
     selectedCategory,
     activeMaterial,
     customPaint,

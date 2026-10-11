@@ -5844,11 +5844,16 @@ export class HouseScene {
     this.shellFlight = null;
   }
 
-  /** High three-quarter view of the whole floor, used when Interior is open. */
+  /** Top view of the interior floor plan, used when Interior is open. */
   private frameInterior() {
-    const span = Math.max(this.currentConfig.widthMm, this.currentConfig.depthMm) / 1000;
-    const distance = Math.max(span, 4) * 2.15;
-    this.frameCamera(0, distance * 0.62, distance * 0.78, 0, 0.4, 0);
+    const span = Math.max(this.currentConfig.widthMm || 5000, this.currentConfig.depthMm || 4000) / 1000;
+    const height = Math.max(span * 1.6, 14);
+    this.frameCamera(0, height, 0.001, 0, 0, 0);
+  }
+
+  public reframeInterior() {
+    this.followFrame = true;
+    this.frameInterior();
   }
 
   /** Return the camera to the marked outside view, or the starting frame of this view. */

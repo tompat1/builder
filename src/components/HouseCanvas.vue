@@ -337,6 +337,13 @@ watch(
   }
 );
 
+watch(
+  () => store.interiorFocusSignal,
+  () => {
+    engine?.reframeInterior();
+  }
+);
+
 // Watch material and cladding boards
 watch(
   [() => store.activeMaterial, () => store.paintPreview ?? store.customPaint?.hex ?? null, () => store.panelOrientation, () => store.verticalDoorBay, () => store.claddingSizeId],
@@ -506,6 +513,7 @@ defineExpose({
   zoomIn: () => engine?.zoomIn(),
   zoomOut: () => engine?.zoomOut(),
   resetView: () => engine?.resetView(),
+  reframeInterior: () => engine?.reframeInterior(),
   markView: () => {
     const view = engine?.captureView();
     if (view) store.markDefaultView(view);
