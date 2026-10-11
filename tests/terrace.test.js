@@ -1,6 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { acceptTerraces, terracePrice, terracesFromLegacy } from '../src/outside/terrace.ts';
+import {
+  TERRACE_DEPTHS,
+  acceptTerraces,
+  terraceBoardLayout,
+  terracePrice,
+  terracesFromLegacy
+} from '../src/outside/terrace.ts';
 
 test('a door deck and a full covered side keep their catalog prices', () => {
   assert.equal(terracePrice({ side: 'front', depth: 1.8, span: 'door', roof: false }), 28400);
@@ -40,4 +46,20 @@ test('a saved list keeps one terrace per side', () => {
   assert.equal(terraces[1].depth, 1.8);
   assert.equal(terraces[1].span, 'door');
   assert.equal(terraces[1].roof, false);
+});
+
+test('terrace boards meet without gaps and finish flush at both edges', () => {
+  for (const depth of TERRACE_DEPTHS) {
+    const layout = terraceBoardLayout(depth);
+    const firstEdge = layout.centers[0] - layout.depth / 2;
+    const lastEdge = layout.centers.at(-1) + layout.depth / 2;
+
+    assert.ok(Math.abs(firstEdge) < 1e-10);
+    assert.ok(Math.abs(lastEdge - depth) < 1e-10);
+    for (let index = 1; index < layout.centers.length; index += 1) {
+      const previousEdge = layout.centers[index - 1] + layout.depth / 2;
+      const nextEdge = layout.centers[index] - layout.depth / 2;
+      assert.ok(Math.abs(previousEdge - nextEdge) < 1e-10);
+    }
+  }
 });

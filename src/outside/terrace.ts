@@ -17,6 +17,27 @@ export interface HouseTerrace {
   roof: boolean;
 }
 
+export interface TerraceBoardLayout {
+  count: number;
+  depth: number;
+  centers: number[];
+}
+
+/**
+ * Split a terrace depth into flush boards. A non-zero gap remains available
+ * for other uses, but house terraces deliberately pass the zero-gap default so
+ * there are no holes at the wall, between boards, at the rim, or at corners.
+ */
+export function terraceBoardLayout(depth: number, targetDepth = 0.16, gap = 0): TerraceBoardLayout {
+  const count = Math.max(1, Math.round((depth + gap) / (targetDepth + gap)));
+  const boardDepth = (depth - gap * (count - 1)) / count;
+  return {
+    count,
+    depth: boardDepth,
+    centers: Array.from({ length: count }, (_, index) => boardDepth / 2 + index * (boardDepth + gap))
+  };
+}
+
 const DOOR_DEPTH = 1.8;
 const FULL_DEPTH = 2.4;
 const DOOR_DECK = 28400;
