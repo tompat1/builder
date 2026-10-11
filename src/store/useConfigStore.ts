@@ -482,6 +482,7 @@ export function cubeWallSlots(): Record<string, WallSlot> {
   slots['right-0'] = { ...slots['right-0'], type: 'door', itemId: 'SKJUTDORR' };
   slots['right-1'] = { ...slots['right-1'], type: 'window', itemId: 'standard-single' };
   slots['back-1'] = { ...slots['back-1'], type: 'door', itemId: 'SKJUTDORR' };
+  slots['back-2'] = { ...slots['back-2'], type: 'empty', itemId: undefined, coveredBy: 'back-1' };
   return slots;
 }
 

@@ -1831,39 +1831,36 @@ export class HouseScene {
   }
 
   private addOpeningFrame(
-    x: number,
-    z: number,
+    alongPos: number,
+    fixed: number,
     opening: { winW: number; sill: number; head: number },
     studThick: number,
     studDepth: number,
-    mat: THREE.Material
+    mat: THREE.Material,
+    along: 'x' | 'z' = 'x'
   ) {
+    const place = (sizeAlong: number, height: number, at: number, y: number) => {
+      const mesh = new THREE.Mesh(
+        along === 'x'
+          ? new THREE.BoxGeometry(sizeAlong, height, studDepth)
+          : new THREE.BoxGeometry(studDepth, height, sizeAlong),
+        mat
+      );
+      mesh.position.set(along === 'x' ? at : fixed, y, along === 'z' ? at : fixed);
+      mesh.castShadow = true;
+      this.framingGroup.add(mesh);
+    };
     const bottom = opening.sill < 0.4 ? opening.sill + studThick : opening.sill;
     const trimmerH = opening.head - bottom;
     if (trimmerH > 0.05) {
       for (const side of [-1, 1]) {
-        const trimmer = new THREE.Mesh(new THREE.BoxGeometry(studThick, trimmerH, studDepth), mat);
-        trimmer.position.set(x + side * (opening.winW / 2 + studThick / 2), bottom + trimmerH / 2, z);
-        trimmer.castShadow = true;
-        this.framingGroup.add(trimmer);
+        place(studThick, trimmerH, alongPos + side * (opening.winW / 2 + studThick / 2), bottom + trimmerH / 2);
       }
     }
     if (opening.sill > 0.4) {
-      const sill = new THREE.Mesh(
-        new THREE.BoxGeometry(opening.winW + studThick * 2, studThick, studDepth),
-        mat
-      );
-      sill.position.set(x, opening.sill - studThick / 2, z);
-      sill.castShadow = true;
-      this.framingGroup.add(sill);
+      place(opening.winW + studThick * 2, studThick, alongPos, opening.sill - studThick / 2);
     }
-    const header = new THREE.Mesh(
-      new THREE.BoxGeometry(opening.winW + studThick * 2, studThick * 2, studDepth),
-      mat
-    );
-    header.position.set(x, opening.head + studThick, z);
-    header.castShadow = true;
-    this.framingGroup.add(header);
+    place(opening.winW + studThick * 2, studThick * 2, alongPos, opening.head + studThick);
   }
 
   // --- Proper Architectural Timber Framing (Regelstomme 45x145 mm) ---
@@ -1979,14 +1976,25 @@ export class HouseScene {
       this.addOpeningFrame(opening.x, framingFrontZ, opening, studThick, studDepth, framingMat);
     }
 
-    // Rear Wall Studs cc 600 mm
+    // Rear, left, and right studs stop at doors and windows, the same way the front does.
+    const backOpenings = this.wallOpenings('back', w, d, h, baseElevation);
+    const leftOpenings = this.wallOpenings('left', w, d, h, baseElevation);
+    const rightOpenings = this.wallOpenings('right', w, d, h, baseElevation);
     const rearStudH = rearH - baseElevation - studThick * 2;
     for (let s = 1; s < frontStudCount; s++) {
       const sx = -w / 2 + 0.05 + s * frontSpacing;
+      const blocked = backOpenings.filter((opening) => Math.abs(sx - opening.x) < opening.winW / 2 - 0.02);
+      if (blocked.length > 0) {
+        this.fillStudGaps(sx, framingBackZ, baseElevation, rearH, blocked, studThick, studDepth, framingMat);
+        continue;
+      }
       const studMesh = new THREE.Mesh(new THREE.BoxGeometry(studThick, rearStudH, studDepth), framingMat);
       studMesh.position.set(sx, baseElevation + studThick + rearStudH / 2, framingBackZ);
       studMesh.castShadow = true;
       this.framingGroup.add(studMesh);
+    }
+    for (const opening of backOpenings) {
+      this.addOpeningFrame(opening.x, framingBackZ, opening, studThick, studDepth, framingMat);
     }
 
     // Left and Right Wall Studs (interpolating height along roof slope)
@@ -1998,18 +2006,30 @@ export class HouseScene {
       const progress = (d / 2 - sz) / d; // 0 at front, 1 at back
       const curH = h - progress * (h - rearH);
       const curStudH = curH - baseElevation - studThick * 2;
-
-      // Left stud
-      const leftStud = new THREE.Mesh(new THREE.BoxGeometry(studDepth, curStudH, studThick), framingMat);
-      leftStud.position.set(framingLeftX, baseElevation + studThick + curStudH / 2, sz);
-      leftStud.castShadow = true;
-      this.framingGroup.add(leftStud);
-
-      // Right stud
-      const rightStud = new THREE.Mesh(new THREE.BoxGeometry(studDepth, curStudH, studThick), framingMat);
-      rightStud.position.set(framingRightX, baseElevation + studThick + curStudH / 2, sz);
-      rightStud.castShadow = true;
-      this.framingGroup.add(rightStud);
+      const leftBlocked = leftOpenings.filter((opening) => Math.abs(sz - opening.x) < opening.winW / 2 - 0.02);
+      if (leftBlocked.length > 0) {
+        this.fillStudGaps(sz, framingLeftX, baseElevation, curH, leftBlocked, studThick, studDepth, framingMat, 'z');
+      } else {
+        const leftStud = new THREE.Mesh(new THREE.BoxGeometry(studDepth, curStudH, studThick), framingMat);
+        leftStud.position.set(framingLeftX, baseElevation + studThick + curStudH / 2, sz);
+        leftStud.castShadow = true;
+        this.framingGroup.add(leftStud);
+      }
+      const rightBlocked = rightOpenings.filter((opening) => Math.abs(sz - opening.x) < opening.winW / 2 - 0.02);
+      if (rightBlocked.length > 0) {
+        this.fillStudGaps(sz, framingRightX, baseElevation, curH, rightBlocked, studThick, studDepth, framingMat, 'z');
+      } else {
+        const rightStud = new THREE.Mesh(new THREE.BoxGeometry(studDepth, curStudH, studThick), framingMat);
+        rightStud.position.set(framingRightX, baseElevation + studThick + curStudH / 2, sz);
+        rightStud.castShadow = true;
+        this.framingGroup.add(rightStud);
+      }
+    }
+    for (const opening of leftOpenings) {
+      this.addOpeningFrame(opening.x, framingLeftX, opening, studThick, studDepth, framingMat, 'z');
+    }
+    for (const opening of rightOpenings) {
+      this.addOpeningFrame(opening.x, framingRightX, opening, studThick, studDepth, framingMat, 'z');
     }
 
     // 4. Noggings (kortlingar): 45×145 laid flat between the studs.
@@ -2036,9 +2056,9 @@ export class HouseScene {
     });
 
     this.addNoggings(this.gapsBetween(frontSolids), 'x', framingFrontZ, baseElevation, studThick, studDepth, framingMat, frontOpenings);
-    this.addNoggings(this.gapsBetween(backSolids), 'x', framingBackZ, baseElevation, studThick, studDepth, framingMat);
-    this.addNoggings(this.gapsBetween(sideSolids), 'z', framingLeftX, baseElevation, studThick, studDepth, framingMat);
-    this.addNoggings(this.gapsBetween(sideSolids), 'z', framingRightX, baseElevation, studThick, studDepth, framingMat);
+    this.addNoggings(this.gapsBetween(backSolids), 'x', framingBackZ, baseElevation, studThick, studDepth, framingMat, backOpenings);
+    this.addNoggings(this.gapsBetween(sideSolids), 'z', framingLeftX, baseElevation, studThick, studDepth, framingMat, leftOpenings);
+    this.addNoggings(this.gapsBetween(sideSolids), 'z', framingRightX, baseElevation, studThick, studDepth, framingMat, rightOpenings);
   }
 
   /** Clear spans between stud faces, limited by the lower of the two studs. */
@@ -2075,7 +2095,7 @@ export class HouseScene {
         let centerY = y + stagger;
         if (centerY + studThick / 2 > gap.top - 0.008) centerY = y;
         if (centerY - studThick / 2 < floor + 0.02) continue;
-        if (axis === 'x' && this.noggingHitsOpening(gap.from, gap.to, centerY, studThick, openings)) continue;
+        if (this.noggingHitsOpening(gap.from, gap.to, centerY, studThick, openings)) continue;
         const mesh = new THREE.Mesh(
           axis === 'x'
             ? new THREE.BoxGeometry(length, studThick, studDepth)
@@ -2160,16 +2180,27 @@ export class HouseScene {
     const slot = slots[`${wall}-${index}`];
     let host = index;
     let partner: number | null = null;
-    const wideSlider = slot?.itemId === 'SKJUTDORR' || slot?.itemId === 'SKJUTDORR3';
     const clear = panelWidth - 0.09 * 2 - 0.045 * 2;
-    const needsNeighbour = slot?.itemId === 'SKJUTDORR3' ? clear < 2.4 : clear < 1.65;
-    if (wideSlider && needsNeighbour) {
-      partner = index + 1 < count ? index + 1 : index > 0 ? index - 1 : null;
+    const reachesNeighbour = (itemId: string | undefined) =>
+      itemId === 'SKJUTDORR3' ? clear < 2.4 : itemId === 'SKJUTDORR' && clear < 1.65;
+    const partnerOf = (hostIndex: number) =>
+      hostIndex + 1 < count ? hostIndex + 1 : hostIndex > 0 ? hostIndex - 1 : null;
+    if (reachesNeighbour(slot?.itemId)) {
+      partner = partnerOf(index);
     } else if (slot?.coveredBy) {
       const hostSlot = slots[slot.coveredBy];
       if ((hostSlot?.itemId === 'SKJUTDORR' || hostSlot?.itemId === 'SKJUTDORR3') && hostSlot.wall === wall) {
         host = hostSlot.index;
         partner = index;
+      }
+    } else {
+      for (const candidate of [index - 1, index + 1]) {
+        if (candidate < 0 || candidate >= count) continue;
+        const hostSlot = slots[`${wall}-${candidate}`];
+        if (!reachesNeighbour(hostSlot?.itemId) || partnerOf(candidate) !== index) continue;
+        host = candidate;
+        partner = index;
+        break;
       }
     }
     if (partner == null) return null;
@@ -2248,7 +2279,8 @@ export class HouseScene {
     let sill: number;
     if (isUpper && aboveDoor && itemId === 'standard-single') {
       winH = Math.min(0.46, Math.max(0.34, winW * 0.38));
-      sill = panelBase + 0.05;
+      // The belt sits just over the door canopy, so the window needs a course of boards above it.
+      sill = panelBase + 0.42;
     } else if (isUpper && itemId !== 'panorama') {
       // Sit the head just under the fascia, the way the reference row does.
       const gapAbove = 0.16;
@@ -2701,38 +2733,65 @@ export class HouseScene {
   }
 
   private frontOpenings(w: number, h: number, base: number) {
-    const fullH = h - base;
-    const belt = this.beltRise(h);
-    const lowerH = Math.min(belt, fullH);
-    const split = fullH > belt + 0.4 && !this.interiorCut();
+    return this.wallOpenings('front', w, this.currentConfig.depthMm / 1000, h, base);
+  }
+
+  /** Openings along a wall. `x` is the position along that wall: world X on the front and back, world Z on the sides. */
+  private wallOpenings(
+    wall: 'front' | 'back' | 'left' | 'right',
+    w: number,
+    d: number,
+    h: number,
+    base: number
+  ) {
+    const isFrontBack = wall === 'front' || wall === 'back';
+    const count = isFrontBack ? 4 : 3;
+    const endInset = 0.025 - 0.008;
+    const length = isFrontBack ? w : d - endInset * 2;
+    const panelW = length / count;
+    const isPulpet = this.currentConfig.roofType === 'pulpettak';
+    const rearH = isPulpet ? Math.max(h - Math.tan(PULPET_PITCH_RAD) * d, 2.4) : h;
+    const yMid = (h + rearH) / 2;
     const openings: { x: number; winW: number; winH: number; winY: number; sill: number; head: number }[] = [];
-    for (let p = 0; p < 4; p++) {
-      const panelW = w / 4;
-      const x = -w / 2 + (p + 0.5) * panelW;
+    for (let p = 0; p < count; p++) {
+      let center = 0;
+      let panelWallH = h - base;
+      if (wall === 'front') {
+        center = -w / 2 + (p + 0.5) * panelW;
+      } else if (wall === 'back') {
+        center = w / 2 - (p + 0.5) * panelW;
+        panelWallH = rearH - base;
+      } else if (wall === 'left') {
+        center = d / 2 - endInset - (p + 0.5) * panelW;
+        panelWallH = this.sidePanelHeight(d, h, rearH, yMid, PULPET_PITCH_RAD, center, base);
+      } else {
+        center = -d / 2 + endInset + (p + 0.5) * panelW;
+        panelWallH = this.sidePanelHeight(d, h, rearH, yMid, PULPET_PITCH_RAD, center, base);
+      }
+      const belt = this.beltRise(h);
+      const lowerH = Math.min(belt, panelWallH);
+      const split = Boolean(this.currentConfig.wallSlots[`${wall}-${p}u`]) && panelWallH > belt + 0.4 && !this.interiorCut();
       const bands = split
         ? [
-            { id: `front-${p}`, upper: false, panelH: lowerH, panelBase: base },
-            { id: `front-${p}u`, upper: true, panelH: fullH - lowerH, panelBase: base + lowerH }
+            { id: `${wall}-${p}`, upper: false, panelH: lowerH, panelBase: base },
+            { id: `${wall}-${p}u`, upper: true, panelH: panelWallH - lowerH, panelBase: base + lowerH }
           ]
-        : [{ id: `front-${p}`, upper: false, panelH: fullH, panelBase: base }];
+        : [{ id: `${wall}-${p}`, upper: false, panelH: panelWallH, panelBase: base }];
       for (const band of bands) {
         const slot = this.currentConfig.wallSlots[band.id];
         if (!slot || (slot.type !== 'door' && slot.type !== 'window')) continue;
-        if ((slot.itemId === 'SKJUTDORR' || slot.itemId === 'SKJUTDORR3') && !band.upper) {
-          const wide = this.wideOpeningForPanel('front', p, panelW, band.panelH, band.panelBase);
-          if (wide?.drawDoor) {
-            openings.push({
-              x: x + (wide.x ?? 0),
-              winW: wide.winW,
-              winH: wide.winH,
-              winY: wide.winY,
-              sill: wide.sill,
-              head: wide.head
-            });
+        const wide = !band.upper
+          ? this.wideOpeningForPanel(wall, p, panelW, band.panelH, band.panelBase)
+          : null;
+        if (wide) {
+          if (wide.drawDoor) {
+            const local = wide.x ?? 0;
+            const x = wall === 'front' || wall === 'left' ? center + local : center - local;
+            openings.push({ x, winW: wide.winW, winH: wide.winH, winY: wide.winY, sill: wide.sill, head: wide.head });
           }
           continue;
         }
-        const lower = this.currentConfig.wallSlots[`front-${p}`];
+        const lower = this.currentConfig.wallSlots[`${wall}-${p}`];
         const aboveDoor = Boolean(
           band.upper
           && slot.itemId === 'standard-single'
@@ -2741,7 +2800,7 @@ export class HouseScene {
           && lower.itemId !== 'SKJUTDORR3'
         );
         openings.push({
-          x,
+          x: center,
           ...this.fittedOpening(slot.type, slot.itemId, band.upper, panelW, band.panelH, band.panelBase, aboveDoor)
         });
       }
@@ -2750,35 +2809,37 @@ export class HouseScene {
   }
 
   private fillStudGaps(
-    x: number,
-    z: number,
+    alongPos: number,
+    fixed: number,
     base: number,
     wallTop: number,
     blocked: { sill: number; head: number }[],
     studThick: number,
     studDepth: number,
-    mat: THREE.Material
+    mat: THREE.Material,
+    along: 'x' | 'z' = 'x'
   ) {
+    const place = (height: number, y: number) => {
+      const stud = new THREE.Mesh(
+        along === 'x'
+          ? new THREE.BoxGeometry(studThick, height, studDepth)
+          : new THREE.BoxGeometry(studDepth, height, studThick),
+        mat
+      );
+      stud.position.set(along === 'x' ? alongPos : fixed, y, along === 'z' ? alongPos : fixed);
+      stud.castShadow = true;
+      this.framingGroup.add(stud);
+    };
     const spans = [...blocked].sort((a, b) => a.sill - b.sill);
     let cursor = base + studThick;
     const top = wallTop - studThick;
     for (const span of spans) {
       const gap = Math.min(span.sill, top) - cursor;
-      if (gap > 0.05) {
-        const stud = new THREE.Mesh(new THREE.BoxGeometry(studThick, gap, studDepth), mat);
-        stud.position.set(x, cursor + gap / 2, z);
-        stud.castShadow = true;
-        this.framingGroup.add(stud);
-      }
+      if (gap > 0.05) place(gap, cursor + gap / 2);
       cursor = Math.max(cursor, span.head);
     }
     const tail = top - cursor;
-    if (tail > 0.05) {
-      const stud = new THREE.Mesh(new THREE.BoxGeometry(studThick, tail, studDepth), mat);
-      stud.position.set(x, cursor + tail / 2, z);
-      stud.castShadow = true;
-      this.framingGroup.add(stud);
-    }
+    if (tail > 0.05) place(tail, cursor + tail / 2);
   }
 
   private addOpeningCasing(
