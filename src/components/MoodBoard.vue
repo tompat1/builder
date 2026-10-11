@@ -204,6 +204,25 @@
               :class="piece.kind === 'image' && shown(piece) && !broken[piece.id] ? 'cursor-zoom-in' : ''"
               @click="onImageAreaClick(piece)"
             >
+              <!-- Move drag handle for pictures -->
+              <div
+                class="absolute left-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-lg bg-black/60 text-white shadow-md backdrop-blur-xs transition hover:bg-black/80 hover:scale-110 active:scale-95 cursor-grab active:cursor-grabbing"
+                :title="t('mood.move')"
+                :aria-label="t('mood.move')"
+                @pointerdown.stop="onDown($event, piece, 'move')"
+                @pointermove.stop="onPointer"
+                @pointerup.stop="onUp"
+                @pointercancel.stop="onUp"
+              >
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <polyline points="5 9 2 12 5 15" />
+                  <polyline points="9 5 12 2 15 5" />
+                  <polyline points="15 19 12 22 9 19" />
+                  <polyline points="19 9 22 12 19 15" />
+                  <line x1="2" y1="12" x2="22" y2="12" />
+                  <line x1="12" y1="2" x2="12" y2="22" />
+                </svg>
+              </div>
               <iframe
                 v-if="playing === piece.id && embed(piece)"
                 class="aspect-video w-full"
@@ -297,13 +316,18 @@
 
           <button
             type="button"
-            class="mood-size absolute bottom-1.5 right-1.5 h-3.5 w-3.5 cursor-nwse-resize rounded-sm bg-[#173D35] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#173D35]"
+            class="mood-size absolute bottom-1.5 right-1.5 flex h-6 w-6 items-center justify-center rounded-md bg-[#173D35] text-[#F5F3EC] shadow-sm hover:scale-110 active:scale-95 cursor-nwse-resize transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#173D35]"
             :aria-label="t('mood.resize')"
             @pointerdown.stop="onDown($event, piece, 'size')"
             @pointermove.stop="onPointer"
             @pointerup.stop="onUp"
             @pointercancel.stop="onUp"
-          ></button>
+          >
+            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
+              <line x1="20" y1="14" x2="14" y2="20" />
+              <line x1="20" y1="8" x2="8" y2="20" />
+            </svg>
+          </button>
         </article>
       </div>
     </div>
@@ -880,7 +904,7 @@ function clamp(value: number, min: number, max: number) {
   color: rgba(0, 0, 0, 0.35);
 }
 .mood-size {
-  opacity: 0;
+  opacity: 0.85;
 }
 .mood-piece:hover .mood-size,
 .mood-piece:focus-within .mood-size {
