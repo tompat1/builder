@@ -585,6 +585,7 @@ export const useConfigStore = defineStore('config', () => {
   const claddingSizeId = ref<CladdingSizeId>('22x145');
   const isFullscreen = ref<boolean>(false);
   const showDimensions = ref<boolean>(true);
+  const showInnerWalls = ref<boolean>(true);
   const showSun = ref(false);
   const selectedSlotId = ref<string | null>(null);
   const hoveredSlotId = ref<string | null>(null);
@@ -749,7 +750,8 @@ export const useConfigStore = defineStore('config', () => {
       wallSlots: wallSlots.value,
       notes: notes.value,
       placedRooms: placedRooms.value,
-      floorPlanDone: floorPlanDone.value
+      floorPlanDone: floorPlanDone.value,
+      showInnerWalls: showInnerWalls.value
     };
   }
 
@@ -835,6 +837,7 @@ export const useConfigStore = defineStore('config', () => {
       wallSlots.value = mergeWallSlots(data.wallSlots);
       placedRooms.value = acceptPlacedRooms(data.placedRooms);
       floorPlanDone.value = data.floorPlanDone === true && Object.keys(placedRooms.value).length > 0;
+      showInnerWalls.value = data.showInnerWalls !== false;
       notes.value = acceptNotes(data.notes);
       if (notes.value.length) showNotes.value = true;
     } catch {
@@ -1514,6 +1517,14 @@ export const useConfigStore = defineStore('config', () => {
     showDimensions.value = !showDimensions.value;
   }
 
+  function toggleInnerWalls() {
+    showInnerWalls.value = !showInnerWalls.value;
+  }
+
+  function setShowInnerWalls(val: boolean) {
+    showInnerWalls.value = val;
+  }
+
   function toggleSunShown() {
     showSun.value = !showSun.value;
   }
@@ -1650,6 +1661,7 @@ export const useConfigStore = defineStore('config', () => {
     slotScreenPosition,
     dimensionLabels,
     showDimensions,
+    showInnerWalls,
     showSun,
     wallSlots,
     selectedSizeId,
@@ -1736,6 +1748,8 @@ export const useConfigStore = defineStore('config', () => {
     assignSlotItem,
     removeSlotItem,
     toggleDimensions,
+    toggleInnerWalls,
+    setShowInnerWalls,
     toggleSunShown,
     measuring,
     measureStart,

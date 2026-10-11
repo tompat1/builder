@@ -159,6 +159,7 @@ onMounted(() => {
             ? 170
             : 145,
       showDimensions: store.showDimensions,
+      showInnerWalls: store.showInnerWalls,
       selectedSlotId: store.selectedSlotId,
       wallSlots: store.wallSlots,
       doorCanopy: store.doorCanopy,
@@ -299,6 +300,13 @@ watch(
   () => store.showDimensions,
   (show) => {
     engine?.updateConfig({ showDimensions: show });
+  }
+);
+
+watch(
+  () => store.showInnerWalls,
+  (show) => {
+    engine?.updateConfig({ showInnerWalls: show });
   }
 );
 

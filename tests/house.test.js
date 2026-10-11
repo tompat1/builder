@@ -68,3 +68,10 @@ test('handleHouse updates house title via PUT', async () => {
   assert.equal(data.name, 'Sommarstuga');
   assert.match(updates[0].sql, /UPDATE saved_houses SET name = \?/);
 });
+
+test('house config preserves the inner walls drywall toggle', () => {
+  const withDrywall = acceptHouse({ config: { buildingWidth: 6040, showInnerWalls: true } });
+  assert.match(withDrywall, /"showInnerWalls":true/);
+  const withoutDrywall = acceptHouse({ config: { buildingWidth: 6040, showInnerWalls: false } });
+  assert.match(withoutDrywall, /"showInnerWalls":false/);
+});

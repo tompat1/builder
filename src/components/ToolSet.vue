@@ -208,6 +208,21 @@
               </svg>
               <span class="tool-tip"><Cms k="tools.markView" /></span>
             </button>
+            <div class="w-px h-7 bg-slate-200/60"></div>
+            <button
+              type="button"
+              id="btn-tool-inner-walls"
+              @click="store.toggleInnerWalls()"
+              :aria-pressed="store.showInnerWalls"
+              :aria-label="store.showInnerWalls ? t('interior.hideInnerWalls') : t('interior.showInnerWalls')"
+              :class="toolButton(store.showInnerWalls)"
+            >
+              <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <path d="M3 9h18M3 15h18M9 3v6M15 9v6M9 15v6" />
+              </svg>
+              <span class="tool-tip"><Cms k="interior.innerWalls" fallback="Innerväggar (gips)" /></span>
+            </button>
           </div>
         </div>
         <button

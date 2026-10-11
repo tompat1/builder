@@ -60,6 +60,7 @@ export interface SceneConfig {
   /** Visible board width, millimetres. 145 is the standard 22×145 board. */
   panelWidthMm: number;
   showDimensions: boolean;
+  showInnerWalls?: boolean;
   selectedSlotId: string | null;
   wallSlots: Record<string, WallSlot>;
   isFullscreen?: boolean;
@@ -107,9 +108,11 @@ export class HouseScene {
   }>();
   private wallsGroup: THREE.Group;
   private framingGroup: THREE.Group;
+  private innerWallsGroup: THREE.Group;
   private trussesGroup: THREE.Group;
   private dimensionsGroup: THREE.Group;
   private interiorGroup: THREE.Group;
+  private drywallMat!: THREE.MeshStandardMaterial;
   private highlightBox: THREE.LineSegments | null = null;
   private contactShadow: THREE.Mesh | null = null;
   private hoverBox: THREE.Object3D | null = null;
@@ -236,6 +239,7 @@ export class HouseScene {
       verticalDoorBay: initialConfig?.verticalDoorBay ?? false,
       panelWidthMm: initialConfig?.panelWidthMm ?? 145,
       showDimensions: initialConfig?.showDimensions ?? true,
+      showInnerWalls: initialConfig?.showInnerWalls ?? true,
       selectedSlotId: initialConfig?.selectedSlotId ?? null,
       wallSlots: initialConfig?.wallSlots ?? {},
       doorCanopy: initialConfig?.doorCanopy ?? false,
@@ -281,14 +285,22 @@ export class HouseScene {
     this.houseGroup = new THREE.Group();
     this.wallsGroup = new THREE.Group();
     this.framingGroup = new THREE.Group();
+    this.innerWallsGroup = new THREE.Group();
     this.trussesGroup = new THREE.Group();
     this.roofGroup = new THREE.Group();
     this.loftGroup = new THREE.Group();
     this.dimensionsGroup = new THREE.Group();
     this.interiorGroup = new THREE.Group();
+    this.drywallMat = new THREE.MeshStandardMaterial({
+      color: '#ffffff',
+      roughness: 0.88,
+      metalness: 0.02,
+      side: THREE.DoubleSide
+    });
 
     this.houseGroup.add(this.wallsGroup);
     this.houseGroup.add(this.framingGroup);
+    this.houseGroup.add(this.innerWallsGroup);
     this.houseGroup.add(this.trussesGroup);
     this.houseGroup.add(this.roofGroup);
     this.houseGroup.add(this.loftGroup);
@@ -1258,6 +1270,9 @@ export class HouseScene {
     while (this.framingGroup.children.length > 0) {
       this.framingGroup.remove(this.framingGroup.children[0]);
     }
+    while (this.innerWallsGroup.children.length > 0) {
+      this.innerWallsGroup.remove(this.innerWallsGroup.children[0]);
+    }
     while (this.trussesGroup.children.length > 0) {
       this.trussesGroup.remove(this.trussesGroup.children[0]);
     }
@@ -1563,7 +1578,7 @@ export class HouseScene {
         panelWallH = this.sidePanelHeight(d, h, rearH, yMid, angleRad, pz, baseElev);
       }
 
-      if (!this.interiorCut()) panelWallH += 0.02;
+      if (!this.interiorCut()) panelWallH += 0.04;
 
       const belt = this.beltRise(h);
       const upperId = `${wallSide}-${i}u`;
@@ -1831,6 +1846,18 @@ export class HouseScene {
     } else if (slotType === 'gate') {
       this.addGateFeature(panelGroup, panelWidth, band.height, wallThick, slot?.itemId, userData);
     }
+
+    this.buildDrywallBand(
+      band,
+      px,
+      pz,
+      rotY,
+      panelWidth,
+      slope,
+      opening,
+      ownsOpening && (Boolean(wide) || slotType === 'door'),
+      slotType === 'gate'
+    );
 
     this.wallsGroup.add(panelGroup);
     if (band.slotId === this.currentConfig.selectedSlotId) {
@@ -2903,7 +2930,7 @@ export class HouseScene {
       { x: 1, z: -1, top: rearH }
     ];
     for (const corner of corners) {
-      const top = corner.top + 0.03;
+      const top = corner.top + 0.05;
       const height = top - baseElev;
       const y = baseElev + height / 2;
       const alongFront = new THREE.Mesh(new THREE.BoxGeometry(face, height, thick), material);
@@ -3033,6 +3060,221 @@ export class HouseScene {
       first ??= mesh;
     }
     return first ?? this.addSolidCladding(parent, panelWidth, panelHeight, claddingThick, material, userData);
+  }
+
+  private buildDrywallBand(
+    band: { slotId: string; height: number; base: number; upper: boolean; reachesRoof: boolean },
+    px: number,
+    pz: number,
+    rotY: number,
+    panelWidth: number,
+    slope: number,
+    opening: { winW: number; winH: number; winY: number; x?: number } | null,
+    isDoor: boolean,
+    isGate = false
+  ) {
+    const drywallGroup = new THREE.Group();
+    drywallGroup.position.set(px, band.base + band.height / 2, pz);
+    drywallGroup.rotation.y = rotY;
+
+    const claddingThick = 0.025;
+    const studDepth = 0.145;
+    const drywallThick = 0.013;
+    // Finished drywall face sits on the inside face of the 145mm timber studs
+    const dz = -(claddingThick / 2 + studDepth + drywallThick / 2);
+
+    const gateOpening = isGate
+      ? { winW: panelWidth * 0.9, winH: band.height * 0.85, winY: -band.height / 2 + (band.height * 0.85) / 2 }
+      : null;
+    const effectiveOpening = opening ?? gateOpening;
+    const effectiveDoor = isDoor || isGate;
+
+    const sloped = band.reachesRoof && Math.abs(slope) > 0.0001;
+    if (sloped) {
+      this.addSlopedDrywall(drywallGroup, panelWidth, band.height, slope, drywallThick, dz, this.drywallMat, effectiveOpening, effectiveDoor);
+    } else if (effectiveOpening) {
+      this.addDrywallAroundOpening(drywallGroup, panelWidth, band.height, drywallThick, dz, this.drywallMat, effectiveOpening, effectiveDoor);
+    } else {
+      this.addSolidDrywall(drywallGroup, panelWidth, band.height, drywallThick, dz, this.drywallMat);
+    }
+
+    this.innerWallsGroup.add(drywallGroup);
+  }
+
+  private addSolidDrywall(
+    parent: THREE.Group,
+    panelWidth: number,
+    panelHeight: number,
+    drywallThick: number,
+    dz: number,
+    material: THREE.Material
+  ) {
+    const geo = new THREE.BoxGeometry(panelWidth, panelHeight, drywallThick);
+    const mesh = new THREE.Mesh(geo, material);
+    mesh.position.set(0, 0, dz);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    parent.add(mesh);
+    return mesh;
+  }
+
+  private addDrywallAroundOpening(
+    parent: THREE.Group,
+    panelWidth: number,
+    panelHeight: number,
+    drywallThick: number,
+    dz: number,
+    material: THREE.Material,
+    opening: { winW: number; winH: number; winY: number; x?: number },
+    isDoor: boolean
+  ) {
+    const { winW, winH, winY } = opening;
+    const half = panelWidth / 2;
+    const halfH = panelHeight / 2;
+    const cx = opening.x ?? 0;
+    const left = Math.max(-half, cx - winW / 2);
+    const right = Math.min(half, cx + winW / 2);
+    const boards: { x: number; y: number; w: number; h: number }[] = [];
+
+    const leftW = left + half;
+    if (leftW > 0.005) {
+      boards.push({ x: -half + leftW / 2, y: 0, w: leftW, h: panelHeight });
+    }
+    const rightW = half - right;
+    if (rightW > 0.005) {
+      boards.push({ x: right + rightW / 2, y: 0, w: rightW, h: panelHeight });
+    }
+    const span = right - left;
+    const bottom = winY - winH / 2;
+    const top = winY + winH / 2;
+    if (span > 0.005) {
+      const bottomH = bottom + halfH;
+      if (bottomH > 0.005) {
+        boards.push({ x: (left + right) / 2, y: -halfH + bottomH / 2, w: span, h: bottomH });
+      }
+      const topH = halfH - top;
+      if (topH > 0.005) {
+        boards.push({ x: (left + right) / 2, y: top + topH / 2, w: span, h: topH });
+      }
+    }
+
+    for (const board of boards) {
+      const piece = new THREE.BoxGeometry(board.w, board.h, drywallThick);
+      const mesh = new THREE.Mesh(piece, material);
+      mesh.position.set(board.x, board.y, dz);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      parent.add(mesh);
+    }
+
+    if (span > 0.005) {
+      this.addOpeningReveals(parent, opening, left, right, half, dz, drywallThick, material, isDoor);
+    }
+  }
+
+  private addOpeningReveals(
+    parent: THREE.Group,
+    opening: { winW: number; winH: number; winY: number; x?: number },
+    left: number,
+    right: number,
+    half: number,
+    dz: number,
+    drywallThick: number,
+    material: THREE.Material,
+    isDoor: boolean
+  ) {
+    const { winH, winY } = opening;
+    const cx = opening.x ?? 0;
+    const boardThick = 0.012;
+    const revealDepth = Math.abs(dz) + drywallThick / 2;
+    const revealZ = dz / 2;
+    const span = right - left;
+
+    if (Math.abs(left - (cx - opening.winW / 2)) < 0.01 && left >= -half - 0.005) {
+      const leftGeo = new THREE.BoxGeometry(boardThick, winH, revealDepth);
+      const leftMesh = new THREE.Mesh(leftGeo, material);
+      leftMesh.position.set(left + boardThick / 2, winY, revealZ);
+      leftMesh.castShadow = true;
+      leftMesh.receiveShadow = true;
+      parent.add(leftMesh);
+    }
+
+    if (Math.abs(right - (cx + opening.winW / 2)) < 0.01 && right <= half + 0.005) {
+      const rightGeo = new THREE.BoxGeometry(boardThick, winH, revealDepth);
+      const rightMesh = new THREE.Mesh(rightGeo, material);
+      rightMesh.position.set(right - boardThick / 2, winY, revealZ);
+      rightMesh.castShadow = true;
+      rightMesh.receiveShadow = true;
+      parent.add(rightMesh);
+    }
+
+    const topGeo = new THREE.BoxGeometry(span, boardThick, revealDepth);
+    const topMesh = new THREE.Mesh(topGeo, material);
+    topMesh.position.set((left + right) / 2, winY + winH / 2 - boardThick / 2, revealZ);
+    topMesh.castShadow = true;
+    topMesh.receiveShadow = true;
+    parent.add(topMesh);
+
+    if (!isDoor) {
+      const botMesh = new THREE.Mesh(topGeo, material);
+      botMesh.position.set((left + right) / 2, winY - winH / 2 + boardThick / 2, revealZ);
+      botMesh.castShadow = true;
+      botMesh.receiveShadow = true;
+      parent.add(botMesh);
+    }
+  }
+
+  private addSlopedDrywall(
+    parent: THREE.Group,
+    panelWidth: number,
+    panelHeight: number,
+    slope: number,
+    drywallThick: number,
+    dz: number,
+    material: THREE.Material,
+    opening: { winW: number; winH: number; winY: number; x?: number } | null,
+    isDoor: boolean
+  ) {
+    const halfW = panelWidth / 2;
+    const halfH = panelHeight / 2;
+    const topAt = (x: number) => halfH + x * slope;
+    const shape = new THREE.Shape();
+    shape.moveTo(-halfW, -halfH);
+    shape.lineTo(halfW, -halfH);
+    shape.lineTo(halfW, topAt(halfW));
+    shape.lineTo(-halfW, topAt(-halfW));
+    shape.closePath();
+
+    let left = -halfW;
+    let right = halfW;
+    if (opening) {
+      const cx = opening.x ?? 0;
+      left = Math.max(-halfW, cx - opening.winW / 2);
+      right = Math.min(halfW, cx + opening.winW / 2);
+      if (right - left > 0.02) {
+        const hole = new THREE.Path();
+        const bottom = opening.winY - opening.winH / 2;
+        const top = opening.winY + opening.winH / 2;
+        hole.moveTo(left, bottom);
+        hole.lineTo(left, top);
+        hole.lineTo(right, top);
+        hole.lineTo(right, bottom);
+        hole.closePath();
+        shape.holes.push(hole);
+      }
+    }
+
+    const geo = new THREE.ExtrudeGeometry(shape, { depth: drywallThick, bevelEnabled: false });
+    geo.translate(0, 0, dz - drywallThick / 2);
+    const mesh = new THREE.Mesh(geo, material);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    parent.add(mesh);
+
+    if (opening && right - left > 0.02) {
+      this.addOpeningReveals(parent, opening, left, right, halfW, dz, drywallThick, material, isDoor);
+    }
+    return mesh;
   }
 
   private addWindowFeature(
@@ -3327,61 +3569,72 @@ export class HouseScene {
       assembly.add(roofMesh);
 
       const fasciaT = 0.022;
-      const soffitT = 0.014;
-      const fasciaBottom = -roofThick / 2 - soffitT - 0.004;
-      const fasciaTop = roofThick / 2 - 0.008;
+      const soffitT = 0.016;
+      const eavesDrop = 0.08;
+      const fasciaBottom = -roofThick / 2 - eavesDrop;
+      const fasciaTop = roofThick / 2 + 0.008;
       const fasciaH = fasciaTop - fasciaBottom;
       const fasciaY = (fasciaBottom + fasciaTop) / 2;
       const bargeT = 0.032;
-      const bargeH = roofThick - 0.012;
 
-      const bargeGeo = new THREE.BoxGeometry(bargeT, fasciaH, slopeLen);
+      const bargeGeo = new THREE.BoxGeometry(bargeT, fasciaH, slopeLen + fasciaT * 2);
       const leftBarge = new THREE.Mesh(bargeGeo, whiteTrimMat);
-      leftBarge.position.set(-(roofW / 2 + bargeT / 2 + 0.001), fasciaY, 0);
+      leftBarge.position.set(-(roofW / 2 + bargeT / 2), fasciaY, 0);
       leftBarge.castShadow = true;
       assembly.add(leftBarge);
       const rightBarge = new THREE.Mesh(bargeGeo, whiteTrimMat);
-      rightBarge.position.set(roofW / 2 + bargeT / 2 + 0.001, fasciaY, 0);
+      rightBarge.position.set(roofW / 2 + bargeT / 2, fasciaY, 0);
       rightBarge.castShadow = true;
       assembly.add(rightBarge);
 
-      const fasciaGeo = new THREE.BoxGeometry(roofW + bargeT * 2 + 0.004, fasciaH, fasciaT);
+      const fasciaGeo = new THREE.BoxGeometry(roofW + bargeT * 2, fasciaH, fasciaT);
       const frontFascia = new THREE.Mesh(fasciaGeo, whiteTrimMat);
-      frontFascia.position.set(0, fasciaY, slopeLen / 2 + fasciaT / 2 + 0.001);
+      frontFascia.position.set(0, fasciaY, slopeLen / 2 + fasciaT / 2);
       frontFascia.castShadow = true;
       assembly.add(frontFascia);
-      const rearFasciaGeo = new THREE.BoxGeometry(roofW + bargeT * 2 + 0.004, bargeH, fasciaT);
-      const rearFascia = new THREE.Mesh(rearFasciaGeo, whiteTrimMat);
-      rearFascia.position.set(0, -0.008, -(slopeLen / 2 + fasciaT / 2 + 0.001));
+      const rearFascia = new THREE.Mesh(fasciaGeo, whiteTrimMat);
+      rearFascia.position.set(0, fasciaY, -(slopeLen / 2 + fasciaT / 2));
       rearFascia.castShadow = true;
       assembly.add(rearFascia);
 
-      // White soffit closes the front overhang so the eave reads as the reference fascia.
-      const zFront = slopeLen / 2;
-      const zWall = (d / 2) / Math.cos(angleRad) - (roofThick / 2) * Math.tan(angleRad);
-      const soffitLen = Math.max(0.05, zFront - zWall);
+      // Continuous soffits close the underside of all overhangs so no interior framing or gaps are exposed
       const soffitMat = new THREE.MeshStandardMaterial({
         color: '#f7f5f1',
         roughness: 0.72,
         emissive: '#f3f0ea',
         emissiveIntensity: 0.45
       });
-      const soffit = new THREE.Mesh(
-        new THREE.BoxGeometry(w + 0.02, soffitT, soffitLen),
+      const soffitY = fasciaBottom + soffitT / 2;
+      const zWallFront = (d / 2) / Math.cos(angleRad);
+      const zWallRear = -(d / 2) / Math.cos(angleRad);
+
+      const frontSoffitLen = Math.max(0.05, slopeLen / 2 - (zWallFront - 0.03));
+      const frontSoffit = new THREE.Mesh(
+        new THREE.BoxGeometry(roofW, soffitT, frontSoffitLen),
         soffitMat
       );
-      soffit.position.set(0, -roofThick / 2 - soffitT / 2 - 0.001, (zFront + zWall) / 2);
-      soffit.receiveShadow = true;
-      assembly.add(soffit);
+      frontSoffit.position.set(0, soffitY, slopeLen / 2 - frontSoffitLen / 2);
+      frontSoffit.receiveShadow = true;
+      assembly.add(frontSoffit);
 
-      const sideReach = (roofW - w) / 2;
-      const sideSoffitLen = slopeLen - fasciaT * 2;
-      const sideSoffitGeo = new THREE.BoxGeometry(sideReach, soffitT, sideSoffitLen);
-      for (const sign of [-1, 1]) {
-        const sideSoffit = new THREE.Mesh(sideSoffitGeo, soffitMat);
-        sideSoffit.position.set(sign * (w / 2 + sideReach / 2), -roofThick / 2 - soffitT / 2 - 0.001, 0);
-        sideSoffit.receiveShadow = true;
-        assembly.add(sideSoffit);
+      const rearSoffitLen = Math.max(0.05, (zWallRear + 0.03) - (-slopeLen / 2));
+      const rearSoffit = new THREE.Mesh(
+        new THREE.BoxGeometry(roofW, soffitT, rearSoffitLen),
+        soffitMat
+      );
+      rearSoffit.position.set(0, soffitY, -slopeLen / 2 + rearSoffitLen / 2);
+      rearSoffit.receiveShadow = true;
+      assembly.add(rearSoffit);
+
+      const sideReach = overhang;
+      if (sideReach > 0.03) {
+        const sideSoffitGeo = new THREE.BoxGeometry(sideReach, soffitT, slopeLen);
+        for (const sign of [-1, 1]) {
+          const sideSoffit = new THREE.Mesh(sideSoffitGeo, soffitMat);
+          sideSoffit.position.set(sign * (w / 2 + sideReach / 2), soffitY, 0);
+          sideSoffit.receiveShadow = true;
+          assembly.add(sideSoffit);
+        }
       }
 
       this.roofGroup.add(assembly);
@@ -3402,7 +3655,7 @@ export class HouseScene {
     const slopeLen = (d + overhang * 2) / Math.cos(angleRad);
     const roofW = w + overhang * 2;
     const yMid = h + Math.tan(angleRad) * (d / 2) * 0.15;
-    const roofCenterY = yMid + (roofThick / 2) / Math.cos(angleRad) + 0.04;
+    const roofCenterY = yMid + (roofThick / 2) / Math.cos(angleRad);
 
     const assembly = new THREE.Group();
     assembly.position.set(0, roofCenterY, 0);
@@ -3414,28 +3667,59 @@ export class HouseScene {
     assembly.add(roofMesh);
 
     const fasciaT = 0.028;
-    if (overhang < 0.08) {
-      const drop = 0.12;
-      const frameH = roofThick + drop;
-      const frameY = -drop / 2 + 0.01;
-      const band = (width: number, height: number, depth: number, x: number, z: number) => {
-        const piece = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), trimMat);
-        piece.position.set(x, frameY, z);
-        piece.castShadow = true;
-        assembly.add(piece);
-      };
-      band(roofW + fasciaT * 2, frameH, fasciaT, 0, slopeLen / 2 + fasciaT / 2);
-      band(roofW + fasciaT * 2, frameH, fasciaT, 0, -(slopeLen / 2 + fasciaT / 2));
-      band(fasciaT, frameH, slopeLen, -(roofW / 2 + fasciaT / 2), 0);
-      band(fasciaT, frameH, slopeLen, roofW / 2 + fasciaT / 2, 0);
+    const soffitT = 0.016;
+    const drop = 0.14;
+    const frameH = roofThick + drop;
+    const frameY = -drop / 2 + 0.01;
+    const band = (width: number, height: number, depth: number, x: number, z: number) => {
+      const piece = new THREE.Mesh(new THREE.BoxGeometry(width, height, depth), trimMat);
+      piece.position.set(x, frameY, z);
+      piece.castShadow = true;
+      assembly.add(piece);
+    };
+
+    band(roofW + fasciaT * 2, frameH, fasciaT, 0, slopeLen / 2 + fasciaT / 2);
+    band(roofW + fasciaT * 2, frameH, fasciaT, 0, -(slopeLen / 2 + fasciaT / 2));
+    band(fasciaT, frameH, slopeLen + fasciaT * 2, -(roofW / 2 + fasciaT / 2), 0);
+    band(fasciaT, frameH, slopeLen + fasciaT * 2, roofW / 2 + fasciaT / 2, 0);
+
+    if (overhang > 0.04) {
+      const soffitMat = new THREE.MeshStandardMaterial({
+        color: '#f7f5f1',
+        roughness: 0.72,
+        emissive: '#f3f0ea',
+        emissiveIntensity: 0.45
+      });
+      const soffitY = frameY - frameH / 2 + soffitT / 2;
+      const zWallFront = (d / 2) / Math.cos(angleRad);
+      const zWallRear = -(d / 2) / Math.cos(angleRad);
+
+      const frontSoffitLen = Math.max(0.04, slopeLen / 2 - (zWallFront - 0.02));
+      const frontSoffit = new THREE.Mesh(new THREE.BoxGeometry(roofW, soffitT, frontSoffitLen), soffitMat);
+      frontSoffit.position.set(0, soffitY, slopeLen / 2 - frontSoffitLen / 2);
+      assembly.add(frontSoffit);
+
+      const rearSoffitLen = Math.max(0.04, (zWallRear + 0.02) - (-slopeLen / 2));
+      const rearSoffit = new THREE.Mesh(new THREE.BoxGeometry(roofW, soffitT, rearSoffitLen), soffitMat);
+      rearSoffit.position.set(0, soffitY, -slopeLen / 2 + rearSoffitLen / 2);
+      assembly.add(rearSoffit);
+
+      const sideReach = overhang;
+      const sideSoffitGeo = new THREE.BoxGeometry(sideReach, soffitT, slopeLen);
+      for (const sign of [-1, 1]) {
+        const sideSoffit = new THREE.Mesh(sideSoffitGeo, soffitMat);
+        sideSoffit.position.set(sign * (w / 2 + sideReach / 2), soffitY, 0);
+        assembly.add(sideSoffit);
+      }
     } else {
-      const fascia = new THREE.Mesh(
-        new THREE.BoxGeometry(roofW + 0.02, roofThick + 0.01, fasciaT),
-        trimMat
-      );
-      fascia.position.set(0, -0.004, slopeLen / 2 + fasciaT / 2 + 0.001);
-      fascia.castShadow = true;
-      assembly.add(fascia);
+      const closureT = 0.02;
+      const closureY = frameY - frameH / 2 + closureT / 2;
+      const bandClosureFront = new THREE.Mesh(new THREE.BoxGeometry(roofW, closureT, 0.04), trimMat);
+      bandClosureFront.position.set(0, closureY, slopeLen / 2 - 0.02);
+      assembly.add(bandClosureFront);
+      const bandClosureRear = new THREE.Mesh(new THREE.BoxGeometry(roofW, closureT, 0.04), trimMat);
+      bandClosureRear.position.set(0, closureY, -slopeLen / 2 + 0.02);
+      assembly.add(bandClosureRear);
     }
 
     this.roofGroup.add(assembly);
@@ -3483,13 +3767,32 @@ export class HouseScene {
       slope.add(rightBarge);
 
       const fasciaT = 0.028;
+      const fasciaH = roofThick + 0.06;
       const fascia = new THREE.Mesh(
-        new THREE.BoxGeometry(roofW + 0.02, roofThick, fasciaT),
+        new THREE.BoxGeometry(roofW + 0.02, fasciaH, fasciaT),
         trimMat
       );
-      fascia.position.set(0, roofThick / 2 - 0.004, sign * (slopeLen - fasciaT / 2));
+      fascia.position.set(0, roofThick / 2 - 0.02, sign * (slopeLen - fasciaT / 2));
       fascia.castShadow = true;
       slope.add(fascia);
+
+      // Close eave overhang underside with soffit meeting the wall plate
+      if (overhang > 0.04) {
+        const soffitMat = new THREE.MeshStandardMaterial({
+          color: '#f7f5f1',
+          roughness: 0.72,
+          emissive: '#f3f0ea',
+          emissiveIntensity: 0.45
+        });
+        const eaveSoffitLen = (overhang / Math.cos(angleRad)) + 0.05;
+        const eaveSoffit = new THREE.Mesh(
+          new THREE.BoxGeometry(roofW, 0.016, eaveSoffitLen),
+          soffitMat
+        );
+        eaveSoffit.position.set(0, -0.01, sign * (slopeLen - eaveSoffitLen / 2));
+        slope.add(eaveSoffit);
+      }
+
       this.roofGroup.add(slope);
     };
 
@@ -3566,8 +3869,8 @@ export class HouseScene {
     if (isPulpettak) {
       const slopeAngle = Math.atan2(h - rearH, d);
       const span = Math.hypot(d, h - rearH);
-      // A short tail sticks out above the windows and carries the overhang.
-      const tail = ghost ? 0.45 : 0.22;
+      // In ghost/cutaway mode rafter tails project for framing inspection. In exterior envelope mode they stay inside.
+      const tail = ghost ? 0.45 : 0;
       const depth = ghost ? 0.145 : 0.1;
       const slopeLen = span + tail;
       const rafterGeo = new THREE.BoxGeometry(rafterW, depth, slopeLen);
@@ -3588,7 +3891,7 @@ export class HouseScene {
       }
     } else if (this.currentConfig.roofType === 'flackt') {
       const angleRad = (2 * Math.PI) / 180;
-      const len = ghost ? d + 0.7 : d - 0.2;
+      const len = ghost ? d + 0.7 : d - 0.05;
       const rafterGeo = new THREE.BoxGeometry(rafterW, ghost ? rafterH : 0.12, len);
       for (let i = 0; i < count; i++) {
         const rafter = new THREE.Mesh(rafterGeo, rafterMat);
@@ -3600,7 +3903,7 @@ export class HouseScene {
     } else {
       const angleRad = this.gablePitchRad();
       const rise = Math.tan(angleRad) * (d / 2);
-      const slopeLen = (d / 2) / Math.cos(angleRad) + (ghost ? 0.25 : 0.08);
+      const slopeLen = (d / 2) / Math.cos(angleRad) + (ghost ? 0.25 : -0.02);
       const rafterGeo = new THREE.BoxGeometry(rafterW, rafterH, slopeLen);
       const y = h + rise / 2 - rafterH / 2 + (ghost ? 0.04 : -0.02);
 
@@ -4371,6 +4674,16 @@ export class HouseScene {
     const prevH = this.currentConfig.heightMm;
     this.ghostInstant = !viewChanged;
     const interactionChanged = config.interactionMode !== undefined && config.interactionMode !== this.currentConfig.interactionMode;
+    if (config.showInnerWalls !== undefined && Object.keys(config).length === 1) {
+      this.currentConfig.showInnerWalls = config.showInnerWalls;
+      this.innerWallsGroup.visible = this.currentConfig.viewMode === 'blueprint'
+        ? false
+        : Boolean(config.showInnerWalls);
+      if (this.currentConfig.viewMode === 'insida') {
+        this.framingGroup.visible = !config.showInnerWalls;
+      }
+      return;
+    }
     Object.assign(this.currentConfig, config);
     if (interactionChanged) {
       this.drawingWallPoints = [];
@@ -5174,10 +5487,12 @@ export class HouseScene {
     this.wallsGroup.visible = true;
     if (this.contactShadow) this.contactShadow.visible = true;
 
+    const showInner = this.currentConfig.showInnerWalls ?? true;
     if (this.currentConfig.viewMode === 'blueprint') {
       this.roofGroup.visible = false;
       this.trussesGroup.visible = false;
       this.framingGroup.visible = false;
+      this.innerWallsGroup.visible = false;
       this.loftGroup.visible = this.currentConfig.hasLoft;
       this.dimensionsGroup.visible = false;
       this.frameCamera(0, 14, 0, 0, 0, 0);
@@ -5192,6 +5507,7 @@ export class HouseScene {
       this.roofGroup.visible = false;
       this.trussesGroup.visible = true;
       this.framingGroup.visible = true;
+      this.innerWallsGroup.visible = showInner;
       this.loftGroup.visible = true;
       this.dimensionsGroup.visible = false;
       this.frameCamera(3.4, 10.2, 6.4, 0, 1.55, -0.2);
@@ -5199,7 +5515,8 @@ export class HouseScene {
     } else if (this.currentConfig.viewMode === 'insida') {
       this.roofGroup.visible = false;
       this.trussesGroup.visible = false;
-      this.framingGroup.visible = false;
+      this.framingGroup.visible = !showInner;
+      this.innerWallsGroup.visible = showInner;
       this.loftGroup.visible = true;
       this.dimensionsGroup.visible = false;
 
@@ -5210,6 +5527,7 @@ export class HouseScene {
       this.roofGroup.visible = true;
       this.trussesGroup.visible = false;
       this.framingGroup.visible = true;
+      this.innerWallsGroup.visible = showInner;
       this.loftGroup.visible = true;
       this.dimensionsGroup.visible = this.currentConfig.showDimensions;
 

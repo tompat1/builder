@@ -836,6 +836,29 @@
           </p>
         </div>
 
+        <!-- Inner Walls / Drywall Toggle Switch -->
+        <div class="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-3 shadow-xs">
+          <div class="min-w-0 pr-2">
+            <h4 class="text-xs font-bold text-slate-800"><Cms k="interior.innerWalls" fallback="Innerväggar (gips)" /></h4>
+            <p class="text-[11px] text-slate-500 leading-snug"><Cms k="interior.innerWallsHint" fallback="Visa eller dölj vita gipsväggar" /></p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            id="toggle-inner-walls"
+            class="relative h-6 w-11 shrink-0 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+            :class="store.showInnerWalls ? 'bg-slate-900' : 'bg-slate-300'"
+            :aria-checked="store.showInnerWalls"
+            :aria-label="store.showInnerWalls ? t('interior.hideInnerWalls') : t('interior.showInnerWalls')"
+            @click="store.toggleInnerWalls()"
+          >
+            <span
+              class="absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform"
+              :class="store.showInnerWalls ? 'translate-x-[22px]' : 'translate-x-0.5'"
+            ></span>
+          </button>
+        </div>
+
         <!-- Interior Sub-tabs -->
         <div class="flex border-b border-slate-200 gap-4 mb-2">
           <button
