@@ -310,7 +310,7 @@ const sv = {
     swapMeasures: 'Byt bredd och längd',
     unitMm: 'mm',
     unitCm: 'cm',
-    heightHint: 'Höjden är den högsta sidan. Max 500 cm.',
+    heightHint: 'Höjden räknas från marken till takets högsta punkt. Max 500 cm.',
     customSize: 'Egen storlek',
     facade: 'Fasadmaterial & Kulör',
     colourTab: 'Kulör',
@@ -501,6 +501,7 @@ const sv = {
     frontWall: 'Vägg fram',
     rearWall: 'Vägg bak',
     overall: 'Totalhöjd',
+    eave: 'Takfot',
     ceiling: 'Invändig takhöjd'
   },
   slot: {
@@ -894,7 +895,7 @@ const en = {
     swapMeasures: 'Swap width and length',
     unitMm: 'mm',
     unitCm: 'cm',
-    heightHint: 'Height is the high end of the house. Maximum 500 cm.',
+    heightHint: 'Height is measured from the ground to the highest point of the roof. Maximum 500 cm.',
     customSize: 'Custom size',
     facade: 'Facade & colour',
     colourTab: 'Colour',
@@ -1085,6 +1086,7 @@ const en = {
     frontWall: 'Front wall',
     rearWall: 'Rear wall',
     overall: 'Overall height',
+    eave: 'Eave height',
     ceiling: 'Interior ceiling height'
   },
   slot: {

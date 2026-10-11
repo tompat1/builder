@@ -18,7 +18,7 @@ import {
   type CustomPaint,
   type SavedPaint
 } from '../color/paint';
-import { eaveLiftMm, gablePitchDegrees } from './roof';
+import { eaveLiftMm, gablePitchDegrees, wallPlateHeightM } from './roof';
 import { floorAreaSqMeters } from './area';
 import { isLoftRoom } from '../three-engine/loftLevel';
 import { acceptPlacedRooms, type PlacedRoom } from '../three-engine/roomWalls';
@@ -902,20 +902,28 @@ export const useConfigStore = defineStore('config', () => {
     }
   });
 
-  /** Wall top the roof sits on. The extra-height gable lifts the plate 400 mm. */
-  const eaveHeight = computed(() => dimensions.value.height + eaveLiftMm(activeRoof.value));
+  /** Wall plate the roof sits on. Derived so that total height from ground to highest roof point matches dimensions.height. */
+  const eaveHeight = computed(() => {
+    return Math.round(
+      wallPlateHeightM(
+        activeRoof.value,
+        dimensions.value.depth / 1000,
+        dimensions.value.height / 1000,
+        flushRoof.value
+      ) * 1000
+    );
+  });
 
   const rearHeight = computed(() => {
     if (activeRoof.value === 'pulpettak') {
       const drop = Math.round(dimensions.value.depth * Math.tan((roofPitchAngle.value * Math.PI) / 180));
-      return Math.max(dimensions.value.height - drop, 2400);
+      return Math.max(Math.round(eaveHeight.value - drop), 1800);
     }
-    return dimensions.value.height;
+    return eaveHeight.value;
   });
 
   const innerCeilingHeight = computed(() => {
-    const base = viewMode.value === 'insida' ? 2595 : 2144;
-    return base + eaveLiftMm(activeRoof.value);
+    return Math.max(2100, eaveHeight.value - 300);
   });
 
   const availableLoftSizes = computed<LoftSizeItem[]>(() => {

@@ -30,23 +30,27 @@
     </div>
 
     <div
+      v-if="store.activeRoof !== 'flackt'"
       id="dim-left-height"
       class="absolute -translate-x-1/2 -translate-y-1/2 bg-white/90 backdrop-blur-xs px-2 py-1 rounded-md border border-slate-300/80 shadow-2xs text-center"
       :style="labelStyle('frontHeight')"
     >
       <span class="block text-xs font-bold text-slate-900 leading-none">
-        {{ store.eaveHeight }} mm
+        {{ store.activeRoof === 'pulpettak' ? store.dimensions.height : store.eaveHeight }} mm
       </span>
-      <span class="block text-[9px] text-slate-500 font-medium"><Cms k="dims.frontWall" /></span>
+      <span class="block text-[9px] text-slate-500 font-medium">
+        <Cms v-if="store.activeRoof === 'pulpettak'" k="dims.frontWall" />
+        <Cms v-else k="dims.eave" />
+      </span>
     </div>
 
     <div
       id="dim-height-annotation"
       class="absolute -translate-x-1/2 -translate-y-1/2 bg-white/90 backdrop-blur-xs px-2 py-1 rounded-md border border-slate-300/80 shadow-2xs text-center"
-      :style="labelStyle('rearHeight')"
+      :style="labelStyle(store.activeRoof === 'flackt' ? 'frontHeight' : 'rearHeight')"
     >
       <span id="dim-height" class="block text-xs font-bold text-slate-900 leading-none">
-        {{ store.activeRoof === 'pulpettak' ? store.rearHeight : store.eaveHeight }} mm
+        {{ store.activeRoof === 'pulpettak' ? store.rearHeight : store.dimensions.height }} mm
       </span>
       <span class="block text-[9px] text-slate-500 font-medium">
         <Cms v-if="store.activeRoof === 'pulpettak'" k="dims.rearWall" />

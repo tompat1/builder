@@ -3,7 +3,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { PULPET_PITCH_DEG, type CameraView, type MaterialKey, type WallSlot, type LoftPlacement, type LoftCount, type LoftStairPosition, type LoftStairType, type PanelOrientation, type RoofCovering } from '../store/useConfigStore';
 import { terraceBoardLayout, type HouseTerrace, type TerraceSide } from '../outside/terrace';
 import { compassDialDegrees, headingForFacing, sunPlacement, type CompassFacing } from './sunPosition';
-import { eaveLiftMm, gablePitchDegrees, isGableRoof, type RoofId } from '../store/roof';
+import { eaveLiftMm, gablePitchDegrees, isGableRoof, wallPlateHeightM, type RoofId } from '../store/roof';
 import { inferNoteNormal, noteAxes, noteCameraTransform, noteSheetTransform, noteTiltRadians, stickFacing, NOTE_SURFACE_SCALE } from '../notes/surface';
 import { paintBoards } from '../color/paint';
 import { INTERIOR_FLOOR_TOP, LOFT_FLOORBOARD, curvedLoftStair, loftEndRotation, loftIsGhosted, loftJoistTop, loftStairOpening, loftStairRun, loftStairTreads, straightLoftStair, isLoftRoom } from './loftLevel';
@@ -1366,7 +1366,7 @@ export class HouseScene {
     if (!this.interiorCut()) this.addBeltFlashing(w, d, h);
     if (!this.interiorCut()) {
       const rearTop = this.currentConfig.roofType === 'pulpettak'
-        ? Math.max(h - Math.tan(PULPET_PITCH_RAD) * d, 2.4)
+        ? Math.max(h - Math.tan(PULPET_PITCH_RAD) * d, 1.8)
         : h;
       const cornerMat = new THREE.MeshStandardMaterial({
         map: this.createVerticalPlankTexture(this.currentConfig.material, true),
@@ -1404,9 +1404,14 @@ export class HouseScene {
     this.applyViewMode();
   }
 
-  /** Wall plate. The extra-height gable lifts it above the height the user set. */
+  /** Wall plate calculated so that the highest point on top of the roof equals heightMm. */
   private wallTopM() {
-    return this.currentConfig.heightMm / 1000 + eaveLiftMm(this.currentConfig.roofType) / 1000;
+    return wallPlateHeightM(
+      this.currentConfig.roofType,
+      this.currentConfig.depthMm / 1000,
+      this.currentConfig.heightMm / 1000,
+      this.currentConfig.flushRoof
+    );
   }
 
   private gablePitchRad() {
@@ -3552,7 +3557,7 @@ export class HouseScene {
       // Pulpettak. The slab, barge boards, and fascia share one rotated assembly
       // so each board meets the next at an edge instead of occupying the same face.
       const angleRad = PULPET_PITCH_RAD;
-      const rearH = Math.max(h - Math.tan(angleRad) * d, 2.4);
+      const rearH = Math.max(h - Math.tan(angleRad) * d, 1.8);
       const yMid = (h + rearH) / 2;
       const roofThick = 0.1;
       const slopeLen = (d + overhang * 2) / Math.cos(angleRad);
@@ -4321,6 +4326,7 @@ export class HouseScene {
   private buildDimensionLines(w: number, d: number, h: number) {
     const dimMat = new THREE.LineBasicMaterial({ color: '#1e293b', linewidth: 1.5 });
     const offset = 0.65;
+    const totalH = this.currentConfig.heightMm / 1000;
     this.dimensionAnchors.clear();
 
     // 1. Front Width Dimension Line (bottom)
@@ -4353,93 +4359,200 @@ export class HouseScene {
       )
     );
 
-    // 2. Right Front Height Dimension Line
     const xRight = w / 2 + offset;
-    const zRight = d / 2;
-    const rightHeightGeo = new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(xRight, 0.2, zRight),
-      new THREE.Vector3(xRight, h, zRight)
-    ]);
-    this.dimensionsGroup.add(new THREE.Line(rightHeightGeo, dimMat));
-    this.dimensionAnchors.set('frontHeightRight', new THREE.Vector3(xRight, (0.2 + h) / 2, zRight));
-
-    this.dimensionsGroup.add(
-      new THREE.Line(
-        new THREE.BufferGeometry().setFromPoints([
-          new THREE.Vector3(w / 2 + 0.1, 0.2, zRight),
-          new THREE.Vector3(xRight + 0.15, 0.2, zRight)
-        ]),
-        dimMat
-      )
-    );
-    this.dimensionsGroup.add(
-      new THREE.Line(
-        new THREE.BufferGeometry().setFromPoints([
-          new THREE.Vector3(w / 2 + 0.1, h, zRight),
-          new THREE.Vector3(xRight + 0.15, h, zRight)
-        ]),
-        dimMat
-      )
-    );
-
-    // 3. Left Front Height Dimension Line (matching Image 3)
     const xLeft = -w / 2 - offset;
-    const leftHeightGeo = new THREE.BufferGeometry().setFromPoints([
-      new THREE.Vector3(xLeft, 0.2, zRight),
-      new THREE.Vector3(xLeft, h, zRight)
-    ]);
-    this.dimensionsGroup.add(new THREE.Line(leftHeightGeo, dimMat));
-    this.dimensionAnchors.set('frontHeightLeft', new THREE.Vector3(xLeft, (0.2 + h) / 2, zRight));
 
-    this.dimensionsGroup.add(
-      new THREE.Line(
-        new THREE.BufferGeometry().setFromPoints([
-          new THREE.Vector3(-w / 2 - 0.1, 0.2, zRight),
-          new THREE.Vector3(xLeft - 0.15, 0.2, zRight)
-        ]),
-        dimMat
-      )
-    );
-    this.dimensionsGroup.add(
-      new THREE.Line(
-        new THREE.BufferGeometry().setFromPoints([
-          new THREE.Vector3(-w / 2 - 0.1, h, zRight),
-          new THREE.Vector3(xLeft - 0.15, h, zRight)
-        ]),
-        dimMat
-      )
-    );
+    if (isGableRoof(this.currentConfig.roofType)) {
+      // 2. Ridge Height / Total Height Dimension Line (at z = 0, ground to highest roof point)
+      const rightRidgeGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(xRight, 0, 0),
+        new THREE.Vector3(xRight, totalH, 0)
+      ]);
+      this.dimensionsGroup.add(new THREE.Line(rightRidgeGeo, dimMat));
+      this.dimensionAnchors.set('ridgeHeightRight', new THREE.Vector3(xRight, totalH / 2, 0));
 
-    // 4. Rear Height Dimension Line (for Pulpettak, matching Image 4)
-    if (this.currentConfig.roofType === 'pulpettak') {
+      this.dimensionsGroup.add(
+        new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(w / 2 + 0.1, 0, 0),
+            new THREE.Vector3(xRight + 0.15, 0, 0)
+          ]),
+          dimMat
+        )
+      );
+      this.dimensionsGroup.add(
+        new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(w / 2 + 0.1, totalH, 0),
+            new THREE.Vector3(xRight + 0.15, totalH, 0)
+          ]),
+          dimMat
+        )
+      );
+
+      const leftRidgeGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(xLeft, 0, 0),
+        new THREE.Vector3(xLeft, totalH, 0)
+      ]);
+      this.dimensionsGroup.add(new THREE.Line(leftRidgeGeo, dimMat));
+      this.dimensionAnchors.set('ridgeHeightLeft', new THREE.Vector3(xLeft, totalH / 2, 0));
+
+      this.dimensionsGroup.add(
+        new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(-w / 2 - 0.1, 0, 0),
+            new THREE.Vector3(xLeft - 0.15, 0, 0)
+          ]),
+          dimMat
+        )
+      );
+      this.dimensionsGroup.add(
+        new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(-w / 2 - 0.1, totalH, 0),
+            new THREE.Vector3(xLeft - 0.15, totalH, 0)
+          ]),
+          dimMat
+        )
+      );
+
+      // 3. Eave Height Dimension Line (at zRight = d / 2, ground to eave plate)
+      const zRight = d / 2;
+      const rightHeightGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(xRight, 0, zRight),
+        new THREE.Vector3(xRight, h, zRight)
+      ]);
+      this.dimensionsGroup.add(new THREE.Line(rightHeightGeo, dimMat));
+      this.dimensionAnchors.set('frontHeightRight', new THREE.Vector3(xRight, h / 2, zRight));
+
+      this.dimensionsGroup.add(
+        new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(w / 2 + 0.1, 0, zRight),
+            new THREE.Vector3(xRight + 0.15, 0, zRight)
+          ]),
+          dimMat
+        )
+      );
+      this.dimensionsGroup.add(
+        new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(w / 2 + 0.1, h, zRight),
+            new THREE.Vector3(xRight + 0.15, h, zRight)
+          ]),
+          dimMat
+        )
+      );
+
+      const leftHeightGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(xLeft, 0, zRight),
+        new THREE.Vector3(xLeft, h, zRight)
+      ]);
+      this.dimensionsGroup.add(new THREE.Line(leftHeightGeo, dimMat));
+      this.dimensionAnchors.set('frontHeightLeft', new THREE.Vector3(xLeft, h / 2, zRight));
+
+      this.dimensionsGroup.add(
+        new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(-w / 2 - 0.1, 0, zRight),
+            new THREE.Vector3(xLeft - 0.15, 0, zRight)
+          ]),
+          dimMat
+        )
+      );
+      this.dimensionsGroup.add(
+        new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(-w / 2 - 0.1, h, zRight),
+            new THREE.Vector3(xLeft - 0.15, h, zRight)
+          ]),
+          dimMat
+        )
+      );
+    } else if (this.currentConfig.roofType === 'pulpettak') {
+      // 2. High End / Total Height Dimension Line (at zRight = d / 2, ground to highest roof point)
+      const zRight = d / 2;
+      const rightHeightGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(xRight, 0, zRight),
+        new THREE.Vector3(xRight, totalH, zRight)
+      ]);
+      this.dimensionsGroup.add(new THREE.Line(rightHeightGeo, dimMat));
+      this.dimensionAnchors.set('frontHeightRight', new THREE.Vector3(xRight, totalH / 2, zRight));
+
+      this.dimensionsGroup.add(
+        new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(w / 2 + 0.1, 0, zRight),
+            new THREE.Vector3(xRight + 0.15, 0, zRight)
+          ]),
+          dimMat
+        )
+      );
+      this.dimensionsGroup.add(
+        new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(w / 2 + 0.1, totalH, zRight),
+            new THREE.Vector3(xRight + 0.15, totalH, zRight)
+          ]),
+          dimMat
+        )
+      );
+
+      const leftHeightGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(xLeft, 0, zRight),
+        new THREE.Vector3(xLeft, totalH, zRight)
+      ]);
+      this.dimensionsGroup.add(new THREE.Line(leftHeightGeo, dimMat));
+      this.dimensionAnchors.set('frontHeightLeft', new THREE.Vector3(xLeft, totalH / 2, zRight));
+
+      this.dimensionsGroup.add(
+        new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(-w / 2 - 0.1, 0, zRight),
+            new THREE.Vector3(xLeft - 0.15, 0, zRight)
+          ]),
+          dimMat
+        )
+      );
+      this.dimensionsGroup.add(
+        new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(-w / 2 - 0.1, totalH, zRight),
+            new THREE.Vector3(xLeft - 0.15, totalH, zRight)
+          ]),
+          dimMat
+        )
+      );
+
+      // Rear Height Dimension Line (at zRear = -d / 2)
       const angleRad = PULPET_PITCH_RAD;
       const drop = Math.tan(angleRad) * d;
-      const rearH = Math.max(h - drop, 2.4);
+      const rearH = Math.max(h - drop, 1.8);
       const zRear = -d / 2;
       const rearHeightGeo = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(xLeft, 0.2, zRear),
+        new THREE.Vector3(xLeft, 0, zRear),
         new THREE.Vector3(xLeft, rearH, zRear)
       ]);
       this.dimensionsGroup.add(new THREE.Line(rearHeightGeo, dimMat));
       this.dimensionAnchors.set(
         'rearHeightLeft',
-        new THREE.Vector3(xLeft, (0.2 + rearH) / 2, zRear)
+        new THREE.Vector3(xLeft, rearH / 2, zRear)
       );
 
       const rearRightGeo = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(xRight, 0.2, zRear),
+        new THREE.Vector3(xRight, 0, zRear),
         new THREE.Vector3(xRight, rearH, zRear)
       ]);
       this.dimensionsGroup.add(new THREE.Line(rearRightGeo, dimMat));
       this.dimensionAnchors.set(
         'rearHeightRight',
-        new THREE.Vector3(xRight, (0.2 + rearH) / 2, zRear)
+        new THREE.Vector3(xRight, rearH / 2, zRear)
       );
       this.dimensionsGroup.add(
         new THREE.Line(
           new THREE.BufferGeometry().setFromPoints([
-            new THREE.Vector3(w / 2 + 0.1, 0.2, zRear),
-            new THREE.Vector3(xRight + 0.15, 0.2, zRear)
+            new THREE.Vector3(w / 2 + 0.1, 0, zRear),
+            new THREE.Vector3(xRight + 0.15, 0, zRear)
           ]),
           dimMat
         )
@@ -4457,8 +4570,8 @@ export class HouseScene {
       this.dimensionsGroup.add(
         new THREE.Line(
           new THREE.BufferGeometry().setFromPoints([
-            new THREE.Vector3(-w / 2 - 0.1, 0.2, zRear),
-            new THREE.Vector3(xLeft - 0.15, 0.2, zRear)
+            new THREE.Vector3(-w / 2 - 0.1, 0, zRear),
+            new THREE.Vector3(xLeft - 0.15, 0, zRear)
           ]),
           dimMat
         )
@@ -4473,37 +4586,92 @@ export class HouseScene {
         )
       );
 
-      // 5. Roof pitch angle indicator lines (matching Image 4)
+      // Roof pitch angle indicator lines
+      const midY = (h + rearH) / 2;
       const roofAngleLineGeo = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(xLeft, h + 0.35, 0.4),
-        new THREE.Vector3(xLeft, h + 0.35 - Math.tan(angleRad) * 0.8, -0.4)
+        new THREE.Vector3(xLeft, midY + 0.35, 0.4),
+        new THREE.Vector3(xLeft, midY + 0.35 - Math.tan(angleRad) * 0.8, -0.4)
       ]);
       const angleMat = new THREE.LineBasicMaterial({ color: '#0f172a', linewidth: 2 });
       this.dimensionsGroup.add(new THREE.Line(roofAngleLineGeo, angleMat));
 
       const baseAngleLineGeo = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(xLeft, h + 0.35 - Math.tan(angleRad) * 0.8, 0.4),
-        new THREE.Vector3(xLeft, h + 0.35 - Math.tan(angleRad) * 0.8, -0.4)
+        new THREE.Vector3(xLeft, midY + 0.35 - Math.tan(angleRad) * 0.8, 0.4),
+        new THREE.Vector3(xLeft, midY + 0.35 - Math.tan(angleRad) * 0.8, -0.4)
       ]);
       this.dimensionsGroup.add(new THREE.Line(baseAngleLineGeo, dimMat));
 
-      const pitchA = new THREE.Vector3(xLeft, h + 0.35, 0.4);
-      const pitchB = new THREE.Vector3(xLeft, h + 0.35 - Math.tan(angleRad) * 0.8, -0.4);
+      const pitchA = new THREE.Vector3(xLeft, midY + 0.35, 0.4);
+      const pitchB = new THREE.Vector3(xLeft, midY + 0.35 - Math.tan(angleRad) * 0.8, -0.4);
       this.dimensionAnchors.set('pitchLeft', pitchA.clone().lerp(pitchB, 0.5));
 
       const rightPitchGeo = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(xRight, h + 0.35, 0.4),
-        new THREE.Vector3(xRight, h + 0.35 - Math.tan(angleRad) * 0.8, -0.4)
+        new THREE.Vector3(xRight, midY + 0.35, 0.4),
+        new THREE.Vector3(xRight, midY + 0.35 - Math.tan(angleRad) * 0.8, -0.4)
       ]);
       this.dimensionsGroup.add(new THREE.Line(rightPitchGeo, angleMat));
       const rightBaseGeo = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(xRight, h + 0.35 - Math.tan(angleRad) * 0.8, 0.4),
-        new THREE.Vector3(xRight, h + 0.35 - Math.tan(angleRad) * 0.8, -0.4)
+        new THREE.Vector3(xRight, midY + 0.35 - Math.tan(angleRad) * 0.8, 0.4),
+        new THREE.Vector3(xRight, midY + 0.35 - Math.tan(angleRad) * 0.8, -0.4)
       ]);
       this.dimensionsGroup.add(new THREE.Line(rightBaseGeo, dimMat));
-      const pitchC = new THREE.Vector3(xRight, h + 0.35, 0.4);
-      const pitchD = new THREE.Vector3(xRight, h + 0.35 - Math.tan(angleRad) * 0.8, -0.4);
+      const pitchC = new THREE.Vector3(xRight, midY + 0.35, 0.4);
+      const pitchD = new THREE.Vector3(xRight, midY + 0.35 - Math.tan(angleRad) * 0.8, -0.4);
       this.dimensionAnchors.set('pitchRight', pitchC.clone().lerp(pitchD, 0.5));
+    } else {
+      // Shallow / flackt: Total Height Dimension Line
+      const zRight = d / 2;
+      const rightHeightGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(xRight, 0, zRight),
+        new THREE.Vector3(xRight, totalH, zRight)
+      ]);
+      this.dimensionsGroup.add(new THREE.Line(rightHeightGeo, dimMat));
+      this.dimensionAnchors.set('frontHeightRight', new THREE.Vector3(xRight, totalH / 2, zRight));
+
+      this.dimensionsGroup.add(
+        new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(w / 2 + 0.1, 0, zRight),
+            new THREE.Vector3(xRight + 0.15, 0, zRight)
+          ]),
+          dimMat
+        )
+      );
+      this.dimensionsGroup.add(
+        new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(w / 2 + 0.1, totalH, zRight),
+            new THREE.Vector3(xRight + 0.15, totalH, zRight)
+          ]),
+          dimMat
+        )
+      );
+
+      const leftHeightGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(xLeft, 0, zRight),
+        new THREE.Vector3(xLeft, totalH, zRight)
+      ]);
+      this.dimensionsGroup.add(new THREE.Line(leftHeightGeo, dimMat));
+      this.dimensionAnchors.set('frontHeightLeft', new THREE.Vector3(xLeft, totalH / 2, zRight));
+
+      this.dimensionsGroup.add(
+        new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(-w / 2 - 0.1, 0, zRight),
+            new THREE.Vector3(xLeft - 0.15, 0, zRight)
+          ]),
+          dimMat
+        )
+      );
+      this.dimensionsGroup.add(
+        new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(-w / 2 - 0.1, totalH, zRight),
+            new THREE.Vector3(xLeft - 0.15, totalH, zRight)
+          ]),
+          dimMat
+        )
+      );
     }
 
     const ceilingY = 2.2 + eaveLiftMm(this.currentConfig.roofType) / 1000;
@@ -4578,9 +4746,11 @@ export class HouseScene {
     const rear =
       this.currentConfig.roofType === 'pulpettak'
         ? this.bestVisibleAnchor(['rearHeightLeft', 'rearHeightRight'])
-        : this.bestVisibleAnchor(
-            front.id === 'frontHeightLeft' ? ['frontHeightRight'] : ['frontHeightLeft']
-          );
+        : isGableRoof(this.currentConfig.roofType)
+          ? this.bestVisibleAnchor(['ridgeHeightLeft', 'ridgeHeightRight'])
+          : this.bestVisibleAnchor(
+              front.id === 'frontHeightLeft' ? ['frontHeightRight'] : ['frontHeightLeft']
+            );
     const pitch = this.bestVisibleAnchor(['pitchLeft', 'pitchRight']);
     const ceilingPoint = this.dimensionAnchors.get('ceiling');
 
@@ -5354,7 +5524,7 @@ export class HouseScene {
     const d = this.currentConfig.depthMm / 1000;
     const h = this.wallTopM();
     const mid = Math.max((h - 0.25) * 0.45, 0.8);
-    if (id === 'roof') return this.notePoint.set(0, h + 0.35, 0);
+    if (id === 'roof') return this.notePoint.set(0, (this.currentConfig.heightMm / 1000) + 0.1, 0);
     if (id === 'floor') return this.notePoint.set(0, 0.4, 0);
     if (id === 'loft') {
       if (!this.currentConfig.hasLoft) return null;
