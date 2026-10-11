@@ -418,7 +418,7 @@
       <button
         type="button"
         id="btn-tool-mood"
-        @click="store.showMood = !store.showMood"
+        @click="toggleMood"
         :class="toolButton(store.showMood)"
         :aria-label="t('mood.tool')"
         :aria-pressed="store.showMood"
@@ -434,6 +434,24 @@
           aria-hidden="true"
         ></span>
         <span class="tool-tip"><Cms k="mood.tool" /></span>
+      </button>
+
+      <div class="w-px h-7 bg-slate-200/60 my-auto"></div>
+
+      <button
+        type="button"
+        id="btn-tool-ai-concierge"
+        @click="toggleAi"
+        :class="[
+          ...toolButton(false),
+          aiOpen ? 'bg-orange-50 ring-1 ring-inset ring-[#f25e0d]' : ''
+        ]"
+        :aria-label="t('tools.aiConcierge')"
+        :aria-expanded="aiOpen"
+        aria-controls="ai-concierge-panel"
+      >
+        <img src="/brand/icon_aiconcierge.svg" alt="" class="h-8 w-9 object-contain" />
+        <span class="tool-tip"><Cms k="tools.aiConcierge" /></span>
       </button>
     </div>
   </div>
@@ -473,11 +491,17 @@ const sunBox = ref<HTMLElement | null>(null);
 const viewBox = ref<HTMLElement | null>(null);
 const notesBox = ref<HTMLElement | null>(null);
 
+const { aiOpen } = defineProps<{
+  aiOpen: boolean;
+}>();
+
 const emit = defineEmits<{
   (e: 'zoom-in'): void;
   (e: 'zoom-out'): void;
   (e: 'reset-view'): void;
   (e: 'mark-view'): void;
+  (e: 'toggle-ai'): void;
+  (e: 'close-ai'): void;
 }>();
 
 function toolButton(active: boolean) {
@@ -492,6 +516,7 @@ function toolButton(active: boolean) {
 function toggleSun() {
   sunOpen.value = !sunOpen.value;
   if (sunOpen.value) {
+    emit('close-ai');
     viewOpen.value = false;
     rulerOpen.value = false;
     notesOpen.value = false;
@@ -501,6 +526,7 @@ function toggleSun() {
 function toggleView() {
   viewOpen.value = !viewOpen.value;
   if (viewOpen.value) {
+    emit('close-ai');
     sunOpen.value = false;
     rulerOpen.value = false;
     notesOpen.value = false;
@@ -510,6 +536,7 @@ function toggleView() {
 function toggleRuler() {
   rulerOpen.value = !rulerOpen.value;
   if (rulerOpen.value) {
+    emit('close-ai');
     sunOpen.value = false;
     viewOpen.value = false;
     notesOpen.value = false;
@@ -519,10 +546,25 @@ function toggleRuler() {
 function toggleNotesTray() {
   notesOpen.value = !notesOpen.value;
   if (notesOpen.value) {
+    emit('close-ai');
     sunOpen.value = false;
     viewOpen.value = false;
     rulerOpen.value = false;
   }
+}
+
+function toggleMood() {
+  emit('close-ai');
+  store.showMood = !store.showMood;
+}
+
+function toggleAi() {
+  sunOpen.value = false;
+  viewOpen.value = false;
+  rulerOpen.value = false;
+  notesOpen.value = false;
+  store.showMood = false;
+  emit('toggle-ai');
 }
 
 function resetAndClose() {
@@ -550,6 +592,7 @@ function onKey(event: KeyboardEvent) {
   sunOpen.value = false;
   viewOpen.value = false;
   notesOpen.value = false;
+  emit('close-ai');
 }
 
 function syncFullscreen() {

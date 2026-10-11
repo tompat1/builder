@@ -69,6 +69,22 @@ test.describe("3D Modular House Configurator", () => {
     await measureBtn.click();
   });
 
+  test("opens AI concierge from the toolbar instead of the configuration panel", async ({ page }) => {
+    const conciergeButton = page.locator("#btn-tool-ai-concierge");
+    const conciergePanel = page.locator("#ai-concierge-panel");
+
+    await expect(conciergeButton).toBeVisible();
+    await expect(page.locator("#house-import")).toHaveCount(0);
+
+    await conciergeButton.click();
+    await expect(conciergeButton).toHaveAttribute("aria-expanded", "true");
+    await expect(conciergePanel).toBeVisible();
+    await expect(conciergePanel.locator("#house-import")).toBeVisible();
+
+    await page.locator("#btn-close-ai-concierge").click();
+    await expect(conciergePanel).toHaveCount(0);
+  });
+
   test("displays 3D architectural dimension annotations", async ({ page }) => {
     // Width annotation
     await expect(page.locator("#dim-width")).toHaveText(/6040 mm/);

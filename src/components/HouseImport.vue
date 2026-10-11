@@ -1,8 +1,6 @@
 <template>
-  <section id="house-import" class="rounded-xl border border-slate-200 bg-slate-50/80 p-3 space-y-3">
-    <h3 class="text-xs font-bold text-slate-900 tracking-tight">{{ t('houseImport.title') }}</h3>
-
-    <div class="rounded-xl border border-slate-200 bg-white p-3 space-y-2">
+  <section id="house-import" class="space-y-5">
+    <div class="space-y-2">
       <h4 class="text-xs font-bold text-slate-800">{{ t('houseImport.picture') }}</h4>
       <p class="text-[11px] text-slate-600 leading-relaxed">{{ t('houseImport.pictureBody') }}</p>
       <label for="import-photos" class="block text-[11px] font-semibold text-slate-700">{{ t('houseImport.photos') }}</label>
@@ -101,7 +99,7 @@
       </figure>
     </div>
 
-    <div class="rounded-xl border border-slate-200 bg-white p-3 space-y-2">
+    <div class="space-y-2 border-t border-slate-200 pt-5">
       <h4 class="text-xs font-bold text-slate-800">{{ t('houseImport.drawing') }}</h4>
       <p class="text-[11px] text-slate-600 leading-relaxed">{{ t('houseImport.drawingBody') }}</p>
       <label for="import-pdf" class="block text-[11px] font-semibold text-slate-700">{{ t('houseImport.pdf') }}</label>

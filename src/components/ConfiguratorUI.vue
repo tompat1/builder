@@ -36,11 +36,54 @@
 
     <!-- Lower-Left Toolset (Zoom, Fullscreen, Center, Measure, Undo, Redo, Notes) -->
     <ToolSet
+      :ai-open="isHouseImportOpen"
       @zoom-in="$emit('zoom-in')"
       @zoom-out="$emit('zoom-out')"
       @reset-view="$emit('reset-view')"
       @mark-view="$emit('mark-view')"
+      @toggle-ai="isHouseImportOpen = !isHouseImportOpen"
+      @close-ai="isHouseImportOpen = false"
     />
+
+    <Transition
+      enter-active-class="transition duration-200 ease-out"
+      enter-from-class="translate-y-2 opacity-0"
+      enter-to-class="translate-y-0 opacity-100"
+      leave-active-class="transition duration-150 ease-in"
+      leave-from-class="translate-y-0 opacity-100"
+      leave-to-class="translate-y-2 opacity-0"
+    >
+      <section
+        v-if="isHouseImportOpen"
+        id="ai-concierge-panel"
+        class="pointer-events-auto absolute inset-x-3 bottom-3 top-24 z-50 flex flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 shadow-xl backdrop-blur-md min-[1180px]:inset-x-auto min-[1180px]:bottom-[6.5rem] min-[1180px]:left-6 min-[1180px]:top-auto min-[1180px]:max-h-[calc(100dvh-9rem)] min-[1180px]:w-[410px]"
+        :aria-label="t('tools.aiConcierge')"
+      >
+        <header class="flex shrink-0 items-center justify-between gap-4 border-b border-slate-100 px-4 py-3.5">
+          <div class="flex min-w-0 items-center gap-3">
+            <img src="/brand/icon_aiconcierge.svg" alt="" class="h-8 w-9 shrink-0 object-contain" />
+            <div class="min-w-0">
+              <h2 class="text-sm font-extrabold tracking-tight text-slate-900">{{ t('tools.aiConcierge') }}</h2>
+              <p class="text-[11px] font-semibold text-slate-500">{{ t('houseImport.title') }}</p>
+            </div>
+          </div>
+          <button
+            id="btn-close-ai-concierge"
+            type="button"
+            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+            :aria-label="t('tools.closeAiConcierge')"
+            @click="isHouseImportOpen = false"
+          >
+            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+              <path d="M6 6l12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </header>
+        <div class="min-h-0 flex-1 overflow-y-auto p-4">
+          <HouseImport />
+        </div>
+      </section>
+    </Transition>
 
     <!-- Right Sidebar / Mobile Bottom Sheet -->
     <aside
@@ -84,7 +127,6 @@
         <!-- Embedded AI Architect Assistant -->
         <AIAssistantBar />
 
-        <HouseImport />
       </div>
 
       <!-- Footer Quick Status Summary -->
@@ -132,6 +174,7 @@ const sunShown = computed(() => {
 const sunLeft = computed(() => `${(8 + sunAlongDay(store.sunHour) * 84).toFixed(1)}%`);
 const isExportOpen = ref(false);
 const isMobileCollapsed = ref(false);
+const isHouseImportOpen = ref(false);
 
 // Auto-expand drawer when user selects a category (e.g. from 3D wall slot action pills)
 watch(
