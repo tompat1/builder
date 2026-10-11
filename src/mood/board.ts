@@ -1,11 +1,12 @@
 /** A collage of pictures and clips kept beside the house, not inside its saved file. */
 
-export const MOOD_LIMIT = 18;
-export const CAPTION_LIMIT = 80;
+export const MOOD_LIMIT = 24;
+export const CAPTION_LIMIT = 500;
 export const SRC_LIMIT = 180_000;
 
-export type MoodKind = 'image' | 'clip';
+export type MoodKind = 'image' | 'clip' | 'note';
 export type MoodClip = '' | 'youtube' | 'vimeo' | 'file';
+export type MoodColor = 'yellow' | 'sand' | 'moss' | 'sky' | 'rose';
 
 export interface MoodPiece {
   id: string;
@@ -18,6 +19,7 @@ export interface MoodPiece {
   w: number;
   tilt: number;
   caption: string;
+  color?: MoodColor;
 }
 
 export interface MoodLink {
@@ -109,14 +111,37 @@ export function readLink(raw: string): MoodLink | null {
 }
 
 export function acceptMood(value: unknown): MoodPiece[] {
-  if (!Array.isArray(value)) return [];
+  let list: unknown[] = [];
+  if (Array.isArray(value)) {
+    list = value;
+  } else if (value && typeof value === 'object' && Array.isArray((value as Record<string, unknown>).pieces)) {
+    list = (value as Record<string, unknown>).pieces as unknown[];
+  } else {
+    return [];
+  }
   const pieces: MoodPiece[] = [];
-  for (const entry of value) {
+  for (const entry of list) {
     if (pieces.length >= MOOD_LIMIT) break;
     const piece = acceptPiece(entry);
     if (piece && !pieces.some((item) => item.id === piece.id)) pieces.push(piece);
   }
   return pieces;
+}
+
+export function acceptMoodBoard(value: unknown): { title: string; createdAt: string; pieces: MoodPiece[] } {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const rec = value as Record<string, unknown>;
+    return {
+      title: typeof rec.title === 'string' ? rec.title.slice(0, 100) : '',
+      createdAt: typeof rec.createdAt === 'string' ? rec.createdAt.slice(0, 50) : '',
+      pieces: acceptMood(rec.pieces)
+    };
+  }
+  return {
+    title: '',
+    createdAt: '',
+    pieces: acceptMood(value)
+  };
 }
 
 export function youtubeEmbed(ref: string) {
@@ -136,6 +161,27 @@ function acceptPiece(value: unknown): MoodPiece | null {
   const record = value as Record<string, unknown>;
   const id = typeof record.id === 'string' && ID.test(record.id) ? record.id : '';
   if (!id) return null;
+
+  if (record.kind === 'note') {
+    const rawColor = typeof record.color === 'string' ? record.color : 'yellow';
+    const color: MoodColor = ['yellow', 'sand', 'moss', 'sky', 'rose'].includes(rawColor)
+      ? (rawColor as MoodColor)
+      : 'yellow';
+    return {
+      id,
+      kind: 'note',
+      src: '',
+      clip: '',
+      ref: '',
+      color,
+      x: clamp(Number(record.x), 0, 92),
+      y: clamp(Number(record.y), 0, 88),
+      w: clamp(Number(record.w), 14, 72),
+      tilt: clamp(Number(record.tilt), -8, 8),
+      caption: typeof record.caption === 'string' ? record.caption.trim().slice(0, CAPTION_LIMIT) : ''
+    };
+  }
+
   const link = readLink(typeof record.src === 'string' ? record.src : '');
   if (!link) return null;
   if (record.kind !== undefined && record.kind !== link.kind) return null;

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { acceptMood, pieceFrom, readLink, youtubeEmbed, vimeoEmbed } from '../src/mood/board.ts';
+import { acceptMood, acceptMoodBoard, pieceFrom, readLink, youtubeEmbed, vimeoEmbed } from '../src/mood/board.ts';
 
 test('a mood link accepts pictures, films, and same-site paths', () => {
   const youtube = readLink('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
@@ -34,12 +34,60 @@ test('a saved mood board keeps only bounded pieces', () => {
     piece,
     { ...piece, id: 'nope' },
     { ...piece, src: 'javascript:alert(1)' },
-    { id: 'mood_abcdef12', src: 'https://photos.example/b.jpg', x: 999, y: -4, w: 2, tilt: 40, caption: 'x'.repeat(200) }
+    { id: 'mood_abcdef12', src: 'https://photos.example/b.jpg', x: 999, y: -4, w: 2, tilt: 40, caption: 'x'.repeat(600) }
   ]);
   assert.equal(saved.length, 2);
   assert.equal(saved[0].caption, 'warm oak');
   assert.equal(saved[1].x, 92);
   assert.equal(saved[1].w, 16);
-  assert.equal(saved[1].caption.length, 80);
+  assert.equal(saved[1].caption.length, 500);
   assert.deepEqual(acceptMood({}), []);
+});
+
+test('a mood piece supports multiline captions', () => {
+  const multiline = 'Stort fönsterparti\nLjust trägolv\nÖppen planlösning';
+  const piece = pieceFrom(readLink('https://photos.example/kitchen.webp'), 0, multiline);
+  const saved = acceptMood([piece]);
+  assert.equal(saved[0].caption, multiline);
+});
+
+test('a mood board accepts post-it notes with colors and multiline text', () => {
+  const note = {
+    id: 'mood_11223344',
+    kind: 'note',
+    color: 'moss',
+    x: 10,
+    y: 20,
+    w: 22,
+    tilt: 1.5,
+    caption: 'Kom ihåg att beställa:\n- klinkers till hallen\n- innerdörrar'
+  };
+  const saved = acceptMood([note]);
+  assert.equal(saved.length, 1);
+  assert.equal(saved[0].kind, 'note');
+  assert.equal(saved[0].color, 'moss');
+  assert.equal(saved[0].caption, note.caption);
+});
+
+test('a mood board accepts title, createdAt, and pieces', () => {
+  const board = acceptMoodBoard({
+    title: 'Mitt Attefallshus',
+    createdAt: '2026-10-11T20:00:00.000Z',
+    pieces: [
+      {
+        id: 'mood_55667788',
+        kind: 'note',
+        color: 'sky',
+        x: 15,
+        y: 25,
+        w: 20,
+        tilt: -1,
+        caption: 'Blå himmel och hav'
+      }
+    ]
+  });
+  assert.equal(board.title, 'Mitt Attefallshus');
+  assert.equal(board.createdAt, '2026-10-11T20:00:00.000Z');
+  assert.equal(board.pieces.length, 1);
+  assert.equal(board.pieces[0].caption, 'Blå himmel och hav');
 });

@@ -165,6 +165,21 @@
                 </div>
                 <div v-else class="flex items-center gap-1.5">
                   <span class="truncate font-semibold text-slate-900">{{ house.name }}</span>
+                  <!-- Mood board icon indicator -->
+                  <button
+                    v-if="houseHasMood(house.id)"
+                    type="button"
+                    class="inline-flex shrink-0 items-center justify-center rounded p-1 text-amber-700 bg-amber-50 hover:bg-amber-100 hover:text-amber-800 border border-amber-200/80 transition-colors shadow-xs"
+                    :title="t('mood.tool')"
+                    :aria-label="t('mood.tool')"
+                    @click.stop="openHouseMood(house.id)"
+                  >
+                    <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true">
+                      <rect x="3.5" y="4" width="9" height="7.5" rx="1.2" />
+                      <rect x="11.5" y="9" width="9" height="7.5" rx="1.2" />
+                      <path d="M6.5 13.5h6.2V20H6.5z" />
+                    </svg>
+                  </button>
                   <button
                     type="button"
                     class="opacity-50 hover:opacity-100 hover:text-slate-900 text-slate-400 p-0.5 rounded transition-opacity"
@@ -184,14 +199,31 @@
                   {{ description(house) }}
                 </span>
 
-                <!-- Active Project Badge -->
-                <span
-                  v-if="house.id === activeId"
-                  class="inline-flex items-center gap-1 mt-1 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-bold text-emerald-800"
-                >
-                  <span class="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                  {{ t('header.houseCurrent') }}
-                </span>
+                <!-- Badges row -->
+                <div class="mt-1 flex flex-wrap items-center gap-1.5">
+                  <!-- Active Project Badge -->
+                  <span
+                    v-if="house.id === activeId"
+                    class="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-bold text-emerald-800"
+                  >
+                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    {{ t('header.houseCurrent') }}
+                  </span>
+
+                  <!-- Mood board badge -->
+                  <span
+                    v-if="houseHasMood(house.id)"
+                    class="inline-flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200/90 px-1.5 py-0.5 text-[9px] font-semibold text-amber-800"
+                    :title="t('mood.tool')"
+                  >
+                    <svg class="h-2.5 w-2.5 text-amber-700" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" aria-hidden="true">
+                      <rect x="3.5" y="4" width="9" height="7.5" rx="1.2" />
+                      <rect x="11.5" y="9" width="9" height="7.5" rx="1.2" />
+                      <path d="M6.5 13.5h6.2V20H6.5z" />
+                    </svg>
+                    {{ t('mood.tool') }}
+                  </span>
+                </div>
               </span>
             </button>
 
@@ -300,6 +332,7 @@ import {
   type SavedHouse
 } from '../services/houseSave';
 import { captureHouseThumb, forgetHouseThumb, houseThumb, rememberHouseThumb } from '../services/houseThumb';
+import { hasMoodBoard, linkDraftMoodToHouse } from '../services/moodSave';
 
 const props = defineProps<{ open: boolean }>();
 const emit = defineEmits<{
@@ -465,6 +498,7 @@ async function save() {
   try {
     const saved = await saveNamedHouse(title, config);
     writeActiveHouseId(saved.id);
+    linkDraftMoodToHouse(saved.id);
     activeId.value = saved.id;
     if (thumb) rememberHouseThumb(saved.id, thumb);
     name.value = '';
@@ -544,6 +578,18 @@ async function openHouse(id: string) {
     busy.value = false;
     switchingId.value = null;
   }
+}
+
+function houseHasMood(id: string) {
+  return hasMoodBoard(id);
+}
+
+async function openHouseMood(id: string) {
+  if (id !== activeId.value) {
+    await openHouse(id);
+  }
+  store.showMood = true;
+  emit('close');
 }
 
 function promptDelete(id: string) {
@@ -644,6 +690,7 @@ async function uploadPending() {
   try {
     const saved = await saveNamedHouse(pending.name, pending.config);
     writeActiveHouseId(saved.id);
+    linkDraftMoodToHouse(saved.id);
     activeId.value = saved.id;
     const thumb = houseThumb('pending');
     if (thumb) {

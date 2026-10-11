@@ -8,18 +8,94 @@ const DB_NAME = 'builder-mood';
 const STORE = 'clips';
 const JSON_BUDGET = 3_200_000;
 
+export interface MoodBoardState {
+  title: string;
+  createdAt: string;
+  pieces: MoodPiece[];
+}
+
 export function moodHouseKey() {
   return readActiveHouseId() || 'draft';
 }
 
-export function loadMood(houseKey = moodHouseKey()) {
+export function hasMoodBoard(houseKey: string): boolean {
+  if (!houseKey) return false;
   const all = bucket();
-  return acceptMood(all[houseKey]);
+  const raw = all[houseKey];
+  if (isMoodNonEmpty(raw)) return true;
+  if (houseKey === readActiveHouseId() && isMoodNonEmpty(all['draft'])) return true;
+  return false;
 }
 
-export function saveMood(pieces: MoodPiece[], houseKey = moodHouseKey()) {
+export function linkDraftMoodToHouse(houseId: string) {
+  if (!houseId) return;
   const all = bucket();
-  all[houseKey] = acceptMood(pieces);
+  if (isMoodNonEmpty(all['draft']) && !isMoodNonEmpty(all[houseId])) {
+    all[houseId] = all['draft'];
+    try {
+      localStorage.setItem(KEY, JSON.stringify(fit(all, houseId)));
+    } catch {
+      // ignore
+    }
+  }
+}
+
+function isMoodNonEmpty(raw: unknown): boolean {
+  if (!raw) return false;
+  if (Array.isArray(raw)) return raw.length > 0;
+  if (raw && typeof raw === 'object') {
+    const rec = raw as Record<string, unknown>;
+    if (Array.isArray(rec.pieces) && rec.pieces.length > 0) return true;
+    if (typeof rec.title === 'string' && rec.title.trim().length > 0) return true;
+  }
+  return false;
+}
+
+export function loadMood(houseKey = moodHouseKey()): MoodBoardState {
+  const all = bucket();
+  const raw = all[houseKey];
+  if (Array.isArray(raw)) {
+    return {
+      title: '',
+      createdAt: raw.length > 0 ? new Date().toISOString() : '',
+      pieces: acceptMood(raw)
+    };
+  }
+  if (raw && typeof raw === 'object') {
+    const rec = raw as Record<string, unknown>;
+    return {
+      title: typeof rec.title === 'string' ? rec.title.slice(0, 100) : '',
+      createdAt: typeof rec.createdAt === 'string' ? rec.createdAt.slice(0, 50) : '',
+      pieces: acceptMood(rec.pieces)
+    };
+  }
+  return {
+    title: '',
+    createdAt: '',
+    pieces: []
+  };
+}
+
+export function saveMood(content: MoodBoardState | MoodPiece[], houseKey = moodHouseKey()) {
+  const all = bucket();
+  if (Array.isArray(content)) {
+    const prev = all[houseKey] as Record<string, unknown> | undefined;
+    all[houseKey] = {
+      title: prev && typeof prev.title === 'string' ? prev.title : '',
+      createdAt: prev && typeof prev.createdAt === 'string' && prev.createdAt
+        ? prev.createdAt
+        : (content.length > 0 ? new Date().toISOString() : ''),
+      pieces: acceptMood(content)
+    };
+  } else {
+    all[houseKey] = {
+      title: typeof content.title === 'string' ? content.title.slice(0, 100) : '',
+      createdAt: typeof content.createdAt === 'string' && content.createdAt
+        ? content.createdAt.slice(0, 50)
+        : new Date().toISOString(),
+      pieces: acceptMood(content.pieces)
+    };
+  }
   try {
     localStorage.setItem(KEY, JSON.stringify(fit(all, houseKey)));
   } catch {
@@ -27,7 +103,7 @@ export function saveMood(pieces: MoodPiece[], houseKey = moodHouseKey()) {
       const slim = fit(all, houseKey);
       for (const key of Object.keys(slim)) {
         if (key === houseKey) continue;
-        slim[key] = slim[key].filter((piece) => !piece.src.startsWith('data:'));
+        slim[key].pieces = slim[key].pieces.filter((piece) => !piece.src.startsWith('data:'));
       }
       localStorage.setItem(KEY, JSON.stringify(slim));
     } catch {
@@ -62,17 +138,30 @@ function bucket(): Record<string, unknown> {
   }
 }
 
-function fit(all: Record<string, unknown>, keep: string) {
-  const boards: Record<string, MoodPiece[]> = {};
-  for (const [key, value] of Object.entries(all)) boards[key] = acceptMood(value);
+function fit(all: Record<string, unknown>, keep: string): Record<string, MoodBoardState> {
+  const boards: Record<string, MoodBoardState> = {};
+  for (const [key, value] of Object.entries(all)) {
+    if (Array.isArray(value)) {
+      boards[key] = { title: '', createdAt: '', pieces: acceptMood(value) };
+    } else if (value && typeof value === 'object') {
+      const rec = value as Record<string, unknown>;
+      boards[key] = {
+        title: typeof rec.title === 'string' ? rec.title.slice(0, 100) : '',
+        createdAt: typeof rec.createdAt === 'string' ? rec.createdAt.slice(0, 50) : '',
+        pieces: acceptMood(rec.pieces)
+      };
+    } else {
+      boards[key] = { title: '', createdAt: '', pieces: [] };
+    }
+  }
   const keys = Object.keys(boards);
   while (JSON.stringify(boards).length > JSON_BUDGET) {
-    const donor = keys.find((key) => key !== keep && boards[key].some((piece) => piece.src.startsWith('data:')))
-      ?? (boards[keep].some((piece) => piece.src.startsWith('data:')) ? keep : '');
+    const donor = keys.find((key) => key !== keep && boards[key].pieces.some((piece) => piece.src.startsWith('data:')))
+      ?? (boards[keep].pieces.some((piece) => piece.src.startsWith('data:')) ? keep : '');
     if (!donor) break;
-    const index = boards[donor].findIndex((piece) => piece.src.startsWith('data:'));
+    const index = boards[donor].pieces.findIndex((piece) => piece.src.startsWith('data:'));
     if (index < 0) break;
-    boards[donor].splice(index, 1);
+    boards[donor].pieces.splice(index, 1);
   }
   return boards;
 }
