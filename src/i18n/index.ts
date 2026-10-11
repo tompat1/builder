@@ -173,7 +173,21 @@ const sv = {
     houseSaved: 'Huset är sparat.',
     houseClose: 'Stäng',
     autoSaveOn: 'Autosparande är PÅ',
-    autoSaveOff: 'Autosparande är AV'
+    autoSaveOff: 'Autosparande är AV',
+    houseCurrent: 'Öppet projekt',
+    houseOpen: 'Öppna projekt',
+    houseManualSave: 'Spara nu',
+    houseSaving: 'Sparar huset...',
+    houseSwitching: 'Byter projekt...',
+    houseSwitched: 'Bytte till {name}',
+    houseDeleteConfirm: 'Ta bort projektet?',
+    houseDeleteConfirmYes: 'Ja, ta bort',
+    houseDeleteConfirmCancel: 'Avbryt',
+    houseEditTitle: 'Ändra namn',
+    houseTitleSaved: 'Namn sparat',
+    houseTitleSaving: 'Sparar namn...',
+    houseSaveChanges: 'Spara ändringar',
+    houseOverwriteConfirm: 'Vill du spara aktuellt hus till {name}?'
   },
   cms: {
     edit: 'Redigera',
@@ -431,6 +445,7 @@ const sv = {
   },
   notes: {
     tool: 'Anteckningar',
+    toolTray: 'Anteckningar och moodboard',
     add: 'Ny lapp',
     write: 'Skriv på lappen',
     placeholder: 'En sak att komma ihåg',
@@ -738,7 +753,21 @@ const en = {
     houseSaved: 'The house is saved.',
     houseClose: 'Close',
     autoSaveOn: 'Auto-save is ON',
-    autoSaveOff: 'Auto-save is OFF'
+    autoSaveOff: 'Auto-save is OFF',
+    houseCurrent: 'Current project',
+    houseOpen: 'Open project',
+    houseManualSave: 'Save now',
+    houseSaving: 'Saving house...',
+    houseSwitching: 'Switching project...',
+    houseSwitched: 'Switched to {name}',
+    houseDeleteConfirm: 'Delete this project?',
+    houseDeleteConfirmYes: 'Yes, delete',
+    houseDeleteConfirmCancel: 'Cancel',
+    houseEditTitle: 'Edit name',
+    houseTitleSaved: 'Name saved',
+    houseTitleSaving: 'Saving name...',
+    houseSaveChanges: 'Save changes',
+    houseOverwriteConfirm: 'Save current design to {name}?'
   },
   cms: {
     edit: 'Edit',
@@ -996,6 +1025,7 @@ const en = {
   },
   notes: {
     tool: 'Notes',
+    toolTray: 'Notes and moodboard',
     add: 'New note',
     write: 'Write on the note',
     placeholder: 'Something to remember',

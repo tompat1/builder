@@ -144,6 +144,11 @@ export async function updateNamedHouse(id: string, config: unknown) {
   await houseFetch(`/api/houses/${encodeURIComponent(id)}`, 'PUT', { config });
 }
 
+export async function renameNamedHouse(id: string, name: string) {
+  if (!acceptActiveHouseId(id)) throw new Error('house');
+  await houseFetch(`/api/houses/${encodeURIComponent(id)}`, 'PUT', { name });
+}
+
 export async function removeNamedHouse(id: string) {
   await houseFetch(`/api/houses/${encodeURIComponent(id)}`, 'DELETE');
 }

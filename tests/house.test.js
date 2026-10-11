@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { acceptHouse, acceptHouseId, acceptHouseName, houseAreaSqMeters } from '../workers/house.js';
+import { acceptHouse, acceptHouseId, acceptHouseName, handleHouse, houseAreaSqMeters } from '../workers/house.js';
 import { acceptHouseThumb } from '../src/services/houseThumb.ts';
 
 test('a house config is stored only as a bounded object', () => {
@@ -35,4 +35,36 @@ test('a saved house needs a short name', () => {
   assert.equal(acceptHouseName('  Röda huset  '), 'Röda huset');
   assert.equal(acceptHouseName('   '), null);
   assert.equal(acceptHouseName('x'.repeat(81)), null);
+});
+
+test('handleHouse updates house title via PUT', async () => {
+  const updates = [];
+  const env = {
+    DB: {
+      prepare(sql) {
+        return {
+          bind(...args) {
+            return {
+              async run() {
+                updates.push({ sql, args });
+                return { meta: { changes: 1 } };
+              }
+            };
+          }
+        };
+      }
+    }
+  };
+  const sessionUser = async () => ({ id: 'usr_1', login: 'tompat1' });
+  const req = new Request('https://example.com/api/houses/hus_0123456789abcdef0123456789abcdef', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: 'Sommarstuga' })
+  });
+  const res = await handleHouse(req, env, {}, sessionUser);
+  assert.equal(res.status, 200);
+  const data = await res.json();
+  assert.equal(data.ok, true);
+  assert.equal(data.name, 'Sommarstuga');
+  assert.match(updates[0].sql, /UPDATE saved_houses SET name = \?/);
 });

@@ -3,12 +3,13 @@
     <div
       v-if="open"
       id="house-save-panel"
-      class="fixed z-50 max-h-[min(32rem,70vh)] w-80 overflow-y-auto rounded-xl border border-slate-200 bg-white p-3 text-xs text-slate-700 shadow-xl"
+      class="fixed z-50 max-h-[min(34rem,75vh)] w-96 overflow-y-auto rounded-xl border border-slate-200 bg-white p-3.5 text-xs text-slate-700 shadow-xl"
       :style="panelStyle"
     >
-      <div class="mb-2 flex items-center justify-between">
+      <!-- Header -->
+      <div class="mb-2.5 flex items-center justify-between">
         <div class="flex items-center gap-2">
-          <p class="font-bold text-slate-900"><Cms k="header.houses" /></p>
+          <p class="font-bold text-slate-900 text-sm"><Cms k="header.houses" /></p>
           <span
             class="rounded-full px-2 py-0.5 text-[10px] font-medium"
             :class="autoSaveOn ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'"
@@ -16,64 +17,258 @@
             <Cms :k="autoSaveOn ? 'header.autoSaveOn' : 'header.autoSaveOff'" />
           </span>
         </div>
-        <button type="button" class="text-slate-400 hover:text-slate-700" :aria-label="t('header.houseClose')" @click="emit('close')">
+        <button
+          type="button"
+          class="text-slate-400 hover:text-slate-700 p-1 rounded-md"
+          :aria-label="t('header.houseClose')"
+          @click="emit('close')"
+        >
           <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
             <path d="M6 6 L18 18 M18 6 L6 18" />
           </svg>
         </button>
       </div>
 
-      <p v-if="notice" class="mb-2 text-[11px] text-emerald-800">{{ notice }}</p>
-      <p v-if="error" class="mb-2 text-[11px] text-red-800" role="status">{{ error }}</p>
-
-      <form class="space-y-1.5" @submit.prevent="save">
-        <label class="block font-semibold text-slate-600" for="house-save-name"><Cms k="header.houseName" /></label>
-        <input
-          id="house-save-name"
-          v-model="name"
-          class="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-slate-900"
-        />
-        <button
-          id="house-save-submit"
-          type="submit"
-          class="w-full rounded-lg bg-slate-900 px-3 py-1.5 font-semibold text-white hover:bg-slate-800 disabled:opacity-50"
-          :disabled="busy"
+      <!-- Status / Notification / Throbber banner -->
+      <div v-if="notice || error || (busy && !savingId && !switchingId) || (savingId && savingId === activeId && !name)" class="mb-2.5">
+        <div
+          v-if="busy || savingId || switchingId"
+          class="flex items-center gap-2 rounded-lg bg-emerald-50 px-2.5 py-1.5 text-[11px] font-medium text-emerald-800 border border-emerald-200 shadow-xs"
         >
-          <Cms k="header.houseSave" />
+          <svg class="h-3.5 w-3.5 animate-spin text-emerald-600 shrink-0" viewBox="0 0 24 24" fill="none">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <span class="truncate">{{ notice || t('header.houseSaving') }}</span>
+        </div>
+        <p
+          v-else-if="notice"
+          class="flex items-center gap-1.5 rounded-lg bg-emerald-50 px-2.5 py-1.5 text-[11px] font-medium text-emerald-800 border border-emerald-200"
+        >
+          <svg class="h-3.5 w-3.5 text-emerald-600 shrink-0" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+          </svg>
+          <span class="truncate">{{ notice }}</span>
+        </p>
+        <p v-if="error" class="rounded-lg bg-red-50 px-2.5 py-1.5 text-[11px] font-medium text-red-800 border border-red-200" role="status">
+          {{ error }}
+        </p>
+      </div>
+
+      <!-- Quick Manual Save for Current Project (if one is active) -->
+      <div v-if="activeId" class="mb-3">
+        <button
+          id="house-save-manual-btn"
+          type="button"
+          class="flex w-full items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 py-1.5 font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 transition-colors shadow-sm"
+          :disabled="busy || !!savingId || !!switchingId"
+          @click="manualSave(activeId)"
+        >
+          <svg v-if="savingId === activeId" class="h-4 w-4 animate-spin text-white" viewBox="0 0 24 24" fill="none">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <svg v-else class="h-4 w-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+            <polyline points="17 21 17 13 7 13 7 21" />
+            <polyline points="7 3 7 8 15 8" />
+          </svg>
+          <span>{{ t('header.houseSaveChanges') }}</span>
         </button>
+      </div>
+
+      <!-- Form for Saving as New House / Naming -->
+      <form class="space-y-1.5" @submit.prevent="save">
+        <label class="block font-semibold text-slate-600 text-[11px]" for="house-save-name">
+          <Cms k="header.houseName" />
+        </label>
+        <div class="flex gap-1.5">
+          <input
+            id="house-save-name"
+            v-model="name"
+            class="min-w-0 flex-1 rounded-lg border border-slate-200 px-2 py-1.5 text-slate-900 focus:border-slate-400 focus:outline-none"
+            :placeholder="t('header.houseName')"
+          />
+          <button
+            id="house-save-submit"
+            type="submit"
+            class="shrink-0 rounded-lg bg-slate-900 px-3 py-1.5 font-semibold text-white hover:bg-slate-800 disabled:opacity-50 transition-colors"
+            :disabled="busy || !name.trim()"
+          >
+            <Cms k="header.houseSave" />
+          </button>
+        </div>
       </form>
 
-      <ul v-if="houses.length" class="mt-3 space-y-1 border-t border-slate-200 pt-3">
-        <li v-for="house in houses" :key="house.id" class="flex items-start gap-2">
-          <button
-            type="button"
-            class="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-1 py-1 text-left hover:bg-slate-50"
-            @click="openHouse(house.id)"
-          >
-            <span class="h-12 w-16 shrink-0 overflow-hidden rounded-md bg-slate-100">
-              <img
-                v-if="house.thumb"
-                :src="house.thumb"
-                alt=""
-                class="h-full w-full object-cover"
-              />
-            </span>
-            <span class="min-w-0">
-              <span class="block truncate font-semibold text-slate-900">{{ house.name }}</span>
-              <span class="block text-[10px] text-slate-500">
-                {{ description(house) }}
+      <!-- Saved Houses List -->
+      <ul v-if="houses.length" class="mt-3 space-y-1.5 border-t border-slate-200 pt-3">
+        <li
+          v-for="house in houses"
+          :key="house.id"
+          class="group rounded-xl border transition-all"
+          :class="house.id === activeId ? 'border-emerald-500 bg-emerald-50/40 shadow-sm ring-1 ring-emerald-500/20' : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50/60'"
+        >
+          <div class="flex items-center gap-2.5 p-2">
+            <!-- Clickable thumbnail and project info to select house -->
+            <button
+              type="button"
+              class="flex min-w-0 flex-1 items-center gap-2.5 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 rounded-lg"
+              :title="house.id === activeId ? t('header.houseCurrent') : t('header.houseOpen')"
+              :aria-label="house.id === activeId ? `${house.name} (${t('header.houseCurrent')})` : `${t('header.houseOpen')} ${house.name}`"
+              @click="openHouse(house.id)"
+            >
+              <span class="relative h-12 w-16 shrink-0 overflow-hidden rounded-lg bg-slate-100 border border-slate-200/80">
+                <img
+                  v-if="house.thumb"
+                  :src="house.thumb"
+                  alt=""
+                  class="h-full w-full object-cover"
+                />
+                <!-- Switching Throbber Overlay -->
+                <span
+                  v-if="switchingId === house.id"
+                  class="absolute inset-0 flex items-center justify-center bg-black/40 text-white backdrop-blur-[1px]"
+                >
+                  <svg class="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                </span>
               </span>
-            </span>
-          </button>
-          <button
-            type="button"
-            class="shrink-0 px-1 py-1 font-semibold text-slate-500 hover:text-slate-900"
-            @click="remove(house.id)"
+
+              <span class="min-w-0 flex-1">
+                <!-- Title Row: View or Inline Edit with Autosave -->
+                <div v-if="editingTitleId === house.id" class="flex items-center gap-1 my-0.5" @click.stop>
+                  <input
+                    :id="`edit-title-${house.id}`"
+                    v-model="editTitleText"
+                    type="text"
+                    maxlength="80"
+                    class="w-full rounded border border-emerald-500 bg-white px-1.5 py-0.5 text-xs font-semibold text-slate-900 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    @input="onTitleInput(house.id)"
+                    @keydown.enter.prevent="finishEditTitle(house.id)"
+                    @keydown.esc.prevent="cancelEditTitle(house.id)"
+                    @blur="finishEditTitle(house.id)"
+                  />
+                  <!-- Autosave throbber or checkmark -->
+                  <span v-if="savingTitleId === house.id" class="shrink-0 text-slate-400" :title="t('header.houseTitleSaving')">
+                    <svg class="h-3.5 w-3.5 animate-spin" viewBox="0 0 24 24" fill="none">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  </span>
+                  <span v-else-if="savedTitleId === house.id" class="shrink-0 text-emerald-600" :title="t('header.houseTitleSaved')">
+                    <svg class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                    </svg>
+                  </span>
+                </div>
+                <div v-else class="flex items-center gap-1.5">
+                  <span class="truncate font-semibold text-slate-900">{{ house.name }}</span>
+                  <button
+                    type="button"
+                    class="opacity-50 hover:opacity-100 hover:text-slate-900 text-slate-400 p-0.5 rounded transition-opacity"
+                    :title="t('header.houseEditTitle')"
+                    :aria-label="t('header.houseEditTitle')"
+                    @click.stop="startEditTitle(house)"
+                  >
+                    <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                    </svg>
+                  </button>
+                </div>
+
+                <!-- Description meta -->
+                <span class="block text-[10px] text-slate-500 mt-0.5">
+                  {{ description(house) }}
+                </span>
+
+                <!-- Active Project Badge -->
+                <span
+                  v-if="house.id === activeId"
+                  class="inline-flex items-center gap-1 mt-1 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-bold text-emerald-800"
+                >
+                  <span class="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  {{ t('header.houseCurrent') }}
+                </span>
+              </span>
+            </button>
+
+            <!-- Action buttons: Green Save Icon & Red Trash Can Icon -->
+            <div class="flex items-center gap-1 shrink-0">
+              <!-- Green Save Icon button -->
+              <button
+                type="button"
+                class="flex h-7 w-7 items-center justify-center rounded-lg text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700 disabled:opacity-50 transition-colors"
+                :title="t('header.houseManualSave')"
+                :aria-label="t('header.houseManualSave')"
+                :disabled="savingId === house.id || switchingId === house.id"
+                @click.stop="manualSave(house.id)"
+              >
+                <!-- Throbber when saving manually -->
+                <svg v-if="savingId === house.id" class="h-4 w-4 animate-spin text-emerald-600" viewBox="0 0 24 24" fill="none">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <svg v-else class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                  <polyline points="17 21 17 13 7 13 7 21" />
+                  <polyline points="7 3 7 8 15 8" />
+                </svg>
+              </button>
+
+              <!-- Red Trash Can Icon button -->
+              <button
+                type="button"
+                class="flex h-7 w-7 items-center justify-center rounded-lg text-red-500 hover:bg-red-50 hover:text-red-700 disabled:opacity-50 transition-colors"
+                :title="t('header.houseRemove')"
+                :aria-label="t('header.houseRemove')"
+                :disabled="busy || !!savingId || !!switchingId"
+                @click.stop="promptDelete(house.id)"
+              >
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  <line x1="10" y1="11" x2="10" y2="17" />
+                  <line x1="14" y1="11" x2="14" y2="17" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Inline Confirmation when user clicks Trash Can -->
+          <div
+            v-if="confirmingDeleteId === house.id"
+            class="border-t border-red-200 bg-red-50/90 p-2.5 text-[11px] text-red-900 rounded-b-xl"
+            @click.stop
           >
-            <Cms k="header.houseRemove" />
-          </button>
+            <div class="flex items-center justify-between gap-2">
+              <div class="min-w-0">
+                <p class="font-semibold">{{ t('header.houseDeleteConfirm') }}</p>
+                <p class="truncate text-[10px] text-red-700 font-medium">"{{ house.name }}"</p>
+              </div>
+              <div class="flex items-center gap-1.5 shrink-0">
+                <button
+                  type="button"
+                  class="rounded-md border border-slate-300 bg-white px-2 py-1 text-[10px] font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                  @click.stop="cancelDelete"
+                >
+                  {{ t('header.houseDeleteConfirmCancel') }}
+                </button>
+                <button
+                  type="button"
+                  class="rounded-md bg-red-600 px-2.5 py-1 text-[10px] font-semibold text-white hover:bg-red-700 shadow-sm transition-colors"
+                  @click.stop="confirmDelete(house.id)"
+                >
+                  {{ t('header.houseDeleteConfirmYes') }}
+                </button>
+              </div>
+            </div>
+          </div>
         </li>
       </ul>
+
       <p v-else-if="!busy" class="mt-3 border-t border-slate-200 pt-3 text-[11px] text-slate-500">
         <Cms k="header.houseEmpty" />
       </p>
@@ -99,6 +294,7 @@ import {
   removeNamedHouse,
   saveNamedHouse,
   updateNamedHouse,
+  renameNamedHouse,
   writeActiveHouseId,
   writeLocalHouse,
   type SavedHouse
@@ -117,6 +313,15 @@ const session = useSessionStore();
 const name = ref('');
 const houses = ref<SavedHouse[]>([]);
 const busy = ref(false);
+const savingId = ref<string | null>(null);
+const switchingId = ref<string | null>(null);
+const confirmingDeleteId = ref<string | null>(null);
+
+const editingTitleId = ref<string | null>(null);
+const editTitleText = ref('');
+const savingTitleId = ref<string | null>(null);
+const savedTitleId = ref<string | null>(null);
+
 const notice = ref('');
 const error = ref('');
 const activeId = ref(readActiveHouseId());
@@ -131,6 +336,8 @@ const stopActiveHouseWatch = watchActiveHouseId(syncActiveHouse);
 const panelStyle = ref({ top: '64px', left: '12px' });
 let draft = '';
 let saveTimer = 0;
+let titleSaveTimer = 0;
+let savedTitleTimer = 0;
 
 function place() {
   const button = document.getElementById('btn-save-project');
@@ -138,7 +345,7 @@ function place() {
   if (!rect) return;
   panelStyle.value = {
     top: `${rect.bottom + 8}px`,
-    left: `${Math.max(12, Math.min(rect.left, window.innerWidth - 332))}px`
+    left: `${Math.max(12, Math.min(rect.left, window.innerWidth - 396))}px`
   };
 }
 
@@ -271,9 +478,55 @@ async function save() {
   }
 }
 
-async function openHouse(id: string) {
+async function manualSave(id?: string) {
+  const targetId = id || activeId.value;
+  if (!targetId) {
+    return save();
+  }
+  const target = houses.value.find((h) => h.id === targetId);
+  if (id && id !== activeId.value) {
+    const ok = window.confirm(t('header.houseOverwriteConfirm', { name: target?.name || '' }));
+    if (!ok) return;
+  }
   error.value = '';
-  notice.value = '';
+  notice.value = t('header.houseSaving');
+  savingId.value = targetId;
+  const config = store.exportHouse();
+  const thumb = captureHouseThumb();
+  writeLocalHouse(config);
+  if (thumb) rememberHouseThumb(targetId, thumb);
+
+  if (!session.user) {
+    markHousePending(target?.name || name.value || 'House', config);
+    if (thumb) rememberHouseThumb('pending', thumb);
+    error.value = t('header.houseNeedAccount');
+    emit('sign-in');
+    savingId.value = null;
+    return;
+  }
+
+  try {
+    await updateNamedHouse(targetId, config);
+    writeActiveHouseId(targetId);
+    activeId.value = targetId;
+    attachThumb(targetId);
+    draft = JSON.stringify(config);
+    notice.value = t('header.houseSaved');
+    if (target && thumb) target.thumb = thumb;
+  } catch {
+    error.value = t('header.saveFailed');
+  } finally {
+    savingId.value = null;
+  }
+}
+
+async function openHouse(id: string) {
+  if (switchingId.value) return;
+  const target = houses.value.find((h) => h.id === id);
+  const targetName = target?.name || '';
+  error.value = '';
+  notice.value = t('header.houseSwitching');
+  switchingId.value = id;
   busy.value = true;
   try {
     const local = id === readActiveHouseId() ? readLocalHouse() : null;
@@ -284,12 +537,26 @@ async function openHouse(id: string) {
     writeLocalHouse(config);
     draft = JSON.stringify(store.exportHouse());
     attachThumb(id);
-    notice.value = t('header.houseOpened');
+    notice.value = t('header.houseSwitched', { name: targetName });
   } catch {
     error.value = t('header.saveFailed');
   } finally {
     busy.value = false;
+    switchingId.value = null;
   }
+}
+
+function promptDelete(id: string) {
+  confirmingDeleteId.value = id;
+}
+
+function cancelDelete() {
+  confirmingDeleteId.value = null;
+}
+
+async function confirmDelete(id: string) {
+  confirmingDeleteId.value = null;
+  await remove(id);
 }
 
 async function remove(id: string) {
@@ -305,6 +572,61 @@ async function remove(id: string) {
     session.setSavedHouseCount(houses.value.length);
   } catch {
     error.value = t('header.saveFailed');
+  }
+}
+
+function startEditTitle(house: SavedHouse) {
+  editingTitleId.value = house.id;
+  editTitleText.value = house.name;
+  nextTick(() => {
+    const input = document.getElementById(`edit-title-${house.id}`) as HTMLInputElement | null;
+    input?.focus();
+    input?.select();
+  });
+}
+
+function onTitleInput(id: string) {
+  window.clearTimeout(titleSaveTimer);
+  titleSaveTimer = window.setTimeout(() => {
+    void autosaveTitle(id);
+  }, 500);
+}
+
+async function autosaveTitle(id: string) {
+  const cleaned = editTitleText.value.trim().replace(/\s+/g, ' ');
+  if (!cleaned || cleaned.length > 80) return;
+  const target = houses.value.find((h) => h.id === id);
+  if (!target || target.name === cleaned) return;
+  savingTitleId.value = id;
+  try {
+    if (session.user) {
+      await renameNamedHouse(id, cleaned);
+    }
+    target.name = cleaned;
+    savedTitleId.value = id;
+    window.clearTimeout(savedTitleTimer);
+    savedTitleTimer = window.setTimeout(() => {
+      if (savedTitleId.value === id) savedTitleId.value = null;
+    }, 2000);
+  } catch {
+    error.value = t('header.saveFailed');
+  } finally {
+    savingTitleId.value = null;
+  }
+}
+
+async function finishEditTitle(id: string) {
+  window.clearTimeout(titleSaveTimer);
+  await autosaveTitle(id);
+  if (editingTitleId.value === id) {
+    editingTitleId.value = null;
+  }
+}
+
+function cancelEditTitle(id: string) {
+  window.clearTimeout(titleSaveTimer);
+  if (editingTitleId.value === id) {
+    editingTitleId.value = null;
   }
 }
 
@@ -332,7 +654,17 @@ async function uploadPending() {
 }
 
 function onKey(event: KeyboardEvent) {
-  if (event.key === 'Escape' && props.open) emit('close');
+  if (event.key === 'Escape' && props.open) {
+    if (confirmingDeleteId.value) {
+      confirmingDeleteId.value = null;
+      return;
+    }
+    if (editingTitleId.value) {
+      editingTitleId.value = null;
+      return;
+    }
+    emit('close');
+  }
 }
 
 watch(() => JSON.stringify(store.exportHouse()), queueDraft);
@@ -376,5 +708,7 @@ onBeforeUnmount(() => {
   stopActiveHouseWatch();
   document.removeEventListener('keydown', onKey);
   window.clearTimeout(saveTimer);
+  window.clearTimeout(titleSaveTimer);
+  window.clearTimeout(savedTitleTimer);
 });
 </script>

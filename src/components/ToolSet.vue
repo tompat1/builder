@@ -410,7 +410,7 @@
           id="btn-tool-notes"
           @click="toggleNotesTray"
           :class="toolButton(notesOpen || store.showNotes || store.showMood)"
-          :aria-label="t('notes.tool')"
+          :aria-label="t('notes.toolTray')"
           :aria-expanded="notesOpen"
           aria-controls="note-tools"
         >
@@ -425,7 +425,7 @@
             class="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-[#8a6a2f]"
             aria-hidden="true"
           ></span>
-          <span class="tool-tip"><Cms k="notes.tool" /></span>
+          <span class="tool-tip"><Cms k="notes.toolTray" /></span>
         </button>
       </div>
 

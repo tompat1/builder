@@ -126,13 +126,29 @@ export async function handleHouse(request, env, headers, sessionUser) {
     } catch {
       return json({ error: 'house' }, 400, headers);
     }
-    const config = acceptHouse(body);
-    if (!config) return json({ error: 'house' }, 400, headers);
-    const result = await env.DB.prepare(
-      'UPDATE saved_houses SET config = ? WHERE id = ? AND user_id = ?'
-    ).bind(config, id, user.id).run();
+    const hasName = body?.name !== undefined;
+    const hasConfig = body?.config !== undefined;
+    const name = hasName ? acceptHouseName(body.name) : undefined;
+    const config = hasConfig ? acceptHouse(body) : undefined;
+    if ((hasName && !name) || (hasConfig && !config)) return json({ error: 'house' }, 400, headers);
+    if (!hasName && !hasConfig) return json({ error: 'house' }, 400, headers);
+
+    let result;
+    if (name !== undefined && config !== undefined) {
+      result = await env.DB.prepare(
+        'UPDATE saved_houses SET name = ?, config = ? WHERE id = ? AND user_id = ?'
+      ).bind(name, config, id, user.id).run();
+    } else if (name !== undefined) {
+      result = await env.DB.prepare(
+        'UPDATE saved_houses SET name = ? WHERE id = ? AND user_id = ?'
+      ).bind(name, id, user.id).run();
+    } else {
+      result = await env.DB.prepare(
+        'UPDATE saved_houses SET config = ? WHERE id = ? AND user_id = ?'
+      ).bind(config, id, user.id).run();
+    }
     if (!result.meta?.changes) return json({ error: 'house' }, 404, headers);
-    return json({ ok: true }, 200, headers);
+    return json({ ok: true, name }, 200, headers);
   }
 
   if (request.method === 'DELETE' && id) {
