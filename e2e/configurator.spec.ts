@@ -107,7 +107,7 @@ test.describe("3D Modular House Configurator", () => {
     await expect(page.locator("#dim-roof-angle")).toHaveText(/12°/);
   });
 
-  test("interacts with wall slot panel to choose doors or windows", async ({ page, isMobile }) => {
+  test("interacts with wall slots by mouse or touch to choose doors or windows", async ({ page, isMobile }) => {
     if (isMobile) {
       const toggleMobileBtn = page.locator("#btn-toggle-mobile-sheet");
       if (await toggleMobileBtn.isVisible()) {
@@ -117,7 +117,13 @@ test.describe("3D Modular House Configurator", () => {
 
     // The door/window picker stays hidden until a wall panel is selected.
     const canvas = page.locator("canvas");
-    await canvas.click({ position: { x: 280, y: 320 } });
+    if (isMobile) {
+      const bounds = await canvas.boundingBox();
+      expect(bounds).not.toBeNull();
+      await page.touchscreen.tap(bounds!.x + 280, bounds!.y + 320);
+    } else {
+      await canvas.click({ position: { x: 280, y: 320 } });
+    }
 
     const chooseDoorBtn = page.locator("#btn-choose-door");
     const chooseWinBtn = page.locator("#btn-choose-window");

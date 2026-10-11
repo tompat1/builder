@@ -157,6 +157,13 @@ export class HouseScene {
     startY: number;
     startPt: { x: number; y: number; z: number };
   } | null = null;
+  /** A finger press becomes a panel selection only when it ends as a tap. */
+  private panelTouchPress: {
+    pointerId: number;
+    slotId: string;
+    x: number;
+    y: number;
+  } | null = null;
   private roomMovePlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   private roomMovePoint = new THREE.Vector3();
   private raycaster = new THREE.Raycaster();
@@ -914,6 +921,13 @@ export class HouseScene {
 
   private setupRaycasting() {
     this.container.addEventListener('pointermove', (e) => {
+      if (
+        this.panelTouchPress?.pointerId === e.pointerId
+        && Math.hypot(e.clientX - this.panelTouchPress.x, e.clientY - this.panelTouchPress.y) > 12
+      ) {
+        this.panelTouchPress = null;
+      }
+
       if (this.measuring) {
         this.onMeasureCursor?.(this.housePointAt(e.clientX, e.clientY));
         this.container.style.cursor = 'crosshair';
@@ -1183,10 +1197,16 @@ export class HouseScene {
         const hit = intersects[0].object as THREE.Mesh;
         const slotId = hit.userData.slotId as string;
         if (slotId) {
-          this.currentConfig.selectedSlotId = slotId;
-          this.updateHoverBox(null);
-          this.updateHighlightBox(this.boundsOf(hit));
-          this.onPanelClick?.(slotId, e.clientX, e.clientY);
+          if (e.pointerType === 'touch') {
+            this.panelTouchPress = {
+              pointerId: e.pointerId,
+              slotId,
+              x: e.clientX,
+              y: e.clientY
+            };
+          } else {
+            this.selectPanel(slotId, hit, e.clientX, e.clientY);
+          }
         }
       }
     });
@@ -1195,6 +1215,16 @@ export class HouseScene {
       if (this.draggingRoom) {
         this.finishRoomDrag(true);
         if (this.container.hasPointerCapture(e.pointerId)) this.container.releasePointerCapture(e.pointerId);
+        return;
+      }
+      if (this.panelTouchPress?.pointerId === e.pointerId) {
+        const press = this.panelTouchPress;
+        this.panelTouchPress = null;
+        const moved = Math.hypot(e.clientX - press.x, e.clientY - press.y);
+        if (moved <= 12) {
+          const hit = this.interactivePanels.find((panel) => panel.userData.slotId === press.slotId);
+          if (hit) this.selectPanel(press.slotId, hit, e.clientX, e.clientY);
+        }
         return;
       }
       if (!this.measuring || e.button !== 0 || !this.measureDown) return;
@@ -1206,10 +1236,18 @@ export class HouseScene {
     });
 
     this.container.addEventListener('pointercancel', (e) => {
+      if (this.panelTouchPress?.pointerId === e.pointerId) this.panelTouchPress = null;
       this.finishRoomDrag(false);
       if (this.container.hasPointerCapture(e.pointerId)) this.container.releasePointerCapture(e.pointerId);
       this.measureDown = null;
     });
+  }
+
+  private selectPanel(slotId: string, hit: THREE.Mesh, screenX: number, screenY: number) {
+    this.currentConfig.selectedSlotId = slotId;
+    this.updateHoverBox(null);
+    this.updateHighlightBox(this.boundsOf(hit));
+    this.onPanelClick?.(slotId, screenX, screenY);
   }
 
   public rebuildScene() {
