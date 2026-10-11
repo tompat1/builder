@@ -150,6 +150,28 @@ export interface OptionItem {
 
 export const SIZE_OPTIONS: SizeOption[] = [
   {
+    id: 'size-shed',
+    name: 'Litet förråd',
+    badge: 'Förråd',
+    width: 4000,
+    depth: 2500,
+    height: 2500,
+    areaSqMeters: 10.0,
+    basePrice: 39900,
+    desc: '4000 × 2500 mm. En låg bod med dörr och ett litet fönster.'
+  },
+  {
+    id: 'size-sauna',
+    name: 'Bastu',
+    badge: 'Bastu',
+    width: 5200,
+    depth: 2800,
+    height: 2700,
+    areaSqMeters: 14.6,
+    basePrice: 64900,
+    desc: '5200 × 2800 mm. Låg stuga med dörr, frostat fönster och altan vid ingången.'
+  },
+  {
     id: 'size-15',
     name: 'Friggebod 15 m²',
     badge: 'Bygglovsfritt',
@@ -205,6 +227,10 @@ export const SIZE_OPTIONS: SizeOption[] = [
     desc: '6000 × 6000 mm. Dörr och lågt fönster till vänster, två fönster till höger, skjutdörrar bak och i hörnet, altan runt om.'
   }
 ];
+
+function presetSize(id: string | undefined) {
+  return SIZE_OPTIONS.find((size) => size.id === id) ?? SIZE_OPTIONS.find((size) => size.id === 'size-30') ?? SIZE_OPTIONS[0];
+}
 
 /** High-end wall height cannot exceed 5 m. Width and length stay within a buildable range. */
 export const BUILDING_LIMITS = {
@@ -466,14 +492,19 @@ export function createWallSlots(): Record<string, WallSlot> {
   return slots;
 }
 
-/** Empty bays, then the modern cube's openings. */
-export function cubeWallSlots(): Record<string, WallSlot> {
+function clearedWallSlots(): Record<string, WallSlot> {
   const slots = createWallSlots();
   for (const slot of Object.values(slots)) {
     slot.type = 'empty';
     slot.itemId = undefined;
     slot.coveredBy = undefined;
   }
+  return slots;
+}
+
+/** Empty bays, then the modern cube's openings. */
+export function cubeWallSlots(): Record<string, WallSlot> {
+  const slots = clearedWallSlots();
   slots['front-0'] = { ...slots['front-0'], type: 'door', itemId: 'LERVIK' };
   slots['front-0u'] = { ...slots['front-0u'], type: 'window', itemId: 'standard-single' };
   slots['front-3'] = { ...slots['front-3'], type: 'window', itemId: 'panorama' };
@@ -483,6 +514,22 @@ export function cubeWallSlots(): Record<string, WallSlot> {
   slots['right-1'] = { ...slots['right-1'], type: 'window', itemId: 'standard-single' };
   slots['back-1'] = { ...slots['back-1'], type: 'door', itemId: 'SKJUTDORR' };
   slots['back-2'] = { ...slots['back-2'], type: 'empty', itemId: undefined, coveredBy: 'back-1' };
+  return slots;
+}
+
+/** A low cabin: a door, a frosted window, and solid walls. */
+export function saunaWallSlots(): Record<string, WallSlot> {
+  const slots = clearedWallSlots();
+  slots['front-1'] = { ...slots['front-1'], type: 'door', itemId: 'LERVIK' };
+  slots['front-3'] = { ...slots['front-3'], type: 'window', itemId: 'frost' };
+  return slots;
+}
+
+/** A small shed: one door and one window on the front. */
+export function shedWallSlots(): Record<string, WallSlot> {
+  const slots = clearedWallSlots();
+  slots['front-1'] = { ...slots['front-1'], type: 'door', itemId: 'STEHAG' };
+  slots['front-3'] = { ...slots['front-3'], type: 'window', itemId: 'standard-single' };
   return slots;
 }
 
@@ -552,7 +599,7 @@ export const useConfigStore = defineStore('config', () => {
   });
 
   const selectedSizeId = ref<string>('size-30');
-  const startingSize = SIZE_OPTIONS.find((size) => size.id === 'size-30') ?? SIZE_OPTIONS[2];
+  const startingSize = presetSize('size-30');
   const buildingWidth = ref(startingSize.width);
   const buildingDepth = ref(startingSize.depth);
   const buildingHeight = ref(startingSize.height);
@@ -735,7 +782,7 @@ export const useConfigStore = defineStore('config', () => {
     try {
       const data = JSON.parse(snapshotStr);
       selectedSizeId.value = data.selectedSizeId;
-      const preset = SIZE_OPTIONS.find((size) => size.id === data.selectedSizeId) ?? SIZE_OPTIONS[2];
+      const preset = presetSize(data.selectedSizeId);
       buildingWidth.value = clampMeasure('width', data.buildingWidth ?? preset.width);
       buildingDepth.value = clampMeasure('depth', data.buildingDepth ?? preset.depth);
       buildingHeight.value = clampMeasure('height', data.buildingHeight ?? preset.height);
@@ -810,7 +857,7 @@ export const useConfigStore = defineStore('config', () => {
   saveSnapshot();
 
   const currentSize = computed(() => {
-    return SIZE_OPTIONS.find((s) => s.id === selectedSizeId.value) ?? SIZE_OPTIONS[2];
+    return presetSize(selectedSizeId.value);
   });
 
   const currentMaterial = computed(() => {
@@ -883,12 +930,19 @@ export const useConfigStore = defineStore('config', () => {
         { areaSqMeters: 16.4, label: '16,4 m²', descId: 'large', desc: 'Stort sovloft', priceDelta: 26800 },
         { areaSqMeters: 22.8, label: '22,8 m²', descId: 'whole-floor', desc: 'Hela golvytan', priceDelta: 32500 }
       ];
-    } else if (selectedSizeId.value === 'size-15') {
+    } else if (selectedSizeId.value === 'size-15' || selectedSizeId.value === 'size-sauna') {
       return [
         { areaSqMeters: 5.5, label: '5,5 m²', descId: 'alcove', desc: 'Kompakt sovalkov', priceDelta: 12500 },
         { areaSqMeters: 8.2, label: '8,2 m²', descId: 'standard', desc: 'Standardloft', priceDelta: 16800 },
         { areaSqMeters: 11.0, label: '11,0 m²', descId: 'large', desc: 'Stort sovloft', priceDelta: 20500 },
         { areaSqMeters: 13.7, label: '13,7 m²', descId: 'whole-floor', desc: 'Hela golvytan', priceDelta: 24800 }
+      ];
+    } else if (selectedSizeId.value === 'size-shed') {
+      return [
+        { areaSqMeters: 4.2, label: '4,2 m²', descId: 'alcove', desc: 'Kompakt förvaring', priceDelta: 9800 },
+        { areaSqMeters: 6.0, label: '6,0 m²', descId: 'compact', desc: 'Halvt loft', priceDelta: 12800 },
+        { areaSqMeters: 8.0, label: '8,0 m²', descId: 'standard', desc: 'Större loft', priceDelta: 15600 },
+        { areaSqMeters: 9.5, label: '9,5 m²', descId: 'whole-floor', desc: 'Hela golvytan', priceDelta: 18200 }
       ];
     } else {
       return [
@@ -1022,6 +1076,46 @@ export const useConfigStore = defineStore('config', () => {
     selectedSlotId.value = null;
   }
 
+  function applySaunaShell() {
+    panelOrientation.value = 'liggande';
+    verticalDoorBay.value = true;
+    doorCanopy.value = true;
+    flushRoof.value = false;
+    claddingSizeId.value = '22x145';
+    terraces.value = [{ side: 'front', depth: 1.2, span: 'door', roof: false }];
+    activeRoof.value = 'sadeltak';
+    roofCovering.value = 'shingles';
+    activeMaterial.value = 'wood';
+    activePaintId.value = null;
+    activeLoft.value = 'none';
+    loftCount.value = 'ett';
+    loftPlacement.value = 'vanster';
+    wallSlots.value = saunaWallSlots();
+    activeDoor.value = 'LERVIK';
+    activeWindow.value = 'frost';
+    selectedSlotId.value = null;
+  }
+
+  function applyShedShell() {
+    panelOrientation.value = 'staende';
+    verticalDoorBay.value = false;
+    doorCanopy.value = false;
+    flushRoof.value = false;
+    claddingSizeId.value = '22x145';
+    terraces.value = [];
+    activeRoof.value = 'sadeltak';
+    roofCovering.value = 'felt';
+    activeMaterial.value = 'falurod';
+    activePaintId.value = null;
+    activeLoft.value = 'none';
+    loftCount.value = 'ett';
+    loftPlacement.value = 'vanster';
+    wallSlots.value = shedWallSlots();
+    activeDoor.value = 'STEHAG';
+    activeWindow.value = 'standard-single';
+    selectedSlotId.value = null;
+  }
+
   function applyPlainShell() {
     panelOrientation.value = 'staende';
     verticalDoorBay.value = false;
@@ -1040,11 +1134,14 @@ export const useConfigStore = defineStore('config', () => {
   }
 
   function selectSize(id: string) {
-    const leavingCube = selectedSizeId.value === 'size-cube' && id !== 'size-cube';
+    const shelled = id === 'size-cube' || id === 'size-sauna' || id === 'size-shed';
+    const leavingShell = !shelled && (selectedSizeId.value === 'size-cube' || selectedSizeId.value === 'size-sauna' || selectedSizeId.value === 'size-shed');
     selectedSizeId.value = id;
     applyPresetSize(id);
     if (id === 'size-cube') applyCubeShell();
-    else if (leavingCube) applyPlainShell();
+    else if (id === 'size-sauna') applySaunaShell();
+    else if (id === 'size-shed') applyShedShell();
+    else if (leavingShell) applyPlainShell();
     // Ensure selectedLoftSize is valid for this new size
     const available = availableLoftSizes.value;
     if (available.length > 0 && !available.some((s) => Math.abs(s.areaSqMeters - selectedLoftSize.value) < 0.1)) {

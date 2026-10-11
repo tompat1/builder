@@ -66,6 +66,8 @@ const { t, catalog } = useLabels();
 const store = useConfigStore();
 
 const images: Record<string, string> = {
+  'size-shed': '/homes/home-shed.webp',
+  'size-sauna': '/homes/home-sauna.webp',
   'size-15': '/homes/home-15m2.webp',
   'size-25': '/homes/home-25m2.webp',
   'size-30': '/homes/home-29-9m2.webp',

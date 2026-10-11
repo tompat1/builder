@@ -1180,6 +1180,16 @@ const en = {
       badge: 'Cube',
       desc: '6000 × 6000 mm. A low window over the door, two windows on the right, sliding doors on the back and the side, and a terrace all around.'
     },
+    'size-sauna': {
+      name: 'Sauna',
+      badge: 'Sauna',
+      desc: '5200 × 2800 mm. A low cabin with a door, a frosted window, and a deck by the entrance.'
+    },
+    'size-shed': {
+      name: 'Small shed',
+      badge: 'Shed',
+      desc: '4000 × 2500 mm. A low shed with a door and a small window.'
+    },
     pulpettak: {
       name: 'Mono-pitch 12°',
       desc: 'A single slope, a modern outline, and clear drainage.',
