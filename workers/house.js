@@ -119,7 +119,7 @@ export async function handleHouse(request, env, headers, sessionUser) {
     }, 200, headers);
   }
 
-  if (request.method === 'PUT' && id) {
+  if ((request.method === 'PUT' || request.method === 'POST') && id) {
     let body;
     try {
       body = await request.json();

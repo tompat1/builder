@@ -9,7 +9,7 @@ const ACTIVE_EVENT = 'builder:house-active';
 
 export function acceptActiveHouseId(value: unknown) {
   const id = typeof value === 'string' ? value : '';
-  return /^hus_[a-f0-9]{32}$/.test(id) ? id : '';
+  return /^hus_[a-zA-Z0-9_-]{16,64}$/.test(id) ? id : '';
 }
 
 export function readActiveHouseId() {
@@ -141,12 +141,20 @@ export async function openNamedHouse(id: string) {
 
 export async function updateNamedHouse(id: string, config: unknown) {
   if (!acceptActiveHouseId(id)) throw new Error('house');
-  await houseFetch(`/api/houses/${encodeURIComponent(id)}`, 'PUT', { config });
+  try {
+    await houseFetch(`/api/houses/${encodeURIComponent(id)}`, 'PUT', { config });
+  } catch {
+    await houseFetch(`/api/houses/${encodeURIComponent(id)}`, 'POST', { config });
+  }
 }
 
 export async function renameNamedHouse(id: string, name: string) {
   if (!acceptActiveHouseId(id)) throw new Error('house');
-  await houseFetch(`/api/houses/${encodeURIComponent(id)}`, 'PUT', { name });
+  try {
+    await houseFetch(`/api/houses/${encodeURIComponent(id)}`, 'PUT', { name });
+  } catch {
+    await houseFetch(`/api/houses/${encodeURIComponent(id)}`, 'POST', { name });
+  }
 }
 
 export async function removeNamedHouse(id: string) {

@@ -576,6 +576,7 @@ async function remove(id: string) {
 }
 
 function startEditTitle(house: SavedHouse) {
+  error.value = '';
   editingTitleId.value = house.id;
   editTitleText.value = house.name;
   nextTick(() => {
@@ -586,6 +587,7 @@ function startEditTitle(house: SavedHouse) {
 }
 
 function onTitleInput(id: string) {
+  error.value = '';
   window.clearTimeout(titleSaveTimer);
   titleSaveTimer = window.setTimeout(() => {
     void autosaveTitle(id);
@@ -597,18 +599,24 @@ async function autosaveTitle(id: string) {
   if (!cleaned || cleaned.length > 80) return;
   const target = houses.value.find((h) => h.id === id);
   if (!target || target.name === cleaned) return;
+  if (savingTitleId.value === id) return;
+
   savingTitleId.value = id;
+  const prevName = target.name;
+  target.name = cleaned;
   try {
     if (session.user) {
       await renameNamedHouse(id, cleaned);
     }
-    target.name = cleaned;
+    error.value = '';
     savedTitleId.value = id;
     window.clearTimeout(savedTitleTimer);
     savedTitleTimer = window.setTimeout(() => {
       if (savedTitleId.value === id) savedTitleId.value = null;
     }, 2000);
-  } catch {
+  } catch (err) {
+    target.name = prevName;
+    console.error('Failed to rename house:', err);
     error.value = t('header.saveFailed');
   } finally {
     savingTitleId.value = null;
@@ -617,10 +625,10 @@ async function autosaveTitle(id: string) {
 
 async function finishEditTitle(id: string) {
   window.clearTimeout(titleSaveTimer);
-  await autosaveTitle(id);
   if (editingTitleId.value === id) {
     editingTitleId.value = null;
   }
+  await autosaveTitle(id);
 }
 
 function cancelEditTitle(id: string) {

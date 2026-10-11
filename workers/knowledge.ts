@@ -40,7 +40,7 @@ function corsHeaders(request: Request, env: Env): HeadersInit {
   const ok = allowed.includes(origin);
   return {
     'Access-Control-Allow-Origin': ok ? origin : allowed[0] ?? 'http://localhost:5173',
-    'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
     Vary: 'Origin',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Allow-Credentials': 'true',
