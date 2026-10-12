@@ -609,44 +609,48 @@
       <div
         v-if="lightboxIndex !== null && currentLightboxPiece"
         id="mood-lightbox"
-        class="fixed inset-0 z-[100] flex flex-col items-center justify-between bg-black/92 p-4 md:p-8 backdrop-blur-md select-none animate-fadeIn"
+        class="fixed inset-0 z-[100] flex flex-col items-center justify-between bg-black/85 p-3 md:p-6 backdrop-blur-md select-none animate-fadeIn"
+        style="background-color: rgba(0, 0, 0, 0.88);"
         tabindex="-1"
         role="dialog"
         :aria-label="t('mood.openLightbox')"
         @click.self="closeLightbox"
       >
         <!-- Top bar -->
-        <div class="flex w-full items-center justify-between px-2 text-white/80" @click.stop>
-          <div class="text-sm font-semibold tracking-wider">
-            <span v-if="imagePieces.length > 1">{{ lightboxIndex + 1 }} / {{ imagePieces.length }}</span>
+        <div class="flex w-full items-center justify-between px-2 md:px-4 z-20" @click.stop>
+          <div v-if="imagePieces.length > 1" class="flex items-center gap-1.5 rounded-full bg-slate-900/90 px-3.5 py-1.5 text-xs font-bold text-white shadow-lg border border-slate-700/60 backdrop-blur-md">
+            <span>{{ lightboxIndex + 1 }}</span>
+            <span class="text-slate-400">/</span>
+            <span>{{ imagePieces.length }}</span>
           </div>
+          <div v-else></div>
 
           <button
             type="button"
             id="btn-lightbox-close"
-            class="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white transition hover:bg-white/20 focus:outline-none focus:ring-2 focus:ring-white"
+            class="flex h-11 w-11 items-center justify-center rounded-full bg-slate-900/90 text-white shadow-lg border border-slate-700/60 transition hover:bg-slate-900 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-emerald-400"
             :aria-label="t('mood.closeLightbox')"
             @click="closeLightbox"
           >
-            <svg class="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M6 6 L18 18 M18 6 L6 18" />
+            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <path d="M18 6L6 18M6 6l12 12" />
             </svg>
           </button>
         </div>
 
         <!-- Center Image Stage with Arrows -->
-        <div class="relative flex min-h-0 flex-1 w-full items-center justify-center p-2">
+        <div class="relative flex min-h-0 flex-1 w-full items-center justify-center p-1 md:p-2 overflow-hidden">
           <!-- Previous Button -->
           <button
             v-if="imagePieces.length > 1"
             type="button"
             id="btn-lightbox-prev"
-            class="absolute left-2 md:left-6 z-10 flex h-13 w-13 items-center justify-center rounded-full bg-white/15 text-white shadow-xl backdrop-blur-md transition hover:bg-white/30 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-white"
+            class="absolute left-2 md:left-6 z-20 flex h-12 w-12 md:h-14 md:w-14 items-center justify-center rounded-full bg-slate-900/90 text-white shadow-2xl border border-slate-700/60 backdrop-blur-md transition hover:bg-slate-900 hover:scale-110 active:scale-95 focus:outline-none focus:ring-2 focus:ring-emerald-400"
             :aria-label="t('mood.prevImage')"
             @click.stop="prevImage"
           >
-            <svg class="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
+            <svg class="h-6 w-6 md:h-7 md:w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M15 19l-7-7 7-7" />
             </svg>
           </button>
 
@@ -654,7 +658,8 @@
           <img
             :src="shown(currentLightboxPiece)"
             :alt="currentLightboxPiece.caption || t('mood.picture')"
-            class="max-h-[78vh] max-w-[86vw] object-contain rounded-xl shadow-2xl transition duration-200"
+            class="max-h-[85vh] max-w-[min(94vw,1440px)] w-auto h-auto object-contain rounded-2xl shadow-2xl transition duration-200 select-none"
+            style="min-width: min(100%, 760px); max-height: 84vh; max-width: min(94vw, 1440px); object-fit: contain;"
             @click.stop
           />
 
@@ -663,29 +668,29 @@
             v-if="imagePieces.length > 1"
             type="button"
             id="btn-lightbox-next"
-            class="absolute right-2 md:right-6 z-10 flex h-13 w-13 items-center justify-center rounded-full bg-white/15 text-white shadow-xl backdrop-blur-md transition hover:bg-white/30 hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-white"
+            class="absolute right-2 md:right-6 z-20 flex h-12 w-12 md:h-14 md:w-14 items-center justify-center rounded-full bg-slate-900/90 text-white shadow-2xl border border-slate-700/60 backdrop-blur-md transition hover:bg-slate-900 hover:scale-110 active:scale-95 focus:outline-none focus:ring-2 focus:ring-emerald-400"
             :aria-label="t('mood.nextImage')"
             @click.stop="nextImage"
           >
-            <svg class="h-7 w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+            <svg class="h-6 w-6 md:h-7 md:w-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 5l7 7-7 7" />
             </svg>
           </button>
         </div>
 
         <!-- Caption & Actions Bottom Bar -->
-        <div class="mt-2 flex flex-col items-center gap-2 w-full px-4" @click.stop>
+        <div class="mt-2 flex flex-col items-center gap-2 w-full px-4 z-20" @click.stop>
           <div
             v-if="currentLightboxPiece.caption"
-            class="max-w-2xl rounded-2xl bg-white/12 px-6 py-3.5 text-center text-sm md:text-base leading-relaxed text-white/95 backdrop-blur-md shadow-lg whitespace-pre-wrap"
+            class="max-w-2xl rounded-2xl bg-slate-900/90 px-6 py-3 text-center text-sm md:text-base leading-relaxed text-white shadow-xl border border-slate-700/60 backdrop-blur-md whitespace-pre-wrap"
           >
             {{ currentLightboxPiece.caption }}
           </div>
           <div class="flex items-center gap-3">
             <button
               type="button"
-              class="flex items-center gap-2 rounded-xl bg-white/15 px-3.5 py-2 text-xs font-bold text-white shadow-md backdrop-blur-md transition hover:bg-white/25 active:scale-95"
-              :class="isLikedByMe(currentLightboxPiece) ? 'text-rose-400 bg-rose-500/20' : ''"
+              class="flex items-center gap-2 rounded-xl bg-slate-900/90 px-4 py-2.5 text-xs font-bold text-white shadow-lg border border-slate-700/60 backdrop-blur-md transition hover:bg-slate-900 active:scale-95"
+              :class="isLikedByMe(currentLightboxPiece) ? 'text-rose-400 border-rose-500/40' : ''"
               @click.stop="toggleLike(currentLightboxPiece)"
             >
               <svg
@@ -700,7 +705,7 @@
             </button>
             <button
               type="button"
-              class="flex items-center gap-2 rounded-xl bg-white/15 px-3.5 py-2 text-xs font-bold text-white shadow-md backdrop-blur-md transition hover:bg-white/25 active:scale-95"
+              class="flex items-center gap-2 rounded-xl bg-slate-900/90 px-4 py-2.5 text-xs font-bold text-white shadow-lg border border-slate-700/60 backdrop-blur-md transition hover:bg-slate-900 active:scale-95"
               @click.stop="openComments(currentLightboxPiece)"
             >
               <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
