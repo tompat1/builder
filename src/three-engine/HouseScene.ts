@@ -488,13 +488,13 @@ export class HouseScene {
         ctx.stroke();
       }
 
-      // A shadow joint and a lit edge, wide enough to read on a dark facade.
-      const seam = Math.max(4, Math.round(plankW * (isNaturalWood ? 0.045 : 0.09)));
+      // A shadow joint and a lit edge, subtle and authentic on Scandinavian timber
+      const seam = Math.max(3, Math.round(plankW * (isNaturalWood ? 0.025 : 0.035)));
       ctx.globalAlpha = 1.0;
-      ctx.fillStyle = isNaturalWood ? 'rgba(90, 68, 42, 0.55)' : 'rgba(0, 0, 0, 0.92)';
+      ctx.fillStyle = isNaturalWood ? 'rgba(90, 68, 42, 0.45)' : (isBlack ? 'rgba(0, 0, 0, 0.65)' : 'rgba(25, 25, 25, 0.45)');
       ctx.fillRect(px + plankW - seam, 0, seam, 1024);
 
-      ctx.fillStyle = isNaturalWood ? 'rgba(255, 255, 255, 0.35)' : 'rgba(255, 255, 255, 0.42)';
+      ctx.fillStyle = isNaturalWood ? 'rgba(255, 255, 255, 0.25)' : 'rgba(255, 255, 255, 0.32)';
       ctx.fillRect(px, 0, Math.max(2, Math.round(seam * 0.42)), 1024);
     }
 
@@ -548,6 +548,170 @@ export class HouseScene {
       const u = ny > 0.5 || nx > 0.5 ? (nx > 0.5 ? z : x) : x;
       const v = ny > 0.5 ? z : y;
       uv.setXY(i, u, v);
+    }
+    uv.needsUpdate = true;
+  }
+
+  /** Single solid vertical corner board (knutbräda) texture without internal tiling seams or gaplines. */
+  private createCornerBoardTexture(
+    materialKey: MaterialKey,
+    overrideColor?: string | null
+  ): THREE.CanvasTexture {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 1024;
+    const ctx = canvas.getContext('2d')!;
+
+    const spruceTones = [
+      { base: '#f6ead8', grain: '#e4d2b4', darkGrain: '#cbb892' },
+      { base: '#f4e7d4', grain: '#e2d0b2', darkGrain: '#c9b690' }
+    ];
+    let isNaturalWood = false;
+    let isBlack = false;
+    let colorPalette: { base: string; grain: string; darkGrain: string };
+
+    if (overrideColor && overrideColor !== 'same') {
+      if (overrideColor === 'wood') {
+        isNaturalWood = true;
+        colorPalette = spruceTones[0];
+      } else if (overrideColor === 'white') {
+        colorPalette = { base: '#f8fafc', grain: '#e2e8f0', darkGrain: '#cbd5e1' };
+      } else if (overrideColor === 'falurod') {
+        colorPalette = { base: '#892622', grain: '#731c19', darkGrain: '#591310' };
+      } else if (overrideColor === 'grey') {
+        colorPalette = { base: '#64748b', grain: '#475569', darkGrain: '#334155' };
+      } else if (overrideColor === 'black') {
+        isBlack = true;
+        colorPalette = { base: '#1a1c1b', grain: '#121413', darkGrain: '#070808' };
+      } else if (overrideColor.startsWith('#')) {
+        colorPalette = paintBoards(overrideColor);
+      } else {
+        colorPalette = { base: '#f8fafc', grain: '#e2e8f0', darkGrain: '#cbd5e1' };
+      }
+    } else {
+      isNaturalWood = materialKey === 'wood' && !this.currentConfig.customHex;
+      isBlack = materialKey === 'black' && !this.currentConfig.customHex;
+      const painted = this.currentConfig.customHex ? paintBoards(this.currentConfig.customHex) : null;
+      if (painted) {
+        colorPalette = painted;
+      } else if (materialKey === 'falurod') {
+        colorPalette = { base: '#892622', grain: '#731c19', darkGrain: '#591310' };
+      } else if (materialKey === 'grey') {
+        colorPalette = { base: '#64748b', grain: '#475569', darkGrain: '#334155' };
+      } else if (materialKey === 'white') {
+        colorPalette = { base: '#f8fafc', grain: '#e2e8f0', darkGrain: '#cbd5e1' };
+      } else if (materialKey === 'black') {
+        colorPalette = { base: '#1a1c1b', grain: '#121413', darkGrain: '#070808' };
+      } else {
+        colorPalette = spruceTones[0];
+      }
+    }
+
+    ctx.fillStyle = colorPalette.base;
+    ctx.fillRect(0, 0, 512, 1024);
+
+    let seed = 97;
+    const rnd = () => {
+      seed = (seed * 9301 + 49297) % 233280;
+      return seed / 233280;
+    };
+
+    const fiberCount = 55;
+    for (let f = 0; f < fiberCount; f++) {
+      const fx = rnd() * 512;
+      const wavePeriod = 80 + rnd() * 120;
+      const waveAmp = 1.0 + rnd() * 1.8;
+      const isDark = rnd() > 0.6;
+
+      ctx.strokeStyle = isDark ? colorPalette.darkGrain : colorPalette.grain;
+      ctx.globalAlpha = isDark ? 0.22 : 0.14;
+      ctx.lineWidth = 0.8 + rnd() * 0.7;
+
+      ctx.beginPath();
+      for (let y = 0; y <= 1024; y += 16) {
+        const ox = Math.sin(y / wavePeriod) * waveAmp;
+        if (y === 0) ctx.moveTo(fx + ox, y);
+        else ctx.lineTo(fx + ox, y);
+      }
+      ctx.stroke();
+    }
+
+    ctx.globalAlpha = 0.28;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, 2, 1024);
+    ctx.globalAlpha = 0.20;
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(510, 0, 2, 1024);
+
+    ctx.globalAlpha = 1.0;
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.anisotropy = 8;
+    texture.wrapS = THREE.ClampToEdgeWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(1, 1 / 2.4);
+    return texture;
+  }
+
+  private createCornerBoardBumpMap(): THREE.CanvasTexture {
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 1024;
+    const ctx = canvas.getContext('2d')!;
+
+    ctx.fillStyle = '#808080';
+    ctx.fillRect(0, 0, 512, 1024);
+
+    const grad = ctx.createLinearGradient(0, 0, 512, 0);
+    grad.addColorStop(0, '#787878');
+    grad.addColorStop(0.5, '#8c8c8c');
+    grad.addColorStop(1, '#787878');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 512, 1024);
+
+    const bumpTexture = new THREE.CanvasTexture(canvas);
+    bumpTexture.wrapS = THREE.ClampToEdgeWrapping;
+    bumpTexture.wrapT = THREE.RepeatWrapping;
+    bumpTexture.repeat.set(1, 1 / 2.4);
+    return bumpTexture;
+  }
+
+  /** Map UVs across a single solid board without internal tiling seams or gaplines. */
+  private writeSingleBoardUvs(geo: THREE.BufferGeometry, yShift: number) {
+    const pos = geo.getAttribute('position');
+    const uv = geo.getAttribute('uv');
+    const norm = geo.getAttribute('normal');
+    if (!pos || !uv || !norm) return;
+
+    let minX = Infinity, maxX = -Infinity;
+    let minZ = Infinity, maxZ = -Infinity;
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i);
+      const z = pos.getZ(i);
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (z < minZ) minZ = z;
+      if (z > maxZ) maxZ = z;
+    }
+    const spanX = Math.max(0.001, maxX - minX);
+    const spanZ = Math.max(0.001, maxZ - minZ);
+
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i);
+      const y = pos.getY(i) + yShift;
+      const z = pos.getZ(i);
+      const nx = Math.abs(norm.getX(i));
+      const ny = Math.abs(norm.getY(i));
+
+      let u = 0;
+      if (ny > 0.5) {
+        u = (x - minX) / spanX;
+      } else if (nx > 0.5) {
+        u = (z - minZ) / spanZ;
+      } else {
+        u = (x - minX) / spanX;
+      }
+      uv.setXY(i, u, y);
     }
     uv.needsUpdate = true;
   }
@@ -727,10 +891,10 @@ export class HouseScene {
       ctx.fillStyle = grad;
       ctx.fillRect(px, 0, plankW, 1024);
 
-      const seam = Math.max(5, Math.round(plankW * 0.09));
-      ctx.fillStyle = '#3a3a3a';
+      const seam = Math.max(3, Math.round(plankW * 0.035));
+      ctx.fillStyle = '#555555';
       ctx.fillRect(px + plankW - seam, 0, seam, 1024);
-      ctx.fillStyle = '#a3a3a3';
+      ctx.fillStyle = '#9c9c9c';
       ctx.fillRect(px, 0, Math.max(2, Math.round(seam * 0.4)), 1024);
     }
 
@@ -1505,11 +1669,11 @@ export class HouseScene {
         : (isFlackt ? h - flacktDrop : h);
       const cornerColor = this.currentConfig.cornerColor ?? 'same';
       const cornerMat = new THREE.MeshStandardMaterial({
-        map: this.createVerticalPlankTexture(this.currentConfig.material, true, cornerColor),
-        bumpMap: this.createVerticalPlankBumpMap(true),
-        bumpScale: 0.07,
         roughness: 0.64,
-        metalness: 0.02
+        metalness: 0.02,
+        map: this.createCornerBoardTexture(this.currentConfig.material, cornerColor),
+        bumpMap: this.createCornerBoardBumpMap(),
+        bumpScale: 0.03
       });
       this.addCornerBoards(w, d, frontTop, rearTop, 0.25, cornerMat);
     }
@@ -1961,9 +2125,14 @@ export class HouseScene {
       && lowerBay.itemId !== 'SKJUTDORR'
       && lowerBay.itemId !== 'SKJUTDORR3'
     );
+    const cornerSide = this.cornerSideForPanel(
+      wallSide,
+      index,
+      (wallSide === 'front' || wallSide === 'back') ? 4 : 3
+    );
     const opening: { winW: number; winH: number; winY: number; x?: number } | null = wide
       ?? ((slotType === 'window' || slotType === 'door')
-        ? this.fittedOpening(slotType, slot?.itemId, band.upper, panelWidth, band.height, band.base, aboveDoor)
+        ? this.fittedOpening(slotType, slot?.itemId, band.upper, panelWidth, band.height, band.base, aboveDoor, cornerSide)
         : null);
     const userData = {
       slotId: band.slotId,
@@ -1983,7 +2152,14 @@ export class HouseScene {
 
     const ownsOpening = wide ? wide.drawDoor : (slotType === 'door' || slotType === 'window');
     if (ownsOpening && opening && (wide || slotType === 'door' || slotType === 'window')) {
-      this.addOpeningCasing(panelGroup, opening, wide || slotType === 'door' ? 'door' : 'window', casingMat);
+      this.addOpeningCasing(
+        panelGroup,
+        opening,
+        wide || slotType === 'door' ? 'door' : 'window',
+        casingMat,
+        cornerSide,
+        panelWidth
+      );
     }
     if (ownsOpening && opening && (wide || slotType === 'door')) {
       this.addDoorFeature(panelGroup, opening, slot?.itemId, userData);
@@ -2420,6 +2596,24 @@ export class HouseScene {
    * A lower window fills the bay under the rail. A door stands on the floor.
    * Catalog type changes glass and mullions; it does not override the fit.
    */
+  /** Returns which local side ('left' | 'right') of this panel touches an exterior corner, or null if interior. */
+  private cornerSideForPanel(
+    wallSide: 'front' | 'back' | 'left' | 'right',
+    index: number,
+    panelCount: number
+  ): 'left' | 'right' | null {
+    if (index !== 0 && index !== panelCount - 1) return null;
+    if (wallSide === 'front' || wallSide === 'back') {
+      return index === 0 ? 'left' : 'right';
+    }
+    return index === 0 ? 'right' : 'left';
+  }
+
+  /**
+   * Sizing windows and doors to fit inside modular wall panels.
+   * A lower window fills the bay under the rail. A door stands on the floor.
+   * Catalog type changes glass and mullions; it does not override the fit.
+   */
   private fittedOpening(
     kind: 'door' | 'window',
     itemId: string | undefined,
@@ -2427,13 +2621,30 @@ export class HouseScene {
     panelWidth: number,
     panelHeight: number,
     panelBase: number,
-    aboveDoor = false
+    aboveDoor = false,
+    cornerSide?: 'left' | 'right' | null
   ) {
     const side = 0.09;
     const headBoard = 0.085;
     const sillBoard = 0.065;
     const edge = 0.045;
-    const winW = Math.max(0.46, panelWidth - side * 2 - edge * 2);
+    const sillEar = kind === 'window' ? 0.02 : 0;
+
+    // When adjacent to a corner, reserve clearance for the 145mm corner board plus reveal (170mm total)
+    const cornerClearance = 0.170;
+    let winW: number;
+    let shift = 0;
+
+    if (cornerSide) {
+      const availableW = Math.max(0.46, panelWidth - cornerClearance - edge);
+      const maxAllowedOpening = Math.max(0.46, availableW - (side + sillEar) * 2);
+      const offset = (cornerClearance - edge) / 2;
+      shift = cornerSide === 'left' ? offset : -offset;
+      winW = Math.min(Math.max(0.46, panelWidth - side * 2 - edge * 2), maxAllowedOpening);
+    } else {
+      winW = Math.max(0.46, panelWidth - side * 2 - edge * 2);
+    }
+
     const centerY = panelBase + panelHeight / 2;
 
     if (kind === 'door') {
@@ -2442,7 +2653,7 @@ export class HouseScene {
       const doorH = Math.min(2.1, Math.max(1.7, panelHeight - headBoard - 0.06));
       const sill = panelBase;
       const head = sill + doorH;
-      return { winW: doorW, winH: doorH, winY: (sill + head) / 2 - centerY, sill, head };
+      return { winW: doorW, winH: doorH, winY: (sill + head) / 2 - centerY, sill, head, x: shift };
     }
 
     if (itemId === 'standard-single' && !isUpper && panelWidth >= 1.8) {
@@ -2485,7 +2696,7 @@ export class HouseScene {
       sill = panelBase + sillFromBase;
     }
     const head = sill + winH;
-    return { winW, winH, winY: (sill + head) / 2 - centerY, sill, head };
+    return { winW, winH, winY: (sill + head) / 2 - centerY, sill, head, x: shift };
   }
 
   /** Each wall group is rotated so its local +Z already points away from the house. */
@@ -2519,7 +2730,8 @@ export class HouseScene {
           : null;
         if (wide && !wide.drawDoor) continue;
         if (slot.coveredBy && !wide) continue;
-        const opening = wide ?? this.fittedOpening('door', slot.itemId, false, panelWidth, panelH, base);
+        const cornerSide = this.cornerSideForPanel(wall, i, count);
+        const opening = wide ?? this.fittedOpening('door', slot.itemId, false, panelWidth, panelH, base, false, cornerSide);
         let px = 0;
         let pz = 0;
         let rotY = 0;
@@ -3006,9 +3218,13 @@ export class HouseScene {
           && lower.itemId !== 'SKJUTDORR'
           && lower.itemId !== 'SKJUTDORR3'
         );
+        const cornerSide = this.cornerSideForPanel(wall, p, count);
+        const fit = this.fittedOpening(slot.type, slot.itemId, band.upper, panelW, band.panelH, band.panelBase, aboveDoor, cornerSide);
+        const ox = fit.x ?? 0;
+        const worldX = (wall === 'front' || wall === 'left') ? center + ox : center - ox;
         openings.push({
-          x: center,
-          ...this.fittedOpening(slot.type, slot.itemId, band.upper, panelW, band.panelH, band.panelBase, aboveDoor)
+          x: worldX,
+          ...fit
         });
       }
     }
@@ -3053,7 +3269,9 @@ export class HouseScene {
     parent: THREE.Group,
     opening: { winW: number; winH: number; winY: number; x?: number },
     kind: 'door' | 'window',
-    material: THREE.Material
+    material: THREE.Material,
+    cornerSide?: 'left' | 'right' | null,
+    panelWidth?: number
   ) {
     const { winW, winH, winY } = opening;
     const shift = opening.x ?? 0;
@@ -3081,9 +3299,21 @@ export class HouseScene {
         z: z + 0.004
       });
     }
+
+    const pw = panelWidth ?? (winW + side * 2 + 0.1);
+    const cornerClearance = 0.165;
+    const minX = cornerSide === 'left' ? -pw / 2 + cornerClearance : -pw / 2 + 0.02;
+    const maxX = cornerSide === 'right' ? pw / 2 - cornerClearance : pw / 2 - 0.02;
+
     for (const board of boards) {
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(board.w, board.h, board.d), material);
-      mesh.position.set(board.x, board.y, board.z);
+      let bLeft = board.x - board.w / 2;
+      let bRight = board.x + board.w / 2;
+      if (bLeft < minX) bLeft = minX;
+      if (bRight > maxX) bRight = maxX;
+      const w = Math.max(0.02, bRight - bLeft);
+      const x = (bLeft + bRight) / 2;
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, board.h, board.d), material);
+      mesh.position.set(x, board.y, board.z);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       mesh.userData = { ...parent.userData, panelGroup: parent };
@@ -3106,6 +3336,7 @@ export class HouseScene {
     material: THREE.Material
   ) {
     const { face, thick } = this.cornerTrimSize();
+    const sideFace = Math.max(0.05, face - thick);
     const corners = [
       { x: -1, z: 1, top: frontH },
       { x: 1, z: 1, top: frontH },
@@ -3118,10 +3349,10 @@ export class HouseScene {
       const y = baseElev + height / 2;
       const alongFront = new THREE.Mesh(new THREE.BoxGeometry(face, height, thick), material);
       alongFront.position.set(corner.x * (w / 2 + thick - face / 2), y, corner.z * (d / 2 + thick / 2));
-      const alongSide = new THREE.Mesh(new THREE.BoxGeometry(thick, height, face), material);
-      alongSide.position.set(corner.x * (w / 2 + thick / 2), y, corner.z * (d / 2 - face / 2));
+      const alongSide = new THREE.Mesh(new THREE.BoxGeometry(thick, height, sideFace), material);
+      alongSide.position.set(corner.x * (w / 2 + thick / 2), y, corner.z * (d / 2 - sideFace / 2));
       for (const board of [alongFront, alongSide]) {
-        this.writeMetreUvs(board.geometry, y);
+        this.writeSingleBoardUvs(board.geometry, y);
         board.castShadow = true;
         board.receiveShadow = true;
         this.wallsGroup.add(board);
@@ -3462,19 +3693,20 @@ export class HouseScene {
 
   private addWindowFeature(
     parent: THREE.Group,
-    opening: { winW: number; winH: number; winY: number },
+    opening: { winW: number; winH: number; winY: number; x?: number },
     windowId: string | undefined,
     userData: Record<string, unknown>
   ) {
     const { winW, winH, winY } = opening;
+    const ox = opening.x ?? 0;
     const frameT = 0.032;
     const frameD = 0.026;
     const frameMat = new THREE.MeshStandardMaterial({ color: '#f8fafc', roughness: 0.35 });
     const members: { x: number; y: number; w: number; h: number }[] = [
-      { x: -(winW / 2 - frameT / 2), y: winY, w: frameT, h: winH },
-      { x: winW / 2 - frameT / 2, y: winY, w: frameT, h: winH },
-      { x: 0, y: winY + winH / 2 - frameT / 2, w: winW - frameT * 2, h: frameT },
-      { x: 0, y: winY - winH / 2 + frameT / 2, w: winW - frameT * 2, h: frameT }
+      { x: ox - (winW / 2 - frameT / 2), y: winY, w: frameT, h: winH },
+      { x: ox + winW / 2 - frameT / 2, y: winY, w: frameT, h: winH },
+      { x: ox, y: winY + winH / 2 - frameT / 2, w: winW - frameT * 2, h: frameT },
+      { x: ox, y: winY - winH / 2 + frameT / 2, w: winW - frameT * 2, h: frameT }
     ];
     for (const member of members) {
       const frame = new THREE.Mesh(new THREE.BoxGeometry(member.w, member.h, frameD), frameMat);
@@ -3499,7 +3731,7 @@ export class HouseScene {
         depthWrite: false
       })
     );
-    glass.position.set(0, winY, 0.012);
+    glass.position.set(ox, winY, 0.012);
     glass.renderOrder = 2;
     parent.add(glass);
     this.markSelectable(glass, userData);
@@ -3507,7 +3739,7 @@ export class HouseScene {
     if (windowId === PORTRAIT_PANORAMA && glassW > 0.7) {
       const mullionMat = new THREE.MeshStandardMaterial({ color: '#f8fafc', roughness: 0.35 });
       const mullion = new THREE.Mesh(new THREE.BoxGeometry(0.028, glassH, 0.03), mullionMat);
-      mullion.position.set(0, winY, 0.02);
+      mullion.position.set(ox, winY, 0.02);
       parent.add(mullion);
       this.markSelectable(mullion, userData);
     }
@@ -3515,11 +3747,11 @@ export class HouseScene {
     if (windowId === 'sprojat') {
       const mullionMat = new THREE.MeshStandardMaterial({ color: '#f8fafc', roughness: 0.35 });
       const vertMullion = new THREE.Mesh(new THREE.BoxGeometry(0.028, glassH, 0.03), mullionMat);
-      vertMullion.position.set(0, winY, 0.02);
+      vertMullion.position.set(ox, winY, 0.02);
       parent.add(vertMullion);
       this.markSelectable(vertMullion, userData);
       const horizMullion = new THREE.Mesh(new THREE.BoxGeometry(glassW, 0.028, 0.03), mullionMat);
-      horizMullion.position.set(0, winY, 0.02);
+      horizMullion.position.set(ox, winY, 0.02);
       parent.add(horizMullion);
       this.markSelectable(horizMullion, userData);
     }
@@ -3555,11 +3787,12 @@ export class HouseScene {
     const liteH = doorId === 'SVANSHALL' ? doorH * 0.72 : Math.min(0.9, doorH * 0.46);
     const liteY = doorY + doorH * 0.08;
     const leafMat = new THREE.MeshStandardMaterial({ color: '#f8fafc', roughness: 0.35 });
+    const ox = opening.x ?? 0;
     const leafParts: { x: number; y: number; w: number; h: number }[] = [
-      { x: 0, y: (liteY + liteH / 2 + doorY + doorH / 2) / 2, w: doorW, h: doorY + doorH / 2 - (liteY + liteH / 2) },
-      { x: 0, y: (doorY - doorH / 2 + liteY - liteH / 2) / 2, w: doorW, h: liteY - liteH / 2 - (doorY - doorH / 2) },
-      { x: -(doorW + liteW) / 4, y: liteY, w: (doorW - liteW) / 2, h: liteH },
-      { x: (doorW + liteW) / 4, y: liteY, w: (doorW - liteW) / 2, h: liteH }
+      { x: ox, y: (liteY + liteH / 2 + doorY + doorH / 2) / 2, w: doorW, h: doorY + doorH / 2 - (liteY + liteH / 2) },
+      { x: ox, y: (doorY - doorH / 2 + liteY - liteH / 2) / 2, w: doorW, h: liteY - liteH / 2 - (doorY - doorH / 2) },
+      { x: ox - (doorW + liteW) / 4, y: liteY, w: (doorW - liteW) / 2, h: liteH },
+      { x: ox + (doorW + liteW) / 4, y: liteY, w: (doorW - liteW) / 2, h: liteH }
     ];
     for (const part of leafParts) {
       if (part.w <= 0.01 || part.h <= 0.01) continue;
@@ -3582,7 +3815,7 @@ export class HouseScene {
         depthWrite: false
       })
     );
-    glass.position.set(0, liteY, leafZ + leafD / 2 + 0.004);
+    glass.position.set(ox, liteY, leafZ + leafD / 2 + 0.004);
     glass.renderOrder = 2;
     parent.add(glass);
     this.markSelectable(glass, userData);
@@ -3592,7 +3825,7 @@ export class HouseScene {
     const handleMat = new THREE.MeshStandardMaterial({ color: '#334155', metalness: 0.8, roughness: 0.2 });
     const handle = new THREE.Mesh(handleGeo, handleMat);
     handle.rotation.z = Math.PI / 2;
-    handle.position.set(doorW / 2 - 0.12, doorY, leafZ + leafD / 2 + 0.02);
+    handle.position.set(ox + doorW / 2 - 0.12, doorY, leafZ + leafD / 2 + 0.02);
     parent.add(handle);
     this.markSelectable(handle, userData);
   }
