@@ -58,6 +58,15 @@ export function saveStoredParticipant(p: MoodParticipant) {
   }
 }
 
+export function clearStoredParticipant() {
+  try {
+    localStorage.removeItem(PARTICIPANT_KEY);
+    localStorage.removeItem('mood_participant');
+  } catch {
+    // ignore
+  }
+}
+
 export function hasMoodBoard(houseKey: string): boolean {
   if (!houseKey) return false;
   const all = bucket();

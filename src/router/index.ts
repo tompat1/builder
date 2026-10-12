@@ -28,7 +28,7 @@ const router = createRouter({
 router.beforeEach((to) => {
   if (to.path === '/build') {
     const isInvited = typeof localStorage !== 'undefined'
-      && Boolean(localStorage.getItem('mood_participant'))
+      && Boolean(localStorage.getItem('builder.mood.participant') || localStorage.getItem('mood_participant'))
       && !localStorage.getItem('account_token');
     if (isInvited) {
       return { path: '/mood' };

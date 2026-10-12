@@ -20,7 +20,7 @@ import { ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import MoodJoinLoading from '../components/MoodJoinLoading.vue';
 import MoodBoard from '../components/MoodBoard.vue';
-import { getStoredParticipant } from '../services/moodSave';
+import { clearStoredParticipant, getStoredParticipant } from '../services/moodSave';
 import { useSessionStore } from '../store/useSessionStore';
 import type { MoodParticipant } from '../mood/board';
 
@@ -32,8 +32,12 @@ const showJoinScreen = ref(false);
 onMounted(async () => {
   await sessionStore.ensureAccountState();
 
-  // If forced via ?join=1, or if user is neither signed in nor a stored participant
-  const forceJoin = route.query.join === '1';
+  if (sessionStore.user) {
+    clearStoredParticipant();
+  }
+
+  // If forced via ?join=1 (for non-authenticated guests), or if user is neither signed in nor a stored participant
+  const forceJoin = route.query.join === '1' && !sessionStore.user;
   const hasParticipant = Boolean(getStoredParticipant());
   const hasUser = Boolean(sessionStore.user);
 

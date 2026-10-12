@@ -817,6 +817,7 @@
             <div class="min-w-0 flex-1">
               <p class="truncate text-base font-bold text-[#173D35]">{{ currentAuthor.name }}</p>
               <button
+                v-if="!sessionStore.user"
                 type="button"
                 class="mt-1 flex items-center gap-1 text-xs font-semibold text-[#173D35] underline hover:text-[#0f2b25]"
                 @click="reopenJoinPage"
@@ -1009,7 +1010,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useConfigStore } from '../store/useConfigStore';
 import { useSessionStore } from '../store/useSessionStore';
@@ -1034,6 +1035,7 @@ import { defaultAccountAvatar } from '../mood/avatar';
 import { generateQrSvg } from '../mood/qr';
 import { pictureDataUrl } from '../mood/image';
 import {
+  clearStoredParticipant,
   deleteClip,
   getClip,
   getStoredParticipant,
@@ -1118,20 +1120,21 @@ const shareUrl = computed(() => {
 });
 
 const currentAuthor = computed<MoodAuthor>(() => {
-  const stored = getStoredParticipant();
-  if (stored) {
-    return {
-      name: stored.name,
-      avatar: stored.avatar,
-      email: stored.email
-    };
-  }
+  // Authenticated user (admin / GitHub user) ALWAYS takes priority over any guest alias
   if (sessionStore.user) {
     const u = sessionStore.user;
     return {
       name: u.name || u.login || 'Ägare',
       avatar: u.avatarUrl || defaultAccountAvatar(u.name || u.login),
       email: u.email
+    };
+  }
+  const stored = getStoredParticipant();
+  if (stored) {
+    return {
+      name: stored.name,
+      avatar: stored.avatar,
+      email: stored.email
     };
   }
   return {
@@ -1141,9 +1144,9 @@ const currentAuthor = computed<MoodAuthor>(() => {
 });
 
 const currentAuthorId = computed(() => {
+  if (sessionStore.user?.id) return sessionStore.user.id;
   const p = getStoredParticipant();
   if (p?.id) return p.id;
-  if (sessionStore.user?.id) return sessionStore.user.id;
   return currentAuthor.value.name || 'anon';
 });
 
@@ -1203,7 +1206,8 @@ function reopenJoinPage() {
 }
 
 const isInvited = computed(() => {
-  return Boolean(getStoredParticipant()) || !sessionStore.user;
+  if (sessionStore.user) return false;
+  return Boolean(getStoredParticipant());
 });
 
 const isMobile = ref(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
@@ -1278,6 +1282,9 @@ onMounted(() => {
   onWindowResize();
   window.addEventListener('resize', onWindowResize);
   void sessionStore.ensureAccountState().then(() => {
+    if (sessionStore.user) {
+      clearStoredParticipant();
+    }
     backfillExistingPiecesAuthor();
   });
   const data = loadMood(houseKey);
@@ -1286,6 +1293,18 @@ onMounted(() => {
   title.value = data.title;
   createdAt.value = data.createdAt || (data.pieces.length > 0 ? new Date().toISOString() : '');
   backfillExistingPiecesAuthor();
+
+  watch(
+    () => sessionStore.user,
+    (user) => {
+      if (user) {
+        clearStoredParticipant();
+        backfillExistingPiecesAuthor();
+      }
+    },
+    { immediate: true }
+  );
+
   void hydrate();
 
   // Background Cloudflare database sync

@@ -384,3 +384,47 @@ test('mobile display pieces sort vertically by piece.y', () => {
   assert.equal(mobileOrder[1].id, '1');
   assert.equal(mobileOrder[2].id, '3');
 });
+
+test('authenticated user profile always takes precedence over stored guest participant alias', () => {
+  function resolveMoodAuthor(sessionUser, storedParticipant) {
+    if (sessionUser) {
+      return {
+        name: sessionUser.name || sessionUser.login || 'Ägare',
+        avatar: sessionUser.avatarUrl,
+        email: sessionUser.email
+      };
+    }
+    if (storedParticipant) {
+      return {
+        name: storedParticipant.name,
+        avatar: storedParticipant.avatar,
+        email: storedParticipant.email
+      };
+    }
+    return { name: 'Ägare' };
+  }
+
+  const adminUser = {
+    id: 'admin_1',
+    login: 'tompat1',
+    name: 'Thomas Rynell',
+    avatarUrl: 'https://avatars.githubusercontent.com/u/12345?v=4',
+    email: 'admin@example.com'
+  };
+
+  const guestParticipant = {
+    id: 'guest_99',
+    name: 'Bobby',
+    avatar: 'data:image/svg+xml;utf8,<svg>Bobby</svg>'
+  };
+
+  // When logged in as admin, even if guest "Bobby" was stored in localStorage:
+  const author = resolveMoodAuthor(adminUser, guestParticipant);
+  assert.equal(author.name, 'Thomas Rynell');
+  assert.equal(author.avatar, 'https://avatars.githubusercontent.com/u/12345?v=4');
+  assert.equal(author.email, 'admin@example.com');
+
+  // When NOT logged in, the guest participant is used:
+  const guestAuthor = resolveMoodAuthor(null, guestParticipant);
+  assert.equal(guestAuthor.name, 'Bobby');
+});
