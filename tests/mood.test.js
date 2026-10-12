@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { acceptMood, acceptMoodBoard, pieceFrom, readLink, youtubeEmbed, vimeoEmbed } from '../src/mood/board.ts';
+import { acceptMood, acceptMoodBoard, pieceFrom, placeFor, readLink, youtubeEmbed, vimeoEmbed } from '../src/mood/board.ts';
 import { generateAiAvatar, defaultAccountAvatar } from '../src/mood/avatar.ts';
 import { generateQrSvg } from '../src/mood/qr.ts';
+import { handleMood } from '../workers/mood.js';
 
 test('a mood link accepts pictures, films, and same-site paths', () => {
   const youtube = readLink('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
@@ -151,4 +152,205 @@ test('qr generator creates valid svg for share links', async () => {
   const svg = await generateQrSvg('https://example.com/mood?board=hus_123');
   assert.ok(svg.includes('<svg'));
   assert.ok(svg.includes('viewBox'));
+});
+
+test('a mood piece accepts and preserves likes and likedBy', () => {
+  const piece = {
+    id: 'mood_11223344',
+    kind: 'note',
+    color: 'yellow',
+    x: 10,
+    y: 20,
+    w: 22,
+    tilt: 0,
+    caption: 'Fint hus',
+    likes: 3,
+    likedBy: ['user_1', 'user_2', 'user_3']
+  };
+  const saved = acceptMood([piece]);
+  assert.equal(saved.length, 1);
+  assert.equal(saved[0].likes, 3);
+  assert.deepEqual(saved[0].likedBy, ['user_1', 'user_2', 'user_3']);
+});
+
+test('a mood piece accepts and validates comments', () => {
+  const comment = {
+    id: 'comm_abc123',
+    pieceId: 'mood_aabbccdd',
+    text: 'Vilket fint fönster!',
+    author: {
+      name: 'Anna',
+      avatar: 'data:image/svg+xml;utf8,<svg></svg>'
+    },
+    createdAt: '2026-10-12T19:30:00.000Z'
+  };
+  const piece = {
+    id: 'mood_aabbccdd',
+    kind: 'note',
+    color: 'moss',
+    x: 10,
+    y: 20,
+    w: 22,
+    tilt: 0,
+    caption: 'Inredning',
+    comments: [comment]
+  };
+  const saved = acceptMood([piece]);
+  assert.equal(saved.length, 1);
+  assert.equal(saved[0].comments?.length, 1);
+  assert.equal(saved[0].comments?.[0].text, 'Vilket fint fönster!');
+  assert.equal(saved[0].comments?.[0].author.name, 'Anna');
+});
+
+test('placeFor scales y downwards for endless scrolling', () => {
+  const spot0 = placeFor(0);
+  const spot3 = placeFor(3);
+  const spot6 = placeFor(6);
+  const spot9 = placeFor(9);
+  const spot30 = placeFor(30);
+
+  // Rows increment downwards
+  assert.ok(spot3.y > spot0.y, `spot3 (${spot3.y}) should be lower than spot0 (${spot0.y})`);
+  assert.ok(spot6.y > spot3.y, `spot6 (${spot6.y}) should be lower than spot3 (${spot3.y})`);
+  assert.ok(spot9.y > spot6.y, `spot9 (${spot9.y}) should be lower than spot6 (${spot6.y})`);
+  assert.ok(spot30.y > 300, `spot30 (${spot30.y}) should be far down for endless scroll`);
+
+  // acceptPiece accepts large y values beyond 88
+  const pieceFarDown = {
+    id: 'mood_99887766',
+    kind: 'note',
+    color: 'sky',
+    x: 10,
+    y: 750,
+    w: 20,
+    tilt: 0,
+    caption: 'Långt ner'
+  };
+  const saved = acceptMood([pieceFarDown]);
+  assert.equal(saved[0].y, 750);
+});
+
+test('handleMood saves and loads moodboard from Cloudflare D1 database', async () => {
+  let storedRow = null;
+  const env = {
+    DB: {
+      prepare(sql) {
+        return {
+          bind(...args) {
+            return {
+              async first() {
+                if (sql.includes('SELECT')) return storedRow;
+                return null;
+              },
+              async run() {
+                if (sql.includes('INSERT INTO mood_boards')) {
+                  storedRow = {
+                    id: args[0],
+                    user_id: args[1],
+                    title: args[2],
+                    data: args[3],
+                    created_at: args[4],
+                    updated_at: args[5]
+                  };
+                } else if (sql.includes('UPDATE mood_boards SET data = ?')) {
+                  if (storedRow) {
+                    storedRow.data = args[0];
+                    storedRow.updated_at = args[1];
+                  }
+                }
+                return { meta: { changes: 1 } };
+              }
+            };
+          }
+        };
+      }
+    }
+  };
+
+  const sessionUser = async () => ({ id: 'usr_1', login: 'tompat1' });
+
+  // 1. PUT /api/mood/hus_testboard
+  const putReq = new Request('https://example.com/api/mood/hus_testboard', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      title: 'Vårt drömhus',
+      pieces: [
+        {
+          id: 'mood_11223344',
+          kind: 'note',
+          color: 'moss',
+          x: 10,
+          y: 20,
+          w: 22,
+          tilt: 0,
+          caption: 'Spännande plan'
+        }
+      ]
+    })
+  });
+  const putRes = await handleMood(putReq, env, {}, sessionUser);
+  assert.equal(putRes.status, 200);
+  const putBody = await putRes.json();
+  assert.equal(putBody.ok, true);
+  assert.equal(putBody.id, 'hus_testboard');
+
+  // 2. GET /api/mood/hus_testboard
+  const getReq = new Request('https://example.com/api/mood/hus_testboard', {
+    method: 'GET'
+  });
+  const getRes = await handleMood(getReq, env, {}, sessionUser);
+  assert.equal(getRes.status, 200);
+  const getBody = await getRes.json();
+  assert.equal(getBody.mood.title, 'Vårt drömhus');
+  assert.equal(getBody.mood.pieces.length, 1);
+  assert.equal(getBody.mood.pieces[0].id, 'mood_11223344');
+
+  // 3. POST /api/mood/hus_testboard/like
+  const likeReq = new Request('https://example.com/api/mood/hus_testboard/like', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      pieceId: 'mood_11223344',
+      likerId: 'usr_2'
+    })
+  });
+  const likeRes = await handleMood(likeReq, env, {}, sessionUser);
+  assert.equal(likeRes.status, 200);
+  const likeBody = await likeRes.json();
+  assert.equal(likeBody.likes, 1);
+  assert.equal(likeBody.liked, true);
+  assert.deepEqual(likeBody.likedBy, ['usr_2']);
+
+  // Toggle unlike
+  const unlikeReq = new Request('https://example.com/api/mood/hus_testboard/like', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      pieceId: 'mood_11223344',
+      likerId: 'usr_2'
+    })
+  });
+  const unlikeRes = await handleMood(unlikeReq, env, {}, sessionUser);
+  assert.equal(unlikeRes.status, 200);
+  const unlikeBody = await unlikeRes.json();
+  assert.equal(unlikeBody.likes, 0);
+  assert.equal(unlikeBody.liked, false);
+
+  // 4. POST /api/mood/hus_testboard/comment
+  const commentReq = new Request('https://example.com/api/mood/hus_testboard/comment', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      pieceId: 'mood_11223344',
+      text: 'Superbra idé!',
+      author: { name: 'Karin', avatar: 'data:image/svg+xml;utf8,<svg></svg>' }
+    })
+  });
+  const commentRes = await handleMood(commentReq, env, {}, sessionUser);
+  assert.equal(commentRes.status, 200);
+  const commentBody = await commentRes.json();
+  assert.equal(commentBody.totalComments, 1);
+  assert.equal(commentBody.comment.text, 'Superbra idé!');
+  assert.equal(commentBody.comment.author.name, 'Karin');
 });

@@ -1,7 +1,13 @@
-/** Mood boards live beside the house file. Pictures stay small; clips stay in IndexedDB. */
-
-import { acceptMood, acceptMoodBoard, type MoodParticipant, type MoodPiece } from '../mood/board';
+import {
+  acceptMood,
+  acceptMoodBoard,
+  type MoodAuthor,
+  type MoodComment,
+  type MoodParticipant,
+  type MoodPiece
+} from '../mood/board';
 import { readActiveHouseId } from './houseSave';
+import { sessionToken, workerBase } from './account';
 
 const KEY = 'builder.mood';
 const PARTICIPANT_KEY = 'builder.mood.participant';
@@ -132,6 +138,143 @@ export function saveMood(content: MoodBoardState | MoodPiece[], houseKey = moodH
     } catch {
       // The board stays on screen even when the browser refuses the copy.
     }
+  }
+  // Also persist to Cloudflare database in background
+  scheduleCloudflareSave(houseKey, all[houseKey] as MoodBoardState);
+}
+
+let saveTimer: ReturnType<typeof setTimeout> | null = null;
+let pendingState: { houseKey: string; state: MoodBoardState } | null = null;
+
+function scheduleCloudflareSave(houseKey: string, state: MoodBoardState) {
+  pendingState = { houseKey, state };
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    if (pendingState) {
+      void saveMoodToCloudflare(pendingState.state, pendingState.houseKey);
+      pendingState = null;
+    }
+  }, 400);
+}
+
+export async function saveMoodToCloudflare(state: MoodBoardState, houseKey = moodHouseKey()): Promise<boolean> {
+  if (!houseKey) return false;
+  try {
+    const headers = new Headers();
+    const token = sessionToken();
+    if (token) headers.set('Authorization', `Bearer ${token}`);
+    headers.set('Content-Type', 'application/json');
+
+    const payload = {
+      title: state.title,
+      createdAt: state.createdAt,
+      pieces: state.pieces,
+      participants: state.participants
+    };
+
+    const res = await fetch(`${workerBase()}/api/mood/${encodeURIComponent(houseKey)}`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(payload)
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+export async function syncMoodWithCloudflare(houseKey = moodHouseKey()): Promise<MoodBoardState | null> {
+  if (!houseKey) return null;
+  try {
+    const headers = new Headers();
+    const token = sessionToken();
+    if (token) headers.set('Authorization', `Bearer ${token}`);
+
+    const res = await fetch(`${workerBase()}/api/mood/${encodeURIComponent(houseKey)}`, {
+      method: 'GET',
+      headers
+    });
+    if (!res.ok) return null;
+    const body = (await res.json().catch(() => null)) as { mood?: unknown };
+    if (!body || !body.mood) return null;
+    const parsed = acceptMoodBoard(body.mood);
+    const boardState: MoodBoardState = {
+      title: parsed.title,
+      createdAt: parsed.createdAt,
+      pieces: parsed.pieces,
+      ...(parsed.participants ? { participants: parsed.participants } : {})
+    };
+
+    // Cache locally as well
+    const all = bucket();
+    all[houseKey] = boardState;
+    try {
+      localStorage.setItem(KEY, JSON.stringify(fit(all, houseKey)));
+    } catch {
+      // ignore
+    }
+
+    return boardState;
+  } catch {
+    return null;
+  }
+}
+
+export async function togglePieceLikeCloudflare(
+  houseKey: string,
+  pieceId: string,
+  likerId: string
+): Promise<{ pieceId: string; likes: number; liked: boolean; likedBy: string[] } | null> {
+  if (!houseKey || !pieceId) return null;
+  try {
+    const headers = new Headers();
+    const token = sessionToken();
+    if (token) headers.set('Authorization', `Bearer ${token}`);
+    headers.set('Content-Type', 'application/json');
+
+    const res = await fetch(`${workerBase()}/api/mood/${encodeURIComponent(houseKey)}/like`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ pieceId, likerId })
+    });
+    if (!res.ok) return null;
+    return (await res.json().catch(() => null)) as {
+      pieceId: string;
+      likes: number;
+      liked: boolean;
+      likedBy: string[];
+    } | null;
+  } catch {
+    return null;
+  }
+}
+
+export async function addPieceCommentCloudflare(
+  houseKey: string,
+  pieceId: string,
+  text: string,
+  author: MoodAuthor
+): Promise<{ pieceId: string; comment: MoodComment; totalComments: number } | null> {
+  if (!houseKey || !pieceId || !text.trim()) return null;
+  try {
+    const headers = new Headers();
+    const token = sessionToken();
+    if (token) headers.set('Authorization', `Bearer ${token}`);
+    headers.set('Content-Type', 'application/json');
+
+    const res = await fetch(`${workerBase()}/api/mood/${encodeURIComponent(houseKey)}/comment`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ pieceId, text, author })
+    });
+    if (!res.ok) return null;
+    return (await res.json().catch(() => null)) as {
+      pieceId: string;
+      comment: MoodComment;
+      totalComments: number;
+    } | null;
+  } catch {
+    return null;
   }
 }
 

@@ -157,7 +157,7 @@
       class="relative min-h-0 flex-1 overflow-y-auto"
       :class="over ? 'outline outline-2 -outline-offset-[12px] outline-[#173D35]' : ''"
     >
-      <div ref="sheet" class="relative min-h-[max(100%,40rem)] w-full">
+      <div ref="sheet" class="relative w-full" :style="sheetStyle">
         <p
           v-if="over"
           class="pointer-events-none absolute left-1/2 top-6 z-10 -translate-x-1/2 rounded-full bg-[#173D35] px-4 py-2 text-sm font-semibold text-[#F5F3EC]"
@@ -239,20 +239,61 @@
               @change="persist"
             ></textarea>
 
-            <!-- Post-it author corner badge -->
-            <div
-              v-if="piece.author?.avatar"
-              class="mt-1 flex items-center gap-1.5 rounded-full bg-black/6 px-1.5 py-0.5 w-fit select-none"
-              :title="piece.author.name ? `Tillagd av ${piece.author.name}` : ''"
-            >
-              <img
-                :src="piece.author.avatar"
-                :alt="piece.author.name"
-                class="h-3.5 w-3.5 rounded-full object-cover ring-1 ring-black/10"
-              />
-              <span class="max-w-[70px] truncate text-[9.5px] font-bold text-black/70">
-                {{ piece.author.name }}
-              </span>
+            <!-- Post-it footer: author badge + Likes & Comments buttons -->
+            <div class="mt-2 flex items-center justify-between gap-1 select-none pt-1.5 pr-8 border-t border-black/8">
+              <!-- Author badge -->
+              <div
+                v-if="piece.author?.avatar"
+                class="flex items-center gap-1.5 rounded-full bg-black/6 px-1.5 py-0.5 select-none"
+                :title="piece.author.name ? `Tillagd av ${piece.author.name}` : ''"
+              >
+                <img
+                  :src="piece.author.avatar"
+                  :alt="piece.author.name"
+                  class="h-3.5 w-3.5 rounded-full object-cover ring-1 ring-black/10"
+                />
+                <span class="max-w-[65px] truncate text-[9.5px] font-bold text-black/70">
+                  {{ piece.author.name }}
+                </span>
+              </div>
+              <div v-else></div>
+
+              <!-- Like & Comment Actions -->
+              <div class="flex items-center gap-1">
+                <!-- Like Button -->
+                <button
+                  type="button"
+                  class="flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold transition hover:bg-black/8 active:scale-95"
+                  :class="isLikedByMe(piece) ? 'text-rose-600 bg-rose-50' : 'text-black/60 hover:text-black/80'"
+                  :title="t('mood.like')"
+                  @pointerdown.stop
+                  @click.stop="toggleLike(piece)"
+                >
+                  <svg
+                    class="h-3.5 w-3.5 transition-transform duration-150"
+                    :class="isLikedByMe(piece) ? 'fill-current scale-110' : 'fill-none stroke-current'"
+                    viewBox="0 0 24 24"
+                    stroke-width="2.2"
+                  >
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
+                  </svg>
+                  <span>{{ piece.likes || 0 }}</span>
+                </button>
+
+                <!-- Comment Button -->
+                <button
+                  type="button"
+                  class="flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold transition hover:bg-black/8 active:scale-95 text-black/60 hover:text-black/80"
+                  :title="t('mood.comments')"
+                  @pointerdown.stop
+                  @click.stop="openComments(piece)"
+                >
+                  <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a.75.75 0 01-1.074-.755 5.977 5.977 0 011.025-3.08A7.838 7.838 0 013 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+                  </svg>
+                  <span>{{ piece.comments?.length || 0 }}</span>
+                </button>
+              </div>
             </div>
           </template>
 
@@ -332,22 +373,6 @@
                 <span>{{ t('mood.openLightbox') }}</span>
               </div>
 
-              <!-- Author avatar badge on corner -->
-              <div
-                v-if="piece.author?.avatar"
-                class="pointer-events-none absolute bottom-2 left-2 z-10 flex items-center gap-1.5 rounded-full bg-black/65 px-2 py-0.5 text-white shadow-md backdrop-blur-xs ring-1 ring-white/20 select-none transition group-hover:scale-105"
-                :title="piece.author.name ? `Tillagd av ${piece.author.name}` : ''"
-              >
-                <img
-                  :src="piece.author.avatar"
-                  :alt="piece.author.name"
-                  class="h-4.5 w-4.5 rounded-full object-cover ring-1 ring-white/40"
-                />
-                <span class="max-w-[75px] truncate text-[10px] font-semibold text-white/95">
-                  {{ piece.author.name }}
-                </span>
-              </div>
-
               <button
                 v-if="(piece.clip === 'youtube' || piece.clip === 'vimeo') && playing !== piece.id"
                 type="button"
@@ -375,6 +400,64 @@
               @input="onCaption(piece, $event)"
               @change="persist"
             ></textarea>
+
+            <!-- Image / Clip footer: author badge + Likes & Comments buttons -->
+            <div class="mt-1 flex items-center justify-between gap-1 px-1.5 pb-0.5 pr-8 select-none">
+              <!-- Author badge -->
+              <div
+                v-if="piece.author?.avatar"
+                class="flex items-center gap-1.5 rounded-full bg-[#173D35]/6 px-2 py-0.5 select-none"
+                :title="piece.author.name ? `Tillagd av ${piece.author.name}` : ''"
+              >
+                <img
+                  :src="piece.author.avatar"
+                  :alt="piece.author.name"
+                  class="h-3.5 w-3.5 rounded-full object-cover ring-1 ring-[#173D35]/20"
+                />
+                <span class="max-w-[70px] truncate text-[10px] font-semibold text-[#173D35]">
+                  {{ piece.author.name }}
+                </span>
+              </div>
+              <div v-else></div>
+
+              <!-- Like & Comment Actions -->
+              <div class="flex items-center gap-1.5">
+                <!-- Like Button -->
+                <button
+                  type="button"
+                  class="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-bold transition hover:bg-black/5 active:scale-95"
+                  :class="isLikedByMe(piece) ? 'text-rose-600 bg-rose-50' : 'text-[#173D35]/70 hover:text-[#173D35]'"
+                  :title="t('mood.like')"
+                  @pointerdown.stop
+                  @click.stop="toggleLike(piece)"
+                >
+                  <svg
+                    class="h-3.5 w-3.5 transition-transform duration-150"
+                    :class="isLikedByMe(piece) ? 'fill-current scale-110' : 'fill-none stroke-current'"
+                    viewBox="0 0 24 24"
+                    stroke-width="2.2"
+                  >
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
+                  </svg>
+                  <span>{{ piece.likes || 0 }}</span>
+                </button>
+
+                <!-- Comment Button -->
+                <button
+                  type="button"
+                  class="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-bold transition hover:bg-black/5 active:scale-95 text-[#173D35]/70 hover:text-[#173D35]"
+                  :class="piece.comments?.length ? 'bg-[#173D35]/6 text-[#173D35]' : ''"
+                  :title="t('mood.comments')"
+                  @pointerdown.stop
+                  @click.stop="openComments(piece)"
+                >
+                  <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a.75.75 0 01-1.074-.755 5.977 5.977 0 011.025-3.08A7.838 7.838 0 013 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+                  </svg>
+                  <span>{{ piece.comments?.length || 0 }}</span>
+                </button>
+              </div>
+            </div>
 
             <button
               type="button"
@@ -404,6 +487,16 @@
             </svg>
           </button>
         </article>
+
+        <!-- Endless scroll bottom hint -->
+        <div
+          class="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-full bg-white/70 px-4 py-1.5 text-xs font-semibold text-[#173D35]/60 shadow-xs backdrop-blur-xs select-none"
+        >
+          <svg class="h-3.5 w-3.5 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+          </svg>
+          <span>{{ t('mood.scrollDown') }}</span>
+        </div>
       </div>
     </div>
 
@@ -476,13 +569,41 @@
           </button>
         </div>
 
-        <!-- Caption Bottom Bar -->
-        <div class="mt-2 flex w-full justify-center px-4" @click.stop>
+        <!-- Caption & Actions Bottom Bar -->
+        <div class="mt-2 flex flex-col items-center gap-2 w-full px-4" @click.stop>
           <div
             v-if="currentLightboxPiece.caption"
             class="max-w-2xl rounded-2xl bg-white/12 px-6 py-3.5 text-center text-sm md:text-base leading-relaxed text-white/95 backdrop-blur-md shadow-lg whitespace-pre-wrap"
           >
             {{ currentLightboxPiece.caption }}
+          </div>
+          <div class="flex items-center gap-3">
+            <button
+              type="button"
+              class="flex items-center gap-2 rounded-xl bg-white/15 px-3.5 py-2 text-xs font-bold text-white shadow-md backdrop-blur-md transition hover:bg-white/25 active:scale-95"
+              :class="isLikedByMe(currentLightboxPiece) ? 'text-rose-400 bg-rose-500/20' : ''"
+              @click.stop="toggleLike(currentLightboxPiece)"
+            >
+              <svg
+                class="h-4 w-4"
+                :class="isLikedByMe(currentLightboxPiece) ? 'fill-current' : 'fill-none stroke-current'"
+                viewBox="0 0 24 24"
+                stroke-width="2.2"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
+              </svg>
+              <span>{{ currentLightboxPiece.likes || 0 }} {{ t('mood.likes') }}</span>
+            </button>
+            <button
+              type="button"
+              class="flex items-center gap-2 rounded-xl bg-white/15 px-3.5 py-2 text-xs font-bold text-white shadow-md backdrop-blur-md transition hover:bg-white/25 active:scale-95"
+              @click.stop="openComments(currentLightboxPiece)"
+            >
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a.75.75 0 01-1.074-.755 5.977 5.977 0 011.025-3.08A7.838 7.838 0 013 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
+              </svg>
+              <span>{{ currentLightboxPiece.comments?.length || 0 }} {{ t('mood.comments') }}</span>
+            </button>
           </div>
         </div>
       </div>
@@ -635,12 +756,160 @@
         </div>
       </div>
     </Teleport>
+
+    <!-- COMMENTS SLIDE-OVER DRAWER -->
+    <Teleport to="body">
+      <div
+        v-if="activeCommentPiece"
+        id="mood-comments-drawer"
+        class="fixed inset-0 z-[120] flex justify-end bg-black/50 backdrop-blur-xs animate-fadeIn"
+        role="dialog"
+        :aria-label="t('mood.comments')"
+        @click.self="closeComments"
+      >
+        <div
+          class="relative flex h-full w-full max-w-md flex-col bg-[#FDFBF7] shadow-2xl border-l border-[#d7d1c4] animate-slideLeft"
+          @click.stop
+        >
+          <!-- Drawer Header -->
+          <div class="flex items-center justify-between border-b border-stone-200 px-6 py-4">
+            <div class="flex items-center gap-2.5">
+              <span class="flex h-9 w-9 items-center justify-center rounded-xl bg-[#173D35] text-base text-white">💬</span>
+              <div>
+                <h3 class="text-lg font-bold text-[#173D35]">{{ t('mood.comments') }}</h3>
+                <p class="text-xs text-stone-500">
+                  {{ activeCommentPiece.comments?.length || 0 }} {{ t('mood.comments').toLowerCase() }}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              id="btn-close-comments"
+              class="flex h-9 w-9 items-center justify-center rounded-xl text-stone-500 hover:bg-stone-200 transition"
+              :aria-label="t('mood.closeComments')"
+              @click="closeComments"
+            >
+              ✕
+            </button>
+          </div>
+
+          <!-- Piece mini summary card -->
+          <div class="mx-6 mt-4 flex items-center gap-3 rounded-2xl border border-stone-200 bg-white p-3 shadow-xs">
+            <div class="h-14 w-14 shrink-0 overflow-hidden rounded-xl bg-stone-100 flex items-center justify-center">
+              <img
+                v-if="activeCommentPiece.kind === 'image' && shown(activeCommentPiece)"
+                :src="shown(activeCommentPiece)"
+                :alt="activeCommentPiece.caption || 'Bild'"
+                class="h-full w-full object-cover"
+              />
+              <img
+                v-else-if="activeCommentPiece.clip === 'youtube'"
+                :src="youtubePoster(activeCommentPiece.ref)"
+                alt="Video"
+                class="h-full w-full object-cover"
+              />
+              <span v-else class="text-2xl">📝</span>
+            </div>
+            <div class="min-w-0 flex-1">
+              <p class="truncate text-xs font-semibold text-[#173D35]">
+                {{ activeCommentPiece.caption || (activeCommentPiece.kind === 'note' ? 'Kom-ihåg-lapp' : 'Uppladdad bild') }}
+              </p>
+              <p v-if="activeCommentPiece.author?.name" class="mt-0.5 text-[11px] text-stone-500">
+                {{ activeCommentPiece.author.name }}
+              </p>
+              <div class="mt-1 flex items-center gap-2">
+                <button
+                  type="button"
+                  class="flex items-center gap-1 text-[11px] font-bold"
+                  :class="isLikedByMe(activeCommentPiece) ? 'text-rose-600' : 'text-stone-500 hover:text-stone-800'"
+                  @click="toggleLike(activeCommentPiece)"
+                >
+                  <span>♥</span>
+                  <span>{{ activeCommentPiece.likes || 0 }} {{ t('mood.likes').toLowerCase() }}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Comments Thread -->
+          <div ref="commentThreadRef" class="flex-1 overflow-y-auto px-6 py-4 space-y-3.5">
+            <div
+              v-if="!activeCommentPiece.comments || activeCommentPiece.comments.length === 0"
+              class="flex h-48 flex-col items-center justify-center text-center text-stone-400"
+            >
+              <span class="text-3xl mb-2">💭</span>
+              <p class="text-xs leading-relaxed max-w-[24ch]">
+                {{ t('mood.noComments') }}
+              </p>
+            </div>
+
+            <article
+              v-for="comm in activeCommentPiece.comments"
+              :key="comm.id"
+              class="flex items-start gap-3 rounded-2xl bg-white p-3.5 border border-stone-200/80 shadow-xs"
+            >
+              <img
+                v-if="comm.author?.avatar"
+                :src="comm.author.avatar"
+                :alt="comm.author.name"
+                class="h-7 w-7 shrink-0 rounded-full object-cover ring-1 ring-stone-300"
+              />
+              <div v-else class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#173D35] text-xs font-bold text-white">
+                {{ (comm.author?.name || 'D')[0] }}
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="truncate text-xs font-bold text-[#173D35]">{{ comm.author?.name }}</span>
+                  <time class="text-[10px] text-stone-400 shrink-0">{{ formatCommentTime(comm.createdAt) }}</time>
+                </div>
+                <p class="mt-1 whitespace-pre-wrap text-xs leading-relaxed text-stone-700">
+                  {{ comm.text }}
+                </p>
+              </div>
+            </article>
+          </div>
+
+          <!-- Sticky Input Bar -->
+          <form class="border-t border-stone-200 bg-white p-4" @submit.prevent="submitComment">
+            <div class="flex items-end gap-2.5">
+              <img
+                v-if="currentAuthor.avatar"
+                :src="currentAuthor.avatar"
+                :alt="currentAuthor.name"
+                class="h-8 w-8 shrink-0 rounded-full object-cover ring-1 ring-stone-300 mb-1"
+              />
+              <div class="relative flex-1">
+                <textarea
+                  v-model="commentInputText"
+                  rows="2"
+                  maxlength="1000"
+                  class="w-full resize-none rounded-xl border border-stone-300 bg-stone-50 px-3 py-2 text-xs text-stone-800 placeholder-stone-400 focus:border-[#173D35] focus:bg-white focus:outline-none focus:ring-1 focus:ring-[#173D35]"
+                  :placeholder="t('mood.writeComment')"
+                  @keydown.enter.exact.prevent="submitComment"
+                ></textarea>
+              </div>
+              <button
+                type="submit"
+                id="btn-send-comment"
+                :disabled="!commentInputText.trim()"
+                class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#173D35] text-white shadow-sm transition hover:bg-[#0f2b25] disabled:opacity-40 disabled:hover:bg-[#173D35] mb-1"
+                :title="t('mood.sendComment')"
+              >
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+                </svg>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </Teleport>
   </section>
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { useConfigStore } from '../store/useConfigStore';
 import { useSessionStore } from '../store/useSessionStore';
 import { useLabels } from '../i18n';
@@ -656,6 +925,7 @@ import {
   youtubePoster,
   type MoodAuthor,
   type MoodColor,
+  type MoodComment,
   type MoodParticipant,
   type MoodPiece
 } from '../mood/board';
@@ -670,7 +940,10 @@ import {
   moodHouseKey,
   putClip,
   saveMood,
-  saveStoredParticipant
+  saveStoredParticipant,
+  syncMoodWithCloudflare,
+  togglePieceLikeCloudflare,
+  addPieceCommentCloudflare
 } from '../services/moodSave';
 import { watchActiveHouseId } from '../services/houseSave';
 
@@ -689,7 +962,9 @@ const emit = defineEmits<{
 
 const CLIP_LIMIT = 12 * 1024 * 1024;
 const NOTE_COLORS: MoodColor[] = ['yellow', 'sand', 'moss', 'sky', 'rose'];
+const SCALE_Y = 7.5;
 
+const route = useRoute();
 const router = useRouter();
 const store = useConfigStore();
 const sessionStore = useSessionStore();
@@ -711,6 +986,10 @@ const fileInput = ref<HTMLInputElement | null>(null);
 const lightboxIndex = ref<number | null>(null);
 const activeId = ref('');
 
+const activeCommentPiece = ref<MoodPiece | null>(null);
+const commentInputText = ref('');
+const commentThreadRef = ref<HTMLElement | null>(null);
+
 const showShareModal = ref(false);
 const showProfileModal = ref(false);
 const qrSvg = ref('');
@@ -718,7 +997,7 @@ const copiedNotice = ref(false);
 const profileEmail = ref('');
 const profileEmailSavedNotice = ref(false);
 
-let houseKey = moodHouseKey();
+let houseKey = (typeof route?.query?.board === 'string' && route.query.board) ? route.query.board : moodHouseKey();
 let dragDepth = 0;
 let stopWatch = () => {};
 let drag: {
@@ -758,6 +1037,13 @@ const currentAuthor = computed<MoodAuthor>(() => {
     name: 'Ägare',
     avatar: defaultAccountAvatar('Ägare')
   };
+});
+
+const currentAuthorId = computed(() => {
+  const p = getStoredParticipant();
+  if (p?.id) return p.id;
+  if (sessionStore.user?.id) return sessionStore.user.id;
+  return currentAuthor.value.name || 'anon';
 });
 
 function backfillExistingPiecesAuthor() {
@@ -851,6 +1137,40 @@ onMounted(() => {
   createdAt.value = data.createdAt || (data.pieces.length > 0 ? new Date().toISOString() : '');
   backfillExistingPiecesAuthor();
   void hydrate();
+
+  // Background Cloudflare database sync
+  void syncMoodWithCloudflare(houseKey).then((remote) => {
+    if (!remote) return;
+    if (remote.title && !title.value) title.value = remote.title;
+    if (remote.createdAt && !createdAt.value) createdAt.value = remote.createdAt;
+    if (remote.participants?.length) {
+      const mergedPart = [...participants.value];
+      for (const p of remote.participants) {
+        if (!mergedPart.some((existing) => existing.id === p.id)) mergedPart.push(p);
+      }
+      participants.value = mergedPart;
+    }
+    if (remote.pieces?.length) {
+      const localMap = new Map(pieces.value.map((p) => [p.id, p]));
+      for (const rp of remote.pieces) {
+        const lp = localMap.get(rp.id);
+        if (!lp) {
+          localMap.set(rp.id, rp);
+        } else {
+          if (Array.isArray(rp.likedBy) && rp.likedBy.length >= (lp.likedBy?.length || 0)) {
+            lp.likedBy = rp.likedBy;
+            lp.likes = rp.likes;
+          }
+          if (Array.isArray(rp.comments) && rp.comments.length >= (lp.comments?.length || 0)) {
+            lp.comments = rp.comments;
+          }
+        }
+      }
+      pieces.value = Array.from(localMap.values());
+      void hydrate();
+    }
+  });
+
   window.addEventListener('paste', onPaste);
   window.addEventListener('keydown', onKeyDown);
   stopWatch = watchActiveHouseId(() => {
@@ -868,6 +1188,7 @@ onMounted(() => {
     createdAt.value = nextData.createdAt || (nextData.pieces.length > 0 ? new Date().toISOString() : '');
     backfillExistingPiecesAuthor();
     void hydrate();
+    void syncMoodWithCloudflare(houseKey);
   });
 });
 
@@ -878,6 +1199,72 @@ onBeforeUnmount(() => {
   stopWatch();
   revokeUrls();
 });
+
+function isLikedByMe(piece: MoodPiece): boolean {
+  if (!piece.likedBy || !Array.isArray(piece.likedBy)) return false;
+  return piece.likedBy.includes(currentAuthorId.value);
+}
+
+function toggleLike(piece: MoodPiece) {
+  const likerId = currentAuthorId.value;
+  if (!Array.isArray(piece.likedBy)) piece.likedBy = [];
+  const idx = piece.likedBy.indexOf(likerId);
+  if (idx >= 0) {
+    piece.likedBy.splice(idx, 1);
+    piece.likes = Math.max(0, (piece.likes || 1) - 1);
+  } else {
+    piece.likedBy.push(likerId);
+    piece.likes = (piece.likes || 0) + 1;
+  }
+  persist();
+  void togglePieceLikeCloudflare(houseKey, piece.id, likerId);
+}
+
+function openComments(piece: MoodPiece) {
+  activeCommentPiece.value = piece;
+  commentInputText.value = '';
+}
+
+function closeComments() {
+  activeCommentPiece.value = null;
+}
+
+function submitComment() {
+  const text = commentInputText.value.trim();
+  const target = activeCommentPiece.value;
+  if (!text || !target) return;
+  const author = { ...currentAuthor.value };
+  const comment: MoodComment = {
+    id: `comm_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`,
+    pieceId: target.id,
+    author,
+    text,
+    createdAt: new Date().toISOString()
+  };
+  if (!Array.isArray(target.comments)) target.comments = [];
+  target.comments.push(comment);
+  commentInputText.value = '';
+  persist();
+  void addPieceCommentCloudflare(houseKey, target.id, text, author);
+  setTimeout(() => {
+    if (commentThreadRef.value) {
+      commentThreadRef.value.scrollTop = commentThreadRef.value.scrollHeight;
+    }
+  }, 50);
+}
+
+function formatCommentTime(iso: string) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const now = Date.now();
+  const diffSec = Math.floor((now - d.getTime()) / 1000);
+  if (diffSec < 60) return 'Just nu';
+  if (diffSec < 3600) return `${Math.floor(diffSec / 60)} min`;
+  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)} h`;
+  const loc = locale.value === 'en' ? 'en-US' : 'sv-SE';
+  return d.toLocaleDateString(loc, { month: 'short', day: 'numeric' });
+}
 
 function noteClasses(color?: MoodColor) {
   switch (color) {
@@ -911,10 +1298,21 @@ function noteDotClass(color: MoodColor) {
   }
 }
 
+const sheetStyle = computed(() => {
+  let maxY = 60;
+  for (const piece of pieces.value) {
+    if (piece.y > maxY) maxY = piece.y;
+  }
+  const minHeightPx = Math.max(800, Math.round((maxY + 55) * SCALE_Y));
+  return {
+    minHeight: `${minHeightPx}px`
+  };
+});
+
 function frame(piece: MoodPiece) {
   return {
     left: `${piece.x}%`,
-    top: `${piece.y}%`,
+    top: `${Math.round(piece.y * SCALE_Y)}px`,
     width: `${piece.w}%`,
     transform: `rotate(${piece.tilt}deg)`,
     zIndex: drag?.id === piece.id ? 25 : (activeId.value === piece.id ? 10 : 1)
@@ -1206,7 +1604,7 @@ function onPointer(event: PointerEvent) {
   const rect = sheet.value.getBoundingClientRect();
   if (drag.mode === 'move') {
     piece.x = clamp(drag.x + (dx / rect.width) * 100, 0, 100 - piece.w);
-    piece.y = clamp(drag.y + (dy / rect.height) * 100, 0, 85);
+    piece.y = Math.max(2, Math.round(drag.y + dy / SCALE_Y));
     return;
   }
   piece.w = clamp(drag.w + (dx / rect.width) * 100, 14, 72);
@@ -1232,11 +1630,11 @@ function onUp() {
 function onPieceKey(event: KeyboardEvent, piece: MoodPiece) {
   const target = event.target as HTMLElement | null;
   if (target?.closest('input, textarea, iframe, video')) return;
-  const step = event.shiftKey ? 4 : 1.5;
+  const step = event.shiftKey ? 8 : 2;
   if (event.key === 'ArrowLeft') piece.x = clamp(piece.x - step, 0, 100 - piece.w);
   else if (event.key === 'ArrowRight') piece.x = clamp(piece.x + step, 0, 100 - piece.w);
-  else if (event.key === 'ArrowUp') piece.y = clamp(piece.y - step, 0, 85);
-  else if (event.key === 'ArrowDown') piece.y = clamp(piece.y + step, 0, 85);
+  else if (event.key === 'ArrowUp') piece.y = Math.max(2, piece.y - step);
+  else if (event.key === 'ArrowDown') piece.y = piece.y + step;
   else if (event.key === 'Delete' || event.key === 'Backspace') remove(piece);
   else return;
   event.preventDefault();
@@ -1301,9 +1699,21 @@ function clamp(value: number, min: number, max: number) {
 .animate-fadeIn {
   animation: fadeIn 180ms ease-out;
 }
+@keyframes slideLeft {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+.animate-slideLeft {
+  animation: slideLeft 240ms cubic-bezier(0.16, 1, 0.3, 1);
+}
 @media (prefers-reduced-motion: reduce) {
   .mood-piece,
-  .animate-fadeIn {
+  .animate-fadeIn,
+  .animate-slideLeft {
     animation: none;
   }
 }

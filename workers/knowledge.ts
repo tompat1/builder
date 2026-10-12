@@ -11,6 +11,7 @@ import { handleResources, resourcePages } from './resources.js';
 import { handleSources } from './sources.js';
 import { handleRender } from './render.js';
 import { handleHouse } from './house.js';
+import { handleMood } from './mood.js';
 import { parseEntryId, readPayload } from './select.js';
 import { coversQuestion, indexCatalog, indexPendingResources, indexPendingSources, searchPassages } from './passages.js';
 import { lookupOnWeb } from './web.js';
@@ -90,6 +91,10 @@ export default {
 
     if (url.pathname === '/api/houses' || url.pathname.startsWith('/api/houses/')) {
       return handleHouse(request, env, headers, sessionUser);
+    }
+
+    if (url.pathname === '/api/mood' || url.pathname.startsWith('/api/mood/')) {
+      return handleMood(request, env, headers, sessionUser);
     }
 
     if (url.pathname !== '/api/ask' || request.method !== 'POST') {

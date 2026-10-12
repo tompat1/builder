@@ -1,6 +1,6 @@
 /** A collage of pictures and clips kept beside the house, not inside its saved file. */
 
-export const MOOD_LIMIT = 24;
+export const MOOD_LIMIT = 1000;
 export const CAPTION_LIMIT = 500;
 export const SRC_LIMIT = 180_000;
 
@@ -23,6 +23,14 @@ export interface MoodParticipant {
   joinedAt: string;
 }
 
+export interface MoodComment {
+  id: string;
+  pieceId: string;
+  author: MoodAuthor;
+  text: string;
+  createdAt: string;
+}
+
 export interface MoodPiece {
   id: string;
   kind: MoodKind;
@@ -36,6 +44,9 @@ export interface MoodPiece {
   caption: string;
   color?: MoodColor;
   author?: MoodAuthor;
+  likes?: number;
+  likedBy?: string[];
+  comments?: MoodComment[];
 }
 
 export interface MoodLink {
@@ -49,18 +60,6 @@ const ID = /^mood_[a-f0-9]{8,32}$/;
 const YOUTUBE = /^[A-Za-z0-9_-]{6,16}$/;
 const VIMEO = /^\d{6,12}$/;
 
-const SPOTS: Array<Pick<MoodPiece, 'x' | 'y' | 'w' | 'tilt'>> = [
-  { x: 3, y: 4, w: 32, tilt: -1.6 },
-  { x: 37, y: 7, w: 28, tilt: 1.2 },
-  { x: 67, y: 4, w: 28, tilt: -0.7 },
-  { x: 4, y: 50, w: 34, tilt: 0.8 },
-  { x: 40, y: 48, w: 28, tilt: -1.3 },
-  { x: 70, y: 52, w: 24, tilt: 1.6 },
-  { x: 22, y: 28, w: 26, tilt: 0.4 },
-  { x: 52, y: 30, w: 24, tilt: -1.8 },
-  { x: 8, y: 72, w: 30, tilt: 1.1 }
-];
-
 export function moodId() {
   const bytes = new Uint8Array(6);
   crypto.getRandomValues(bytes);
@@ -69,13 +68,21 @@ export function moodId() {
 }
 
 export function placeFor(index: number): Pick<MoodPiece, 'x' | 'y' | 'w' | 'tilt'> {
-  const spot = SPOTS[index % SPOTS.length];
-  const lap = Math.floor(index / SPOTS.length);
+  const col = index % 3;
+  const row = Math.floor(index / 3);
+  const xs = [3, 37, 68];
+  const tilts = [-1.4, 1.2, -0.8, 0.9, -1.6, 1.5, -0.5, 1.1];
+  const widths = [30, 28, 29, 31, 28, 30];
+  const xJitter = ((index * 7) % 5) - 2;
+  const yJitter = ((index * 11) % 6) - 3;
+  const baseTilt = tilts[index % tilts.length];
+  const baseW = widths[index % widths.length];
+
   return {
-    x: clamp(spot.x + lap * 3, 2, 70),
-    y: clamp(spot.y + lap * 4, 2, 68),
-    w: spot.w,
-    tilt: spot.tilt
+    x: clamp(xs[col] + xJitter, 2, 70),
+    y: Math.max(4, Math.round(4 + row * 34 + yJitter)),
+    w: baseW,
+    tilt: baseTilt
   };
 }
 
@@ -212,12 +219,42 @@ export function vimeoEmbed(ref: string) {
   return VIMEO.test(ref) ? `https://player.vimeo.com/video/${ref}?title=0&byline=0&portrait=0` : '';
 }
 
+function acceptComments(value: unknown): MoodComment[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const list: MoodComment[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== 'object') continue;
+    const rec = item as Record<string, unknown>;
+    const id = typeof rec.id === 'string' ? rec.id.slice(0, 64) : '';
+    const pieceId = typeof rec.pieceId === 'string' ? rec.pieceId.slice(0, 64) : '';
+    const text = typeof rec.text === 'string' ? rec.text.trim().slice(0, 1000) : '';
+    const author = acceptAuthor(rec.author);
+    if (!id || !text) continue;
+    list.push({
+      id,
+      pieceId,
+      author: author || { name: 'Deltagare', avatar: '' },
+      text,
+      createdAt: typeof rec.createdAt === 'string' ? rec.createdAt.slice(0, 50) : new Date().toISOString()
+    });
+    if (list.length >= 500) break;
+  }
+  return list.length > 0 ? list : undefined;
+}
+
 function acceptPiece(value: unknown): MoodPiece | null {
   if (!value || typeof value !== 'object') return null;
   const record = value as Record<string, unknown>;
   const id = typeof record.id === 'string' && ID.test(record.id) ? record.id : '';
   if (!id) return null;
   const author = acceptAuthor(record.author);
+  const comments = acceptComments(record.comments);
+  const rawLikedBy = Array.isArray(record.likedBy)
+    ? record.likedBy.filter((s): s is string => typeof s === 'string' && s.length <= 100).slice(0, 500)
+    : undefined;
+  const likes = typeof record.likes === 'number' && Number.isFinite(record.likes)
+    ? Math.max(0, Math.floor(record.likes))
+    : (rawLikedBy ? rawLikedBy.length : undefined);
 
   if (record.kind === 'note') {
     const rawColor = typeof record.color === 'string' ? record.color : 'yellow';
@@ -232,11 +269,14 @@ function acceptPiece(value: unknown): MoodPiece | null {
       ref: '',
       color,
       x: clamp(Number(record.x), 0, 92),
-      y: clamp(Number(record.y), 0, 88),
+      y: clamp(Number(record.y), 0, 100_000),
       w: clamp(Number(record.w), 14, 72),
       tilt: clamp(Number(record.tilt), -8, 8),
       caption: typeof record.caption === 'string' ? record.caption.trim().slice(0, CAPTION_LIMIT) : '',
-      ...(author ? { author } : {})
+      ...(author ? { author } : {}),
+      ...(likes !== undefined ? { likes } : {}),
+      ...(rawLikedBy && rawLikedBy.length > 0 ? { likedBy: rawLikedBy } : {}),
+      ...(comments ? { comments } : {})
     };
   }
 
@@ -252,11 +292,14 @@ function acceptPiece(value: unknown): MoodPiece | null {
     clip,
     ref,
     x: clamp(Number(record.x), 0, 92),
-    y: clamp(Number(record.y), 0, 88),
+    y: clamp(Number(record.y), 0, 100_000),
     w: clamp(Number(record.w), 16, 72),
     tilt: clamp(Number(record.tilt), -8, 8),
     caption: typeof record.caption === 'string' ? record.caption.trim().slice(0, CAPTION_LIMIT) : '',
-    ...(author ? { author } : {})
+    ...(author ? { author } : {}),
+    ...(likes !== undefined ? { likes } : {}),
+    ...(rawLikedBy && rawLikedBy.length > 0 ? { likedBy: rawLikedBy } : {}),
+    ...(comments ? { comments } : {})
   };
 }
 
