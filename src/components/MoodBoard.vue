@@ -244,14 +244,20 @@
                   </svg>
                 </button>
               </div>
-              <div v-else class="flex items-center gap-1 cursor-grab" :aria-label="t('mood.move')">
-                <svg class="h-3 w-5 opacity-40 hover:opacity-80" viewBox="0 0 20 8" fill="currentColor" aria-hidden="true">
-                  <circle cx="3" cy="2" r="1.2" />
-                  <circle cx="10" cy="2" r="1.2" />
-                  <circle cx="17" cy="2" r="1.2" />
-                  <circle cx="3" cy="6" r="1.2" />
-                  <circle cx="10" cy="6" r="1.2" />
-                  <circle cx="17" cy="6" r="1.2" />
+              <div
+                v-else
+                class="flex h-7 items-center justify-center px-2.5 rounded-lg bg-black/8 hover:bg-black/15 text-stone-700 active:bg-black/20 transition-colors cursor-grab active:cursor-grabbing select-none"
+                :title="t('mood.move')"
+                :aria-label="t('mood.move')"
+                @pointerdown.stop="onDown($event, piece, 'move')"
+              >
+                <svg class="h-3.5 w-6 opacity-60 hover:opacity-90" viewBox="0 0 20 8" fill="currentColor" aria-hidden="true">
+                  <circle cx="3" cy="2" r="1.5" />
+                  <circle cx="10" cy="2" r="1.5" />
+                  <circle cx="17" cy="2" r="1.5" />
+                  <circle cx="3" cy="6" r="1.5" />
+                  <circle cx="10" cy="6" r="1.5" />
+                  <circle cx="17" cy="6" r="1.5" />
                 </svg>
               </div>
 
@@ -362,24 +368,21 @@
               :class="piece.kind === 'image' && shown(piece) && !broken[piece.id] ? 'cursor-zoom-in' : ''"
               @click="onImageAreaClick(piece)"
             >
-              <!-- Move drag handle on desktop or reorder arrows on mobile -->
+              <!-- Move drag handle on desktop with prominent grip dots icon -->
               <div
                 v-if="!isMobile"
-                class="absolute left-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-lg bg-black/60 text-white shadow-md backdrop-blur-xs transition hover:bg-black/80 hover:scale-110 active:scale-95 cursor-grab active:cursor-grabbing"
+                class="absolute left-2.5 top-2.5 z-10 flex h-8 w-10 items-center justify-center rounded-lg bg-black/65 text-white shadow-md backdrop-blur-xs transition hover:bg-black/85 hover:scale-105 active:scale-95 cursor-grab active:cursor-grabbing select-none"
                 :title="t('mood.move')"
                 :aria-label="t('mood.move')"
                 @pointerdown.stop="onDown($event, piece, 'move')"
-                @pointermove.stop="onPointer"
-                @pointerup.stop="onUp"
-                @pointercancel.stop="onUp"
               >
-                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <polyline points="5 9 2 12 5 15" />
-                  <polyline points="9 5 12 2 15 5" />
-                  <polyline points="15 19 12 22 9 19" />
-                  <polyline points="19 9 22 12 19 15" />
-                  <line x1="2" y1="12" x2="22" y2="12" />
-                  <line x1="12" y1="2" x2="12" y2="22" />
+                <svg class="h-3.5 w-6 opacity-90" viewBox="0 0 20 8" fill="currentColor" aria-hidden="true">
+                  <circle cx="3" cy="2" r="1.5" />
+                  <circle cx="10" cy="2" r="1.5" />
+                  <circle cx="17" cy="2" r="1.5" />
+                  <circle cx="3" cy="6" r="1.5" />
+                  <circle cx="10" cy="6" r="1.5" />
+                  <circle cx="17" cy="6" r="1.5" />
                 </svg>
               </div>
 
@@ -610,7 +613,7 @@
         tabindex="-1"
         role="dialog"
         :aria-label="t('mood.openLightbox')"
-        @click="closeLightbox"
+        @click.self="closeLightbox"
       >
         <!-- Top bar -->
         <div class="flex w-full items-center justify-between px-2 text-white/80" @click.stop>
@@ -1104,6 +1107,8 @@ const profileEmailSavedNotice = ref(false);
 let houseKey = (typeof route?.query?.board === 'string' && route.query.board) ? route.query.board : moodHouseKey();
 let dragDepth = 0;
 let stopWatch = () => {};
+let justDragged = false;
+let dragTimer: ReturnType<typeof setTimeout> | null = null;
 let drag: {
   mode: 'move' | 'size';
   id: string;
@@ -1373,6 +1378,10 @@ onBeforeUnmount(() => {
   window.removeEventListener('resize', onWindowResize);
   window.removeEventListener('paste', onPaste);
   window.removeEventListener('keydown', onKeyDown);
+  window.removeEventListener('pointermove', onPointer);
+  window.removeEventListener('pointerup', onUp);
+  window.removeEventListener('pointercancel', onUp);
+  if (dragTimer) clearTimeout(dragTimer);
   stopWatch();
   revokeUrls();
 });
@@ -1670,7 +1679,8 @@ function onCaption(piece: MoodPiece, event: Event) {
 }
 
 function onImageAreaClick(piece: MoodPiece) {
-  if (!drag?.hasMoved && piece.kind === 'image' && shown(piece) && !broken.value[piece.id]) {
+  if (justDragged) return;
+  if (piece.kind === 'image' && shown(piece) && !broken.value[piece.id]) {
     openLightbox(piece);
   }
 }
@@ -1764,11 +1774,6 @@ function onDown(event: PointerEvent, piece: MoodPiece, mode: 'move' | 'size') {
   if (mode === 'move' && target?.closest('input, button, textarea, iframe, video, select, a')) return;
 
   activeId.value = piece.id;
-  try {
-    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
-  } catch {
-    // Pointer capture fallback
-  }
 
   drag = {
     mode,
@@ -1780,6 +1785,10 @@ function onDown(event: PointerEvent, piece: MoodPiece, mode: 'move' | 'size') {
     w: piece.w,
     hasMoved: false
   };
+
+  window.addEventListener('pointermove', onPointer);
+  window.addEventListener('pointerup', onUp);
+  window.addEventListener('pointercancel', onUp);
 }
 
 function onPointer(event: PointerEvent) {
@@ -1789,7 +1798,7 @@ function onPointer(event: PointerEvent) {
 
   const dx = event.clientX - drag.px;
   const dy = event.clientY - drag.py;
-  if (Math.hypot(dx, dy) > 6) {
+  if (Math.hypot(dx, dy) > 5) {
     drag.hasMoved = true;
   }
   if (!drag.hasMoved) return;
@@ -1805,18 +1814,22 @@ function onPointer(event: PointerEvent) {
 }
 
 function onUp() {
+  window.removeEventListener('pointermove', onPointer);
+  window.removeEventListener('pointerup', onUp);
+  window.removeEventListener('pointercancel', onUp);
+
   if (!drag) return;
-  const wasMove = drag.mode === 'move';
   const didDrag = drag.hasMoved;
-  const pieceId = drag.id;
   drag = null;
   persist();
 
-  if (wasMove && !didDrag) {
-    const piece = pieces.value.find((item) => item.id === pieceId);
-    if (piece && piece.kind === 'image' && shown(piece) && !broken.value[piece.id]) {
-      openLightbox(piece);
-    }
+  if (didDrag) {
+    justDragged = true;
+    if (dragTimer) clearTimeout(dragTimer);
+    dragTimer = setTimeout(() => {
+      justDragged = false;
+      dragTimer = null;
+    }, 150);
   }
 }
 
