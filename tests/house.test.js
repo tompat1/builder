@@ -75,3 +75,10 @@ test('house config preserves the inner walls drywall toggle', () => {
   const withoutDrywall = acceptHouse({ config: { buildingWidth: 6040, showInnerWalls: false } });
   assert.match(withoutDrywall, /"showInnerWalls":false/);
 });
+
+test('house config preserves the corner boards color', () => {
+  const withWhiteCorners = acceptHouse({ config: { buildingWidth: 6040, cornerColor: 'white' } });
+  assert.match(withWhiteCorners, /"cornerColor":"white"/);
+  const withCustomCorners = acceptHouse({ config: { buildingWidth: 6040, cornerColor: '#ffffff' } });
+  assert.match(withCustomCorners, /"cornerColor":"#ffffff"/);
+});

@@ -70,6 +70,8 @@ export interface SceneConfig {
   flushRoof?: boolean;
   /** Decks around the house. At most one on each side. */
   terraces?: HouseTerrace[];
+  /** Corner boards color ('same' | 'white' | 'falurod' | 'grey' | 'black' | 'wood' | hex) */
+  cornerColor?: string | null;
 }
 
 interface OutsideAnchor {
@@ -328,13 +330,16 @@ export class HouseScene {
   }
 
   // --- Procedural Canvas Textures for Authentic Scandinavian Timber ---
-  private createVerticalPlankTexture(materialKey: MaterialKey, upright = false): THREE.CanvasTexture {
+  private createVerticalPlankTexture(
+    materialKey: MaterialKey,
+    upright = false,
+    overrideColor?: string | null
+  ): THREE.CanvasTexture {
     const canvas = document.createElement('canvas');
     canvas.width = 1024;
     canvas.height = 1024;
     const ctx = canvas.getContext('2d')!;
 
-    const isNaturalWood = materialKey === 'wood' && !this.currentConfig.customHex;
     // Four boards per tile, so neighbouring boards can differ and the width stays readable.
     const plankCount = 4;
     const plankW = 1024 / plankCount;
@@ -349,20 +354,45 @@ export class HouseScene {
       { base: '#f8ecdb', grain: '#e7d5b7', darkGrain: '#cebb95' }
     ];
 
+    let isNaturalWood = false;
+    let isBlack = false;
     let colorPalette: { base: string; grain: string; darkGrain: string };
-    const painted = this.currentConfig.customHex ? paintBoards(this.currentConfig.customHex) : null;
-    if (painted) {
-      colorPalette = painted;
-    } else if (materialKey === 'falurod') {
-      colorPalette = { base: '#892622', grain: '#731c19', darkGrain: '#591310' };
-    } else if (materialKey === 'grey') {
-      colorPalette = { base: '#64748b', grain: '#475569', darkGrain: '#334155' };
-    } else if (materialKey === 'white') {
-      colorPalette = { base: '#f8fafc', grain: '#e2e8f0', darkGrain: '#cbd5e1' };
-    } else if (materialKey === 'black') {
-      colorPalette = { base: '#1a1c1b', grain: '#121413', darkGrain: '#070808' };
+
+    if (overrideColor && overrideColor !== 'same') {
+      if (overrideColor === 'wood') {
+        isNaturalWood = true;
+        colorPalette = spruceTones[0];
+      } else if (overrideColor === 'white') {
+        colorPalette = { base: '#f8fafc', grain: '#e2e8f0', darkGrain: '#cbd5e1' };
+      } else if (overrideColor === 'falurod') {
+        colorPalette = { base: '#892622', grain: '#731c19', darkGrain: '#591310' };
+      } else if (overrideColor === 'grey') {
+        colorPalette = { base: '#64748b', grain: '#475569', darkGrain: '#334155' };
+      } else if (overrideColor === 'black') {
+        isBlack = true;
+        colorPalette = { base: '#1a1c1b', grain: '#121413', darkGrain: '#070808' };
+      } else if (overrideColor.startsWith('#')) {
+        colorPalette = paintBoards(overrideColor);
+      } else {
+        colorPalette = { base: '#f8fafc', grain: '#e2e8f0', darkGrain: '#cbd5e1' };
+      }
     } else {
-      colorPalette = spruceTones[0];
+      isNaturalWood = materialKey === 'wood' && !this.currentConfig.customHex;
+      isBlack = materialKey === 'black' && !this.currentConfig.customHex;
+      const painted = this.currentConfig.customHex ? paintBoards(this.currentConfig.customHex) : null;
+      if (painted) {
+        colorPalette = painted;
+      } else if (materialKey === 'falurod') {
+        colorPalette = { base: '#892622', grain: '#731c19', darkGrain: '#591310' };
+      } else if (materialKey === 'grey') {
+        colorPalette = { base: '#64748b', grain: '#475569', darkGrain: '#334155' };
+      } else if (materialKey === 'white') {
+        colorPalette = { base: '#f8fafc', grain: '#e2e8f0', darkGrain: '#cbd5e1' };
+      } else if (materialKey === 'black') {
+        colorPalette = { base: '#1a1c1b', grain: '#121413', darkGrain: '#070808' };
+      } else {
+        colorPalette = spruceTones[0];
+      }
     }
 
     let seed = 42;
@@ -382,7 +412,7 @@ export class HouseScene {
       ];
       const tone = isNaturalWood
         ? spruceTones[p % spruceTones.length]
-        : materialKey === 'black'
+        : isBlack
           ? blackBoards[p % blackBoards.length]
           : colorPalette;
 
@@ -1462,17 +1492,22 @@ export class HouseScene {
     this.buildOutsideAdditions(w, d, h);
     if (!this.interiorCut()) this.addBeltFlashing(w, d, h);
     if (!this.interiorCut()) {
-      const rearTop = this.currentConfig.roofType === 'pulpettak'
-        ? Math.max(h - Math.tan(PULPET_PITCH_RAD) * d, 1.8)
-        : h;
+      const isPulpet = this.currentConfig.roofType === 'pulpettak';
+      const isFlackt = this.currentConfig.roofType === 'flackt';
+      const flacktDrop = isFlackt ? (d / 2) * Math.tan((2 * Math.PI) / 180) : 0;
+      const frontTop = isFlackt ? h + flacktDrop : h;
+      const rearTop = isPulpet
+        ? Math.max(h - Math.tan(PULPET_PITCH_RAD) * d, 2.4)
+        : (isFlackt ? h - flacktDrop : h);
+      const cornerColor = this.currentConfig.cornerColor ?? 'same';
       const cornerMat = new THREE.MeshStandardMaterial({
-        map: this.createVerticalPlankTexture(this.currentConfig.material, true),
+        map: this.createVerticalPlankTexture(this.currentConfig.material, true, cornerColor),
         bumpMap: this.createVerticalPlankBumpMap(true),
         bumpScale: 0.07,
         roughness: 0.64,
         metalness: 0.02
       });
-      this.addCornerBoards(w, d, h, rearTop, 0.25, cornerMat);
+      this.addCornerBoards(w, d, frontTop, rearTop, 0.25, cornerMat);
     }
     if (isGableRoof(this.currentConfig.roofType) && this.currentConfig.viewMode === 'utsida') {
       this.addGableEnds(w, d, h, exteriorMat);
@@ -1636,8 +1671,13 @@ export class HouseScene {
   ) {
     const isPulpettak = this.currentConfig.roofType === 'pulpettak';
     const angleRad = PULPET_PITCH_RAD;
-    const rearH = isPulpettak ? Math.max(h - Math.tan(angleRad) * d, 2.4) : h;
-    const yMid = (h + rearH) / 2;
+    const isFlackt = this.currentConfig.roofType === 'flackt';
+    const flacktDrop = isFlackt ? (d / 2) * Math.tan((2 * Math.PI) / 180) : 0;
+    const frontH = isFlackt ? h + flacktDrop : h;
+    const rearH = isPulpettak
+      ? Math.max(h - Math.tan(angleRad) * d, 2.4)
+      : (isFlackt ? h - flacktDrop : h);
+    const yMid = (frontH + rearH) / 2;
     const baseElev = 0.25;
 
     const isFrontOrBack = wallSide === 'front' || wallSide === 'back';
@@ -1654,7 +1694,7 @@ export class HouseScene {
       let px = 0;
       let pz = 0;
       let rotY = 0;
-      let panelWallH = h - baseElev;
+      let panelWallH = frontH - baseElev;
 
       if (wallSide === 'front') {
         px = -w / 2 + panelWidth / 2 + i * panelWidth;
@@ -1662,7 +1702,7 @@ export class HouseScene {
         rotY = 0;
         // In insida view, cut front wall to waist height (1.35m) matching Reference Image 4 & 5
         // so interior floor, loft, stairs, and framing are completely visible without obstruction
-        panelWallH = this.interiorCut() ? 1.35 : (h - baseElev);
+        panelWallH = this.interiorCut() ? 1.35 : (frontH - baseElev);
       } else if (wallSide === 'back') {
         px = w / 2 - panelWidth / 2 - i * panelWidth;
         pz = -d / 2 + claddingThick / 2;
@@ -1739,7 +1779,7 @@ export class HouseScene {
       if (!this.interiorCut()) {
         const frontTrimGeo = new THREE.BoxGeometry(w + 0.06, 0.14, 0.035);
         const frontTrim = new THREE.Mesh(frontTrimGeo, trimMat);
-        frontTrim.position.set(0, h + 0.04, d / 2 + 0.012);
+        frontTrim.position.set(0, frontH + 0.04, d / 2 + 0.012);
         frontTrim.castShadow = true;
         this.wallsGroup.add(frontTrim);
       }
@@ -2005,9 +2045,13 @@ export class HouseScene {
     const studThick = 0.045; // 45 mm
     const studDepth = 0.145; // 145 mm
     const baseElevation = 0.25; // on top of slab foundation
-    const rearH = this.currentConfig.roofType === 'pulpettak'
+    const isPulpettak = this.currentConfig.roofType === 'pulpettak';
+    const isFlackt = this.currentConfig.roofType === 'flackt';
+    const flacktDrop = isFlackt ? (d / 2) * Math.tan((2 * Math.PI) / 180) : 0;
+    const frontH = isFlackt ? h + flacktDrop : h;
+    const rearH = isPulpettak
       ? Math.max(h - Math.tan(PULPET_PITCH_RAD) * d, 2.4)
-      : h;
+      : (isFlackt ? h - flacktDrop : h);
 
     const framingFrontZ = d / 2 - 0.025 - studDepth / 2;
     const framingBackZ = -d / 2 + 0.025 + studDepth / 2;
@@ -2045,7 +2089,7 @@ export class HouseScene {
     // Front header
     const frontHeaderGeo = new THREE.BoxGeometry(w - 0.05, studThick, studDepth);
     const frontHeader = new THREE.Mesh(frontHeaderGeo, framingMat);
-    frontHeader.position.set(0, h - studThick / 2, framingFrontZ);
+    frontHeader.position.set(0, frontH - studThick / 2, framingFrontZ);
     frontHeader.castShadow = true;
     this.framingGroup.add(frontHeader);
 
@@ -2056,18 +2100,18 @@ export class HouseScene {
     this.framingGroup.add(backHeader);
 
     // Sloping side headers on left and right connecting front to rear
-    const slopeLen = Math.sqrt(Math.pow(d - 0.05 - studDepth * 2, 2) + Math.pow(h - rearH, 2));
-    const slopeAngle = Math.atan2(h - rearH, d - 0.05 - studDepth * 2);
+    const slopeLen = Math.sqrt(Math.pow(d - 0.05 - studDepth * 2, 2) + Math.pow(frontH - rearH, 2));
+    const slopeAngle = Math.atan2(frontH - rearH, d - 0.05 - studDepth * 2);
     const sideHeaderGeo = new THREE.BoxGeometry(studDepth, studThick, slopeLen);
 
     const leftHeader = new THREE.Mesh(sideHeaderGeo, framingMat);
-    leftHeader.position.set(framingLeftX, (h + rearH) / 2 - studThick / 2, 0);
+    leftHeader.position.set(framingLeftX, (frontH + rearH) / 2 - studThick / 2, 0);
     leftHeader.rotation.x = -slopeAngle;
     leftHeader.castShadow = true;
     this.framingGroup.add(leftHeader);
 
     const rightHeader = new THREE.Mesh(sideHeaderGeo, framingMat);
-    rightHeader.position.set(framingRightX, (h + rearH) / 2 - studThick / 2, 0);
+    rightHeader.position.set(framingRightX, (frontH + rearH) / 2 - studThick / 2, 0);
     rightHeader.rotation.x = -slopeAngle;
     rightHeader.castShadow = true;
     this.framingGroup.add(rightHeader);
@@ -2075,8 +2119,8 @@ export class HouseScene {
     // 3. Vertical Wall Studs (Väggreglar cc 600 mm)
     // Corner Studs (dubbla hörnreglar)
     const cornerPositions = [
-      { x: framingLeftX, z: framingFrontZ, height: h },
-      { x: framingRightX, z: framingFrontZ, height: h },
+      { x: framingLeftX, z: framingFrontZ, height: frontH },
+      { x: framingRightX, z: framingFrontZ, height: frontH },
       { x: framingLeftX, z: framingBackZ, height: rearH },
       { x: framingRightX, z: framingBackZ, height: rearH }
     ];
@@ -2092,14 +2136,14 @@ export class HouseScene {
     // Front Wall Studs with framing around door and window openings
     const frontStudCount = Math.floor((w - 0.1) / 0.6);
     const frontSpacing = (w - 0.1) / frontStudCount;
-    const frontStudH = h - baseElevation - studThick * 2;
-    const frontOpenings = this.frontOpenings(w, h, baseElevation);
+    const frontStudH = frontH - baseElevation - studThick * 2;
+    const frontOpenings = this.frontOpenings(w, frontH, baseElevation);
 
     for (let s = 1; s < frontStudCount; s++) {
       const sx = -w / 2 + 0.05 + s * frontSpacing;
       const blocked = frontOpenings.filter((opening) => Math.abs(sx - opening.x) < opening.winW / 2 - 0.02);
       if (blocked.length > 0) {
-        this.fillStudGaps(sx, framingFrontZ, baseElevation, h, blocked, studThick, studDepth, framingMat);
+        this.fillStudGaps(sx, framingFrontZ, baseElevation, frontH, blocked, studThick, studDepth, framingMat);
         continue;
       }
 
@@ -2141,7 +2185,7 @@ export class HouseScene {
     for (let s = 1; s < sideStudCount; s++) {
       const sz = d / 2 - 0.025 - studDepth - s * sideSpacing;
       const progress = (d / 2 - sz) / d; // 0 at front, 1 at back
-      const curH = h - progress * (h - rearH);
+      const curH = frontH - progress * (frontH - rearH);
       const curStudH = curH - baseElevation - studThick * 2;
       const leftBlocked = leftOpenings.filter((opening) => Math.abs(sz - opening.x) < opening.winW / 2 - 0.02);
       if (leftBlocked.length > 0) {
@@ -2613,24 +2657,41 @@ export class HouseScene {
       group.add(rafter);
     }
 
-    const boardCount = Math.max(6, Math.round(depth / 0.13));
-    const boardStep = span / boardCount;
+    // Roof boards start tight against the wall and extend to the outer eave
+    const slopeTotal = (depth + 0.06) / Math.cos(pitch);
+    const boardCount = Math.max(6, Math.round(slopeTotal / 0.13));
+    const boardStep = slopeTotal / boardCount;
     for (let i = 0; i < boardCount; i++) {
-      const t = -span / 2 + boardStep * (i + 0.5);
+      const distAlong = boardStep * (i + 0.5);
       const board = new THREE.Mesh(
-        new THREE.BoxGeometry(roofW - 0.02, 0.022, Math.max(0.04, boardStep - 0.008)),
+        new THREE.BoxGeometry(roofW - 0.02, 0.022, Math.max(0.04, boardStep - 0.006)),
         roofMat
       );
       board.position.set(
         along,
-        midY + axisY * t + upY * 0.086,
-        midZ + axisZ * t + upZ * 0.086
+        wallY + upY * 0.086 - Math.sin(pitch) * distAlong,
+        outward * (Math.cos(pitch) * distAlong) + upZ * 0.086
       );
       board.rotation.x = outward * pitch;
       board.castShadow = true;
       board.receiveShadow = true;
       group.add(board);
     }
+
+    // Wall apron flashing (vägganslutningsplåt) seals the junction between wall and terrace roof
+    const flashingMat = new THREE.MeshStandardMaterial({
+      color: '#2a3036',
+      roughness: 0.42,
+      metalness: 0.65
+    });
+    const flashing = new THREE.Mesh(
+      new THREE.BoxGeometry(roofW + 0.02, 0.12, 0.22),
+      flashingMat
+    );
+    flashing.position.set(along, wallY + 0.04, outward * 0.09);
+    flashing.rotation.x = outward * pitch;
+    flashing.castShadow = true;
+    group.add(flashing);
 
     const outerZ = outward * (depth - 0.02);
     const beam = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.4, width - 0.16), 0.095, 0.095), timber);
@@ -2679,6 +2740,17 @@ export class HouseScene {
     group.rotation.y = door.rotY;
 
     const boardLayout = terraceBoardLayout(depth);
+    // Skirting ledger plate against the wall face seals any gap between the wall base and deck
+    const skirtingH = Math.max(0.04, deckTop - 0.25);
+    const skirting = new THREE.Mesh(
+      new THREE.BoxGeometry(width, skirtingH, 0.045),
+      timber
+    );
+    skirting.position.set(along, 0.25 + skirtingH / 2, outward * 0.022);
+    skirting.castShadow = true;
+    skirting.receiveShadow = true;
+    group.add(skirting);
+
     for (let i = 0; i < boardLayout.count; i++) {
       const board = new THREE.Mesh(
         new THREE.BoxGeometry(width, boardT, boardLayout.depth),
@@ -2876,12 +2948,17 @@ export class HouseScene {
     const length = isFrontBack ? w : d - endInset * 2;
     const panelW = length / count;
     const isPulpet = this.currentConfig.roofType === 'pulpettak';
-    const rearH = isPulpet ? Math.max(h - Math.tan(PULPET_PITCH_RAD) * d, 2.4) : h;
-    const yMid = (h + rearH) / 2;
+    const isFlackt = this.currentConfig.roofType === 'flackt';
+    const flacktDrop = isFlackt ? (d / 2) * Math.tan((2 * Math.PI) / 180) : 0;
+    const frontH = isFlackt ? h + flacktDrop : h;
+    const rearH = isPulpet
+      ? Math.max(h - Math.tan(PULPET_PITCH_RAD) * d, 2.4)
+      : (isFlackt ? h - flacktDrop : h);
+    const yMid = (frontH + rearH) / 2;
     const openings: { x: number; winW: number; winH: number; winY: number; sill: number; head: number }[] = [];
     for (let p = 0; p < count; p++) {
       let center = 0;
-      let panelWallH = h - base;
+      let panelWallH = frontH - base;
       if (wall === 'front') {
         center = -w / 2 + (p + 0.5) * panelW;
       } else if (wall === 'back') {
@@ -3019,20 +3096,20 @@ export class HouseScene {
   private addCornerBoards(
     w: number,
     d: number,
-    h: number,
+    frontH: number,
     rearH: number,
     baseElev: number,
     material: THREE.Material
   ) {
     const { face, thick } = this.cornerTrimSize();
     const corners = [
-      { x: -1, z: 1, top: h },
-      { x: 1, z: 1, top: h },
+      { x: -1, z: 1, top: frontH },
+      { x: 1, z: 1, top: frontH },
       { x: -1, z: -1, top: rearH },
       { x: 1, z: -1, top: rearH }
     ];
     for (const corner of corners) {
-      const top = corner.top + 0.05;
+      const top = corner.top;
       const height = top - baseElev;
       const y = baseElev + height / 2;
       const alongFront = new THREE.Mesh(new THREE.BoxGeometry(face, height, thick), material);
@@ -3756,7 +3833,7 @@ export class HouseScene {
     const roofThick = 0.07;
     const slopeLen = (d + overhang * 2) / Math.cos(angleRad);
     const roofW = w + overhang * 2;
-    const yMid = h + Math.tan(angleRad) * (d / 2) * 0.15;
+    const yMid = h;
     const roofCenterY = yMid + (roofThick / 2) / Math.cos(angleRad);
 
     const assembly = new THREE.Group();
@@ -3784,6 +3861,39 @@ export class HouseScene {
     band(roofW + fasciaT * 2, frameH, fasciaT, 0, -(slopeLen / 2 + fasciaT / 2));
     band(fasciaT, frameH, slopeLen + fasciaT * 2, -(roofW / 2 + fasciaT / 2), 0);
     band(fasciaT, frameH, slopeLen + fasciaT * 2, roofW / 2 + fasciaT / 2, 0);
+
+    // Perimeter coping capping strips (krönplåt / krönbeslag) seal the parapet top,
+    // capping the fascia band and overlapping the roof surface by 6 cm to prevent any visible gap or exposed framing.
+    const copingH = 0.014;
+    const copingOverhang = 0.06;
+    const copingY = frameY + frameH / 2 + copingH / 2;
+
+    const frontCoping = new THREE.Mesh(
+      new THREE.BoxGeometry(roofW + fasciaT * 2 + 0.008, copingH, fasciaT + copingOverhang),
+      trimMat
+    );
+    frontCoping.position.set(0, copingY, slopeLen / 2 + fasciaT / 2 - copingOverhang / 2);
+    frontCoping.castShadow = true;
+    assembly.add(frontCoping);
+
+    const rearCoping = new THREE.Mesh(
+      new THREE.BoxGeometry(roofW + fasciaT * 2 + 0.008, copingH, fasciaT + copingOverhang),
+      trimMat
+    );
+    rearCoping.position.set(0, copingY, -(slopeLen / 2 + fasciaT / 2 - copingOverhang / 2));
+    rearCoping.castShadow = true;
+    assembly.add(rearCoping);
+
+    const sideCopingGeo = new THREE.BoxGeometry(fasciaT + copingOverhang, copingH, slopeLen + fasciaT * 2 + 0.008);
+    const leftCoping = new THREE.Mesh(sideCopingGeo, trimMat);
+    leftCoping.position.set(-(roofW / 2 + fasciaT / 2 - copingOverhang / 2), copingY, 0);
+    leftCoping.castShadow = true;
+    assembly.add(leftCoping);
+
+    const rightCoping = new THREE.Mesh(sideCopingGeo, trimMat);
+    rightCoping.position.set(roofW / 2 + fasciaT / 2 - copingOverhang / 2, copingY, 0);
+    rightCoping.castShadow = true;
+    assembly.add(rightCoping);
 
     if (overhang > 0.04) {
       const soffitMat = new THREE.MeshStandardMaterial({
@@ -3822,6 +3932,12 @@ export class HouseScene {
       const bandClosureRear = new THREE.Mesh(new THREE.BoxGeometry(roofW, closureT, 0.04), trimMat);
       bandClosureRear.position.set(0, closureY, -slopeLen / 2 + 0.02);
       assembly.add(bandClosureRear);
+      const sideClosureGeo = new THREE.BoxGeometry(0.04, closureT, slopeLen);
+      for (const sign of [-1, 1]) {
+        const sideClosure = new THREE.Mesh(sideClosureGeo, trimMat);
+        sideClosure.position.set(sign * (roofW / 2 - 0.02), closureY, 0);
+        assembly.add(sideClosure);
+      }
     }
 
     this.roofGroup.add(assembly);
@@ -3965,8 +4081,11 @@ export class HouseScene {
 
     const rafterW = 0.045;
     const rafterH = ghost ? 0.145 : 0.195;
-    const count = Math.floor(w / 0.6) + 1; // cc 600 mm
-    const spacing = w / (count - 1);
+    // Keep outer roof rafters strictly inside the exterior envelope/cladding on both sides
+    const rafterInset = 0.09;
+    const spanW = w - rafterInset * 2;
+    const count = Math.max(2, Math.floor(spanW / 0.6) + 1); // cc 600 mm
+    const spacing = spanW / (count - 1);
 
     if (isPulpettak) {
       const slopeAngle = Math.atan2(h - rearH, d);
@@ -3974,13 +4093,13 @@ export class HouseScene {
       // In ghost/cutaway mode rafter tails project for framing inspection. In exterior envelope mode they stay inside.
       const tail = ghost ? 0.45 : 0;
       const depth = ghost ? 0.145 : 0.1;
-      const slopeLen = span + tail;
+      const slopeLen = span + tail - (ghost ? 0 : 0.10);
       const rafterGeo = new THREE.BoxGeometry(rafterW, depth, slopeLen);
       const shift = tail / 2;
       const midY = (h + rearH) / 2 - depth / 2 - (ghost ? 0 : 0.016);
 
       for (let i = 0; i < count; i++) {
-        const rx = -w / 2 + i * spacing;
+        const rx = -w / 2 + rafterInset + i * spacing;
         const rafter = new THREE.Mesh(rafterGeo, rafterMat);
         rafter.position.set(
           rx,
@@ -3992,34 +4111,36 @@ export class HouseScene {
         beamParent.add(rafter);
       }
     } else if (this.currentConfig.roofType === 'flackt') {
-      const angleRad = (2 * Math.PI) / 180;
-      const len = ghost ? d + 0.7 : d - 0.05;
-      const rafterGeo = new THREE.BoxGeometry(rafterW, ghost ? rafterH : 0.12, len);
+      const shallowAngle = (2 * Math.PI) / 180;
+      const len = ghost ? d + 0.7 : d - 0.12;
+      const depth = ghost ? rafterH : 0.12;
+      const rafterGeo = new THREE.BoxGeometry(rafterW, depth, len);
       for (let i = 0; i < count; i++) {
+        const rx = -w / 2 + rafterInset + i * spacing;
         const rafter = new THREE.Mesh(rafterGeo, rafterMat);
-        rafter.position.set(-w / 2 + i * spacing, h - (ghost ? rafterH / 2 - 0.04 : 0.12), 0);
-        rafter.rotation.x = -angleRad;
+        rafter.position.set(rx, h - (ghost ? rafterH / 2 - 0.04 : 0.12), 0);
+        rafter.rotation.x = -shallowAngle;
         rafter.castShadow = !ghost;
         beamParent.add(rafter);
       }
     } else {
-      const angleRad = this.gablePitchRad();
-      const rise = Math.tan(angleRad) * (d / 2);
-      const slopeLen = (d / 2) / Math.cos(angleRad) + (ghost ? 0.25 : -0.02);
+      const gableAngle = this.gablePitchRad();
+      const rise = Math.tan(gableAngle) * (d / 2);
+      const slopeLen = (d / 2) / Math.cos(gableAngle) + (ghost ? 0.25 : -0.05);
       const rafterGeo = new THREE.BoxGeometry(rafterW, rafterH, slopeLen);
       const y = h + rise / 2 - rafterH / 2 + (ghost ? 0.04 : -0.02);
 
       for (let i = 0; i < count; i++) {
-        const rx = -w / 2 + i * spacing;
+        const rx = -w / 2 + rafterInset + i * spacing;
         const frontRafter = new THREE.Mesh(rafterGeo, rafterMat);
         frontRafter.position.set(rx, y, d / 4);
-        frontRafter.rotation.x = angleRad;
+        frontRafter.rotation.x = gableAngle;
         frontRafter.castShadow = !ghost;
         beamParent.add(frontRafter);
 
         const rearRafter = new THREE.Mesh(rafterGeo, rafterMat);
         rearRafter.position.set(rx, y, -d / 4);
-        rearRafter.rotation.x = -angleRad;
+        rearRafter.rotation.x = -gableAngle;
         rearRafter.castShadow = !ghost;
         beamParent.add(rearRafter);
       }

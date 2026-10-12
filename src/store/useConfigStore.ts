@@ -585,6 +585,8 @@ export const useConfigStore = defineStore('config', () => {
   /** Horizontal cladding keeps upright boards on the front door bay. */
   const verticalDoorBay = ref(false);
   const claddingSizeId = ref<CladdingSizeId>('22x145');
+  /** Exterior corner boards (knutbrädor) color: 'same' | 'white' | 'falurod' | 'grey' | 'black' | 'wood' | custom hex */
+  const cornerColor = ref<string>('same');
   const isFullscreen = ref<boolean>(false);
   const showDimensions = ref<boolean>(true);
   const showInnerWalls = ref<boolean>(true);
@@ -749,6 +751,7 @@ export const useConfigStore = defineStore('config', () => {
       panelOrientation: panelOrientation.value,
       verticalDoorBay: verticalDoorBay.value,
       claddingSizeId: claddingSizeId.value,
+      cornerColor: cornerColor.value,
       wallSlots: wallSlots.value,
       notes: notes.value,
       placedRooms: placedRooms.value,
@@ -836,6 +839,7 @@ export const useConfigStore = defineStore('config', () => {
       claddingSizeId.value = CLADDING_SIZES.some((size) => size.id === data.claddingSizeId)
         ? data.claddingSizeId
         : '22x145';
+      cornerColor.value = typeof data.cornerColor === 'string' ? data.cornerColor : 'same';
       wallSlots.value = mergeWallSlots(data.wallSlots);
       placedRooms.value = acceptPlacedRooms(data.placedRooms);
       floorPlanDone.value = data.floorPlanDone === true && Object.keys(placedRooms.value).length > 0;
@@ -877,6 +881,18 @@ export const useConfigStore = defineStore('config', () => {
       };
     }
     return MATERIAL_OPTIONS.find((m) => m.id === activeMaterial.value) ?? MATERIAL_OPTIONS[0];
+  });
+
+  const effectiveCornerHex = computed(() => {
+    if (cornerColor.value && cornerColor.value !== 'same') {
+      if (cornerColor.value.startsWith('#')) return cornerColor.value;
+      const found = MATERIAL_OPTIONS.find((m) => m.id === cornerColor.value);
+      if (found) return found.colorHex;
+    }
+    if (paintPreview.value) return paintPreview.value;
+    if (customPaint.value?.hex) return customPaint.value.hex;
+    const currentMat = MATERIAL_OPTIONS.find((m) => m.id === activeMaterial.value);
+    return currentMat ? currentMat.colorHex : '#e8d8be';
   });
 
   const dimensions = computed(() => {
@@ -1340,6 +1356,12 @@ export const useConfigStore = defineStore('config', () => {
     saveSnapshot();
   }
 
+  function selectCornerColor(color: string) {
+    if (cornerColor.value === color) return;
+    cornerColor.value = color;
+    saveSnapshot();
+  }
+
   function selectSavedPaint(id: string) {
     if (!savedPaints.value.some((paint) => paint.id === id)) return;
     paintPreview.value = null;
@@ -1680,6 +1702,9 @@ export const useConfigStore = defineStore('config', () => {
     panelOrientation,
     verticalDoorBay,
     claddingSizeId,
+    cornerColor,
+    effectiveCornerHex,
+    selectCornerColor,
     selectedSlotId,
     hoveredSlotId,
     hoveredSlotPos,

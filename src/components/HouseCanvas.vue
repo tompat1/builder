@@ -151,6 +151,7 @@ onMounted(() => {
       customHex: store.paintPreview ?? store.customPaint?.hex ?? null,
       panelOrientation: store.panelOrientation,
       verticalDoorBay: store.verticalDoorBay,
+      cornerColor: store.cornerColor,
       panelWidthMm: store.claddingSizeId === '22x95'
         ? 95
         : store.claddingSizeId === '22x120'
@@ -350,15 +351,23 @@ watch(
 
 // Watch material and cladding boards
 watch(
-  [() => store.activeMaterial, () => store.paintPreview ?? store.customPaint?.hex ?? null, () => store.panelOrientation, () => store.verticalDoorBay, () => store.claddingSizeId],
-  ([mat, customHex, orientation, verticalDoorBay, sizeId]) => {
+  [
+    () => store.activeMaterial,
+    () => store.paintPreview ?? store.customPaint?.hex ?? null,
+    () => store.panelOrientation,
+    () => store.verticalDoorBay,
+    () => store.claddingSizeId,
+    () => store.cornerColor
+  ],
+  ([mat, customHex, orientation, verticalDoorBay, sizeId, cornerColor]) => {
     const width = sizeId === '22x95' ? 95 : sizeId === '22x120' ? 120 : sizeId === '22x170' ? 170 : 145;
     engine?.updateConfig({
       material: mat,
       customHex,
       panelOrientation: orientation,
       verticalDoorBay,
-      panelWidthMm: width
+      panelWidthMm: width,
+      cornerColor
     });
   }
 );
