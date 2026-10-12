@@ -167,6 +167,7 @@
         over ? 'outline outline-2 -outline-offset-[12px] outline-[#173D35]' : '',
         isMobile ? 'touch-pan-y overscroll-y-contain px-3 py-2' : ''
       ]"
+      @scroll.passive="updateScrollState"
     >
       <div
         ref="sheet"
@@ -583,17 +584,6 @@
           </button>
         </article>
 
-        <!-- Endless scroll bottom hint -->
-        <div
-          v-if="!isMobile"
-          class="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-full bg-white/70 px-4 py-1.5 text-xs font-semibold text-[#173D35]/60 shadow-xs backdrop-blur-xs select-none"
-        >
-          <svg class="h-3.5 w-3.5 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-          </svg>
-          <span>{{ t('mood.scrollDown') }}</span>
-        </div>
-
         <!-- Mobile end of moodboard indicator -->
         <div
           v-if="isMobile && pieces.length > 0"
@@ -603,6 +593,21 @@
         </div>
       </div>
     </div>
+
+    <!-- Floating down-bobbing arrow button centered at the end of the viewport -->
+    <button
+      v-if="hasMoreBelow"
+      type="button"
+      id="btn-mood-scroll-down"
+      class="pointer-events-auto absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex h-11 w-11 items-center justify-center rounded-full bg-[#173D35]/90 text-[#F5F3EC] shadow-xl border border-white/20 backdrop-blur-md transition-all duration-200 hover:bg-[#173D35] hover:scale-110 active:scale-95 animate-bounce focus:outline-none focus:ring-2 focus:ring-[#173D35] focus:ring-offset-2"
+      :aria-label="t('mood.scrollDown')"
+      :title="t('mood.scrollDown')"
+      @click="scrollDownNext"
+    >
+      <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+      </svg>
+    </button>
 
     <!-- LIGHTBOX MODAL -->
     <Teleport to="body">
@@ -1018,7 +1023,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useConfigStore } from '../store/useConfigStore';
 import { useSessionStore } from '../store/useSessionStore';
@@ -1094,6 +1099,27 @@ const broken = ref<Record<string, boolean>>({});
 const urls = ref<Record<string, string>>({});
 const stage = ref<HTMLElement | null>(null);
 const sheet = ref<HTMLElement | null>(null);
+const hasMoreBelow = ref(false);
+let stageResizeObserver: ResizeObserver | null = null;
+
+function updateScrollState() {
+  if (!stage.value) {
+    hasMoreBelow.value = false;
+    return;
+  }
+  const { scrollTop, scrollHeight, clientHeight } = stage.value;
+  hasMoreBelow.value = scrollHeight - (scrollTop + clientHeight) > 40;
+}
+
+function scrollDownNext() {
+  if (!stage.value) return;
+  const scrollAmount = Math.max(200, Math.round(stage.value.clientHeight * 0.85));
+  stage.value.scrollBy({
+    top: scrollAmount,
+    behavior: 'smooth'
+  });
+}
+
 const fileInput = ref<HTMLInputElement | null>(null);
 const lightboxIndex = ref<number | null>(null);
 const activeId = ref('');
@@ -1226,6 +1252,7 @@ const isMobile = ref(typeof window !== 'undefined' ? window.innerWidth < 768 : f
 
 function onWindowResize() {
   isMobile.value = typeof window !== 'undefined' && window.innerWidth < 768;
+  updateScrollState();
 }
 
 const displayPieces = computed(() => {
@@ -1293,6 +1320,24 @@ const currentLightboxPiece = computed(() => {
 onMounted(() => {
   onWindowResize();
   window.addEventListener('resize', onWindowResize);
+  void nextTick(() => updateScrollState());
+  if (typeof ResizeObserver !== 'undefined' && stage.value) {
+    stageResizeObserver = new ResizeObserver(() => {
+      updateScrollState();
+    });
+    stageResizeObserver.observe(stage.value);
+    if (sheet.value) {
+      stageResizeObserver.observe(sheet.value);
+    }
+  }
+
+  watch(
+    () => pieces.value,
+    () => {
+      void nextTick(() => updateScrollState());
+    },
+    { deep: true }
+  );
   void sessionStore.ensureAccountState().then(() => {
     if (sessionStore.user) {
       clearStoredParticipant();
@@ -1380,6 +1425,10 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   persist();
+  if (stageResizeObserver) {
+    stageResizeObserver.disconnect();
+    stageResizeObserver = null;
+  }
   window.removeEventListener('resize', onWindowResize);
   window.removeEventListener('paste', onPaste);
   window.removeEventListener('keydown', onKeyDown);
