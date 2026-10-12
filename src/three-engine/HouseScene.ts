@@ -113,6 +113,7 @@ export class HouseScene {
   private wallsGroup: THREE.Group;
   private framingGroup: THREE.Group;
   private innerWallsGroup: THREE.Group;
+  private ceilingDrywallGroup: THREE.Group | null = null;
   private trussesGroup: THREE.Group;
   private dimensionsGroup: THREE.Group;
   private interiorGroup: THREE.Group;
@@ -1691,6 +1692,10 @@ export class HouseScene {
 
     // 6. Exposed Roof Rafters (Taksparrar cc 600)
     this.buildRafters(w, d, h, wallThick);
+
+    // 6b. Drywall Ceiling & Interior Gable Wall Drywall (Gipstak och invändig gips)
+    this.ceilingDrywallGroup = this.buildDrywallCeiling(w, d, h);
+    this.innerWallsGroup.add(this.ceilingDrywallGroup);
 
     // 7. Loft Construction
     if (this.currentConfig.hasLoft) {
@@ -3693,6 +3698,119 @@ export class HouseScene {
       this.addOpeningReveals(parent, opening, left, right, halfW, dz, drywallThick, material, isDoor);
     }
     return mesh;
+  }
+
+  private buildDrywallCeiling(w: number, d: number, h: number): THREE.Group {
+    const isPulpettak = this.currentConfig.roofType === 'pulpettak';
+    const isFlackt = this.currentConfig.roofType === 'flackt';
+    const drywallThick = 0.013;
+    // Clear interior width with slight lap into the side wall stud cavity so there are no seams
+    const ceilingW = w - 0.34;
+
+    const ceilingGroup = new THREE.Group();
+
+    if (isPulpettak) {
+      const angleRad = PULPET_PITCH_RAD;
+      const rearH = Math.max(h - Math.tan(angleRad) * d, 2.4);
+      const slopeAngle = Math.atan2(h - rearH, d);
+      const depth = 0.1; // Matches rafter depth in buildRafters
+      const midY = (h + rearH) / 2 - depth / 2 - 0.016;
+      const ceilingSlopeLen = (d - 0.34) / Math.cos(slopeAngle);
+
+      const slopeGroup = new THREE.Group();
+      slopeGroup.position.set(0, midY, 0);
+      slopeGroup.rotation.x = -slopeAngle;
+
+      const ceilingMesh = new THREE.Mesh(
+        new THREE.BoxGeometry(ceilingW, drywallThick, ceilingSlopeLen),
+        this.drywallMat
+      );
+      ceilingMesh.position.set(0, -(depth / 2 + drywallThick / 2 + 0.002), 0);
+      ceilingMesh.castShadow = true;
+      ceilingMesh.receiveShadow = true;
+      slopeGroup.add(ceilingMesh);
+      ceilingGroup.add(slopeGroup);
+    } else if (isFlackt) {
+      const shallowAngle = (2 * Math.PI) / 180;
+      const depth = 0.12; // Matches rafter depth in buildRafters
+      const ceilingSlopeLen = (d - 0.34) / Math.cos(shallowAngle);
+
+      const slopeGroup = new THREE.Group();
+      slopeGroup.position.set(0, h - 0.12, 0);
+      slopeGroup.rotation.x = -shallowAngle;
+
+      const ceilingMesh = new THREE.Mesh(
+        new THREE.BoxGeometry(ceilingW, drywallThick, ceilingSlopeLen),
+        this.drywallMat
+      );
+      ceilingMesh.position.set(0, -(depth / 2 + drywallThick / 2 + 0.002), 0);
+      ceilingMesh.castShadow = true;
+      ceilingMesh.receiveShadow = true;
+      slopeGroup.add(ceilingMesh);
+      ceilingGroup.add(slopeGroup);
+    } else {
+      // Gable roofs (sadeltak, sadeltak14)
+      const gableAngle = this.gablePitchRad();
+      const rise = Math.tan(gableAngle) * (d / 2);
+      const rafterH = 0.195;
+      const y = h + rise / 2 - rafterH / 2 - 0.02;
+
+      const slopeLen = (d / 2 - 0.17) / Math.cos(gableAngle);
+      const centerZ = 0.085 / Math.cos(gableAngle);
+
+      // Front slope ceiling (starts at ridge z = 0, reaches front wall)
+      const frontSlope = new THREE.Group();
+      frontSlope.position.set(0, y, d / 4);
+      frontSlope.rotation.x = gableAngle;
+      const frontMesh = new THREE.Mesh(
+        new THREE.BoxGeometry(ceilingW, drywallThick, slopeLen),
+        this.drywallMat
+      );
+      frontMesh.position.set(0, -(rafterH / 2 + drywallThick / 2 + 0.002), -centerZ);
+      frontMesh.castShadow = true;
+      frontMesh.receiveShadow = true;
+      frontSlope.add(frontMesh);
+      ceilingGroup.add(frontSlope);
+
+      // Rear slope ceiling (starts at rear wall, reaches ridge z = 0)
+      const rearSlope = new THREE.Group();
+      rearSlope.position.set(0, y, -d / 4);
+      rearSlope.rotation.x = -gableAngle;
+      const rearMesh = new THREE.Mesh(
+        new THREE.BoxGeometry(ceilingW, drywallThick, slopeLen),
+        this.drywallMat
+      );
+      rearMesh.position.set(0, -(rafterH / 2 + drywallThick / 2 + 0.002), centerZ);
+      rearMesh.castShadow = true;
+      rearMesh.receiveShadow = true;
+      rearSlope.add(rearMesh);
+      ceilingGroup.add(rearSlope);
+
+      // Interior triangular gable wall drywall on left and right walls above wall height h
+      const halfD = d / 2 - 0.17;
+      const peakH = rise * (halfD / (d / 2)) - 0.02;
+      const gableShape = new THREE.Shape();
+      gableShape.moveTo(-halfD, -0.02);
+      gableShape.lineTo(0, peakH);
+      gableShape.lineTo(halfD, -0.02);
+      gableShape.closePath();
+      const gableGeo = new THREE.ExtrudeGeometry(gableShape, {
+        depth: drywallThick,
+        bevelEnabled: false
+      });
+      gableGeo.translate(0, 0, -drywallThick / 2);
+
+      for (const sign of [-1, 1] as const) {
+        const gableDrywall = new THREE.Mesh(gableGeo, this.drywallMat);
+        gableDrywall.rotation.y = sign > 0 ? -Math.PI / 2 : Math.PI / 2;
+        gableDrywall.position.set(sign * (w / 2 - 0.1765), h, 0);
+        gableDrywall.castShadow = true;
+        gableDrywall.receiveShadow = true;
+        ceilingGroup.add(gableDrywall);
+      }
+    }
+
+    return ceilingGroup;
   }
 
   private addWindowFeature(
@@ -6172,6 +6290,9 @@ export class HouseScene {
     if (this.contactShadow) this.contactShadow.visible = true;
 
     const showInner = this.currentConfig.showInnerWalls ?? true;
+    if (this.ceilingDrywallGroup) {
+      this.ceilingDrywallGroup.visible = !this.interiorCut() && !this.loftCutaway();
+    }
     if (this.currentConfig.viewMode === 'blueprint') {
       this.roofGroup.visible = false;
       this.trussesGroup.visible = false;
