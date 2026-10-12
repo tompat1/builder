@@ -11,17 +11,78 @@
       <!-- Header -->
       <header class="text-center">
         <div class="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#173D35] text-2xl text-[#F5F3EC] shadow-md shadow-[#173D35]/25">
-          🎨
+          {{ isRestoringMode ? '🔑' : '🎨' }}
         </div>
         <h1 class="text-2xl font-bold tracking-tight text-[#173D35] sm:text-3xl">
-          {{ t('mood.joinTitle') || 'Välkommen till moodboarden' }}
+          {{ isRestoringMode ? (t('mood.restoreTitle') || 'Återanslut till moodboarden') : (t('mood.joinTitle') || 'Välkommen till moodboarden') }}
         </h1>
         <p class="mx-auto mt-2 max-w-md text-sm text-[#4a5851] sm:text-base">
-          {{ t('mood.joinSubtitle') || 'Skapa din deltagarprofil och låt AI:n laga ihop din unika avatar innan du ansluter till tavlan.' }}
+          {{ isRestoringMode ? (t('mood.restoreSubtitle') || 'Skriv in den e-postadress du använde tidigare för att återställa din avatar och deltagarprofil.') : (t('mood.joinSubtitle') || 'Skapa din deltagarprofil och låt AI:n laga ihop din unika avatar innan du ansluter till tavlan.') }}
         </p>
       </header>
 
-      <form class="mt-8 space-y-6" @submit.prevent="submitJoin">
+      <!-- 1. Restore participant with email form -->
+      <form v-if="isRestoringMode" class="mt-8 space-y-6" @submit.prevent="handleRestore">
+        <div class="space-y-1.5">
+          <label for="restore-email" class="block text-xs font-bold uppercase tracking-wider text-[#173D35]">
+            {{ t('mood.restoreEmailLabel') || 'Din e-postadress' }} <span class="text-rose-600">*</span>
+          </label>
+          <div class="relative">
+            <input
+              id="restore-email"
+              v-model="restoreEmail"
+              type="email"
+              autocomplete="email"
+              required
+              :placeholder="t('mood.restoreEmailPlaceholder') || 'Ange den e-postadress du använde'"
+              class="w-full rounded-xl border border-[#d7d1c4] bg-[#FDFBF7] px-4 py-3 text-base text-[#222925] transition placeholder:text-stone-400 focus:border-[#173D35] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#173D35]/20"
+              :class="restoreError ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-200' : ''"
+              @input="restoreError = ''"
+            />
+          </div>
+          <p v-if="restoreError" class="rounded-xl border border-rose-200 bg-rose-50/80 p-3 text-xs font-medium text-rose-700">
+            {{ restoreError }}
+          </p>
+          <p v-else-if="restoreSuccess" class="rounded-xl border border-emerald-200 bg-emerald-50/80 p-3 text-xs font-medium text-emerald-800 flex items-center gap-2">
+            <span>✓</span> {{ restoreSuccess }}
+          </p>
+          <p v-else class="text-xs text-stone-500">
+            {{ t('mood.restoreEmailHint') || 'Vi söker efter din deltagarprofil på denna moodboard.' }}
+          </p>
+        </div>
+
+        <!-- Restore submit -->
+        <div class="pt-2">
+          <button
+            type="submit"
+            id="btn-restore-participant"
+            class="flex h-13 w-full items-center justify-center gap-2 rounded-xl bg-[#173D35] px-6 text-base font-bold text-[#F5F3EC] shadow-lg shadow-[#173D35]/25 transition hover:bg-[#0f2b25] hover:shadow-xl hover:shadow-[#173D35]/35 active:scale-[0.99] disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-[#173D35] focus:ring-offset-2"
+            :disabled="isSearching || !restoreEmail.trim()"
+          >
+            <span v-if="isSearching" class="animate-spin text-lg">⏳</span>
+            <span>{{ isSearching ? (t('mood.restoring') || 'Söker profil...') : (t('mood.restoreButton') || 'Hitta profil & anslut') }}</span>
+            <svg v-if="!isSearching" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M14 5l7 7m0 0l-7 7m7-7H3" />
+            </svg>
+          </button>
+        </div>
+
+        <!-- Back to create profile -->
+        <div class="pt-2 text-center">
+          <button
+            type="button"
+            id="btn-switch-to-create"
+            class="inline-flex items-center gap-1.5 text-xs font-semibold text-[#173D35] underline decoration-[#173D35]/40 underline-offset-4 hover:decoration-[#173D35] hover:text-[#0f2b25] transition"
+            @click="isRestoringMode = false"
+          >
+            <span>←</span>
+            <span>{{ t('mood.backToCreate') || 'Eller skapa en ny profil' }}</span>
+          </button>
+        </div>
+      </form>
+
+      <!-- 2. Create new profile onboarding form -->
+      <form v-else class="mt-8 space-y-6" @submit.prevent="submitJoin">
         <!-- 1. Name input -->
         <div class="space-y-1.5">
           <label for="participant-name" class="block text-xs font-bold uppercase tracking-wider text-[#173D35]">
@@ -166,23 +227,68 @@
             </svg>
           </button>
         </div>
+
+        <!-- Or restore with email option -->
+        <div class="mt-6 border-t border-[#d7d1c4]/70 pt-5 text-center">
+          <p class="text-xs text-[#4a5851]">
+            {{ t('mood.restorePrompt') || 'Har du redan skapat en profil på en annan enhet?' }}
+          </p>
+          <button
+            type="button"
+            id="btn-switch-to-restore"
+            class="mt-1.5 inline-flex items-center gap-1.5 text-xs font-bold text-[#173D35] underline decoration-[#173D35]/40 underline-offset-4 hover:decoration-[#173D35] hover:text-[#0f2b25] transition"
+            @click="isRestoringMode = true"
+          >
+            <span>{{ t('mood.restoreAction') || 'Logga in med din e-post' }}</span>
+            <span aria-hidden="true">→</span>
+          </button>
+        </div>
       </form>
     </main>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
+import { useRoute } from 'vue-router';
 import { useLabels } from '../i18n';
 import { AVATAR_THEMES, generateAiAvatar } from '../mood/avatar';
-import { getStoredParticipant, saveStoredParticipant } from '../services/moodSave';
+import {
+  getStoredParticipant,
+  saveStoredParticipant,
+  registerBoardParticipant,
+  findParticipantByEmail,
+  moodHouseKey
+} from '../services/moodSave';
 import type { MoodParticipant } from '../mood/board';
+
+const props = withDefaults(
+  defineProps<{
+    houseKey?: string;
+  }>(),
+  {
+    houseKey: ''
+  }
+);
 
 const emit = defineEmits<{
   (e: 'joined', participant: MoodParticipant): void;
 }>();
 
 const { t } = useLabels();
+const route = useRoute();
+
+const activeHouseKey = computed(() => {
+  if (props.houseKey) return props.houseKey;
+  if (typeof route?.query?.board === 'string' && route.query.board) return route.query.board;
+  return moodHouseKey();
+});
+
+const isRestoringMode = ref(false);
+const restoreEmail = ref('');
+const isSearching = ref(false);
+const restoreError = ref('');
+const restoreSuccess = ref('');
 
 const name = ref('');
 const email = ref('');
@@ -259,6 +365,33 @@ async function cookAvatar() {
   isCooking.value = false;
 }
 
+async function handleRestore() {
+  restoreError.value = '';
+  restoreSuccess.value = '';
+  const trimmed = restoreEmail.value.trim();
+  if (!trimmed) {
+    restoreError.value = 'Vänligen ange din e-postadress';
+    return;
+  }
+  isSearching.value = true;
+  try {
+    const found = await findParticipantByEmail(trimmed, activeHouseKey.value);
+    if (!found) {
+      restoreError.value = t('mood.restoreNotFound') || 'Ingen profil hittades med den e-postadressen för denna moodboard. Kontrollera stavningen eller skapa en ny profil.';
+      isSearching.value = false;
+      return;
+    }
+    saveStoredParticipant(found);
+    restoreSuccess.value = (t('mood.restoreFound') || 'Välkommen tillbaka, {name}!').replace('{name}', found.name);
+    await sleep(400);
+    emit('joined', found);
+  } catch {
+    restoreError.value = 'Ett fel uppstod vid hämtning av profilen. Försök igen.';
+  } finally {
+    isSearching.value = false;
+  }
+}
+
 function submitJoin() {
   errors.value = {};
   const trimmedName = name.value.trim();
@@ -288,6 +421,7 @@ function submitJoin() {
   };
 
   saveStoredParticipant(participant);
+  registerBoardParticipant(participant, activeHouseKey.value);
   emit('joined', participant);
 }
 

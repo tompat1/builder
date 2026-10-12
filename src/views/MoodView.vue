@@ -3,6 +3,7 @@
     <!-- If participant has not joined yet, show loading & onboarding page -->
     <MoodJoinLoading
       v-if="showJoinScreen"
+      :house-key="houseKey"
       @joined="onJoined"
     />
 
@@ -16,11 +17,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import MoodJoinLoading from '../components/MoodJoinLoading.vue';
 import MoodBoard from '../components/MoodBoard.vue';
-import { clearStoredParticipant, getStoredParticipant } from '../services/moodSave';
+import { clearStoredParticipant, getStoredParticipant, moodHouseKey } from '../services/moodSave';
 import { useSessionStore } from '../store/useSessionStore';
 import type { MoodParticipant } from '../mood/board';
 
@@ -28,6 +29,10 @@ const route = useRoute();
 const sessionStore = useSessionStore();
 
 const showJoinScreen = ref(false);
+
+const houseKey = computed(() => {
+  return (typeof route?.query?.board === 'string' && route.query.board) ? route.query.board : moodHouseKey();
+});
 
 onMounted(async () => {
   await sessionStore.ensureAccountState();

@@ -1042,6 +1042,7 @@ import {
   loadMood,
   moodHouseKey,
   putClip,
+  registerBoardParticipant,
   saveMood,
   saveStoredParticipant,
   syncMoodWithCloudflare,
@@ -1193,6 +1194,7 @@ function saveProfileEmail() {
   if (existing) {
     existing.email = nextEmail;
     saveStoredParticipant(existing);
+    registerBoardParticipant(existing, houseKey);
   }
   profileEmailSavedNotice.value = true;
   setTimeout(() => {
@@ -1284,6 +1286,11 @@ onMounted(() => {
   void sessionStore.ensureAccountState().then(() => {
     if (sessionStore.user) {
       clearStoredParticipant();
+    } else {
+      const existing = getStoredParticipant();
+      if (existing) {
+        registerBoardParticipant(existing, houseKey);
+      }
     }
     backfillExistingPiecesAuthor();
   });

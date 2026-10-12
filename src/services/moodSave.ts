@@ -28,6 +28,7 @@ export function moodHouseKey() {
 
 export function getStoredParticipant(): MoodParticipant | null {
   try {
+    if (typeof localStorage === 'undefined') return null;
     const raw = localStorage.getItem(PARTICIPANT_KEY);
     if (!raw) return null;
     const data = JSON.parse(raw) as unknown;
@@ -52,6 +53,7 @@ export function getStoredParticipant(): MoodParticipant | null {
 
 export function saveStoredParticipant(p: MoodParticipant) {
   try {
+    if (typeof localStorage === 'undefined') return;
     localStorage.setItem(PARTICIPANT_KEY, JSON.stringify(p));
   } catch {
     // ignore
@@ -60,6 +62,7 @@ export function saveStoredParticipant(p: MoodParticipant) {
 
 export function clearStoredParticipant() {
   try {
+    if (typeof localStorage === 'undefined') return;
     localStorage.removeItem(PARTICIPANT_KEY);
     localStorage.removeItem('mood_participant');
   } catch {
@@ -135,15 +138,19 @@ export function saveMood(content: MoodBoardState | MoodPiece[], houseKey = moodH
     };
   }
   try {
-    localStorage.setItem(KEY, JSON.stringify(fit(all, houseKey)));
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(KEY, JSON.stringify(fit(all, houseKey)));
+    }
   } catch {
     try {
-      const slim = fit(all, houseKey);
-      for (const key of Object.keys(slim)) {
-        if (key === houseKey) continue;
-        slim[key].pieces = slim[key].pieces.filter((piece) => !piece.src.startsWith('data:'));
+      if (typeof localStorage !== 'undefined') {
+        const slim = fit(all, houseKey);
+        for (const key of Object.keys(slim)) {
+          if (key === houseKey) continue;
+          slim[key].pieces = slim[key].pieces.filter((piece) => !piece.src.startsWith('data:'));
+        }
+        localStorage.setItem(KEY, JSON.stringify(slim));
       }
-      localStorage.setItem(KEY, JSON.stringify(slim));
     } catch {
       // The board stays on screen even when the browser refuses the copy.
     }
@@ -218,7 +225,9 @@ export async function syncMoodWithCloudflare(houseKey = moodHouseKey()): Promise
     const all = bucket();
     all[houseKey] = boardState;
     try {
-      localStorage.setItem(KEY, JSON.stringify(fit(all, houseKey)));
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(KEY, JSON.stringify(fit(all, houseKey)));
+      }
     } catch {
       // ignore
     }
@@ -227,6 +236,50 @@ export async function syncMoodWithCloudflare(houseKey = moodHouseKey()): Promise
   } catch {
     return null;
   }
+}
+
+export function registerBoardParticipant(participant: MoodParticipant, houseKey = moodHouseKey()) {
+  if (!houseKey || !participant) return;
+  const board = loadMood(houseKey);
+  const list = board.participants ? [...board.participants] : [];
+  const existingIdx = list.findIndex(
+    (p) => p.id === participant.id || (participant.email && p.email && p.email.toLowerCase().trim() === participant.email.toLowerCase().trim())
+  );
+  if (existingIdx >= 0) {
+    list[existingIdx] = { ...list[existingIdx], ...participant };
+  } else {
+    list.push({ ...participant });
+  }
+  board.participants = list;
+  saveMood(board, houseKey);
+}
+
+export async function findParticipantByEmail(
+  email: string,
+  houseKey = moodHouseKey()
+): Promise<MoodParticipant | null> {
+  const normalized = email.trim().toLowerCase();
+  if (!normalized || !houseKey) return null;
+
+  // 1. Check local board cache first
+  const local = loadMood(houseKey);
+  if (local.participants?.length) {
+    const found = local.participants.find(
+      (p) => p.email && p.email.toLowerCase().trim() === normalized
+    );
+    if (found) return found;
+  }
+
+  // 2. Fetch latest board state from Cloudflare D1
+  const remote = await syncMoodWithCloudflare(houseKey);
+  if (remote?.participants?.length) {
+    const found = remote.participants.find(
+      (p) => p.email && p.email.toLowerCase().trim() === normalized
+    );
+    if (found) return found;
+  }
+
+  return null;
 }
 
 export async function togglePieceLikeCloudflare(
@@ -304,6 +357,7 @@ export function deleteClip(id: string) {
 
 function bucket(): Record<string, unknown> {
   try {
+    if (typeof localStorage === 'undefined') return {};
     const raw = localStorage.getItem(KEY);
     const parsed = raw ? JSON.parse(raw) : {};
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};

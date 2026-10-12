@@ -11,15 +11,18 @@ export interface AccountUser {
 }
 
 export function workerBase() {
-  const configured = import.meta.env.VITE_CLOUDFLARE_WORKER_URL as string | undefined;
+  const configured = typeof import.meta !== 'undefined' && import.meta.env
+    ? (import.meta.env.VITE_CLOUDFLARE_WORKER_URL as string | undefined)
+    : undefined;
   return (configured || 'https://builder-knowledge.thomasrynell.workers.dev').replace(/\/$/, '');
 }
 
 export function sessionToken() {
-  return sessionStorage.getItem(TOKEN_KEY) ?? '';
+  return typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(TOKEN_KEY) ?? '' : '';
 }
 
 export function saveSession(token: string) {
+  if (typeof sessionStorage === 'undefined') return;
   if (token) sessionStorage.setItem(TOKEN_KEY, token);
   else sessionStorage.removeItem(TOKEN_KEY);
 }

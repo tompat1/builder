@@ -230,9 +230,9 @@ test('placeFor scales y downwards for endless scrolling', () => {
   assert.equal(saved[0].y, 750);
 });
 
-test('handleMood saves and loads moodboard from Cloudflare D1 database', async () => {
-  let storedRow = null;
-  const env = {
+function createMockD1(initialRow = null) {
+  let storedRow = initialRow;
+  return {
     DB: {
       prepare(sql) {
         return {
@@ -266,6 +266,10 @@ test('handleMood saves and loads moodboard from Cloudflare D1 database', async (
       }
     }
   };
+}
+
+test('handleMood saves and loads moodboard from Cloudflare D1 database', async () => {
+  const env = createMockD1();
 
   const sessionUser = async () => ({ id: 'usr_1', login: 'tompat1' });
 
@@ -427,4 +431,104 @@ test('authenticated user profile always takes precedence over stored guest parti
   // When NOT logged in, the guest participant is used:
   const guestAuthor = resolveMoodAuthor(null, guestParticipant);
   assert.equal(guestAuthor.name, 'Bobby');
+});
+
+test('board participant registration and email restoration logic', () => {
+  function upsertParticipant(list, p) {
+    const next = [...(list || [])];
+    const normalizedEmail = p.email ? p.email.toLowerCase().trim() : '';
+    const idx = next.findIndex(
+      (item) => item.id === p.id || (normalizedEmail && item.email && item.email.toLowerCase().trim() === normalizedEmail)
+    );
+    if (idx >= 0) {
+      next[idx] = { ...next[idx], ...p };
+    } else {
+      next.push({ ...p });
+    }
+    return next;
+  }
+
+  function findByEmail(list, email) {
+    const target = (email || '').toLowerCase().trim();
+    if (!target || !list) return null;
+    return list.find((p) => p.email && p.email.toLowerCase().trim() === target) || null;
+  }
+
+  let participants = [];
+  const alice = {
+    id: 'part_1',
+    name: 'Alice Lind',
+    avatar: 'data:image/svg+xml;utf8,<svg>Alice</svg>',
+    email: 'Alice.Lind@example.com',
+    themes: ['Foresty', 'Chill']
+  };
+
+  participants = upsertParticipant(participants, alice);
+  assert.equal(participants.length, 1);
+  assert.equal(participants[0].name, 'Alice Lind');
+
+  // Lookup by different casing and whitespace
+  const found = findByEmail(participants, '  ALICE.LIND@EXAMPLE.COM  ');
+  assert.ok(found);
+  assert.equal(found?.id, 'part_1');
+  assert.equal(found?.name, 'Alice Lind');
+
+  // Updating Alice with same email doesn't create duplicate
+  participants = upsertParticipant(participants, {
+    id: 'part_1',
+    name: 'Alice Lind',
+    avatar: 'data:image/svg+xml;utf8,<svg>AliceUpdated</svg>',
+    email: 'alice.lind@example.com',
+    themes: ['Foresty', 'Flowery']
+  });
+  assert.equal(participants.length, 1);
+  assert.deepEqual(participants[0].themes, ['Foresty', 'Flowery']);
+
+  // Looking up unknown email returns null
+  assert.equal(findByEmail(participants, 'unknown@example.com'), null);
+});
+
+test('handleMood persists participants to Cloudflare D1 and returns them for cross-device restore', async () => {
+  const env = createMockD1();
+  const sessionUser = async () => null;
+
+  const initialParticipants = [
+    {
+      id: 'part_device1',
+      name: 'Maria',
+      avatar: 'data:image/svg+xml;utf8,<svg>Maria</svg>',
+      email: 'maria@example.com',
+      themes: ['Dreamy', 'Chill']
+    }
+  ];
+
+  // 1. Participant joins from device 1 and saves board with participant data
+  const putReq = new Request('https://example.com/api/mood/hus_shared', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      title: 'Vårt gemensamma hus',
+      pieces: [],
+      participants: initialParticipants
+    })
+  });
+  const putRes = await handleMood(putReq, env, {}, sessionUser);
+  assert.equal(putRes.status, 200);
+
+  // 2. Later, Maria opens link from device 2 and restores by email
+  const getReq = new Request('https://example.com/api/mood/hus_shared', {
+    method: 'GET'
+  });
+  const getRes = await handleMood(getReq, env, {}, sessionUser);
+  assert.equal(getRes.status, 200);
+  const body = await getRes.json();
+
+  assert.ok(Array.isArray(body.mood.participants));
+  assert.equal(body.mood.participants.length, 1);
+  const restored = body.mood.participants.find(
+    (p) => p.email && p.email.toLowerCase().trim() === 'maria@example.com'
+  );
+  assert.ok(restored);
+  assert.equal(restored.name, 'Maria');
+  assert.deepEqual(restored.themes, ['Dreamy', 'Chill']);
 });
