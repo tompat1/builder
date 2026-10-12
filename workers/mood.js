@@ -27,8 +27,29 @@ function parseMoodRoute(pathname) {
   return { id, action };
 }
 
+let tableChecked = false;
+async function ensureMoodTable(db) {
+  if (tableChecked || !db) return;
+  try {
+    await db.prepare(`
+      CREATE TABLE IF NOT EXISTS mood_boards (
+        id TEXT PRIMARY KEY,
+        user_id TEXT,
+        title TEXT NOT NULL DEFAULT '',
+        data TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    `).run();
+    tableChecked = true;
+  } catch {
+    // ignore
+  }
+}
+
 export async function handleMood(request, env, headers, sessionUser) {
   if (!env.DB) return json({ error: 'storage_unavailable' }, 503, headers);
+  await ensureMoodTable(env.DB);
 
   const url = new URL(request.url);
   const route = parseMoodRoute(url.pathname);
