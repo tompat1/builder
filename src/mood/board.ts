@@ -8,6 +8,21 @@ export type MoodKind = 'image' | 'clip' | 'note';
 export type MoodClip = '' | 'youtube' | 'vimeo' | 'file';
 export type MoodColor = 'yellow' | 'sand' | 'moss' | 'sky' | 'rose';
 
+export interface MoodAuthor {
+  name: string;
+  avatar: string;
+  email?: string;
+}
+
+export interface MoodParticipant {
+  id: string;
+  name: string;
+  avatar: string;
+  email?: string;
+  themes?: string[];
+  joinedAt: string;
+}
+
 export interface MoodPiece {
   id: string;
   kind: MoodKind;
@@ -20,6 +35,7 @@ export interface MoodPiece {
   tilt: number;
   caption: string;
   color?: MoodColor;
+  author?: MoodAuthor;
 }
 
 export interface MoodLink {
@@ -63,12 +79,13 @@ export function placeFor(index: number): Pick<MoodPiece, 'x' | 'y' | 'w' | 'tilt
   };
 }
 
-export function pieceFrom(link: MoodLink, index: number, caption = ''): MoodPiece {
+export function pieceFrom(link: MoodLink, index: number, caption = '', author?: MoodAuthor): MoodPiece {
   return {
     id: moodId(),
     ...link,
     ...placeFor(index),
-    caption: caption.slice(0, CAPTION_LIMIT)
+    caption: caption.slice(0, CAPTION_LIMIT),
+    ...(author ? { author } : {})
   };
 }
 
@@ -128,13 +145,20 @@ export function acceptMood(value: unknown): MoodPiece[] {
   return pieces;
 }
 
-export function acceptMoodBoard(value: unknown): { title: string; createdAt: string; pieces: MoodPiece[] } {
+export function acceptMoodBoard(value: unknown): {
+  title: string;
+  createdAt: string;
+  pieces: MoodPiece[];
+  participants?: MoodParticipant[];
+} {
   if (value && typeof value === 'object' && !Array.isArray(value)) {
     const rec = value as Record<string, unknown>;
+    const participants = acceptParticipants(rec.participants);
     return {
       title: typeof rec.title === 'string' ? rec.title.slice(0, 100) : '',
       createdAt: typeof rec.createdAt === 'string' ? rec.createdAt.slice(0, 50) : '',
-      pieces: acceptMood(rec.pieces)
+      pieces: acceptMood(rec.pieces),
+      ...(participants ? { participants } : {})
     };
   }
   return {
@@ -142,6 +166,38 @@ export function acceptMoodBoard(value: unknown): { title: string; createdAt: str
     createdAt: '',
     pieces: acceptMood(value)
   };
+}
+
+function acceptAuthor(value: unknown): MoodAuthor | undefined {
+  if (!value || typeof value !== 'object') return undefined;
+  const rec = value as Record<string, unknown>;
+  const name = typeof rec.name === 'string' ? rec.name.trim().slice(0, 60) : '';
+  const avatar = typeof rec.avatar === 'string' ? rec.avatar.trim().slice(0, 50_000) : '';
+  const email = typeof rec.email === 'string' ? rec.email.trim().slice(0, 120) : undefined;
+  if (!name && !avatar) return undefined;
+  return { name: name || 'Deltagare', avatar, ...(email ? { email } : {}) };
+}
+
+function acceptParticipants(value: unknown): MoodParticipant[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const list: MoodParticipant[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== 'object') continue;
+    const rec = item as Record<string, unknown>;
+    const id = typeof rec.id === 'string' ? rec.id.slice(0, 64) : '';
+    const name = typeof rec.name === 'string' ? rec.name.trim().slice(0, 60) : '';
+    const avatar = typeof rec.avatar === 'string' ? rec.avatar.trim().slice(0, 50_000) : '';
+    if (!id || !name) continue;
+    list.push({
+      id,
+      name,
+      avatar,
+      email: typeof rec.email === 'string' ? rec.email.trim().slice(0, 120) : undefined,
+      themes: Array.isArray(rec.themes) ? rec.themes.filter((t) => typeof t === 'string').slice(0, 3) : undefined,
+      joinedAt: typeof rec.joinedAt === 'string' ? rec.joinedAt.slice(0, 50) : new Date().toISOString()
+    });
+  }
+  return list.length > 0 ? list : undefined;
 }
 
 export function youtubeEmbed(ref: string) {
@@ -161,6 +217,7 @@ function acceptPiece(value: unknown): MoodPiece | null {
   const record = value as Record<string, unknown>;
   const id = typeof record.id === 'string' && ID.test(record.id) ? record.id : '';
   if (!id) return null;
+  const author = acceptAuthor(record.author);
 
   if (record.kind === 'note') {
     const rawColor = typeof record.color === 'string' ? record.color : 'yellow';
@@ -178,7 +235,8 @@ function acceptPiece(value: unknown): MoodPiece | null {
       y: clamp(Number(record.y), 0, 88),
       w: clamp(Number(record.w), 14, 72),
       tilt: clamp(Number(record.tilt), -8, 8),
-      caption: typeof record.caption === 'string' ? record.caption.trim().slice(0, CAPTION_LIMIT) : ''
+      caption: typeof record.caption === 'string' ? record.caption.trim().slice(0, CAPTION_LIMIT) : '',
+      ...(author ? { author } : {})
     };
   }
 
@@ -197,7 +255,8 @@ function acceptPiece(value: unknown): MoodPiece | null {
     y: clamp(Number(record.y), 0, 88),
     w: clamp(Number(record.w), 16, 72),
     tilt: clamp(Number(record.tilt), -8, 8),
-    caption: typeof record.caption === 'string' ? record.caption.trim().slice(0, CAPTION_LIMIT) : ''
+    caption: typeof record.caption === 'string' ? record.caption.trim().slice(0, CAPTION_LIMIT) : '',
+    ...(author ? { author } : {})
   };
 }
 

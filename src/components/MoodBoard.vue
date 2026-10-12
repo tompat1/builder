@@ -42,17 +42,60 @@
         </p>
       </div>
 
-      <button
-        type="button"
-        id="btn-mood-close"
-        class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-[#173D35] hover:bg-[#173D35] hover:text-[#F5F3EC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#173D35]"
-        :aria-label="t('mood.close')"
-        @click="store.showMood = false"
-      >
-        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-          <path d="M6 6 L18 18 M18 6 L6 18" />
-        </svg>
-      </button>
+      <div class="flex items-center gap-2">
+        <button
+          type="button"
+          id="btn-mood-profile"
+          class="flex items-center gap-2 rounded-xl border border-[#d7d1c4] bg-white/80 px-2.5 py-1.5 text-xs font-semibold text-[#173D35] shadow-xs backdrop-blur-xs transition hover:border-[#173D35] hover:bg-white"
+          :title="t('mood.myProfile')"
+          @click="openProfileModal"
+        >
+          <img
+            v-if="currentAuthor.avatar"
+            :src="currentAuthor.avatar"
+            :alt="currentAuthor.name"
+            class="h-6 w-6 rounded-full object-cover ring-1 ring-[#173D35]/20"
+          />
+          <span class="max-w-[100px] truncate">{{ currentAuthor.name }}</span>
+        </button>
+
+        <button
+          type="button"
+          id="btn-mood-share"
+          class="flex items-center gap-1.5 rounded-xl bg-[#173D35] px-3.5 py-2 text-xs font-bold text-[#F5F3EC] shadow-sm transition hover:bg-[#0f2b25] active:scale-95"
+          @click="openShareModal"
+        >
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+          </svg>
+          <span>{{ t('mood.share') }}</span>
+        </button>
+
+        <button
+          v-if="standalone"
+          type="button"
+          id="btn-mood-builder"
+          class="flex items-center gap-1.5 rounded-xl border border-[#173D35] bg-white px-3 py-2 text-xs font-bold text-[#173D35] shadow-sm transition hover:bg-[#173D35] hover:text-white"
+          @click="router.push('/build')"
+        >
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+          </svg>
+          <span class="hidden sm:inline">{{ t('mood.backToBuilder') }}</span>
+        </button>
+
+        <button
+          type="button"
+          id="btn-mood-close"
+          class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-[#173D35] hover:bg-[#173D35] hover:text-[#F5F3EC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#173D35]"
+          :aria-label="t('mood.close')"
+          @click="handleClose"
+        >
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M6 6 L18 18 M18 6 L6 18" />
+          </svg>
+        </button>
+      </div>
     </header>
 
     <form class="flex flex-wrap items-center gap-2 px-4 pb-3 md:px-8" @submit.prevent="submitLink">
@@ -195,6 +238,22 @@
               @input="onCaption(piece, $event)"
               @change="persist"
             ></textarea>
+
+            <!-- Post-it author corner badge -->
+            <div
+              v-if="piece.author?.avatar"
+              class="mt-1 flex items-center gap-1.5 rounded-full bg-black/6 px-1.5 py-0.5 w-fit select-none"
+              :title="piece.author.name ? `Tillagd av ${piece.author.name}` : ''"
+            >
+              <img
+                :src="piece.author.avatar"
+                :alt="piece.author.name"
+                class="h-3.5 w-3.5 rounded-full object-cover ring-1 ring-black/10"
+              />
+              <span class="max-w-[70px] truncate text-[9.5px] font-bold text-black/70">
+                {{ piece.author.name }}
+              </span>
+            </div>
           </template>
 
           <!-- IMAGE / CLIP RENDERING -->
@@ -271,6 +330,22 @@
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
                 </svg>
                 <span>{{ t('mood.openLightbox') }}</span>
+              </div>
+
+              <!-- Author avatar badge on corner -->
+              <div
+                v-if="piece.author?.avatar"
+                class="pointer-events-none absolute bottom-2 left-2 z-10 flex items-center gap-1.5 rounded-full bg-black/65 px-2 py-0.5 text-white shadow-md backdrop-blur-xs ring-1 ring-white/20 select-none transition group-hover:scale-105"
+                :title="piece.author.name ? `Tillagd av ${piece.author.name}` : ''"
+              >
+                <img
+                  :src="piece.author.avatar"
+                  :alt="piece.author.name"
+                  class="h-4.5 w-4.5 rounded-full object-cover ring-1 ring-white/40"
+                />
+                <span class="max-w-[75px] truncate text-[10px] font-semibold text-white/95">
+                  {{ piece.author.name }}
+                </span>
               </div>
 
               <button
@@ -412,12 +487,162 @@
         </div>
       </div>
     </Teleport>
+
+    <!-- SHARE MODAL WITH QR CODE -->
+    <Teleport to="body">
+      <div
+        v-if="showShareModal"
+        id="mood-share-modal"
+        class="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
+        role="dialog"
+        :aria-label="t('mood.shareTitle')"
+        @click.self="showShareModal = false"
+      >
+        <div class="relative w-full max-w-md rounded-3xl border border-[#d7d1c4] bg-[#FDFBF7] p-6 shadow-2xl sm:p-8">
+          <div class="flex items-center justify-between pb-2">
+            <div class="flex items-center gap-2.5">
+              <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-[#173D35] text-lg text-white">🔗</span>
+              <h3 class="text-xl font-bold text-[#173D35]">{{ t('mood.shareTitle') }}</h3>
+            </div>
+            <button
+              type="button"
+              class="flex h-9 w-9 items-center justify-center rounded-xl text-stone-500 hover:bg-stone-200"
+              @click="showShareModal = false"
+            >
+              ✕
+            </button>
+          </div>
+
+          <p class="mt-1 text-sm text-[#4a5851]">
+            {{ t('mood.shareLead') }}
+          </p>
+
+          <!-- QR Code Container -->
+          <div class="mt-5 flex flex-col items-center justify-center rounded-2xl border border-stone-200 bg-white p-5 shadow-xs">
+            <div
+              v-if="qrSvg"
+              class="h-52 w-52 [&>svg]:h-full [&>svg]:w-full"
+              v-html="qrSvg"
+            ></div>
+            <div v-else class="flex h-52 w-52 items-center justify-center text-stone-400 text-xs">
+              Laddar QR-kod...
+            </div>
+            <p class="mt-3 flex items-center gap-1.5 text-xs font-semibold text-[#173D35]">
+              <span>📱</span>
+              <span>{{ t('mood.scanMe') }}</span>
+            </p>
+          </div>
+
+          <!-- Share Link & Copy Button -->
+          <div class="mt-5 space-y-2">
+            <div class="flex items-center gap-2">
+              <input
+                id="mood-share-url-input"
+                type="text"
+                readonly
+                :value="shareUrl"
+                class="w-full rounded-xl border border-stone-300 bg-white px-3.5 py-2.5 text-xs font-mono text-stone-800 focus:outline-none"
+              />
+              <button
+                type="button"
+                id="btn-copy-mood-url"
+                class="flex h-10 shrink-0 items-center gap-1.5 rounded-xl bg-[#173D35] px-4 text-xs font-bold text-white transition hover:bg-[#0f2b25]"
+                @click="copyShareUrl"
+              >
+                <span>{{ copiedNotice ? '✓ ' + t('mood.copied') : t('mood.copyLink') }}</span>
+              </button>
+            </div>
+            <p v-if="copiedNotice" class="text-xs font-medium text-emerald-700">
+              ✓ {{ t('mood.copied') }}
+            </p>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
+    <!-- PARTICIPANT PROFILE & EMAIL NOTIFICATION MODAL -->
+    <Teleport to="body">
+      <div
+        v-if="showProfileModal"
+        id="mood-profile-modal"
+        class="fixed inset-0 z-[110] flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
+        role="dialog"
+        :aria-label="t('mood.myProfile')"
+        @click.self="showProfileModal = false"
+      >
+        <div class="relative w-full max-w-md rounded-3xl border border-[#d7d1c4] bg-[#FDFBF7] p-6 shadow-2xl sm:p-8">
+          <div class="flex items-center justify-between pb-2">
+            <div class="flex items-center gap-2.5">
+              <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-[#173D35] text-lg text-white">👤</span>
+              <h3 class="text-xl font-bold text-[#173D35]">{{ t('mood.myProfile') }}</h3>
+            </div>
+            <button
+              type="button"
+              class="flex h-9 w-9 items-center justify-center rounded-xl text-stone-500 hover:bg-stone-200"
+              @click="showProfileModal = false"
+            >
+              ✕
+            </button>
+          </div>
+
+          <div class="mt-4 flex items-center gap-4 rounded-2xl bg-white p-4 border border-stone-200">
+            <img
+              v-if="currentAuthor.avatar"
+              :src="currentAuthor.avatar"
+              :alt="currentAuthor.name"
+              class="h-16 w-16 rounded-2xl object-cover ring-2 ring-[#173D35]/20 shadow-md"
+            />
+            <div class="min-w-0 flex-1">
+              <p class="truncate text-base font-bold text-[#173D35]">{{ currentAuthor.name }}</p>
+              <button
+                type="button"
+                class="mt-1 flex items-center gap-1 text-xs font-semibold text-[#173D35] underline hover:text-[#0f2b25]"
+                @click="reopenJoinPage"
+              >
+                <span>🍳</span>
+                <span>{{ t('mood.recookAvatar') }}</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Email notifications form -->
+          <form class="mt-5 space-y-3" @submit.prevent="saveProfileEmail">
+            <label for="profile-email" class="block text-xs font-bold uppercase tracking-wider text-[#173D35]">
+              {{ t('mood.emailLabel') }}
+            </label>
+            <div class="flex items-center gap-2">
+              <input
+                id="profile-email"
+                v-model="profileEmail"
+                type="email"
+                placeholder="din.epost@exempel.se"
+                class="flex-1 rounded-xl border border-stone-300 bg-white px-3.5 py-2.5 text-xs text-stone-800 focus:outline-none focus:ring-2 focus:ring-[#173D35]/20"
+              />
+              <button
+                type="submit"
+                class="h-10 shrink-0 rounded-xl bg-[#173D35] px-4 text-xs font-bold text-white transition hover:bg-[#0f2b25]"
+              >
+                Spara
+              </button>
+            </div>
+            <p v-if="profileEmailSavedNotice" class="text-xs font-medium text-emerald-700">
+              ✓ {{ t('mood.notificationsOn') || 'Aviseringar sparade!' }}
+            </p>
+            <p class="text-xs text-stone-500">
+              {{ t('mood.emailHint') }}
+            </p>
+          </form>
+        </div>
+      </div>
+    </Teleport>
   </section>
 </template>
 
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import { useConfigStore } from '../store/useConfigStore';
+import { useSessionStore } from '../store/useSessionStore';
 import { useLabels } from '../i18n';
 import Cms from './Cms.vue';
 import {
@@ -429,19 +654,49 @@ import {
   vimeoEmbed,
   youtubeEmbed,
   youtubePoster,
+  type MoodAuthor,
   type MoodColor,
+  type MoodParticipant,
   type MoodPiece
 } from '../mood/board';
+import { defaultAccountAvatar } from '../mood/avatar';
+import { generateQrSvg } from '../mood/qr';
 import { pictureDataUrl } from '../mood/image';
-import { deleteClip, getClip, loadMood, moodHouseKey, putClip, saveMood } from '../services/moodSave';
+import {
+  deleteClip,
+  getClip,
+  getStoredParticipant,
+  loadMood,
+  moodHouseKey,
+  putClip,
+  saveMood,
+  saveStoredParticipant
+} from '../services/moodSave';
 import { watchActiveHouseId } from '../services/houseSave';
+
+const props = withDefaults(
+  defineProps<{
+    standalone?: boolean;
+  }>(),
+  {
+    standalone: false
+  }
+);
+
+const emit = defineEmits<{
+  (e: 'reopen-profile'): void;
+}>();
 
 const CLIP_LIMIT = 12 * 1024 * 1024;
 const NOTE_COLORS: MoodColor[] = ['yellow', 'sand', 'moss', 'sky', 'rose'];
 
+const router = useRouter();
 const store = useConfigStore();
+const sessionStore = useSessionStore();
 const { t, locale } = useLabels();
+
 const pieces = ref<MoodPiece[]>([]);
+const participants = ref<MoodParticipant[]>([]);
 const title = ref('');
 const createdAt = ref('');
 const link = ref('');
@@ -456,6 +711,13 @@ const fileInput = ref<HTMLInputElement | null>(null);
 const lightboxIndex = ref<number | null>(null);
 const activeId = ref('');
 
+const showShareModal = ref(false);
+const showProfileModal = ref(false);
+const qrSvg = ref('');
+const copiedNotice = ref(false);
+const profileEmail = ref('');
+const profileEmailSavedNotice = ref(false);
+
 let houseKey = moodHouseKey();
 let dragDepth = 0;
 let stopWatch = () => {};
@@ -469,6 +731,97 @@ let drag: {
   w: number;
   hasMoved: boolean;
 } | null = null;
+
+const shareUrl = computed(() => {
+  const base = typeof window !== 'undefined' ? window.location.origin : '';
+  return `${base}/mood?board=${encodeURIComponent(houseKey)}`;
+});
+
+const currentAuthor = computed<MoodAuthor>(() => {
+  const stored = getStoredParticipant();
+  if (stored) {
+    return {
+      name: stored.name,
+      avatar: stored.avatar,
+      email: stored.email
+    };
+  }
+  if (sessionStore.user) {
+    const u = sessionStore.user;
+    return {
+      name: u.name || u.login || 'Ägare',
+      avatar: u.avatarUrl || defaultAccountAvatar(u.name || u.login),
+      email: u.email
+    };
+  }
+  return {
+    name: 'Ägare',
+    avatar: defaultAccountAvatar('Ägare')
+  };
+});
+
+function backfillExistingPiecesAuthor() {
+  const author = currentAuthor.value;
+  let changed = false;
+  for (const p of pieces.value) {
+    if (!p.author) {
+      p.author = { ...author };
+      changed = true;
+    }
+  }
+  if (changed) {
+    persist();
+  }
+}
+
+async function openShareModal() {
+  showShareModal.value = true;
+  qrSvg.value = await generateQrSvg(shareUrl.value);
+}
+
+async function copyShareUrl() {
+  try {
+    await navigator.clipboard.writeText(shareUrl.value);
+    copiedNotice.value = true;
+    setTimeout(() => {
+      copiedNotice.value = false;
+    }, 3000);
+  } catch {
+    // fallback
+  }
+}
+
+function openProfileModal() {
+  profileEmail.value = currentAuthor.value.email || '';
+  profileEmailSavedNotice.value = false;
+  showProfileModal.value = true;
+}
+
+function saveProfileEmail() {
+  const existing = getStoredParticipant();
+  const nextEmail = profileEmail.value.trim() || undefined;
+  if (existing) {
+    existing.email = nextEmail;
+    saveStoredParticipant(existing);
+  }
+  profileEmailSavedNotice.value = true;
+  setTimeout(() => {
+    profileEmailSavedNotice.value = false;
+  }, 3000);
+}
+
+function reopenJoinPage() {
+  showProfileModal.value = false;
+  emit('reopen-profile');
+}
+
+function handleClose() {
+  if (props.standalone) {
+    void router.push('/build');
+  } else {
+    store.showMood = false;
+  }
+}
 
 const formattedCreated = computed(() => {
   if (!createdAt.value) return '';
@@ -488,10 +841,15 @@ const currentLightboxPiece = computed(() => {
 });
 
 onMounted(() => {
+  void sessionStore.ensureAccountState().then(() => {
+    backfillExistingPiecesAuthor();
+  });
   const data = loadMood(houseKey);
   pieces.value = data.pieces;
+  participants.value = data.participants || [];
   title.value = data.title;
   createdAt.value = data.createdAt || (data.pieces.length > 0 ? new Date().toISOString() : '');
+  backfillExistingPiecesAuthor();
   void hydrate();
   window.addEventListener('paste', onPaste);
   window.addEventListener('keydown', onKeyDown);
@@ -505,8 +863,10 @@ onMounted(() => {
     revokeUrls();
     const nextData = loadMood(houseKey);
     pieces.value = nextData.pieces;
+    participants.value = nextData.participants || [];
     title.value = nextData.title;
     createdAt.value = nextData.createdAt || (nextData.pieces.length > 0 ? new Date().toISOString() : '');
+    backfillExistingPiecesAuthor();
     void hydrate();
   });
 });
@@ -599,7 +959,8 @@ function persist() {
   saveMood({
     title: title.value,
     createdAt: createdAt.value,
-    pieces: pieces.value
+    pieces: pieces.value,
+    participants: participants.value
   }, houseKey);
 }
 
@@ -620,7 +981,7 @@ function addLink(raw: string) {
     notice.value = 'mood.bad';
     return;
   }
-  pieces.value.push(pieceFrom(parsed, pieces.value.length));
+  pieces.value.push(pieceFrom(parsed, pieces.value.length, '', { ...currentAuthor.value }));
   persist();
 }
 
@@ -642,7 +1003,8 @@ function addPostIt(color: MoodColor = 'yellow') {
     y: spot.y,
     w: 22,
     tilt: Math.random() * 4 - 2,
-    caption: ''
+    caption: '',
+    author: { ...currentAuthor.value }
   };
   pieces.value.push(note);
   persist();
@@ -670,7 +1032,7 @@ async function addFiles(files: File[]) {
       const parsed = readLink(`local:${id}`);
       if (!parsed) continue;
       urls.value = { ...urls.value, [id]: URL.createObjectURL(file) };
-      pieces.value.push({ id, ...parsed, ...placeFor(pieces.value.length), caption: '' });
+      pieces.value.push({ id, ...parsed, ...placeFor(pieces.value.length), caption: '', author: { ...currentAuthor.value } });
       continue;
     }
     if (!file.type.startsWith('image/')) {
@@ -684,7 +1046,7 @@ async function addFiles(files: File[]) {
         notice.value = 'mood.bad';
         continue;
       }
-      pieces.value.push(pieceFrom(parsed, pieces.value.length));
+      pieces.value.push(pieceFrom(parsed, pieces.value.length, '', { ...currentAuthor.value }));
     } catch {
       notice.value = 'mood.big';
     }

@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { acceptMood, acceptMoodBoard, pieceFrom, readLink, youtubeEmbed, vimeoEmbed } from '../src/mood/board.ts';
+import { generateAiAvatar, defaultAccountAvatar } from '../src/mood/avatar.ts';
+import { generateQrSvg } from '../src/mood/qr.ts';
 
 test('a mood link accepts pictures, films, and same-site paths', () => {
   const youtube = readLink('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
@@ -90,4 +92,63 @@ test('a mood board accepts title, createdAt, and pieces', () => {
   assert.equal(board.createdAt, '2026-10-11T20:00:00.000Z');
   assert.equal(board.pieces.length, 1);
   assert.equal(board.pieces[0].caption, 'Blå himmel och hav');
+});
+
+test('a mood piece preserves author avatar and name', () => {
+  const author = {
+    name: 'Maria Lind',
+    avatar: 'data:image/svg+xml;utf8,<svg></svg>',
+    email: 'maria@example.com'
+  };
+  const piece = pieceFrom(readLink('https://photos.example/kitchen.webp'), 0, 'fint kök', author);
+  assert.equal(piece.author?.name, 'Maria Lind');
+  assert.equal(piece.author?.email, 'maria@example.com');
+  const saved = acceptMood([piece]);
+  assert.equal(saved[0].author?.name, 'Maria Lind');
+  assert.equal(saved[0].author?.avatar, author.avatar);
+});
+
+test('a mood board accepts participants list', () => {
+  const participant = {
+    id: 'part_abc123',
+    name: 'Alex',
+    avatar: 'data:image/svg+xml;utf8,<svg></svg>',
+    email: 'alex@example.com',
+    themes: ['Foresty', 'Chill'],
+    joinedAt: '2026-10-12T19:00:00.000Z'
+  };
+  const board = acceptMoodBoard({
+    title: 'Familjens Moodboard',
+    pieces: [],
+    participants: [participant]
+  });
+  assert.equal(board.participants?.length, 1);
+  assert.equal(board.participants?.[0].name, 'Alex');
+  assert.deepEqual(board.participants?.[0].themes, ['Foresty', 'Chill']);
+});
+
+test('ai avatar generator blends up to three themes into an svg avatar', () => {
+  const avatar = generateAiAvatar({
+    name: 'Maria Lind',
+    themes: ['Foresty', 'Flowery', 'Dreamy']
+  });
+  assert.ok(avatar.startsWith('data:image/svg+xml;utf8,'));
+  const decoded = decodeURIComponent(avatar.replace('data:image/svg+xml;utf8,', ''));
+  assert.ok(decoded.includes('<svg'));
+  assert.ok(decoded.includes('ML'));
+  assert.ok(decoded.includes('Foresty'));
+});
+
+test('default account avatar creates branded owner initials badge', () => {
+  const avatar = defaultAccountAvatar('Thomas');
+  assert.ok(avatar.startsWith('data:image/svg+xml;utf8,'));
+  const decoded = decodeURIComponent(avatar.replace('data:image/svg+xml;utf8,', ''));
+  assert.ok(decoded.includes('<svg'));
+  assert.ok(decoded.includes('TH'));
+});
+
+test('qr generator creates valid svg for share links', async () => {
+  const svg = await generateQrSvg('https://example.com/mood?board=hus_123');
+  assert.ok(svg.includes('<svg'));
+  assert.ok(svg.includes('viewBox'));
 });

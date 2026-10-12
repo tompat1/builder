@@ -1,9 +1,10 @@
 /** Mood boards live beside the house file. Pictures stay small; clips stay in IndexedDB. */
 
-import { acceptMood, type MoodPiece } from '../mood/board';
+import { acceptMood, acceptMoodBoard, type MoodParticipant, type MoodPiece } from '../mood/board';
 import { readActiveHouseId } from './houseSave';
 
 const KEY = 'builder.mood';
+const PARTICIPANT_KEY = 'builder.mood.participant';
 const DB_NAME = 'builder-mood';
 const STORE = 'clips';
 const JSON_BUDGET = 3_200_000;
@@ -12,10 +13,43 @@ export interface MoodBoardState {
   title: string;
   createdAt: string;
   pieces: MoodPiece[];
+  participants?: MoodParticipant[];
 }
 
 export function moodHouseKey() {
   return readActiveHouseId() || 'draft';
+}
+
+export function getStoredParticipant(): MoodParticipant | null {
+  try {
+    const raw = localStorage.getItem(PARTICIPANT_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw) as unknown;
+    if (!data || typeof data !== 'object') return null;
+    const rec = data as Record<string, unknown>;
+    const id = typeof rec.id === 'string' ? rec.id : '';
+    const name = typeof rec.name === 'string' ? rec.name : '';
+    const avatar = typeof rec.avatar === 'string' ? rec.avatar : '';
+    if (!id || !name || !avatar) return null;
+    return {
+      id,
+      name,
+      avatar,
+      email: typeof rec.email === 'string' ? rec.email : undefined,
+      themes: Array.isArray(rec.themes) ? (rec.themes as string[]) : undefined,
+      joinedAt: typeof rec.joinedAt === 'string' ? rec.joinedAt : new Date().toISOString()
+    };
+  } catch {
+    return null;
+  }
+}
+
+export function saveStoredParticipant(p: MoodParticipant) {
+  try {
+    localStorage.setItem(PARTICIPANT_KEY, JSON.stringify(p));
+  } catch {
+    // ignore
+  }
 }
 
 export function hasMoodBoard(houseKey: string): boolean {
@@ -54,25 +88,12 @@ function isMoodNonEmpty(raw: unknown): boolean {
 export function loadMood(houseKey = moodHouseKey()): MoodBoardState {
   const all = bucket();
   const raw = all[houseKey];
-  if (Array.isArray(raw)) {
-    return {
-      title: '',
-      createdAt: raw.length > 0 ? new Date().toISOString() : '',
-      pieces: acceptMood(raw)
-    };
-  }
-  if (raw && typeof raw === 'object') {
-    const rec = raw as Record<string, unknown>;
-    return {
-      title: typeof rec.title === 'string' ? rec.title.slice(0, 100) : '',
-      createdAt: typeof rec.createdAt === 'string' ? rec.createdAt.slice(0, 50) : '',
-      pieces: acceptMood(rec.pieces)
-    };
-  }
+  const parsed = acceptMoodBoard(raw);
   return {
-    title: '',
-    createdAt: '',
-    pieces: []
+    title: parsed.title,
+    createdAt: parsed.createdAt || (parsed.pieces.length > 0 ? new Date().toISOString() : ''),
+    pieces: parsed.pieces,
+    ...(parsed.participants ? { participants: parsed.participants } : {})
   };
 }
 
@@ -85,7 +106,8 @@ export function saveMood(content: MoodBoardState | MoodPiece[], houseKey = moodH
       createdAt: prev && typeof prev.createdAt === 'string' && prev.createdAt
         ? prev.createdAt
         : (content.length > 0 ? new Date().toISOString() : ''),
-      pieces: acceptMood(content)
+      pieces: acceptMood(content),
+      ...(Array.isArray(prev?.participants) ? { participants: prev.participants } : {})
     };
   } else {
     all[houseKey] = {
@@ -93,7 +115,8 @@ export function saveMood(content: MoodBoardState | MoodPiece[], houseKey = moodH
       createdAt: typeof content.createdAt === 'string' && content.createdAt
         ? content.createdAt.slice(0, 50)
         : new Date().toISOString(),
-      pieces: acceptMood(content.pieces)
+      pieces: acceptMood(content.pieces),
+      ...(content.participants ? { participants: content.participants } : {})
     };
   }
   try {
@@ -141,18 +164,13 @@ function bucket(): Record<string, unknown> {
 function fit(all: Record<string, unknown>, keep: string): Record<string, MoodBoardState> {
   const boards: Record<string, MoodBoardState> = {};
   for (const [key, value] of Object.entries(all)) {
-    if (Array.isArray(value)) {
-      boards[key] = { title: '', createdAt: '', pieces: acceptMood(value) };
-    } else if (value && typeof value === 'object') {
-      const rec = value as Record<string, unknown>;
-      boards[key] = {
-        title: typeof rec.title === 'string' ? rec.title.slice(0, 100) : '',
-        createdAt: typeof rec.createdAt === 'string' ? rec.createdAt.slice(0, 50) : '',
-        pieces: acceptMood(rec.pieces)
-      };
-    } else {
-      boards[key] = { title: '', createdAt: '', pieces: [] };
-    }
+    const parsed = acceptMoodBoard(value);
+    boards[key] = {
+      title: parsed.title,
+      createdAt: parsed.createdAt,
+      pieces: parsed.pieces,
+      ...(parsed.participants ? { participants: parsed.participants } : {})
+    };
   }
   const keys = Object.keys(boards);
   while (JSON.stringify(boards).length > JSON_BUDGET) {
