@@ -2948,7 +2948,9 @@ export class HouseScene {
     roofMat: THREE.Material,
     terrace: HouseTerrace,
     w: number,
-    d: number
+    d: number,
+    openLeft = true,
+    openRight = true
   ) {
     const outward = this.outwardSign(door.wall);
     const depth = terrace.depth;
@@ -2958,15 +2960,16 @@ export class HouseScene {
       ? wallSpan
       : Math.min(Math.max(door.width + 1.5, 2.4), Math.max(1.6, wallSpan - 0.3));
     const along = full ? 0 : this.terraceShift(door, width, w, d);
-    const deckTop = 0.36;
+    const deckTop = 0.28;
     const boardT = 0.028;
+    const rimH = deckTop - boardT;
     const group = new THREE.Group();
     group.position.set(door.px, 0, door.pz);
     group.rotation.y = door.rotY;
 
     const boardLayout = terraceBoardLayout(depth);
     // Skirting ledger plate against the wall face seals any gap between the wall base and deck
-    const skirtingH = Math.max(0.04, deckTop - 0.25);
+    const skirtingH = Math.max(0.03, deckTop - 0.25);
     const skirting = new THREE.Mesh(
       new THREE.BoxGeometry(width, skirtingH, 0.045),
       timber
@@ -2990,18 +2993,34 @@ export class HouseScene {
     const joistCount = Math.max(3, Math.round(width / 0.55));
     const joistStart = 0.22;
     const joistLen = Math.max(0.4, depth - joistStart - 0.02);
+    const joistH = Math.min(0.12, rimH);
     for (let i = 0; i < joistCount; i++) {
-      const joist = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.12, joistLen), timber);
+      const joist = new THREE.Mesh(new THREE.BoxGeometry(0.045, joistH, joistLen), timber);
       const x = -width / 2 + 0.08 + (i * (width - 0.16)) / Math.max(1, joistCount - 1);
-      joist.position.set(along + x, deckTop - boardT - 0.07, outward * (joistStart + joistLen / 2));
+      joist.position.set(along + x, deckTop - boardT - joistH / 2, outward * (joistStart + joistLen / 2));
       joist.castShadow = true;
       group.add(joist);
     }
 
-    const rim = new THREE.Mesh(new THREE.BoxGeometry(width, 0.14, 0.028), timber);
-    rim.position.set(along, deckTop - 0.1, outward * (depth - 0.014));
+    // Front rim extends from ground y = 0 up to the underside of the deck boards
+    const rim = new THREE.Mesh(new THREE.BoxGeometry(width, rimH, 0.028), timber);
+    rim.position.set(along, rimH / 2, outward * (depth - 0.014));
     rim.castShadow = true;
     group.add(rim);
+
+    // Side rims extend from ground y = 0 up to deck boards on exposed outer ends
+    if (openLeft) {
+      const leftRim = new THREE.Mesh(new THREE.BoxGeometry(0.028, rimH, depth), timber);
+      leftRim.position.set(along - width / 2 + 0.014, rimH / 2, outward * (depth / 2));
+      leftRim.castShadow = true;
+      group.add(leftRim);
+    }
+    if (openRight) {
+      const rightRim = new THREE.Mesh(new THREE.BoxGeometry(0.028, rimH, depth), timber);
+      rightRim.position.set(along + width / 2 - 0.014, rimH / 2, outward * (depth / 2));
+      rightRim.castShadow = true;
+      group.add(rightRim);
+    }
 
     if (terrace.roof) {
       this.addTerraceRoof(group, door, timber, roofMat, along, width, depth, deckTop, outward);
@@ -3047,8 +3066,9 @@ export class HouseScene {
     deckAlt: THREE.Material,
     timber: THREE.Material
   ) {
-    const deckTop = 0.36;
+    const deckTop = 0.28;
     const boardT = 0.028;
+    const rimH = deckTop - boardT;
     // Full terraces start at the middle of the 25 mm cladding. Subtracting
     // that half-thickness here makes the corner finish on their exact outer
     // edges while beginning flush at the building corner.
@@ -3074,12 +3094,13 @@ export class HouseScene {
       group.add(board);
     }
 
-    const rimX = new THREE.Mesh(new THREE.BoxGeometry(0.028, 0.14, spanZ), timber);
-    rimX.position.set(signX * (spanX - 0.014), deckTop - 0.1, signZ * (spanZ / 2));
+    // Outer rims extend from ground y = 0 up to deck boards so the deck is never floating
+    const rimX = new THREE.Mesh(new THREE.BoxGeometry(0.028, rimH, spanZ), timber);
+    rimX.position.set(signX * (spanX - 0.014), rimH / 2, signZ * (spanZ / 2));
     rimX.castShadow = true;
     group.add(rimX);
-    const rimZ = new THREE.Mesh(new THREE.BoxGeometry(spanX, 0.14, 0.028), timber);
-    rimZ.position.set(signX * (spanX / 2), deckTop - 0.1, signZ * (spanZ - 0.014));
+    const rimZ = new THREE.Mesh(new THREE.BoxGeometry(spanX, rimH, 0.028), timber);
+    rimZ.position.set(signX * (spanX / 2), rimH / 2, signZ * (spanZ - 0.014));
     rimZ.castShadow = true;
     group.add(rimZ);
 
@@ -3140,7 +3161,26 @@ export class HouseScene {
         this.addDoorCanopy(door, timber, roofMat);
       }
     }
+    const fullSides = new Set(terraces.filter((item) => item.span === 'full').map((item) => item.side));
+
     for (const terrace of terraces) {
+      let openLeft = true;
+      let openRight = true;
+      if (terrace.span === 'full') {
+        if (terrace.side === 'front') {
+          openLeft = !fullSides.has('left');
+          openRight = !fullSides.has('right');
+        } else if (terrace.side === 'back') {
+          openLeft = !fullSides.has('right');
+          openRight = !fullSides.has('left');
+        } else if (terrace.side === 'left') {
+          openLeft = !fullSides.has('back');
+          openRight = !fullSides.has('front');
+        } else if (terrace.side === 'right') {
+          openLeft = !fullSides.has('front');
+          openRight = !fullSides.has('back');
+        }
+      }
       this.addTerrace(
         this.terraceAnchor(terrace, w, d, h),
         deckMat,
@@ -3149,7 +3189,9 @@ export class HouseScene {
         roofMat,
         terrace,
         w,
-        d
+        d,
+        openLeft,
+        openRight
       );
     }
     this.addTerraceCorners(terraces, deckMat, deckAlt, timber, w, d);
