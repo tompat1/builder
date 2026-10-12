@@ -1148,37 +1148,12 @@ export class HouseScene {
 
   private isGlobalListening = false;
 
-  private safeSetPointerCapture(pointerId?: number) {
-    if (pointerId === undefined || !this.container) return;
-    try {
-      this.container.setPointerCapture(pointerId);
-    } catch {
-      // Ignored: global window listeners ensure uninterrupted drag
-    }
-  }
-
-  private safeReleasePointerCapture(pointerId?: number) {
-    if (pointerId === undefined || !this.container) return;
-    try {
-      if (this.container.hasPointerCapture(pointerId)) {
-        this.container.releasePointerCapture(pointerId);
-      }
-    } catch {
-      // Ignored
-    }
-  }
-
   private attachGlobalDragListeners() {
     if (this.isGlobalListening || typeof window === 'undefined') return;
     this.isGlobalListening = true;
     window.addEventListener('pointermove', this.onGlobalPointerMove, { passive: true });
     window.addEventListener('pointerup', this.onGlobalPointerUp);
-    window.addEventListener('pointercancel', this.onGlobalPointerCancel);
-    window.addEventListener('blur', this.onGlobalBlur);
     window.addEventListener('keydown', this.onGlobalKeyDown);
-    if (this.container) {
-      this.container.addEventListener('lostpointercapture', this.onLostPointerCapture);
-    }
   }
 
   private detachGlobalDragListeners() {
@@ -1186,12 +1161,7 @@ export class HouseScene {
     this.isGlobalListening = false;
     window.removeEventListener('pointermove', this.onGlobalPointerMove);
     window.removeEventListener('pointerup', this.onGlobalPointerUp);
-    window.removeEventListener('pointercancel', this.onGlobalPointerCancel);
-    window.removeEventListener('blur', this.onGlobalBlur);
     window.removeEventListener('keydown', this.onGlobalKeyDown);
-    if (this.container) {
-      this.container.removeEventListener('lostpointercapture', this.onLostPointerCapture);
-    }
   }
 
   private onGlobalPointerMove = (e: PointerEvent) => {
@@ -1203,24 +1173,6 @@ export class HouseScene {
   private onGlobalPointerUp = (e: PointerEvent) => {
     if (this.draggingSlot || this.draggingRoom) {
       this.handlePointerUp(e);
-    }
-  };
-
-  private onGlobalPointerCancel = (e: PointerEvent) => {
-    if (this.draggingSlot || this.draggingRoom) {
-      this.cancelActiveDrag();
-    }
-  };
-
-  private onGlobalBlur = () => {
-    if (this.draggingSlot || this.draggingRoom) {
-      this.cancelActiveDrag();
-    }
-  };
-
-  private onLostPointerCapture = () => {
-    if (this.draggingSlot || this.draggingRoom) {
-      this.cancelActiveDrag();
     }
   };
 
@@ -1319,7 +1271,6 @@ export class HouseScene {
       const dy = e.clientY - this.draggingSlot.startY;
       if (!this.draggingSlot.hasMoved && Math.hypot(dx, dy) > 8) {
         this.draggingSlot.hasMoved = true;
-        this.safeSetPointerCapture(this.draggingSlot.pointerId);
         this.container.style.cursor = 'grabbing';
         this.updateHoverBox(null);
         this.onPanelHover?.(null, 0, 0);
@@ -1384,10 +1335,7 @@ export class HouseScene {
 
   private handlePointerUp = (e: PointerEvent) => {
     if (this.draggingRoom) {
-      const drag = this.draggingRoom;
       this.finishRoomDrag(true);
-      this.safeReleasePointerCapture(drag.pointerId);
-      this.safeReleasePointerCapture(e.pointerId);
       this.draggingRoom = null;
       this.controls.enabled = true;
       this.container.style.cursor = 'default';
@@ -1401,14 +1349,23 @@ export class HouseScene {
       this.controls.enabled = true;
       this.updateDragTargetBox(null, false);
       this.container.style.cursor = 'default';
-      this.safeReleasePointerCapture(drag.pointerId);
-      this.safeReleasePointerCapture(e.pointerId);
       this.detachGlobalDragListeners();
       this.onDragStateChange?.(false);
 
       if (drag.hasMoved) {
-        if (this.hoveredTargetSlotId && this.hoveredTargetSlotId !== drag.slotId) {
-          this.onSlotMove?.(drag.slotId, this.hoveredTargetSlotId);
+        let targetId = this.hoveredTargetSlotId;
+        if (!targetId && this.outsideShell()) {
+          const rect = this.container.getBoundingClientRect();
+          this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+          this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+          this.raycaster.setFromCamera(this.mouse, this.camera);
+          const hits = this.raycaster.intersectObjects(this.interactivePanels, false);
+          if (hits.length > 0) {
+            targetId = hits[0].object.userData.slotId as string;
+          }
+        }
+        if (targetId && targetId !== drag.slotId) {
+          this.onSlotMove?.(drag.slotId, targetId);
         }
         this.hoveredTargetSlotId = null;
         return;
@@ -1437,21 +1394,17 @@ export class HouseScene {
 
   private cancelActiveDrag = () => {
     if (this.draggingRoom) {
-      const drag = this.draggingRoom;
       this.finishRoomDrag(false);
-      this.safeReleasePointerCapture(drag.pointerId);
       this.draggingRoom = null;
       this.controls.enabled = true;
       this.container.style.cursor = 'default';
     }
     if (this.draggingSlot) {
-      const drag = this.draggingSlot;
       this.draggingSlot = null;
       this.controls.enabled = true;
       this.updateDragTargetBox(null, false);
       this.hoveredTargetSlotId = null;
       this.container.style.cursor = 'default';
-      this.safeReleasePointerCapture(drag.pointerId);
     }
     if (this.panelTouchPress) {
       this.panelTouchPress = null;
@@ -1461,9 +1414,195 @@ export class HouseScene {
     this.onDragStateChange?.(false);
   };
 
-  private handlePointerCancel = (e: PointerEvent) => {
-    this.safeReleasePointerCapture(e.pointerId);
-    this.cancelActiveDrag();
+  private handlePointerDown = (e: PointerEvent) => {
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    if (this.measuring) {
+      this.measureDown = e.button === 0 ? { x: e.clientX, y: e.clientY } : null;
+      return;
+    }
+    if (this.currentConfig.isFullscreen) return;
+
+    if (!this.outsideShell() && this.currentConfig.interactionMode === 'draw_wall') {
+      const pt = this.housePointAt(e.clientX, e.clientY);
+      if (pt) {
+        const { hx, hz } = this.shellLimits();
+        const vecPt = new THREE.Vector3(
+          Math.min(hx - 0.05, Math.max(-hx + 0.05, pt.x)),
+          0,
+          Math.min(hz - 0.05, Math.max(-hz + 0.05, pt.z))
+        );
+        this.drawingWallPoints.push(vecPt);
+
+        // Render a simple pillar at the click point
+        const geo = new THREE.CylinderGeometry(0.05, 0.05, 2.4, 16);
+        const mat = new THREE.MeshStandardMaterial({ color: 0x10b981, transparent: true, opacity: 0.8 });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.copy(vecPt);
+        mesh.position.y = 1.2;
+        this.interiorGroup.add(mesh);
+
+        if (this.drawingWallPoints.length >= 2) {
+          // Draw a wall segment between the last two points
+          const p1 = this.drawingWallPoints[this.drawingWallPoints.length - 2];
+          const p2 = this.drawingWallPoints[this.drawingWallPoints.length - 1];
+          const dist = p1.distanceTo(p2);
+          const wallGeo = new THREE.BoxGeometry(0.1, 2.4, dist);
+          const wallMesh = new THREE.Mesh(wallGeo, mat);
+          wallMesh.position.copy(p1).lerp(p2, 0.5);
+          wallMesh.position.y = 1.2;
+          wallMesh.lookAt(p2.x, 1.2, p2.z);
+          this.interiorGroup.add(wallMesh);
+        }
+      }
+      return;
+    }
+
+    if (!this.outsideShell() && this.currentConfig.interactionMode === 'place_utility') {
+      const pt = this.housePointAt(e.clientX, e.clientY);
+      if (pt) {
+        const vecPt = new THREE.Vector3(pt.x, 0, pt.z);
+
+        const coreGeo = new THREE.BoxGeometry(0.6, 2.4, 0.6);
+        const coreMat = new THREE.MeshStandardMaterial({ color: 0x3b82f6 }); // Blue for HVAC/water
+        const coreMesh = new THREE.Mesh(coreGeo, coreMat);
+        coreMesh.position.copy(vecPt);
+        coreMesh.position.y = 1.2;
+        coreMesh.userData.type = 'utility_core';
+
+        if (this.isValidInteriorPlacement(coreMesh)) {
+          // Clear any existing utility core (for MVP, allow only one)
+          const existing = this.interiorGroup.children.find(c => c.userData.type === 'utility_core');
+          if (existing) this.interiorGroup.remove(existing);
+          this.interiorGroup.add(coreMesh);
+        }
+      }
+      return;
+    }
+
+    if (!this.outsideShell() && this.currentConfig.interactionMode.startsWith('place_room_')) {
+      const pt = this.housePointAt(e.clientX, e.clientY);
+      if (pt) {
+        const roomType = this.currentConfig.interactionMode.split('_').pop()!;
+        const vecPt = new THREE.Vector3(
+          Math.round(pt.x * 10) / 10,
+          0,
+          Math.round(pt.z * 10) / 10
+        );
+
+        const footprint = roomFootprint(roomType);
+        const { hx, hz } = this.shellLimits();
+        const fitted = fitRoom({ x: vecPt.x, z: vecPt.z, w: footprint.w, d: footprint.d }, hx, hz);
+        const baseY = isLoftRoom(pt.y) ? pt.y : 0.3;
+        const roomGroup = this.createRoomGroup(
+          roomType,
+          fitted.w,
+          fitted.d,
+          shellSides(fitted, hx, hz),
+          isLoftRoom(baseY) ? { y: baseY, z: fitted.z } : undefined
+        );
+        roomGroup.position.set(fitted.x, baseY, fitted.z);
+
+        let existingCount = 1;
+        let roomId = `${roomType}_${existingCount}`;
+        while (this.interiorGroup.children.some(c => c.userData.roomId === roomId)) {
+          existingCount++;
+          roomId = `${roomType}_${existingCount}`;
+        }
+        roomGroup.userData.roomId = roomId;
+        this.interiorGroup.add(roomGroup);
+        this.onRoomPlaced?.(roomId, roomType, fitted.w, fitted.d, fitted.x, baseY, fitted.z);
+        this.updateRoomPreview(null);
+        this.onInteractionComplete?.();
+      }
+      return;
+    }
+
+    const rect = this.container.getBoundingClientRect();
+    this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+    this.raycaster.setFromCamera(this.mouse, this.camera);
+
+    // A room surface always means move. Resizing lives in the placed-room list.
+    if (!this.outsideShell() && this.currentConfig.interactionMode === 'default' && this.interiorGroup.children.length > 0) {
+      const roomMeshes: THREE.Mesh[] = [];
+      this.interiorGroup.children.forEach(group => {
+        if (group.userData.type === 'room_zone') {
+          roomMeshes.push(...(group.children.filter(c => c instanceof THREE.Mesh) as THREE.Mesh[]));
+        }
+      });
+      const roomIntersects = this.raycaster.intersectObjects(roomMeshes, false);
+      if (roomIntersects.length > 0) {
+        const hit = roomIntersects[0].object as THREE.Mesh;
+        const roomGroup = hit.parent as THREE.Group;
+        if (roomGroup && roomGroup.userData.type === 'room_zone') {
+          const { roomId } = roomGroup.userData;
+          this.onRoomSelect?.(roomId);
+          const plan = this.roomPlan(roomGroup);
+
+          const pt = this.roomPointAt(e.clientX, e.clientY, roomGroup.position.y);
+          if (pt) {
+            this.draggingRoom = {
+              roomId,
+              pointerId: e.pointerId,
+              startW: plan.w,
+              startD: plan.d,
+              startX: roomGroup.position.x,
+              startZ: roomGroup.position.z,
+              currentX: roomGroup.position.x,
+              currentZ: roomGroup.position.z,
+              startY: roomGroup.position.y,
+              startPt: pt
+            };
+            this.container.style.cursor = 'grabbing';
+            this.controls.enabled = false;
+            this.syncLoftPresentation();
+            this.attachGlobalDragListeners();
+            this.onDragStateChange?.(true);
+            e.stopPropagation();
+            return;
+          }
+        }
+      }
+    }
+
+    const intersects = this.outsideShell()
+      ? this.raycaster.intersectObjects(this.interactivePanels, false)
+      : [];
+
+    if (intersects.length > 0) {
+      const hit = intersects[0].object as THREE.Mesh;
+      const slotId = hit.userData.slotId as string;
+      if (slotId) {
+        const slot = this.currentConfig.wallSlots[slotId];
+        const hasItem = slot && slot.type !== 'empty';
+        if (hasItem) {
+          this.draggingSlot = {
+            slotId,
+            pointerId: e.pointerId,
+            startX: e.clientX,
+            startY: e.clientY,
+            hasMoved: false,
+            hitMesh: hit
+          };
+          this.controls.enabled = false;
+          this.attachGlobalDragListeners();
+          e.stopPropagation();
+          return;
+        } else {
+          if (e.pointerType === 'touch') {
+            this.panelTouchPress = {
+              pointerId: e.pointerId,
+              slotId,
+              x: e.clientX,
+              y: e.clientY
+            };
+          } else {
+            this.selectPanel(slotId, hit, e.clientX, e.clientY);
+          }
+        }
+      }
+    }
   };
 
   private setupRaycasting() {
@@ -1478,201 +1617,10 @@ export class HouseScene {
       this.updateHoverBox(null);
       this.onPanelHover?.(null, 0, 0);
       this.updateRoomPreview(null);
-      if (this.draggingSlot && !this.draggingSlot.hasMoved) {
-        this.cancelActiveDrag();
-      }
     });
 
-    this.container.addEventListener('pointerdown', (e) => {
-      if (this.measuring) {
-        this.measureDown = e.button === 0 ? { x: e.clientX, y: e.clientY } : null;
-        return;
-      }
-      if (this.currentConfig.isFullscreen) return;
-
-      if (!this.outsideShell() && this.currentConfig.interactionMode === 'draw_wall') {
-        const pt = this.housePointAt(e.clientX, e.clientY);
-        if (pt) {
-          const { hx, hz } = this.shellLimits();
-          const vecPt = new THREE.Vector3(
-            Math.min(hx - 0.05, Math.max(-hx + 0.05, pt.x)),
-            0,
-            Math.min(hz - 0.05, Math.max(-hz + 0.05, pt.z))
-          );
-          this.drawingWallPoints.push(vecPt);
-
-          // Render a simple pillar at the click point
-          const geo = new THREE.CylinderGeometry(0.05, 0.05, 2.4, 16);
-          const mat = new THREE.MeshStandardMaterial({ color: 0x10b981, transparent: true, opacity: 0.8 });
-          const mesh = new THREE.Mesh(geo, mat);
-          mesh.position.copy(vecPt);
-          mesh.position.y = 1.2;
-          this.interiorGroup.add(mesh);
-
-          if (this.drawingWallPoints.length >= 2) {
-            // Draw a wall segment between the last two points
-            const p1 = this.drawingWallPoints[this.drawingWallPoints.length - 2];
-            const p2 = this.drawingWallPoints[this.drawingWallPoints.length - 1];
-            const dist = p1.distanceTo(p2);
-            const wallGeo = new THREE.BoxGeometry(0.1, 2.4, dist);
-            const wallMesh = new THREE.Mesh(wallGeo, mat);
-            wallMesh.position.copy(p1).lerp(p2, 0.5);
-            wallMesh.position.y = 1.2;
-            wallMesh.lookAt(p2.x, 1.2, p2.z);
-            this.interiorGroup.add(wallMesh);
-          }
-        }
-        return;
-      }
-
-      if (!this.outsideShell() && this.currentConfig.interactionMode === 'place_utility') {
-        const pt = this.housePointAt(e.clientX, e.clientY);
-        if (pt) {
-          const vecPt = new THREE.Vector3(pt.x, 0, pt.z);
-
-          const coreGeo = new THREE.BoxGeometry(0.6, 2.4, 0.6);
-          const coreMat = new THREE.MeshStandardMaterial({ color: 0x3b82f6 }); // Blue for HVAC/water
-          const coreMesh = new THREE.Mesh(coreGeo, coreMat);
-          coreMesh.position.copy(vecPt);
-          coreMesh.position.y = 1.2;
-          coreMesh.userData.type = 'utility_core';
-
-          if (this.isValidInteriorPlacement(coreMesh)) {
-            // Clear any existing utility core (for MVP, allow only one)
-            const existing = this.interiorGroup.children.find(c => c.userData.type === 'utility_core');
-            if (existing) this.interiorGroup.remove(existing);
-            this.interiorGroup.add(coreMesh);
-          }
-        }
-        return;
-      }
-
-      if (!this.outsideShell() && this.currentConfig.interactionMode.startsWith('place_room_')) {
-        const pt = this.housePointAt(e.clientX, e.clientY);
-        if (pt) {
-          const roomType = this.currentConfig.interactionMode.split('_').pop()!;
-          const vecPt = new THREE.Vector3(
-            Math.round(pt.x * 10) / 10,
-            0,
-            Math.round(pt.z * 10) / 10
-          );
-
-          const footprint = roomFootprint(roomType);
-          const { hx, hz } = this.shellLimits();
-          const fitted = fitRoom({ x: vecPt.x, z: vecPt.z, w: footprint.w, d: footprint.d }, hx, hz);
-          const baseY = isLoftRoom(pt.y) ? pt.y : 0.3;
-          const roomGroup = this.createRoomGroup(
-            roomType,
-            fitted.w,
-            fitted.d,
-            shellSides(fitted, hx, hz),
-            isLoftRoom(baseY) ? { y: baseY, z: fitted.z } : undefined
-          );
-          roomGroup.position.set(fitted.x, baseY, fitted.z);
-
-          let existingCount = 1;
-          let roomId = `${roomType}_${existingCount}`;
-          while (this.interiorGroup.children.some(c => c.userData.roomId === roomId)) {
-            existingCount++;
-            roomId = `${roomType}_${existingCount}`;
-          }
-          roomGroup.userData.roomId = roomId;
-          this.interiorGroup.add(roomGroup);
-          this.onRoomPlaced?.(roomId, roomType, fitted.w, fitted.d, fitted.x, baseY, fitted.z);
-          this.updateRoomPreview(null);
-          this.onInteractionComplete?.();
-        }
-        return;
-      }
-
-      const rect = this.container.getBoundingClientRect();
-      this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-      this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-
-      this.raycaster.setFromCamera(this.mouse, this.camera);
-
-      // A room surface always means move. Resizing lives in the placed-room list.
-      if (!this.outsideShell() && this.currentConfig.interactionMode === 'default' && this.interiorGroup.children.length > 0) {
-        const roomMeshes: THREE.Mesh[] = [];
-        this.interiorGroup.children.forEach(group => {
-          if (group.userData.type === 'room_zone') {
-            roomMeshes.push(...(group.children.filter(c => c instanceof THREE.Mesh) as THREE.Mesh[]));
-          }
-        });
-        const roomIntersects = this.raycaster.intersectObjects(roomMeshes, false);
-        if (roomIntersects.length > 0) {
-          const hit = roomIntersects[0].object as THREE.Mesh;
-          const roomGroup = hit.parent as THREE.Group;
-          if (roomGroup && roomGroup.userData.type === 'room_zone') {
-            const { roomId } = roomGroup.userData;
-            this.onRoomSelect?.(roomId);
-            const plan = this.roomPlan(roomGroup);
-
-            const pt = this.roomPointAt(e.clientX, e.clientY, roomGroup.position.y);
-            if (pt) {
-              this.draggingRoom = {
-                roomId,
-                pointerId: e.pointerId,
-                startW: plan.w,
-                startD: plan.d,
-                startX: roomGroup.position.x,
-                startZ: roomGroup.position.z,
-                currentX: roomGroup.position.x,
-                currentZ: roomGroup.position.z,
-                startY: roomGroup.position.y,
-                startPt: pt
-              };
-              this.safeSetPointerCapture(e.pointerId);
-              this.container.style.cursor = 'grabbing';
-              this.controls.enabled = false;
-              this.syncLoftPresentation();
-              this.attachGlobalDragListeners();
-              this.onDragStateChange?.(true);
-              return;
-            }
-          }
-        }
-      }
-
-      const intersects = this.outsideShell()
-        ? this.raycaster.intersectObjects(this.interactivePanels, false)
-        : [];
-
-      if (intersects.length > 0) {
-        const hit = intersects[0].object as THREE.Mesh;
-        const slotId = hit.userData.slotId as string;
-        if (slotId) {
-          const slot = this.currentConfig.wallSlots[slotId];
-          const hasItem = slot && slot.type !== 'empty';
-          if (hasItem) {
-            this.draggingSlot = {
-              slotId,
-              pointerId: e.pointerId,
-              startX: e.clientX,
-              startY: e.clientY,
-              hasMoved: false,
-              hitMesh: hit
-            };
-            this.controls.enabled = false;
-            this.attachGlobalDragListeners();
-          } else {
-            if (e.pointerType === 'touch') {
-              this.panelTouchPress = {
-                pointerId: e.pointerId,
-                slotId,
-                x: e.clientX,
-                y: e.clientY
-              };
-            } else {
-              this.selectPanel(slotId, hit, e.clientX, e.clientY);
-            }
-          }
-        }
-      }
-    });
-
+    this.container.addEventListener('pointerdown', this.handlePointerDown, { capture: true });
     this.container.addEventListener('pointerup', this.handlePointerUp);
-    this.container.addEventListener('pointercancel', this.handlePointerCancel);
   }
 
   private selectPanel(slotId: string, hit: THREE.Mesh, screenX: number, screenY: number) {
