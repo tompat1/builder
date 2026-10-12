@@ -182,6 +182,10 @@ onMounted(() => {
       return store.moveSlotItem(fromSlotId, toSlotId);
     };
 
+    engine.onDragStateChange = (val) => {
+      store.setDragging(val);
+    };
+
     engine.onPanelHover = (slotId, x, y) => {
       store.setHoveredSlot(slotId, slotId && x && y ? { x, y } : null);
     };

@@ -61,3 +61,28 @@ test('swapping a door and a window between two bays exchanges their positions', 
   assert.equal(slots['front-1'].type, 'door');
   assert.equal(slots['front-1'].itemId, 'STEHAG');
 });
+
+test('moving a slot item to the same bay is a no-op returning false', async () => {
+  const { moveWallSlot } = await import('../src/store/slotMove.ts');
+  const slots = {
+    'front-0': { id: 'front-0', wall: 'front', index: 0, type: 'door', itemId: 'STEHAG', canAcceptDoor: true }
+  };
+
+  const moved = moveWallSlot(slots, 'front-0', 'front-0');
+  assert.equal(moved, false);
+  assert.equal(slots['front-0'].type, 'door');
+});
+
+test('moving a window to an upper bay is permitted', async () => {
+  const { moveWallSlot } = await import('../src/store/slotMove.ts');
+  const slots = {
+    'front-0': { id: 'front-0', wall: 'front', index: 0, type: 'window', itemId: 'standard-single', canAcceptDoor: true },
+    'front-0u': { id: 'front-0u', wall: 'front', index: 0, type: 'empty', canAcceptDoor: false, isUpper: true }
+  };
+
+  const moved = moveWallSlot(slots, 'front-0', 'front-0u');
+  assert.equal(moved, true);
+  assert.equal(slots['front-0'].type, 'empty');
+  assert.equal(slots['front-0u'].type, 'window');
+  assert.equal(slots['front-0u'].itemId, 'standard-single');
+});

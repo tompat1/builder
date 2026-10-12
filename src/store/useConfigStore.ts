@@ -593,6 +593,7 @@ export const useConfigStore = defineStore('config', () => {
   const showDimensions = ref<boolean>(true);
   const showInnerWalls = ref<boolean>(true);
   const showSun = ref(false);
+  const isDragging = ref(false);
   const selectedSlotId = ref<string | null>(null);
   const hoveredSlotId = ref<string | null>(null);
   const hoveredSlotPos = ref<{ x: number; y: number } | null>(null);
@@ -1660,6 +1661,10 @@ export const useConfigStore = defineStore('config', () => {
     hoveredSlotPos.value = pos ?? null;
   }
 
+  function setDragging(val: boolean) {
+    isDragging.value = val;
+  }
+
   function setSlotScreenPosition(pos: { x: number; y: number; visible: boolean } | null) {
     slotScreenPosition.value = pos;
   }
@@ -1809,6 +1814,8 @@ export const useConfigStore = defineStore('config', () => {
     selectCladdingSize,
     selectSlot,
     setHoveredSlot,
+    isDragging,
+    setDragging,
     setSlotScreenPosition,
     setDimensionLabels,
     cycleSlot,

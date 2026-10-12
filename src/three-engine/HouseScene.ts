@@ -159,6 +159,7 @@ export class HouseScene {
   private interactivePanels: THREE.Mesh[] = [];
   private draggingRoom: {
     roomId: string;
+    pointerId: number;
     startW: number;
     startD: number;
     startX: number;
@@ -188,6 +189,7 @@ export class HouseScene {
   public onPanelClick?: (slotId: string, screenX: number, screenY: number) => void;
   public onPanelHover?: (slotId: string | null, screenX: number, screenY: number) => void;
   public onSlotMove?: (fromSlotId: string, toSlotId: string) => boolean;
+  public onDragStateChange?: (isDragging: boolean) => void;
   public onSlotScreenPositionUpdate?: (pos: { x: number; y: number; visible: boolean; slotId: string }) => void;
   public onDimensionLabels?: (labels: Record<string, { x: number; y: number; visible: boolean }>) => void;
   public onNoteAnchors?: (anchors: Record<string, { x: number; y: number; visible: boolean }>) => void;
@@ -1144,165 +1146,340 @@ export class HouseScene {
     preview.position.set(fitted.x, 1.2, fitted.z);
   }
 
-  private setupRaycasting() {
-    this.container.addEventListener('pointermove', (e) => {
-      if (
-        this.panelTouchPress?.pointerId === e.pointerId
-        && Math.hypot(e.clientX - this.panelTouchPress.x, e.clientY - this.panelTouchPress.y) > 12
-      ) {
-        this.panelTouchPress = null;
+  private isGlobalListening = false;
+
+  private safeSetPointerCapture(pointerId?: number) {
+    if (pointerId === undefined || !this.container) return;
+    try {
+      this.container.setPointerCapture(pointerId);
+    } catch {
+      // Ignored: global window listeners ensure uninterrupted drag
+    }
+  }
+
+  private safeReleasePointerCapture(pointerId?: number) {
+    if (pointerId === undefined || !this.container) return;
+    try {
+      if (this.container.hasPointerCapture(pointerId)) {
+        this.container.releasePointerCapture(pointerId);
       }
+    } catch {
+      // Ignored
+    }
+  }
 
-      if (this.measuring) {
-        this.onMeasureCursor?.(this.housePointAt(e.clientX, e.clientY));
-        this.container.style.cursor = 'crosshair';
-        this.updateHoverBox(null);
-        this.onPanelHover?.(null, 0, 0);
-        this.updateRoomPreview(null);
-        return;
-      }
-      if (this.currentConfig.isFullscreen) {
-        this.container.style.cursor = 'default';
-        this.updateHoverBox(null);
-        this.onPanelHover?.(null, 0, 0);
-        this.updateRoomPreview(null);
-        return;
-      }
+  private attachGlobalDragListeners() {
+    if (this.isGlobalListening || typeof window === 'undefined') return;
+    this.isGlobalListening = true;
+    window.addEventListener('pointermove', this.onGlobalPointerMove, { passive: true });
+    window.addEventListener('pointerup', this.onGlobalPointerUp);
+    window.addEventListener('pointercancel', this.onGlobalPointerCancel);
+    window.addEventListener('blur', this.onGlobalBlur);
+    window.addEventListener('keydown', this.onGlobalKeyDown);
+    if (this.container) {
+      this.container.addEventListener('lostpointercapture', this.onLostPointerCapture);
+    }
+  }
 
-      if (this.currentConfig.interactionMode.startsWith('place_room_')) {
-        if (this.outsideShell()) {
-          this.updateRoomPreview(null);
-          return;
-        }
-        const pt = this.housePointAt(e.clientX, e.clientY);
-        if (pt) {
-          const roomType = this.currentConfig.interactionMode.split('_').pop()!;
-          this.updateRoomPreview(roomType, pt);
-        } else {
-          this.updateRoomPreview(null);
-        }
-        return;
-      } else {
-        this.updateRoomPreview(null);
-      }
-      const rect = this.container.getBoundingClientRect();
-      this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-      this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  private detachGlobalDragListeners() {
+    if (!this.isGlobalListening || typeof window === 'undefined') return;
+    this.isGlobalListening = false;
+    window.removeEventListener('pointermove', this.onGlobalPointerMove);
+    window.removeEventListener('pointerup', this.onGlobalPointerUp);
+    window.removeEventListener('pointercancel', this.onGlobalPointerCancel);
+    window.removeEventListener('blur', this.onGlobalBlur);
+    window.removeEventListener('keydown', this.onGlobalKeyDown);
+    if (this.container) {
+      this.container.removeEventListener('lostpointercapture', this.onLostPointerCapture);
+    }
+  }
 
-      if (this.draggingRoom && !this.outsideShell()) {
-        const pt = this.roomPointAt(e.clientX, e.clientY, this.draggingRoom.startY);
-        if (pt) {
-          const dx = pt.x - this.draggingRoom.startPt.x;
-          const dz = pt.z - this.draggingRoom.startPt.z;
-          const newX = Math.round((this.draggingRoom.startX + dx) * 20) / 20;
-          const newZ = Math.round((this.draggingRoom.startZ + dz) * 20) / 20;
-          const { hx, hz } = this.shellLimits();
-          const fitted = fitRoom({
-            x: newX,
-            z: newZ,
-            w: this.draggingRoom.startW,
-            d: this.draggingRoom.startD
-          }, hx, hz);
-          const room = this.interiorGroup.children.find((child) => child.userData.roomId === this.draggingRoom?.roomId);
-          if (room) room.position.set(fitted.x, this.draggingRoom.startY, fitted.z);
-          this.draggingRoom.currentX = fitted.x;
-          this.draggingRoom.currentZ = fitted.z;
-        }
-        return;
-      }
+  private onGlobalPointerMove = (e: PointerEvent) => {
+    if (this.draggingSlot || this.draggingRoom) {
+      this.handlePointerMove(e);
+    }
+  };
 
-      this.raycaster.setFromCamera(this.mouse, this.camera);
+  private onGlobalPointerUp = (e: PointerEvent) => {
+    if (this.draggingSlot || this.draggingRoom) {
+      this.handlePointerUp(e);
+    }
+  };
 
-      if (this.currentConfig.interactionMode === 'default' && !this.outsideShell()) {
-        if (this.interiorGroup.children.length > 0) {
-          const roomMeshes: THREE.Mesh[] = [];
-          this.interiorGroup.children.forEach(group => {
-            if (group.userData.type === 'room_zone') {
-              roomMeshes.push(...(group.children.filter(c => c instanceof THREE.Mesh) as THREE.Mesh[]));
-            }
-          });
-          const roomIntersects = this.raycaster.intersectObjects(roomMeshes, false);
-          if (roomIntersects.length > 0) {
-            this.container.style.cursor = 'move';
-            return;
-          }
-        }
-      }
+  private onGlobalPointerCancel = (e: PointerEvent) => {
+    if (this.draggingSlot || this.draggingRoom) {
+      this.cancelActiveDrag();
+    }
+  };
 
-      if (this.draggingSlot) {
-        const dx = e.clientX - this.draggingSlot.startX;
-        const dy = e.clientY - this.draggingSlot.startY;
-        if (!this.draggingSlot.hasMoved && Math.hypot(dx, dy) > 8) {
-          this.draggingSlot.hasMoved = true;
-          this.container.setPointerCapture(this.draggingSlot.pointerId);
-          this.container.style.cursor = 'grabbing';
-          this.updateHoverBox(null);
-        }
-        if (this.draggingSlot.hasMoved) {
-          this.updateHoverBox(null);
-          this.raycaster.setFromCamera(this.mouse, this.camera);
-          const hits = this.outsideShell()
-            ? this.raycaster.intersectObjects(this.interactivePanels, false)
-            : [];
-          if (hits.length > 0) {
-            const targetHit = hits[0].object as THREE.Mesh;
-            const targetSlotId = targetHit.userData.slotId as string;
-            const sourceSlot = this.currentConfig.wallSlots[this.draggingSlot.slotId];
-            const targetSlot = this.currentConfig.wallSlots[targetSlotId];
-            const isDoor = sourceSlot?.type === 'door' || sourceSlot?.type === 'gate';
-            const isInvalidUpper = isDoor && targetSlot?.canAcceptDoor === false;
-            const isValid = targetSlotId !== this.draggingSlot.slotId && !isInvalidUpper;
-            this.hoveredTargetSlotId = targetSlotId;
-            const hasCanopy = sourceSlot?.type === 'door' && Boolean(this.currentConfig.doorCanopy);
-            this.updateDragTargetBox(targetHit, isValid, hasCanopy);
-          } else {
-            this.hoveredTargetSlotId = null;
-            this.updateDragTargetBox(null, false);
-          }
-          return;
-        }
-      }
+  private onGlobalBlur = () => {
+    if (this.draggingSlot || this.draggingRoom) {
+      this.cancelActiveDrag();
+    }
+  };
 
-      const intersects = this.outsideShell()
-        ? this.raycaster.intersectObjects(this.interactivePanels, false)
-        : [];
+  private onLostPointerCapture = () => {
+    if (this.draggingSlot || this.draggingRoom) {
+      this.cancelActiveDrag();
+    }
+  };
 
-      if (intersects.length > 0) {
-        const hit = intersects[0].object as THREE.Mesh;
-        const slotId = hit.userData.slotId as string;
-        if (slotId) {
-          const slot = this.currentConfig.wallSlots[slotId];
-          const hasItem = slot && slot.type !== 'empty';
-          this.container.style.cursor = hasItem ? 'grab' : 'pointer';
-          const bounds = this.boundsOf(hit);
-          this.updateHoverBox(bounds);
+  private onGlobalKeyDown = (e: KeyboardEvent) => {
+    if (e.key === 'Escape' && (this.draggingSlot || this.draggingRoom)) {
+      this.cancelActiveDrag();
+    }
+  };
 
-          const center = new THREE.Vector3();
-          new THREE.Box3().setFromObject(bounds).getCenter(center);
-          const proj = center.clone().project(this.camera);
-          const w = this.container.clientWidth;
-          const h = this.container.clientHeight;
-          const screenX = ((proj.x + 1) * w) / 2;
-          const screenY = ((-proj.y + 1) * h) / 2;
+  private handlePointerMove(e: PointerEvent) {
+    if (
+      this.panelTouchPress?.pointerId === e.pointerId
+      && Math.hypot(e.clientX - this.panelTouchPress.x, e.clientY - this.panelTouchPress.y) > 12
+    ) {
+      this.panelTouchPress = null;
+    }
 
-          this.onPanelHover?.(slotId, screenX, screenY);
-          return;
-        }
-      }
-
-      this.container.style.cursor = 'default';
+    if (this.measuring) {
+      this.onMeasureCursor?.(this.housePointAt(e.clientX, e.clientY));
+      this.container.style.cursor = 'crosshair';
       this.updateHoverBox(null);
       this.onPanelHover?.(null, 0, 0);
-    });
-
-    this.container.addEventListener('pointerleave', () => {
+      this.updateRoomPreview(null);
+      return;
+    }
+    if (this.currentConfig.isFullscreen) {
       this.container.style.cursor = 'default';
       this.updateHoverBox(null);
       this.onPanelHover?.(null, 0, 0);
       this.updateRoomPreview(null);
+      return;
+    }
+
+    if (this.currentConfig.interactionMode.startsWith('place_room_')) {
+      if (this.outsideShell()) {
+        this.updateRoomPreview(null);
+        return;
+      }
+      const pt = this.housePointAt(e.clientX, e.clientY);
+      if (pt) {
+        const roomType = this.currentConfig.interactionMode.split('_').pop()!;
+        this.updateRoomPreview(roomType, pt);
+      } else {
+        this.updateRoomPreview(null);
+      }
+      return;
+    } else {
+      this.updateRoomPreview(null);
+    }
+    const rect = this.container.getBoundingClientRect();
+    this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+    if (this.draggingRoom && !this.outsideShell()) {
+      const pt = this.roomPointAt(e.clientX, e.clientY, this.draggingRoom.startY);
+      if (pt) {
+        const dx = pt.x - this.draggingRoom.startPt.x;
+        const dz = pt.z - this.draggingRoom.startPt.z;
+        const newX = Math.round((this.draggingRoom.startX + dx) * 20) / 20;
+        const newZ = Math.round((this.draggingRoom.startZ + dz) * 20) / 20;
+        const { hx, hz } = this.shellLimits();
+        const fitted = fitRoom({
+          x: newX,
+          z: newZ,
+          w: this.draggingRoom.startW,
+          d: this.draggingRoom.startD
+        }, hx, hz);
+        const room = this.interiorGroup.children.find((child) => child.userData.roomId === this.draggingRoom?.roomId);
+        if (room) room.position.set(fitted.x, this.draggingRoom.startY, fitted.z);
+        this.draggingRoom.currentX = fitted.x;
+        this.draggingRoom.currentZ = fitted.z;
+      }
+      return;
+    }
+
+    this.raycaster.setFromCamera(this.mouse, this.camera);
+
+    if (this.currentConfig.interactionMode === 'default' && !this.outsideShell()) {
+      if (this.interiorGroup.children.length > 0) {
+        const roomMeshes: THREE.Mesh[] = [];
+        this.interiorGroup.children.forEach(group => {
+          if (group.userData.type === 'room_zone') {
+            roomMeshes.push(...(group.children.filter(c => c instanceof THREE.Mesh) as THREE.Mesh[]));
+          }
+        });
+        const roomIntersects = this.raycaster.intersectObjects(roomMeshes, false);
+        if (roomIntersects.length > 0) {
+          this.container.style.cursor = 'move';
+          return;
+        }
+      }
+    }
+
+    if (this.draggingSlot) {
+      const dx = e.clientX - this.draggingSlot.startX;
+      const dy = e.clientY - this.draggingSlot.startY;
+      if (!this.draggingSlot.hasMoved && Math.hypot(dx, dy) > 8) {
+        this.draggingSlot.hasMoved = true;
+        this.safeSetPointerCapture(this.draggingSlot.pointerId);
+        this.container.style.cursor = 'grabbing';
+        this.updateHoverBox(null);
+        this.onPanelHover?.(null, 0, 0);
+        this.onDragStateChange?.(true);
+      }
+      if (this.draggingSlot.hasMoved) {
+        this.updateHoverBox(null);
+        this.raycaster.setFromCamera(this.mouse, this.camera);
+        const hits = this.outsideShell()
+          ? this.raycaster.intersectObjects(this.interactivePanels, false)
+          : [];
+        if (hits.length > 0) {
+          const targetHit = hits[0].object as THREE.Mesh;
+          const targetSlotId = targetHit.userData.slotId as string;
+          const sourceSlot = this.currentConfig.wallSlots[this.draggingSlot.slotId];
+          const targetSlot = this.currentConfig.wallSlots[targetSlotId];
+          const isDoor = sourceSlot?.type === 'door' || sourceSlot?.type === 'gate';
+          const isInvalidUpper = isDoor && targetSlot?.canAcceptDoor === false;
+          const isValid = targetSlotId !== this.draggingSlot.slotId && !isInvalidUpper;
+          this.hoveredTargetSlotId = targetSlotId;
+          const hasCanopy = sourceSlot?.type === 'door' && Boolean(this.currentConfig.doorCanopy);
+          this.updateDragTargetBox(targetHit, isValid, hasCanopy);
+        } else {
+          this.hoveredTargetSlotId = null;
+          this.updateDragTargetBox(null, false);
+        }
+        return;
+      }
+    }
+
+    const intersects = this.outsideShell()
+      ? this.raycaster.intersectObjects(this.interactivePanels, false)
+      : [];
+
+    if (intersects.length > 0) {
+      const hit = intersects[0].object as THREE.Mesh;
+      const slotId = hit.userData.slotId as string;
+      if (slotId) {
+        const slot = this.currentConfig.wallSlots[slotId];
+        const hasItem = slot && slot.type !== 'empty';
+        this.container.style.cursor = hasItem ? 'grab' : 'pointer';
+        const bounds = this.boundsOf(hit);
+        this.updateHoverBox(bounds);
+
+        const center = new THREE.Vector3();
+        new THREE.Box3().setFromObject(bounds).getCenter(center);
+        const proj = center.clone().project(this.camera);
+        const w = this.container.clientWidth;
+        const h = this.container.clientHeight;
+        const screenX = ((proj.x + 1) * w) / 2;
+        const screenY = ((-proj.y + 1) * h) / 2;
+
+        this.onPanelHover?.(slotId, screenX, screenY);
+        return;
+      }
+    }
+
+    this.container.style.cursor = 'default';
+    this.updateHoverBox(null);
+    this.onPanelHover?.(null, 0, 0);
+  }
+
+  private handlePointerUp = (e: PointerEvent) => {
+    if (this.draggingRoom) {
+      const drag = this.draggingRoom;
+      this.finishRoomDrag(true);
+      this.safeReleasePointerCapture(drag.pointerId);
+      this.safeReleasePointerCapture(e.pointerId);
+      this.draggingRoom = null;
+      this.controls.enabled = true;
+      this.container.style.cursor = 'default';
+      this.detachGlobalDragListeners();
+      this.onDragStateChange?.(false);
+      return;
+    }
+    if (this.draggingSlot) {
+      const drag = this.draggingSlot;
+      this.draggingSlot = null;
+      this.controls.enabled = true;
+      this.updateDragTargetBox(null, false);
+      this.container.style.cursor = 'default';
+      this.safeReleasePointerCapture(drag.pointerId);
+      this.safeReleasePointerCapture(e.pointerId);
+      this.detachGlobalDragListeners();
+      this.onDragStateChange?.(false);
+
+      if (drag.hasMoved) {
+        if (this.hoveredTargetSlotId && this.hoveredTargetSlotId !== drag.slotId) {
+          this.onSlotMove?.(drag.slotId, this.hoveredTargetSlotId);
+        }
+        this.hoveredTargetSlotId = null;
+        return;
+      } else {
+        this.selectPanel(drag.slotId, drag.hitMesh, e.clientX, e.clientY);
+        return;
+      }
+    }
+    if (this.panelTouchPress?.pointerId === e.pointerId) {
+      const press = this.panelTouchPress;
+      this.panelTouchPress = null;
+      const moved = Math.hypot(e.clientX - press.x, e.clientY - press.y);
+      if (moved <= 12) {
+        const hit = this.interactivePanels.find((panel) => panel.userData.slotId === press.slotId);
+        if (hit) this.selectPanel(press.slotId, hit, e.clientX, e.clientY);
+      }
+      return;
+    }
+    if (!this.measuring || e.button !== 0 || !this.measureDown) return;
+    const moved = Math.hypot(e.clientX - this.measureDown.x, e.clientY - this.measureDown.y);
+    this.measureDown = null;
+    if (moved > 6) return;
+    const point = this.housePointAt(e.clientX, e.clientY);
+    if (point) this.onMeasurePick?.(point);
+  };
+
+  private cancelActiveDrag = () => {
+    if (this.draggingRoom) {
+      const drag = this.draggingRoom;
+      this.finishRoomDrag(false);
+      this.safeReleasePointerCapture(drag.pointerId);
+      this.draggingRoom = null;
+      this.controls.enabled = true;
+      this.container.style.cursor = 'default';
+    }
+    if (this.draggingSlot) {
+      const drag = this.draggingSlot;
+      this.draggingSlot = null;
+      this.controls.enabled = true;
+      this.updateDragTargetBox(null, false);
+      this.hoveredTargetSlotId = null;
+      this.container.style.cursor = 'default';
+      this.safeReleasePointerCapture(drag.pointerId);
+    }
+    if (this.panelTouchPress) {
+      this.panelTouchPress = null;
+    }
+    this.measureDown = null;
+    this.detachGlobalDragListeners();
+    this.onDragStateChange?.(false);
+  };
+
+  private handlePointerCancel = (e: PointerEvent) => {
+    this.safeReleasePointerCapture(e.pointerId);
+    this.cancelActiveDrag();
+  };
+
+  private setupRaycasting() {
+    this.container.addEventListener('pointermove', (e) => {
+      this.handlePointerMove(e);
+    });
+
+    this.container.addEventListener('pointerleave', () => {
+      if (!this.draggingSlot?.hasMoved && !this.draggingRoom) {
+        this.container.style.cursor = 'default';
+      }
+      this.updateHoverBox(null);
+      this.onPanelHover?.(null, 0, 0);
+      this.updateRoomPreview(null);
       if (this.draggingSlot && !this.draggingSlot.hasMoved) {
-        this.controls.enabled = true;
-        this.draggingSlot = null;
+        this.cancelActiveDrag();
       }
     });
 
@@ -1435,6 +1612,7 @@ export class HouseScene {
             if (pt) {
               this.draggingRoom = {
                 roomId,
+                pointerId: e.pointerId,
                 startW: plan.w,
                 startD: plan.d,
                 startX: roomGroup.position.x,
@@ -1444,10 +1622,12 @@ export class HouseScene {
                 startY: roomGroup.position.y,
                 startPt: pt
               };
-              this.container.setPointerCapture(e.pointerId);
+              this.safeSetPointerCapture(e.pointerId);
               this.container.style.cursor = 'grabbing';
               this.controls.enabled = false;
               this.syncLoftPresentation();
+              this.attachGlobalDragListeners();
+              this.onDragStateChange?.(true);
               return;
             }
           }
@@ -1474,6 +1654,7 @@ export class HouseScene {
               hitMesh: hit
             };
             this.controls.enabled = false;
+            this.attachGlobalDragListeners();
           } else {
             if (e.pointerType === 'touch') {
               this.panelTouchPress = {
@@ -1490,68 +1671,8 @@ export class HouseScene {
       }
     });
 
-    this.container.addEventListener('pointerup', (e) => {
-      if (this.draggingRoom) {
-        this.finishRoomDrag(true);
-        if (this.container.hasPointerCapture(e.pointerId)) this.container.releasePointerCapture(e.pointerId);
-        return;
-      }
-      if (this.draggingSlot && (e.pointerId === this.draggingSlot.pointerId || e.pointerType === 'mouse')) {
-        const drag = this.draggingSlot;
-        this.draggingSlot = null;
-        this.controls.enabled = true;
-        this.updateDragTargetBox(null, false);
-        this.container.style.cursor = 'default';
-        if (this.container.hasPointerCapture(drag.pointerId)) {
-          this.container.releasePointerCapture(drag.pointerId);
-        }
-
-        if (drag.hasMoved) {
-          if (this.hoveredTargetSlotId && this.hoveredTargetSlotId !== drag.slotId) {
-            this.onSlotMove?.(drag.slotId, this.hoveredTargetSlotId);
-          }
-          this.hoveredTargetSlotId = null;
-          return;
-        } else {
-          this.selectPanel(drag.slotId, drag.hitMesh, e.clientX, e.clientY);
-          return;
-        }
-      }
-      if (this.panelTouchPress?.pointerId === e.pointerId) {
-        const press = this.panelTouchPress;
-        this.panelTouchPress = null;
-        const moved = Math.hypot(e.clientX - press.x, e.clientY - press.y);
-        if (moved <= 12) {
-          const hit = this.interactivePanels.find((panel) => panel.userData.slotId === press.slotId);
-          if (hit) this.selectPanel(press.slotId, hit, e.clientX, e.clientY);
-        }
-        return;
-      }
-      if (!this.measuring || e.button !== 0 || !this.measureDown) return;
-      const moved = Math.hypot(e.clientX - this.measureDown.x, e.clientY - this.measureDown.y);
-      this.measureDown = null;
-      if (moved > 6) return;
-      const point = this.housePointAt(e.clientX, e.clientY);
-      if (point) this.onMeasurePick?.(point);
-    });
-
-    this.container.addEventListener('pointercancel', (e) => {
-      if (this.draggingSlot && (e.pointerId === this.draggingSlot.pointerId || e.pointerType === 'mouse')) {
-        const drag = this.draggingSlot;
-        this.draggingSlot = null;
-        this.controls.enabled = true;
-        this.updateDragTargetBox(null, false);
-        this.hoveredTargetSlotId = null;
-        this.container.style.cursor = 'default';
-        if (this.container.hasPointerCapture(drag.pointerId)) {
-          this.container.releasePointerCapture(drag.pointerId);
-        }
-      }
-      if (this.panelTouchPress?.pointerId === e.pointerId) this.panelTouchPress = null;
-      this.finishRoomDrag(false);
-      if (this.container.hasPointerCapture(e.pointerId)) this.container.releasePointerCapture(e.pointerId);
-      this.measureDown = null;
-    });
+    this.container.addEventListener('pointerup', this.handlePointerUp);
+    this.container.addEventListener('pointercancel', this.handlePointerCancel);
   }
 
   private selectPanel(slotId: string, hit: THREE.Mesh, screenX: number, screenY: number) {
@@ -5954,8 +6075,7 @@ export class HouseScene {
       this.interiorGroup.remove(existing);
     }
     if (this.draggingRoom?.roomId === roomId) {
-      this.draggingRoom = null;
-      this.controls.enabled = true;
+      this.cancelActiveDrag();
     }
     if (this.selectedRoomId === roomId) this.selectedRoomId = null;
     this.paintRoomSelection();
@@ -6079,7 +6199,7 @@ export class HouseScene {
     }
     this.draggingRoom = null;
     this.controls.enabled = true;
-    this.container.style.cursor = 'move';
+    this.container.style.cursor = 'default';
     this.syncLoftPresentation();
   }
 
@@ -6660,6 +6780,7 @@ export class HouseScene {
   };
 
   public destroy() {
+    this.cancelActiveDrag();
     window.removeEventListener('resize', this.onResize);
     this.controls.removeEventListener('start', this.onControlStart);
     if (this.dragTargetBox) {
