@@ -1658,7 +1658,9 @@ export class HouseScene {
     this.buildModularWall('left', 3, w, d, h, wallThick, exteriorMat, doorBayMat, trimMat, casingMat);
     this.buildModularWall('right', 3, w, d, h, wallThick, exteriorMat, doorBayMat, trimMat, casingMat);
     this.buildOutsideAdditions(w, d, h);
-    if (!this.interiorCut()) this.addBeltFlashing(w, d, h);
+    if (!this.interiorCut() && this.currentConfig.panelOrientation !== 'liggande') {
+      this.addBeltFlashing(w, d, h);
+    }
     if (!this.interiorCut() && this.currentConfig.cornerBoards !== false) {
       const isPulpet = this.currentConfig.roofType === 'pulpettak';
       const isFlackt = this.currentConfig.roofType === 'flackt';
@@ -2001,8 +2003,10 @@ export class HouseScene {
    * White metal belt on each wall. It stands off the cladding like the reference
    * flashing: a tall ribbed face, a lit top edge, and a drip that shades the boards.
    * It stops against the vertical corner boards.
+   * Omitted when panel orientation is liggande (horizontal).
    */
   private addBeltFlashing(w: number, d: number, wallTop: number) {
+    if (this.currentConfig.panelOrientation === 'liggande') return;
     const y = 0.25 + this.beltRise(wallTop);
     const faceH = 0.11;
     const proj = 0.036;
