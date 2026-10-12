@@ -587,6 +587,8 @@ export const useConfigStore = defineStore('config', () => {
   const claddingSizeId = ref<CladdingSizeId>('22x145');
   /** Exterior corner boards (knutbrädor) color: 'same' | 'white' | 'falurod' | 'grey' | 'black' | 'wood' | custom hex */
   const cornerColor = ref<string>('same');
+  /** Exterior corner boards (knutbrädor) show/hide */
+  const cornerBoards = ref<boolean>(true);
   const isFullscreen = ref<boolean>(false);
   const showDimensions = ref<boolean>(true);
   const showInnerWalls = ref<boolean>(true);
@@ -752,6 +754,7 @@ export const useConfigStore = defineStore('config', () => {
       verticalDoorBay: verticalDoorBay.value,
       claddingSizeId: claddingSizeId.value,
       cornerColor: cornerColor.value,
+      cornerBoards: cornerBoards.value,
       wallSlots: wallSlots.value,
       notes: notes.value,
       placedRooms: placedRooms.value,
@@ -840,6 +843,7 @@ export const useConfigStore = defineStore('config', () => {
         ? data.claddingSizeId
         : '22x145';
       cornerColor.value = typeof data.cornerColor === 'string' ? data.cornerColor : 'same';
+      cornerBoards.value = data.cornerBoards !== false;
       wallSlots.value = mergeWallSlots(data.wallSlots);
       placedRooms.value = acceptPlacedRooms(data.placedRooms);
       floorPlanDone.value = data.floorPlanDone === true && Object.keys(placedRooms.value).length > 0;
@@ -1362,6 +1366,17 @@ export const useConfigStore = defineStore('config', () => {
     saveSnapshot();
   }
 
+  function toggleCornerBoards() {
+    cornerBoards.value = !cornerBoards.value;
+    saveSnapshot();
+  }
+
+  function setCornerBoards(visible: boolean) {
+    if (cornerBoards.value === visible) return;
+    cornerBoards.value = visible;
+    saveSnapshot();
+  }
+
   function selectSavedPaint(id: string) {
     if (!savedPaints.value.some((paint) => paint.id === id)) return;
     paintPreview.value = null;
@@ -1703,8 +1718,11 @@ export const useConfigStore = defineStore('config', () => {
     verticalDoorBay,
     claddingSizeId,
     cornerColor,
+    cornerBoards,
     effectiveCornerHex,
     selectCornerColor,
+    toggleCornerBoards,
+    setCornerBoards,
     selectedSlotId,
     hoveredSlotId,
     hoveredSlotPos,

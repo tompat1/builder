@@ -72,6 +72,8 @@ export interface SceneConfig {
   terraces?: HouseTerrace[];
   /** Corner boards color ('same' | 'white' | 'falurod' | 'grey' | 'black' | 'wood' | hex) */
   cornerColor?: string | null;
+  /** Whether exterior corner boards (knutbrädor) are visible. */
+  cornerBoards?: boolean;
 }
 
 interface OutsideAnchor {
@@ -257,7 +259,9 @@ export class HouseScene {
       wallSlots: initialConfig?.wallSlots ?? {},
       doorCanopy: initialConfig?.doorCanopy ?? false,
       flushRoof: initialConfig?.flushRoof ?? false,
-      terraces: initialConfig?.terraces ?? []
+      terraces: initialConfig?.terraces ?? [],
+      cornerColor: initialConfig?.cornerColor ?? 'same',
+      cornerBoards: initialConfig?.cornerBoards ?? true
     };
 
     this.scene = new THREE.Scene();
@@ -1491,7 +1495,7 @@ export class HouseScene {
     this.buildModularWall('right', 3, w, d, h, wallThick, exteriorMat, doorBayMat, trimMat, casingMat);
     this.buildOutsideAdditions(w, d, h);
     if (!this.interiorCut()) this.addBeltFlashing(w, d, h);
-    if (!this.interiorCut()) {
+    if (!this.interiorCut() && this.currentConfig.cornerBoards !== false) {
       const isPulpet = this.currentConfig.roofType === 'pulpettak';
       const isFlackt = this.currentConfig.roofType === 'flackt';
       const flacktDrop = isFlackt ? (d / 2) * Math.tan((2 * Math.PI) / 180) : 0;

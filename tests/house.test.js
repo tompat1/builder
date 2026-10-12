@@ -82,3 +82,10 @@ test('house config preserves the corner boards color', () => {
   const withCustomCorners = acceptHouse({ config: { buildingWidth: 6040, cornerColor: '#ffffff' } });
   assert.match(withCustomCorners, /"cornerColor":"#ffffff"/);
 });
+
+test('house config preserves the corner boards toggle', () => {
+  const withCorners = acceptHouse({ config: { buildingWidth: 6040, cornerBoards: true } });
+  assert.match(withCorners, /"cornerBoards":true/);
+  const withoutCorners = acceptHouse({ config: { buildingWidth: 6040, cornerBoards: false } });
+  assert.match(withoutCorners, /"cornerBoards":false/);
+});

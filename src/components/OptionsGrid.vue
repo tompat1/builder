@@ -412,12 +412,38 @@
                 <Cms k="category.cornerBoardsHint" />
               </p>
             </div>
-            <span class="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60">
-              {{ currentCornerColorName }}
-            </span>
+            <div class="flex items-center gap-2">
+              <span
+                v-if="store.cornerBoards"
+                class="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60"
+              >
+                {{ currentCornerColorName }}
+              </span>
+              <button
+                type="button"
+                id="toggle-corner-boards"
+                role="switch"
+                :aria-checked="store.cornerBoards"
+                :aria-label="t('category.toggleCornerBoards')"
+                @click="store.toggleCornerBoards()"
+                :class="[
+                  'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-700 focus:ring-offset-2',
+                  store.cornerBoards ? 'bg-emerald-800' : 'bg-slate-200'
+                ]"
+              >
+                <span class="sr-only"><Cms k="category.toggleCornerBoards" /></span>
+                <span
+                  :class="[
+                    'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out',
+                    store.cornerBoards ? 'translate-x-5' : 'translate-x-0'
+                  ]"
+                />
+              </button>
+            </div>
           </div>
 
-          <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          <template v-if="store.cornerBoards">
+            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
             <!-- Samma som fasad -->
             <button
               type="button"
@@ -590,7 +616,8 @@
               </span>
             </label>
           </div>
-        </div>
+        </template>
+      </div>
       </div>
     </template>
 
