@@ -541,7 +541,10 @@ const sv = {
     sendComment: 'Skicka',
     noComments: 'Inga kommentarer än. Bli först med att tycka till!',
     closeComments: 'Stäng kommentarer',
-    scrollDown: 'Scrolla nedåt för mer inspiration'
+    scrollDown: 'Scrolla nedåt för mer inspiration',
+    moveUp: 'Flytta upp',
+    moveDown: 'Flytta ner',
+    endOfBoard: 'Du har nått slutet av moodboarden'
   },
   dims: {
     pitch: 'Taklutning',
@@ -1173,7 +1176,10 @@ const en = {
     sendComment: 'Send',
     noComments: 'No comments yet. Be the first to share your thoughts!',
     closeComments: 'Close comments',
-    scrollDown: 'Scroll down for more inspiration'
+    scrollDown: 'Scroll down for more inspiration',
+    moveUp: 'Move up',
+    moveDown: 'Move down',
+    endOfBoard: 'You have reached the end of the mood board'
   },
   dims: {
     pitch: 'Roof pitch',

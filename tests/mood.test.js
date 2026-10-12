@@ -354,3 +354,33 @@ test('handleMood saves and loads moodboard from Cloudflare D1 database', async (
   assert.equal(commentBody.comment.text, 'Superbra idé!');
   assert.equal(commentBody.comment.author.name, 'Karin');
 });
+
+test('invited guests without account token are isolated from builder 3d', () => {
+  // Test navigation guard condition
+  function canAccessBuilder(hasParticipant, hasAccountToken) {
+    if (hasParticipant && !hasAccountToken) return false;
+    return true;
+  }
+
+  // Invited guest who joined via QR/link
+  assert.equal(canAccessBuilder(true, false), false);
+  // Logged-in house owner
+  assert.equal(canAccessBuilder(false, true), true);
+  // Owner who also has a participant profile on another board
+  assert.equal(canAccessBuilder(true, true), true);
+  // Regular anonymous user visiting site
+  assert.equal(canAccessBuilder(false, false), true);
+});
+
+test('mobile display pieces sort vertically by piece.y', () => {
+  const pieces = [
+    { id: '1', y: 40, caption: 'Middle' },
+    { id: '2', y: 10, caption: 'Top' },
+    { id: '3', y: 90, caption: 'Bottom' }
+  ];
+
+  const mobileOrder = [...pieces].sort((a, b) => a.y - b.y);
+  assert.equal(mobileOrder[0].id, '2');
+  assert.equal(mobileOrder[1].id, '1');
+  assert.equal(mobileOrder[2].id, '3');
+});

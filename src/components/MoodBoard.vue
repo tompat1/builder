@@ -9,7 +9,7 @@
     @dragleave="onDragLeave"
     @drop.prevent="onDrop"
   >
-    <header class="flex items-start justify-between gap-4 px-4 pb-2 pt-4 md:px-8 md:pt-6">
+    <header class="flex flex-col gap-2 px-3 pb-2 pt-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4 sm:px-6 sm:pt-4 md:px-8 md:pt-6">
       <div class="min-w-0 flex-1">
         <div class="group flex items-center gap-2">
           <input
@@ -17,36 +17,36 @@
             v-model="title"
             type="text"
             maxlength="100"
-            class="max-w-[34rem] truncate rounded-xl border border-transparent bg-transparent px-2 py-1 text-[1.65rem] font-semibold leading-tight tracking-[-0.03em] text-[#173D35] transition hover:border-[#d7d1c4] focus:border-[#173D35] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#173D35]/30"
+            class="w-full sm:max-w-[34rem] truncate rounded-xl border border-transparent bg-transparent px-2 py-1 text-xl sm:text-[1.65rem] font-semibold leading-tight tracking-[-0.03em] text-[#173D35] transition hover:border-[#d7d1c4] focus:border-[#173D35] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#173D35]/30"
             :placeholder="t('mood.title')"
             :aria-label="t('mood.editTitle')"
             @input="persist"
             @blur="persist"
           />
-          <span class="pointer-events-none text-xs text-[#173D35]/40 opacity-0 transition group-hover:opacity-100">
+          <span class="pointer-events-none hidden sm:inline text-xs text-[#173D35]/40 opacity-0 transition group-hover:opacity-100">
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
             </svg>
           </span>
         </div>
 
-        <div v-if="formattedCreated" class="mt-1 flex items-center gap-1.5 px-2 text-xs font-medium text-[#5c6b64]">
+        <div v-if="formattedCreated" class="mt-0.5 flex items-center gap-1.5 px-2 text-[11px] sm:text-xs font-medium text-[#5c6b64]">
           <svg class="h-3.5 w-3.5 text-[#173D35]/70" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
           <span>{{ t('mood.created') }}: {{ formattedCreated }}</span>
         </div>
 
-        <p class="mt-1.5 max-w-[62ch] px-2 text-sm leading-relaxed text-[#3c4a43]">
+        <p class="mt-1 max-w-[62ch] px-2 text-xs sm:text-sm leading-relaxed text-[#3c4a43]">
           <Cms k="mood.lead" />
         </p>
       </div>
 
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-1.5 sm:gap-2 self-end sm:self-auto shrink-0">
         <button
           type="button"
           id="btn-mood-profile"
-          class="flex items-center gap-2 rounded-xl border border-[#d7d1c4] bg-white/80 px-2.5 py-1.5 text-xs font-semibold text-[#173D35] shadow-xs backdrop-blur-xs transition hover:border-[#173D35] hover:bg-white"
+          class="flex items-center gap-1.5 rounded-xl border border-[#d7d1c4] bg-white/80 p-1.5 sm:px-2.5 sm:py-1.5 text-xs font-semibold text-[#173D35] shadow-xs backdrop-blur-xs transition hover:border-[#173D35] hover:bg-white"
           :title="t('mood.myProfile')"
           @click="openProfileModal"
         >
@@ -56,13 +56,13 @@
             :alt="currentAuthor.name"
             class="h-6 w-6 rounded-full object-cover ring-1 ring-[#173D35]/20"
           />
-          <span class="max-w-[100px] truncate">{{ currentAuthor.name }}</span>
+          <span class="hidden sm:inline max-w-[100px] truncate">{{ currentAuthor.name }}</span>
         </button>
 
         <button
           type="button"
           id="btn-mood-share"
-          class="flex items-center gap-1.5 rounded-xl bg-[#173D35] px-3.5 py-2 text-xs font-bold text-[#F5F3EC] shadow-sm transition hover:bg-[#0f2b25] active:scale-95"
+          class="flex items-center gap-1.5 rounded-xl bg-[#173D35] px-2.5 py-1.5 sm:px-3.5 sm:py-2 text-xs font-bold text-[#F5F3EC] shadow-sm transition hover:bg-[#0f2b25] active:scale-95"
           @click="openShareModal"
         >
           <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -72,10 +72,10 @@
         </button>
 
         <button
-          v-if="standalone"
+          v-if="standalone && !isInvited"
           type="button"
           id="btn-mood-builder"
-          class="flex items-center gap-1.5 rounded-xl border border-[#173D35] bg-white px-3 py-2 text-xs font-bold text-[#173D35] shadow-sm transition hover:bg-[#173D35] hover:text-white"
+          class="flex items-center gap-1.5 rounded-xl border border-[#173D35] bg-white px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs font-bold text-[#173D35] shadow-sm transition hover:bg-[#173D35] hover:text-white"
           @click="router.push('/build')"
         >
           <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -85,9 +85,10 @@
         </button>
 
         <button
+          v-if="!standalone || !isInvited"
           type="button"
           id="btn-mood-close"
-          class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-[#173D35] hover:bg-[#173D35] hover:text-[#F5F3EC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#173D35]"
+          class="flex h-9 w-9 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl text-[#173D35] hover:bg-[#173D35] hover:text-[#F5F3EC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#173D35]"
           :aria-label="t('mood.close')"
           @click="handleClose"
         >
@@ -98,47 +99,54 @@
       </div>
     </header>
 
-    <form class="flex flex-wrap items-center gap-2 px-4 pb-3 md:px-8" @submit.prevent="submitLink">
-      <label class="sr-only" for="mood-link"><Cms k="mood.link" /></label>
-      <input
-        id="mood-link"
-        v-model="link"
-        type="text"
-        inputmode="url"
-        autocomplete="off"
-        spellcheck="false"
-        class="mood-link min-w-[12rem] flex-1 rounded-xl border border-[#d7d1c4] bg-white px-3 py-2.5 text-sm text-[#222925] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#173D35]"
-        :placeholder="t('mood.placeholder')"
-      />
-      <button
-        type="submit"
-        id="btn-mood-add"
-        class="h-11 rounded-xl bg-[#173D35] px-4 text-sm font-semibold text-[#F5F3EC] hover:bg-[#102e28] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#173D35] focus-visible:ring-offset-2 focus-visible:ring-offset-[#F5F3EC]"
-      >
-        <Cms k="mood.add" />
-      </button>
-      <button
-        type="button"
-        id="btn-mood-files"
-        class="h-11 rounded-xl border border-[#173D35] px-4 text-sm font-semibold text-[#173D35] hover:bg-[#173D35] hover:text-[#F5F3EC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#173D35]"
-        @click="fileInput?.click()"
-      >
-        <Cms k="mood.files" />
-      </button>
-      <button
-        type="button"
-        id="btn-mood-postit"
-        class="flex h-11 items-center gap-1.5 rounded-xl border border-[#e4d8a5] bg-[#FEF9C3] px-3.5 text-sm font-semibold text-[#854D0E] shadow-sm hover:bg-[#FEF08A] hover:border-[#d6c78e] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#854D0E]"
-        @click="addPostIt()"
-      >
-        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-          <polyline points="14 2 14 8 20 8" />
-          <line x1="12" y1="18" x2="12" y2="12" />
-          <line x1="9" y1="15" x2="15" y2="15" />
-        </svg>
-        <span>{{ t('mood.postit') }}</span>
-      </button>
+    <form class="flex flex-col gap-2 px-3 pb-3 sm:flex-row sm:flex-wrap sm:items-center sm:px-6 md:px-8" @submit.prevent="submitLink">
+      <div class="flex items-center gap-2 flex-1">
+        <label class="sr-only" for="mood-link"><Cms k="mood.link" /></label>
+        <input
+          id="mood-link"
+          v-model="link"
+          type="text"
+          inputmode="url"
+          autocomplete="off"
+          spellcheck="false"
+          class="mood-link min-w-0 flex-1 rounded-xl border border-[#d7d1c4] bg-white px-3 py-2 sm:py-2.5 text-xs sm:text-sm text-[#222925] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#173D35]"
+          :placeholder="t('mood.placeholder')"
+        />
+        <button
+          type="submit"
+          id="btn-mood-add"
+          class="h-9 sm:h-11 shrink-0 rounded-xl bg-[#173D35] px-3.5 sm:px-4 text-xs sm:text-sm font-semibold text-[#F5F3EC] hover:bg-[#102e28] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#173D35] focus-visible:ring-offset-2 focus-visible:ring-offset-[#F5F3EC]"
+        >
+          <Cms k="mood.add" />
+        </button>
+      </div>
+      <div class="flex items-center gap-2 shrink-0">
+        <button
+          type="button"
+          id="btn-mood-files"
+          class="flex-1 sm:flex-initial h-9 sm:h-11 rounded-xl border border-[#173D35] px-3.5 sm:px-4 text-xs sm:text-sm font-semibold text-[#173D35] hover:bg-[#173D35] hover:text-[#F5F3EC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#173D35] flex items-center justify-center gap-1.5"
+          @click="fileInput?.click()"
+        >
+          <svg class="h-4 w-4 shrink-0 sm:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          <Cms k="mood.files" />
+        </button>
+        <button
+          type="button"
+          id="btn-mood-postit"
+          class="flex-1 sm:flex-initial flex h-9 sm:h-11 items-center justify-center gap-1.5 rounded-xl border border-[#e4d8a5] bg-[#FEF9C3] px-3 sm:px-3.5 text-xs sm:text-sm font-semibold text-[#854D0E] shadow-sm hover:bg-[#FEF08A] hover:border-[#d6c78e] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#854D0E]"
+          @click="addPostIt()"
+        >
+          <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+            <polyline points="14 2 14 8 20 8" />
+            <line x1="12" y1="18" x2="12" y2="12" />
+            <line x1="9" y1="15" x2="15" y2="15" />
+          </svg>
+          <span>{{ t('mood.postit') }}</span>
+        </button>
+      </div>
       <input
         ref="fileInput"
         class="sr-only"
@@ -155,9 +163,17 @@
     <div
       ref="stage"
       class="relative min-h-0 flex-1 overflow-y-auto"
-      :class="over ? 'outline outline-2 -outline-offset-[12px] outline-[#173D35]' : ''"
+      :class="[
+        over ? 'outline outline-2 -outline-offset-[12px] outline-[#173D35]' : '',
+        isMobile ? 'touch-pan-y overscroll-y-contain px-3 py-2' : ''
+      ]"
     >
-      <div ref="sheet" class="relative w-full" :style="sheetStyle">
+      <div
+        ref="sheet"
+        class="w-full"
+        :class="isMobile ? 'flex flex-col items-center gap-5 pb-24 max-w-lg mx-auto' : 'relative w-full'"
+        :style="isMobile ? {} : sheetStyle"
+      >
         <p
           v-if="over"
           class="pointer-events-none absolute left-1/2 top-6 z-10 -translate-x-1/2 rounded-full bg-[#173D35] px-4 py-2 text-sm font-semibold text-[#F5F3EC]"
@@ -165,31 +181,70 @@
           <Cms k="mood.drop" />
         </p>
 
+        <!-- Empty state -->
+        <div
+          v-if="pieces.length === 0"
+          class="flex flex-col items-center justify-center py-20 px-4 text-center text-[#173D35]/70"
+        >
+          <span class="text-4xl mb-3">📌</span>
+          <h3 class="text-base font-bold text-[#173D35]">Tavlan är tom än så länge</h3>
+          <p class="mt-1 max-w-xs text-xs text-[#4a5851]">
+            Lägg till länkar, ladda upp bilder eller klistra in en post-it ovan för att börja samla inspiration!
+          </p>
+        </div>
+
         <article
-          v-for="piece in pieces"
+          v-for="piece in displayPieces"
           :id="`mood-${piece.id}`"
           :key="piece.id"
-          class="mood-piece absolute select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#173D35]"
+          class="mood-piece select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#173D35]"
           :class="[
+            isMobile ? 'relative w-full max-w-[460px] rounded-2xl transition-shadow' : 'absolute',
             piece.kind === 'note'
-              ? ['mood-note border p-3 pb-3.5 shadow-[0_12px_24px_-8px_rgba(34,41,37,0.35)]', noteClasses(piece.color)]
-              : 'cursor-grab active:cursor-grabbing bg-white p-1.5 pb-2.5 shadow-[0_16px_32px_-12px_rgba(34,41,37,0.45)]'
+              ? ['mood-note border p-3.5 pb-4 shadow-[0_8px_20px_-6px_rgba(34,41,37,0.22)] rounded-2xl', noteClasses(piece.color)]
+              : 'bg-white p-2 sm:p-2.5 pb-3 shadow-[0_12px_28px_-8px_rgba(34,41,37,0.28)] rounded-2xl',
+            (!isMobile && piece.kind !== 'note') ? 'cursor-grab active:cursor-grabbing' : ''
           ]"
-          :style="frame(piece)"
+          :style="isMobile ? {} : frame(piece)"
           tabindex="0"
           :aria-label="t('mood.move')"
-          @pointerdown="onDown($event, piece, 'move')"
-          @pointermove="onPointer"
-          @pointerup="onUp"
-          @pointercancel="onUp"
+          @pointerdown="isMobile ? undefined : onDown($event, piece, 'move')"
+          @pointermove="isMobile ? undefined : onPointer"
+          @pointerup="isMobile ? undefined : onUp"
+          @pointercancel="isMobile ? undefined : onUp"
           @keydown="onPieceKey($event, piece)"
         >
           <!-- POST-IT NOTE RENDERING -->
           <template v-if="piece.kind === 'note'">
             <div class="pointer-events-none absolute -top-2.5 left-1/2 h-4 w-12 -translate-x-1/2 rounded-xs bg-white/55 shadow-xs backdrop-blur-xs" aria-hidden="true"></div>
 
-            <div class="mb-1.5 flex items-center justify-between gap-1.5">
-              <div class="flex items-center gap-1 cursor-grab" :aria-label="t('mood.move')">
+            <div class="mb-2 flex items-center justify-between gap-1.5">
+              <!-- Reorder buttons on mobile, or drag handle on desktop -->
+              <div v-if="isMobile" class="flex items-center gap-1">
+                <button
+                  type="button"
+                  class="flex h-6 w-6 items-center justify-center rounded-md bg-black/5 text-stone-700 active:bg-black/15 disabled:opacity-25"
+                  :disabled="isFirstPiece(piece)"
+                  :aria-label="t('mood.moveUp') || 'Flytta upp'"
+                  @click.stop="movePieceOrder(piece, -1)"
+                >
+                  <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  class="flex h-6 w-6 items-center justify-center rounded-md bg-black/5 text-stone-700 active:bg-black/15 disabled:opacity-25"
+                  :disabled="isLastPiece(piece)"
+                  :aria-label="t('mood.moveDown') || 'Flytta ner'"
+                  @click.stop="movePieceOrder(piece, 1)"
+                >
+                  <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              </div>
+              <div v-else class="flex items-center gap-1 cursor-grab" :aria-label="t('mood.move')">
                 <svg class="h-3 w-5 opacity-40 hover:opacity-80" viewBox="0 0 20 8" fill="currentColor" aria-hidden="true">
                   <circle cx="3" cy="2" r="1.2" />
                   <circle cx="10" cy="2" r="1.2" />
@@ -201,13 +256,13 @@
               </div>
 
               <!-- Color dots -->
-              <div class="flex items-center gap-1">
+              <div class="flex items-center gap-1.5">
                 <button
                   v-for="col in NOTE_COLORS"
                   :key="col"
                   type="button"
-                  class="h-3 w-3 rounded-full border border-black/10 transition-transform hover:scale-125 focus:outline-none"
-                  :class="[noteDotClass(col), piece.color === col ? 'ring-1.5 ring-[#173D35]' : '']"
+                  class="h-4 w-4 sm:h-3 sm:w-3 rounded-full border border-black/10 transition-transform hover:scale-125 focus:outline-none"
+                  :class="[noteDotClass(col), piece.color === col ? 'ring-2 ring-[#173D35]' : '']"
                   :aria-label="col"
                   @pointerdown.stop
                   @click.stop="piece.color = col; persist()"
@@ -216,22 +271,22 @@
 
               <button
                 type="button"
-                class="flex h-5 w-5 items-center justify-center rounded-full text-black/40 hover:bg-black/10 hover:text-black/80 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#173D35]"
+                class="flex h-7 w-7 sm:h-6 sm:w-6 items-center justify-center rounded-full text-black/40 hover:bg-black/10 hover:text-black/80 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#173D35]"
                 :aria-label="t('mood.remove')"
                 @pointerdown.stop
                 @click.stop="remove(piece)"
               >
-                <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
                   <path d="M6 6 L18 18 M18 6 L6 18" />
                 </svg>
               </button>
             </div>
 
             <textarea
-              class="mood-note-text block w-full resize-none bg-transparent text-[13px] leading-relaxed focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#173D35]/30 rounded"
+              class="mood-note-text block w-full resize-none bg-transparent text-sm leading-relaxed focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[#173D35]/30 rounded p-1"
               :value="piece.caption"
               :placeholder="t('mood.notePlaceholder')"
-              rows="4"
+              :rows="isMobile ? 3 : 4"
               maxlength="500"
               spellcheck="true"
               @pointerdown.stop
@@ -240,30 +295,33 @@
             ></textarea>
 
             <!-- Post-it footer: author badge + Likes & Comments buttons -->
-            <div class="mt-2 flex items-center justify-between gap-1 select-none pt-1.5 pr-8 border-t border-black/8">
+            <div
+              class="mt-2.5 flex items-center justify-between gap-2 select-none pt-2 border-t border-black/8"
+              :class="isMobile ? '' : 'pr-8'"
+            >
               <!-- Author badge -->
               <div
                 v-if="piece.author?.avatar"
-                class="flex items-center gap-1.5 rounded-full bg-black/6 px-1.5 py-0.5 select-none"
+                class="flex items-center gap-1.5 rounded-full bg-black/6 px-2 py-0.5 select-none"
                 :title="piece.author.name ? `Tillagd av ${piece.author.name}` : ''"
               >
                 <img
                   :src="piece.author.avatar"
                   :alt="piece.author.name"
-                  class="h-3.5 w-3.5 rounded-full object-cover ring-1 ring-black/10"
+                  class="h-4 w-4 rounded-full object-cover ring-1 ring-black/10"
                 />
-                <span class="max-w-[65px] truncate text-[9.5px] font-bold text-black/70">
+                <span class="max-w-[80px] sm:max-w-[65px] truncate text-[10px] font-bold text-black/70">
                   {{ piece.author.name }}
                 </span>
               </div>
               <div v-else></div>
 
               <!-- Like & Comment Actions -->
-              <div class="flex items-center gap-1">
+              <div class="flex items-center gap-1.5">
                 <!-- Like Button -->
                 <button
                   type="button"
-                  class="flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold transition hover:bg-black/8 active:scale-95"
+                  class="flex items-center gap-1 rounded-full px-2 py-1 text-xs font-bold transition hover:bg-black/8 active:scale-95"
                   :class="isLikedByMe(piece) ? 'text-rose-600 bg-rose-50' : 'text-black/60 hover:text-black/80'"
                   :title="t('mood.like')"
                   @pointerdown.stop
@@ -283,7 +341,7 @@
                 <!-- Comment Button -->
                 <button
                   type="button"
-                  class="flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold transition hover:bg-black/8 active:scale-95 text-black/60 hover:text-black/80"
+                  class="flex items-center gap-1 rounded-full px-2 py-1 text-xs font-bold transition hover:bg-black/8 active:scale-95 text-black/60 hover:text-black/80"
                   :title="t('mood.comments')"
                   @pointerdown.stop
                   @click.stop="openComments(piece)"
@@ -300,12 +358,13 @@
           <!-- IMAGE / CLIP RENDERING -->
           <template v-else>
             <div
-              class="group relative overflow-hidden bg-[#173D35]"
+              class="group relative overflow-hidden bg-[#173D35] rounded-xl"
               :class="piece.kind === 'image' && shown(piece) && !broken[piece.id] ? 'cursor-zoom-in' : ''"
               @click="onImageAreaClick(piece)"
             >
-              <!-- Move drag handle for pictures -->
+              <!-- Move drag handle on desktop or reorder arrows on mobile -->
               <div
+                v-if="!isMobile"
                 class="absolute left-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-lg bg-black/60 text-white shadow-md backdrop-blur-xs transition hover:bg-black/80 hover:scale-110 active:scale-95 cursor-grab active:cursor-grabbing"
                 :title="t('mood.move')"
                 :aria-label="t('mood.move')"
@@ -323,9 +382,36 @@
                   <line x1="12" y1="2" x2="12" y2="22" />
                 </svg>
               </div>
+
+              <!-- Reorder buttons on mobile -->
+              <div v-if="isMobile" class="absolute left-2 top-2 z-10 flex items-center gap-1">
+                <button
+                  type="button"
+                  class="flex h-7 w-7 items-center justify-center rounded-lg bg-black/60 text-white shadow-md backdrop-blur-xs active:bg-black/80 disabled:opacity-30"
+                  :disabled="isFirstPiece(piece)"
+                  :aria-label="t('mood.moveUp') || 'Flytta upp'"
+                  @click.stop="movePieceOrder(piece, -1)"
+                >
+                  <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  class="flex h-7 w-7 items-center justify-center rounded-lg bg-black/60 text-white shadow-md backdrop-blur-xs active:bg-black/80 disabled:opacity-30"
+                  :disabled="isLastPiece(piece)"
+                  :aria-label="t('mood.moveDown') || 'Flytta ner'"
+                  @click.stop="movePieceOrder(piece, 1)"
+                >
+                  <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              </div>
+
               <iframe
                 v-if="playing === piece.id && embed(piece)"
-                class="aspect-video w-full"
+                class="aspect-video w-full rounded-xl"
                 :src="embed(piece)"
                 :title="piece.caption || t('mood.play')"
                 allow="autoplay; encrypted-media; picture-in-picture"
@@ -333,7 +419,7 @@
               ></iframe>
               <video
                 v-else-if="piece.clip === 'file' && shown(piece)"
-                class="block w-full"
+                class="block w-full rounded-xl"
                 :src="shown(piece)"
                 controls
                 playsinline
@@ -341,18 +427,19 @@
               ></video>
               <img
                 v-else-if="piece.clip === 'youtube' && !broken[piece.id]"
-                class="block w-full"
+                class="block w-full aspect-video object-cover rounded-xl"
                 :src="youtubePoster(piece.ref)"
                 :alt="piece.caption || t('mood.picture')"
                 draggable="false"
                 @error="markBroken(piece.id)"
               />
-              <div v-else-if="piece.clip === 'vimeo'" class="flex aspect-video w-full items-end bg-[#173D35] px-3 pb-3">
+              <div v-else-if="piece.clip === 'vimeo'" class="flex aspect-video w-full items-end bg-[#173D35] px-3 pb-3 rounded-xl">
                 <span class="text-[11px] font-medium tracking-wide text-[#F5F3EC]">vimeo.com</span>
               </div>
               <img
                 v-else-if="piece.kind === 'image' && shown(piece) && !broken[piece.id]"
                 class="block w-full transition duration-150 group-hover:scale-[1.02]"
+                :class="isMobile ? 'max-h-[65vh] object-contain rounded-xl bg-black/5' : ''"
                 :src="shown(piece)"
                 :alt="piece.caption || t('mood.picture')"
                 draggable="false"
@@ -385,15 +472,28 @@
                   <path d="M8 5.5v13l11-6.5z" />
                 </svg>
               </button>
+
+              <!-- Delete button inside top right corner for safe mobile bounds -->
+              <button
+                type="button"
+                class="absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-black/60 text-[#F5F3EC] shadow-md backdrop-blur-xs hover:bg-black/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                :aria-label="t('mood.remove')"
+                @pointerdown.stop
+                @click.stop="remove(piece)"
+              >
+                <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true">
+                  <path d="M6 6 L18 18 M18 6 L6 18" />
+                </svg>
+              </button>
             </div>
 
             <label class="sr-only" :for="`mood-caption-${piece.id}`">{{ t('mood.caption') }}</label>
             <textarea
               :id="`mood-caption-${piece.id}`"
-              class="mood-caption mt-1.5 block w-full resize-none rounded-md bg-transparent px-1.5 py-1 text-[13px] leading-snug text-[#222925] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#173D35]"
+              class="mood-caption mt-2 block w-full resize-none rounded-lg bg-transparent px-2 py-1 text-sm leading-relaxed text-[#222925] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#173D35]"
               :value="piece.caption"
               :placeholder="t('mood.captionPlaceholder')"
-              rows="2"
+              :rows="isMobile ? 2 : 2"
               maxlength="500"
               spellcheck="true"
               @pointerdown.stop
@@ -402,37 +502,40 @@
             ></textarea>
 
             <!-- Image / Clip footer: author badge + Likes & Comments buttons -->
-            <div class="mt-1 flex items-center justify-between gap-1 px-1.5 pb-0.5 pr-8 select-none">
+            <div
+              class="mt-1 flex items-center justify-between gap-1.5 px-1.5 pb-0.5 select-none"
+              :class="isMobile ? '' : 'pr-8'"
+            >
               <!-- Author badge -->
               <div
                 v-if="piece.author?.avatar"
-                class="flex items-center gap-1.5 rounded-full bg-[#173D35]/6 px-2 py-0.5 select-none"
+                class="flex items-center gap-1.5 rounded-full bg-[#173D35]/6 px-2.5 py-1 select-none"
                 :title="piece.author.name ? `Tillagd av ${piece.author.name}` : ''"
               >
                 <img
                   :src="piece.author.avatar"
                   :alt="piece.author.name"
-                  class="h-3.5 w-3.5 rounded-full object-cover ring-1 ring-[#173D35]/20"
+                  class="h-4 w-4 rounded-full object-cover ring-1 ring-[#173D35]/20"
                 />
-                <span class="max-w-[70px] truncate text-[10px] font-semibold text-[#173D35]">
+                <span class="max-w-[90px] sm:max-w-[70px] truncate text-xs sm:text-[10px] font-semibold text-[#173D35]">
                   {{ piece.author.name }}
                 </span>
               </div>
               <div v-else></div>
 
               <!-- Like & Comment Actions -->
-              <div class="flex items-center gap-1.5">
+              <div class="flex items-center gap-2">
                 <!-- Like Button -->
                 <button
                   type="button"
-                  class="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-bold transition hover:bg-black/5 active:scale-95"
+                  class="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold transition hover:bg-black/5 active:scale-95"
                   :class="isLikedByMe(piece) ? 'text-rose-600 bg-rose-50' : 'text-[#173D35]/70 hover:text-[#173D35]'"
                   :title="t('mood.like')"
                   @pointerdown.stop
                   @click.stop="toggleLike(piece)"
                 >
                   <svg
-                    class="h-3.5 w-3.5 transition-transform duration-150"
+                    class="h-4 w-4 transition-transform duration-150"
                     :class="isLikedByMe(piece) ? 'fill-current scale-110' : 'fill-none stroke-current'"
                     viewBox="0 0 24 24"
                     stroke-width="2.2"
@@ -445,34 +548,23 @@
                 <!-- Comment Button -->
                 <button
                   type="button"
-                  class="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-bold transition hover:bg-black/5 active:scale-95 text-[#173D35]/70 hover:text-[#173D35]"
+                  class="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-bold transition hover:bg-black/5 active:scale-95 text-[#173D35]/70 hover:text-[#173D35]"
                   :class="piece.comments?.length ? 'bg-[#173D35]/6 text-[#173D35]' : ''"
                   :title="t('mood.comments')"
                   @pointerdown.stop
                   @click.stop="openComments(piece)"
                 >
-                  <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                  <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a.75.75 0 01-1.074-.755 5.977 5.977 0 011.025-3.08A7.838 7.838 0 013 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
                   </svg>
                   <span>{{ piece.comments?.length || 0 }}</span>
                 </button>
               </div>
             </div>
-
-            <button
-              type="button"
-              class="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full bg-[#173D35] text-[#F5F3EC] shadow-[0_6px_12px_-6px_rgba(23,61,53,0.7)] hover:bg-[#102e28] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#173D35]"
-              :aria-label="t('mood.remove')"
-              @pointerdown.stop
-              @click.stop="remove(piece)"
-            >
-              <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true">
-                <path d="M6 6 L18 18 M18 6 L6 18" />
-              </svg>
-            </button>
           </template>
 
           <button
+            v-if="!isMobile"
             type="button"
             class="mood-size absolute bottom-1.5 right-1.5 flex h-6 w-6 items-center justify-center rounded-md bg-[#173D35] text-[#F5F3EC] shadow-sm hover:scale-110 active:scale-95 cursor-nwse-resize transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#173D35]"
             :aria-label="t('mood.resize')"
@@ -490,12 +582,21 @@
 
         <!-- Endless scroll bottom hint -->
         <div
+          v-if="!isMobile"
           class="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-full bg-white/70 px-4 py-1.5 text-xs font-semibold text-[#173D35]/60 shadow-xs backdrop-blur-xs select-none"
         >
           <svg class="h-3.5 w-3.5 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
           </svg>
           <span>{{ t('mood.scrollDown') }}</span>
+        </div>
+
+        <!-- Mobile end of moodboard indicator -->
+        <div
+          v-if="isMobile && pieces.length > 0"
+          class="flex items-center justify-center py-4 text-xs font-medium text-[#173D35]/60 select-none"
+        >
+          <span>✨ {{ t('mood.endOfBoard') || 'Du har nått slutet av moodboarden' }}</span>
         </div>
       </div>
     </div>
@@ -662,7 +763,7 @@
                 type="text"
                 readonly
                 :value="shareUrl"
-                class="w-full rounded-xl border border-stone-300 bg-white px-3.5 py-2.5 text-xs font-mono text-stone-800 focus:outline-none"
+                class="min-w-0 flex-1 rounded-xl border border-stone-300 bg-white px-3.5 py-2.5 text-xs font-mono text-stone-800 focus:outline-none"
               />
               <button
                 type="button"
@@ -1101,7 +1202,54 @@ function reopenJoinPage() {
   emit('reopen-profile');
 }
 
+const isInvited = computed(() => {
+  return Boolean(getStoredParticipant()) || !sessionStore.user;
+});
+
+const isMobile = ref(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
+
+function onWindowResize() {
+  isMobile.value = typeof window !== 'undefined' && window.innerWidth < 768;
+}
+
+const displayPieces = computed(() => {
+  if (isMobile.value) {
+    return [...pieces.value].sort((a, b) => a.y - b.y);
+  }
+  return pieces.value;
+});
+
+function movePieceOrder(piece: MoodPiece, dir: -1 | 1) {
+  const currentList = displayPieces.value;
+  const idx = currentList.findIndex((p) => p.id === piece.id);
+  if (idx < 0) return;
+  const targetIdx = idx + dir;
+  if (targetIdx < 0 || targetIdx >= currentList.length) return;
+  const otherPiece = currentList[targetIdx];
+
+  const tempY = piece.y;
+  piece.y = otherPiece.y;
+  otherPiece.y = tempY;
+
+  if (piece.y === otherPiece.y) {
+    piece.y += dir * 5;
+  }
+
+  persist();
+}
+
+function isFirstPiece(piece: MoodPiece) {
+  return displayPieces.value.length > 0 && displayPieces.value[0].id === piece.id;
+}
+
+function isLastPiece(piece: MoodPiece) {
+  return displayPieces.value.length > 0 && displayPieces.value[displayPieces.value.length - 1].id === piece.id;
+}
+
 function handleClose() {
+  if (isInvited.value) {
+    return; // No backdoor to Builder 3D for invited guests
+  }
   if (props.standalone) {
     void router.push('/build');
   } else {
@@ -1127,6 +1275,8 @@ const currentLightboxPiece = computed(() => {
 });
 
 onMounted(() => {
+  onWindowResize();
+  window.addEventListener('resize', onWindowResize);
   void sessionStore.ensureAccountState().then(() => {
     backfillExistingPiecesAuthor();
   });
@@ -1194,6 +1344,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   persist();
+  window.removeEventListener('resize', onWindowResize);
   window.removeEventListener('paste', onPaste);
   window.removeEventListener('keydown', onKeyDown);
   stopWatch();
@@ -1299,6 +1450,9 @@ function noteDotClass(color: MoodColor) {
 }
 
 const sheetStyle = computed(() => {
+  if (isMobile.value) {
+    return {};
+  }
   let maxY = 60;
   for (const piece of pieces.value) {
     if (piece.y > maxY) maxY = piece.y;
@@ -1310,6 +1464,9 @@ const sheetStyle = computed(() => {
 });
 
 function frame(piece: MoodPiece) {
+  if (isMobile.value) {
+    return {};
+  }
   return {
     left: `${piece.x}%`,
     top: `${Math.round(piece.y * SCALE_Y)}px`,
@@ -1379,7 +1536,11 @@ function addLink(raw: string) {
     notice.value = 'mood.bad';
     return;
   }
-  pieces.value.push(pieceFrom(parsed, pieces.value.length, '', { ...currentAuthor.value }));
+  const piece = pieceFrom(parsed, pieces.value.length, '', { ...currentAuthor.value });
+  if (isMobile.value && pieces.value.length > 0) {
+    piece.y = Math.max(...pieces.value.map((p) => p.y)) + 25;
+  }
+  pieces.value.push(piece);
   persist();
 }
 
@@ -1398,7 +1559,7 @@ function addPostIt(color: MoodColor = 'yellow') {
     ref: '',
     color,
     x: spot.x,
-    y: spot.y,
+    y: isMobile.value && pieces.value.length > 0 ? Math.max(...pieces.value.map((p) => p.y)) + 15 : spot.y,
     w: 22,
     tilt: Math.random() * 4 - 2,
     caption: '',
@@ -1430,7 +1591,8 @@ async function addFiles(files: File[]) {
       const parsed = readLink(`local:${id}`);
       if (!parsed) continue;
       urls.value = { ...urls.value, [id]: URL.createObjectURL(file) };
-      pieces.value.push({ id, ...parsed, ...placeFor(pieces.value.length), caption: '', author: { ...currentAuthor.value } });
+      const pieceY = isMobile.value && pieces.value.length > 0 ? Math.max(...pieces.value.map((p) => p.y)) + 25 : placeFor(pieces.value.length).y;
+      pieces.value.push({ id, ...parsed, ...placeFor(pieces.value.length), y: pieceY, caption: '', author: { ...currentAuthor.value } });
       continue;
     }
     if (!file.type.startsWith('image/')) {
@@ -1444,7 +1606,11 @@ async function addFiles(files: File[]) {
         notice.value = 'mood.bad';
         continue;
       }
-      pieces.value.push(pieceFrom(parsed, pieces.value.length, '', { ...currentAuthor.value }));
+      const piece = pieceFrom(parsed, pieces.value.length, '', { ...currentAuthor.value });
+      if (isMobile.value && pieces.value.length > 0) {
+        piece.y = Math.max(...pieces.value.map((p) => p.y)) + 25;
+      }
+      pieces.value.push(piece);
     } catch {
       notice.value = 'mood.big';
     }
@@ -1566,6 +1732,7 @@ function hasFiles(event: DragEvent) {
 }
 
 function onDown(event: PointerEvent, piece: MoodPiece, mode: 'move' | 'size') {
+  if (isMobile.value && mode === 'move') return;
   if (event.button !== 0) return;
   const target = event.target as HTMLElement | null;
   if (mode === 'move' && target?.closest('input, button, textarea, iframe, video, select, a')) return;
