@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { PULPET_PITCH_DEG, type CameraView, type MaterialKey, type WallSlot, type LoftPlacement, type LoftCount, type LoftStairPosition, type LoftStairType, type PanelOrientation, type RoofCovering } from '../store/useConfigStore';
 import { terraceBoardLayout, type HouseTerrace, type TerraceSide } from '../outside/terrace';
+import { computeDoorCanopyLayout } from '../outside/canopy';
 import { compassDialDegrees, headingForFacing, sunPlacement, type CompassFacing } from './sunPosition';
 import { eaveLiftMm, gablePitchDegrees, isGableRoof, wallPlateHeightM, type RoofId } from '../store/roof';
 import { inferNoteNormal, noteAxes, noteCameraTransform, noteSheetTransform, noteTiltRadians, stickFacing, NOTE_SURFACE_SCALE } from '../notes/surface';
@@ -85,6 +86,8 @@ interface OutsideAnchor {
   head: number;
   wall: 'front' | 'back' | 'left' | 'right';
   itemId?: string;
+  cornerSide?: 'left' | 'right' | null;
+  panelWidth?: number;
 }
 
 export class HouseScene {
@@ -2765,11 +2768,13 @@ export class HouseScene {
           px,
           pz,
           rotY,
-          doorX: wide?.x ?? 0,
+          doorX: wide?.x ?? opening.x ?? 0,
           width: opening.winW,
           head: opening.head,
           wall,
-          itemId: slot.itemId
+          itemId: slot.itemId,
+          cornerSide,
+          panelWidth
         });
       }
     }
@@ -2804,29 +2809,35 @@ export class HouseScene {
   private addDoorCanopy(door: OutsideAnchor, timber: THREE.Material, roofMat: THREE.Material) {
     const outward = this.outwardSign(door.wall);
     const projection = 0.92;
-    const width = door.width + 0.56;
+    const layout = computeDoorCanopyLayout({
+      doorX: door.doorX,
+      doorWidth: door.width,
+      panelWidth: door.panelWidth,
+      cornerSide: door.cornerSide
+    });
+
     const pitch = (8 * Math.PI) / 180;
     const group = new THREE.Group();
     group.position.set(door.px, 0, door.pz);
     group.rotation.y = door.rotY;
 
     const y = door.head + 0.18;
-    const roof = new THREE.Mesh(new THREE.BoxGeometry(width, 0.04, projection), roofMat);
-    roof.position.set(door.doorX, y, outward * (projection / 2 + 0.02));
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(layout.width, 0.04, projection), roofMat);
+    roof.position.set(layout.canopyX, y, outward * (projection / 2 + 0.02));
     roof.rotation.x = outward * pitch;
     roof.castShadow = true;
     roof.receiveShadow = true;
     group.add(roof);
 
-    const fascia = new THREE.Mesh(new THREE.BoxGeometry(width + 0.02, 0.09, 0.022), timber);
-    fascia.position.set(door.doorX, y - 0.06, outward * (projection + 0.03));
+    const fascia = new THREE.Mesh(new THREE.BoxGeometry(layout.fasciaWidth, 0.09, 0.022), timber);
+    fascia.position.set(layout.canopyX, y - 0.06, outward * (projection + 0.03));
     fascia.castShadow = true;
     group.add(fascia);
 
-    for (const side of [-1, 1]) {
+    for (const bx of [layout.leftBracketX, layout.rightBracketX]) {
       const bracket = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.07, projection * 0.78), timber);
       bracket.position.set(
-        door.doorX + side * (width / 2 - 0.1),
+        bx,
         y - 0.07,
         outward * (projection * 0.42)
       );
@@ -5482,19 +5493,36 @@ export class HouseScene {
 
     // If dragging a door and door roof is enabled, preview the door roof over the target bay
     if (isDoorWithCanopy && valid) {
-      const span = Math.max(size.x, size.z) + 0.56;
+      const pw = Math.max(size.x, size.z);
+      const isXMajor = size.x > size.z;
+      const wall = target.userData?.wall as 'front' | 'back' | 'left' | 'right' | undefined;
+      const index = target.userData?.index as number | undefined;
+      const count = wall === 'front' || wall === 'back' ? 4 : 3;
+      const cornerSide = (wall && typeof index === 'number')
+        ? this.cornerSideForPanel(wall, index, count)
+        : null;
+
+      const layout = computeDoorCanopyLayout({
+        doorX: 0,
+        doorWidth: Math.min(1.0, pw - 0.2),
+        panelWidth: pw,
+        cornerSide
+      });
+
       const canopyGeo = new THREE.BoxGeometry(
-        size.x > size.z ? span : 0.92,
+        isXMajor ? layout.width : 0.92,
         0.06,
-        size.x > size.z ? 0.92 : span
+        isXMajor ? 0.92 : layout.width
       );
       const canopyEdges = new THREE.EdgesGeometry(canopyGeo);
       const canopyWire = new THREE.LineSegments(canopyEdges, lineMat);
-      canopyWire.position.set(0, size.y / 2 + 0.22, 0);
+      const posX = isXMajor ? layout.canopyX : 0;
+      const posZ = isXMajor ? 0 : layout.canopyX;
+      canopyWire.position.set(posX, size.y / 2 + 0.22, posZ);
       group.add(canopyWire);
 
       const canopyMesh = new THREE.Mesh(canopyGeo, glowMat);
-      canopyMesh.position.set(0, size.y / 2 + 0.22, 0);
+      canopyMesh.position.set(posX, size.y / 2 + 0.22, posZ);
       group.add(canopyMesh);
     }
 
