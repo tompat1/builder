@@ -280,7 +280,10 @@ function acceptPiece(value: unknown): MoodPiece | null {
     };
   }
 
-  const link = readLink(typeof record.src === 'string' ? record.src : '');
+  const rawSrc = typeof record.src === 'string' ? record.src : '';
+  const link = record.kind === 'image' && (rawSrc === '' || rawSrc.startsWith('asset:'))
+    ? { kind: 'image' as const, src: '', clip: '' as const, ref: '' }
+    : readLink(rawSrc);
   if (!link) return null;
   if (record.kind !== undefined && record.kind !== link.kind) return null;
   const clip = link.clip;

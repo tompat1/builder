@@ -173,12 +173,12 @@ async function externalizePieceImages(db, boardId, pieces, dropMissing) {
 
 async function inflatePieceImages(db, boardId, pieces) {
   const rows = await assetRows(db, boardId);
-  if (!rows.length) return pieces;
   const images = new Map(rows.map((row) => [row.id, row.data]));
   return pieces.map((piece) => {
     if (!piece || typeof piece.src !== 'string' || !piece.src.startsWith('asset:')) return piece;
     const data = images.get(piece.src.slice(6));
-    return data ? { ...piece, src: data } : piece;
+    if (typeof data === 'string' && data.startsWith('data:image/')) return { ...piece, src: data };
+    return { ...piece, src: '' };
   });
 }
 

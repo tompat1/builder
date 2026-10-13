@@ -232,6 +232,7 @@ test('placeFor scales y downwards for endless scrolling', () => {
 
 function createMockD1(initialRow = null) {
   const rows = new Map();
+  const assets = new Map();
   if (initialRow?.id) rows.set(initialRow.id, initialRow);
   function owned(userId) {
     return [...rows.values()]
@@ -250,11 +251,18 @@ function createMockD1(initialRow = null) {
                 return null;
               },
               async all() {
+                if (sql.includes('FROM mood_assets')) {
+                  return { results: [...assets.values()].filter((row) => row.board_id === args[0]) };
+                }
                 const results = sql.includes('WHERE user_id = ?') ? owned(args[0]) : [];
                 return { results };
               },
               async run() {
-                if (sql.includes('INSERT INTO mood_boards')) {
+                if (sql.includes('INSERT INTO mood_assets')) {
+                  assets.set(args[0], { id: args[0], board_id: args[1], data: args[2] });
+                } else if (sql.includes('DELETE FROM mood_assets')) {
+                  assets.delete(args[0]);
+                } else if (sql.includes('INSERT INTO mood_boards')) {
                   rows.set(args[0], {
                     id: args[0],
                     user_id: args[1],
@@ -399,6 +407,38 @@ test('a signed-in device loads the account mood board even under another house k
   const kept = await handleMood(new Request('https://example.com/api/mood/draft', { method: 'GET' }), env, {}, sessionUser);
   const keptBody = await kept.json();
   assert.equal(keptBody.mood.pieces.length, 2);
+});
+
+test('a missing mood asset is cleared and the picture stays on the board', async () => {
+  const env = createMockD1();
+  const sessionUser = async () => ({ id: 'usr_1', login: 'tompat1' });
+  const jpeg = 'data:image/jpeg;base64,aaaa';
+  const put = await handleMood(new Request('https://example.com/api/mood/hus_assets', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      title: 'Bilder',
+      authoritative: true,
+      pieces: [
+        { id: 'mood_aabbccdd', kind: 'image', src: jpeg, x: 4, y: 8, w: 30, tilt: 0, caption: 'Kept' },
+        { id: 'mood_11223344', kind: 'image', src: 'asset:mood_11223344', x: 40, y: 8, w: 30, tilt: 0, caption: 'Missing' }
+      ]
+    })
+  }), env, {}, sessionUser);
+  assert.equal(put.status, 200);
+
+  const got = await handleMood(new Request('https://example.com/api/mood/hus_assets', { method: 'GET' }), env, {}, sessionUser);
+  const body = await got.json();
+  const kept = body.mood.pieces.find((piece) => piece.id === 'mood_aabbccdd');
+  const missing = body.mood.pieces.find((piece) => piece.id === 'mood_11223344');
+  assert.equal(kept.src, jpeg);
+  assert.equal(missing.src, '');
+  assert.equal(missing.caption, 'Missing');
+
+  const accepted = acceptMood(body.mood.pieces);
+  assert.equal(accepted.length, 2);
+  assert.equal(accepted.find((piece) => piece.id === 'mood_11223344').src, '');
+  assert.equal(accepted.find((piece) => piece.id === 'mood_11223344').caption, 'Missing');
 });
 
 test('invited guests without account token are isolated from builder 3d', () => {
