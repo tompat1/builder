@@ -16,11 +16,28 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, watch, onMounted, nextTick } from 'vue';
 import HouseCanvas from '../components/HouseCanvas.vue';
 import ConfiguratorUI from '../components/ConfiguratorUI.vue';
 import { useConfigStore } from '../store/useConfigStore';
+import { triggerSessionAutosaveBadge } from '../services/feedback';
 
 const store = useConfigStore();
 const canvasRef = ref<InstanceType<typeof HouseCanvas> | null>(null);
+
+let initialHouseSnapshot = '';
+onMounted(() => {
+  nextTick(() => {
+    initialHouseSnapshot = JSON.stringify(store.exportHouse());
+  });
+});
+
+watch(
+  () => JSON.stringify(store.exportHouse()),
+  (curr) => {
+    if (initialHouseSnapshot && curr !== initialHouseSnapshot) {
+      triggerSessionAutosaveBadge('3d');
+    }
+  }
+);
 </script>

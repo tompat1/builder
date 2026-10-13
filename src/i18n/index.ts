@@ -6,6 +6,10 @@ export type AppLocale = 'sv' | 'en';
 const STORAGE_KEY = 'builder.locale';
 
 const sv = {
+  autosave: {
+    saving: 'Autosparar...',
+    saved: 'Sparat'
+  },
   lang: { label: 'Språk' },
   brand: { tagline: 'Ditt hem. Varje vinkel.' },
   site: {
@@ -653,6 +657,10 @@ const sv = {
 };
 
 const en = {
+  autosave: {
+    saving: 'Autosaving...',
+    saved: 'Saved'
+  },
   lang: { label: 'Language' },
   brand: { tagline: 'Your home. Every angle.' },
   site: {

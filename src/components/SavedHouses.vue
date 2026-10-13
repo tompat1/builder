@@ -335,7 +335,7 @@ import {
 } from '../services/houseSave';
 import { captureHouseThumb, forgetHouseThumb, houseThumb, rememberHouseThumb } from '../services/houseThumb';
 import { hasMoodBoard, linkDraftMoodToHouse } from '../services/moodSave';
-import { showToast } from '../services/feedback';
+import { showToast, triggerSessionAutosaveBadge } from '../services/feedback';
 
 const props = defineProps<{ open: boolean }>();
 const emit = defineEmits<{
@@ -505,6 +505,7 @@ function rememberDraft(json: string) {
 
 function queueDraft(json: string) {
   if (!draft || json === draft) return;
+  triggerSessionAutosaveBadge('3d');
   window.clearTimeout(saveTimer);
   saveTimer = window.setTimeout(() => rememberDraft(json), 800);
 }

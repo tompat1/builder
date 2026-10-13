@@ -91,11 +91,63 @@
         <span>{{ activeToast.message }}</span>
       </div>
     </Transition>
+
+    <!-- 4. UNOBTRUSIVE AUTOSAVE BADGE (Once per session in 3D & Moodboard) -->
+    <Transition name="badge-slide-fade">
+      <div
+        v-if="isAutosaveBadgeVisible"
+        id="autosave-session-badge"
+        class="pointer-events-none fixed bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-4 sm:left-6 z-[9990] flex items-center gap-2 rounded-full border border-slate-200/90 bg-white/95 px-3 py-1.5 text-[11px] sm:text-xs font-medium text-slate-700 shadow-md backdrop-blur-md transition-all duration-300"
+        role="status"
+        aria-live="polite"
+      >
+        <!-- Mini smooth spinner -->
+        <svg
+          v-if="autosaveBadgeStatus === 'saving'"
+          class="h-3.5 w-3.5 animate-spin text-[#173D35]"
+          viewBox="0 0 24 24"
+          fill="none"
+          aria-hidden="true"
+        >
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3.5"></circle>
+          <path class="opacity-85" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+        </svg>
+
+        <!-- Mini green checkmark when saved -->
+        <svg
+          v-else
+          class="h-3.5 w-3.5 text-emerald-600 transition-transform duration-200 scale-100"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+          aria-hidden="true"
+        >
+          <path
+            fill-rule="evenodd"
+            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+            clip-rule="evenodd"
+          />
+        </svg>
+
+        <!-- Dynamic Text -->
+        <span class="tracking-tight select-none">
+          {{ autosaveBadgeStatus === 'saving' ? (t('autosave.saving') || 'Autosparar...') : (t('autosave.saved') || 'Sparat') }}
+        </span>
+      </div>
+    </Transition>
   </div>
 </template>
 
 <script setup lang="ts">
-import { useFeedback } from '../services/feedback';
+import { useFeedback, useAutosaveBadge } from '../services/feedback';
+import { useLabels } from '../i18n';
+
+let t: (k: string) => string;
+try {
+  const labels = useLabels();
+  t = labels.t;
+} catch {
+  t = (k: string) => (k === 'autosave.saving' ? 'Autosparar...' : 'Sparat');
+}
 
 const {
   isBarVisible,
@@ -105,6 +157,11 @@ const {
   activeToast,
   dismissToast
 } = useFeedback();
+
+const {
+  isAutosaveBadgeVisible,
+  autosaveBadgeStatus
+} = useAutosaveBadge();
 </script>
 
 <style scoped>
@@ -150,5 +207,21 @@ const {
 .slide-toast-leave-to {
   opacity: 0;
   transform: translate(-50%, -8px);
+}
+
+/* Autosave badge subtle slide-in / fade */
+.badge-slide-fade-enter-active {
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.badge-slide-fade-leave-active {
+  transition: all 0.25s ease-in;
+}
+.badge-slide-fade-enter-from {
+  opacity: 0;
+  transform: translateY(8px) scale(0.96);
+}
+.badge-slide-fade-leave-to {
+  opacity: 0;
+  transform: translateY(6px) scale(0.96);
 }
 </style>

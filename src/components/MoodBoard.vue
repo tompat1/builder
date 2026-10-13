@@ -1047,7 +1047,7 @@ import {
 import { defaultAccountAvatar } from '../mood/avatar';
 import { generateQrSvg } from '../mood/qr';
 import { pictureDataUrl } from '../mood/image';
-import { showToast, startFeedback } from '../services/feedback';
+import { showToast, startFeedback, triggerSessionAutosaveBadge } from '../services/feedback';
 import {
   clearStoredParticipant,
   deleteClip,
@@ -1607,6 +1607,7 @@ function persist() {
     pieces: pieces.value,
     participants: participants.value
   }, houseKey);
+  triggerSessionAutosaveBadge('moodboard');
 }
 
 function submitLink() {

@@ -181,3 +181,91 @@ export const feedback = {
   error: errorFeedback,
   toast: showToast
 };
+
+export type AutosaveTarget = '3d' | 'moodboard';
+
+const isAutosaveBadgeVisible = ref(false);
+const autosaveBadgeStatus = ref<'saving' | 'saved'>('saving');
+let badgeTimer: ReturnType<typeof setTimeout> | null = null;
+
+const STORAGE_KEYS: Record<AutosaveTarget, string> = {
+  '3d': 'builder_autosave_seen_3d',
+  moodboard: 'builder_autosave_seen_moodboard'
+};
+
+const inMemorySeen = new Set<string>();
+
+export function hasSeenAutosaveBadge(target: AutosaveTarget): boolean {
+  const key = STORAGE_KEYS[target];
+  if (inMemorySeen.has(key)) return true;
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      return Boolean(sessionStorage.getItem(key));
+    }
+  } catch {
+    // sessionStorage not available or security error
+  }
+  return false;
+}
+
+export function triggerSessionAutosaveBadge(target: AutosaveTarget): void {
+  if (hasSeenAutosaveBadge(target)) return;
+
+  const key = STORAGE_KEYS[target];
+  inMemorySeen.add(key);
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem(key, '1');
+    }
+  } catch {
+    // ignore
+  }
+
+  if (badgeTimer) {
+    clearTimeout(badgeTimer);
+    badgeTimer = null;
+  }
+
+  autosaveBadgeStatus.value = 'saving';
+  isAutosaveBadgeVisible.value = true;
+
+  if (typeof setTimeout !== 'undefined') {
+    badgeTimer = setTimeout(() => {
+      autosaveBadgeStatus.value = 'saved';
+      badgeTimer = setTimeout(() => {
+        isAutosaveBadgeVisible.value = false;
+        badgeTimer = null;
+      }, 1200);
+    }, 2000);
+  } else {
+    autosaveBadgeStatus.value = 'saved';
+    isAutosaveBadgeVisible.value = false;
+  }
+}
+
+export function useAutosaveBadge() {
+  return {
+    isAutosaveBadgeVisible: computed(() => isAutosaveBadgeVisible.value),
+    autosaveBadgeStatus: computed(() => autosaveBadgeStatus.value),
+    triggerSessionAutosaveBadge,
+    hasSeenAutosaveBadge
+  };
+}
+
+export function resetAutosaveBadgeForTesting(): void {
+  inMemorySeen.clear();
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.removeItem(STORAGE_KEYS['3d']);
+      sessionStorage.removeItem(STORAGE_KEYS.moodboard);
+    }
+  } catch {
+    // ignore
+  }
+  if (badgeTimer) {
+    clearTimeout(badgeTimer);
+    badgeTimer = null;
+  }
+  isAutosaveBadgeVisible.value = false;
+  autosaveBadgeStatus.value = 'saving';
+}

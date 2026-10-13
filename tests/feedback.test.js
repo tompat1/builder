@@ -70,3 +70,46 @@ test('pulseFeedback activates the progress bar', () => {
   pulseFeedback('Snabb åtgärd');
   assert.equal(isBarVisible.value, true);
 });
+
+test('autosave badge triggers once per session for 3D and moodboard', async () => {
+  const {
+    useAutosaveBadge,
+    triggerSessionAutosaveBadge,
+    hasSeenAutosaveBadge,
+    resetAutosaveBadgeForTesting
+  } = await import('../src/services/feedback.ts');
+
+  resetAutosaveBadgeForTesting();
+  const { isAutosaveBadgeVisible, autosaveBadgeStatus } = useAutosaveBadge();
+
+  assert.equal(hasSeenAutosaveBadge('3d'), false);
+  assert.equal(hasSeenAutosaveBadge('moodboard'), false);
+  assert.equal(isAutosaveBadgeVisible.value, false);
+
+  // First trigger for 3D
+  triggerSessionAutosaveBadge('3d');
+  assert.equal(hasSeenAutosaveBadge('3d'), true);
+  assert.equal(isAutosaveBadgeVisible.value, true);
+  assert.equal(autosaveBadgeStatus.value, 'saving');
+
+  // Second trigger for 3D in same session is ignored
+  triggerSessionAutosaveBadge('3d');
+  assert.equal(hasSeenAutosaveBadge('3d'), true);
+
+  // Reset badge visibility to test moodboard independent trigger
+  resetAutosaveBadgeForTesting();
+  assert.equal(hasSeenAutosaveBadge('moodboard'), false);
+  assert.equal(isAutosaveBadgeVisible.value, false);
+
+  // First trigger for moodboard
+  triggerSessionAutosaveBadge('moodboard');
+  assert.equal(hasSeenAutosaveBadge('moodboard'), true);
+  assert.equal(isAutosaveBadgeVisible.value, true);
+  assert.equal(autosaveBadgeStatus.value, 'saving');
+
+  // Second trigger for moodboard in same session is ignored
+  triggerSessionAutosaveBadge('moodboard');
+  assert.equal(hasSeenAutosaveBadge('moodboard'), true);
+
+  resetAutosaveBadgeForTesting();
+});
