@@ -1,11 +1,32 @@
 <template>
   <div
-    class="pointer-events-auto z-20 flex w-full max-w-full flex-row flex-wrap items-end gap-2 transition-all duration-300 min-[1180px]:absolute min-[1180px]:w-auto min-[1180px]:flex-col min-[1180px]:flex-nowrap min-[1180px]:items-start"
+    class="pointer-events-auto z-20 flex w-full max-w-full flex-row flex-nowrap items-end gap-2 transition-all duration-300 min-[1180px]:absolute min-[1180px]:w-auto min-[1180px]:flex-col min-[1180px]:items-start"
     :class="store.isFullscreen ? 'absolute bottom-[max(1rem,env(safe-area-inset-bottom))] left-3 right-3 min-[1180px]:bottom-[max(1.5rem,env(safe-area-inset-bottom))] min-[1180px]:left-6 min-[1180px]:right-auto' : 'relative w-full min-[1180px]:bottom-[max(1.5rem,env(safe-area-inset-bottom))] min-[1180px]:left-6 min-[1180px]:w-auto'"
     :aria-label="t('tools.label')"
   >
+    <div
+      class="flex min-w-0 items-center rounded-2xl border border-slate-200/80 bg-white/95 p-1 shadow-md min-[1180px]:contents"
+      :class="toolsOpen ? 'w-full' : 'w-auto'"
+    >
+      <button
+        type="button"
+        class="grid h-12 w-12 shrink-0 place-items-center rounded-xl text-[#173D35] hover:bg-[#F5F3EC] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5A00] min-[1180px]:hidden"
+        :aria-expanded="toolsOpen"
+        :aria-label="toolsOpen ? t('tools.collapse') : t('tools.expand')"
+        @click="toggleTools"
+      >
+        <svg class="h-5 w-5 transition-transform" :class="toolsOpen ? '' : 'rotate-180'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </button>
+      <div
+        ref="toolScroll"
+        class="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto overscroll-x-contain min-[1180px]:contents"
+        :class="toolsOpen ? '' : 'max-[1179px]:hidden'"
+        @scroll.passive="onToolScroll"
+      >
     <!-- Camera toolbar: daylight, zoom, fullscreen, view -->
-    <div class="flex w-fit shrink-0 flex-row gap-1 self-start rounded-2xl border border-slate-200/80 bg-white/95 p-1.5 shadow-md backdrop-blur-md min-[1180px]:flex-col">
+    <div class="flex shrink-0 flex-row gap-1 min-[1180px]:w-fit min-[1180px]:flex-col min-[1180px]:self-start min-[1180px]:rounded-2xl min-[1180px]:border min-[1180px]:border-slate-200/80 min-[1180px]:bg-white/95 min-[1180px]:p-1.5 min-[1180px]:shadow-md min-[1180px]:backdrop-blur-md">
       <div ref="sunBox" class="relative">
         <div
           id="sun-timebox"
@@ -251,8 +272,9 @@
       </div>
     </div>
 
+      <div class="mx-0.5 h-7 w-px shrink-0 bg-slate-200/70 min-[1180px]:hidden"></div>
     <!-- Bottom Button Row: Ruler toolbox / Undo / Redo / Notes -->
-    <div class="flex shrink-0 items-center gap-1 rounded-2xl border border-slate-200/80 bg-white/95 p-1.5 shadow-md backdrop-blur-md">
+    <div class="flex shrink-0 items-center gap-1 min-[1180px]:rounded-2xl min-[1180px]:border min-[1180px]:border-slate-200/80 min-[1180px]:bg-white/95 min-[1180px]:p-1.5 min-[1180px]:shadow-md min-[1180px]:backdrop-blur-md">
       <div ref="rulerBox" class="relative">
         <div
           id="ruler-tools"
@@ -462,11 +484,13 @@
         <span class="tool-tip"><Cms k="tools.aiConcierge" /></span>
       </button>
     </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useConfigStore } from '../store/useConfigStore';
 import { NOTE_LIMIT } from '../notes/board';
 import { formatSunHour } from '../three-engine/sunPosition';
@@ -498,6 +522,8 @@ const rulerBox = ref<HTMLElement | null>(null);
 const sunBox = ref<HTMLElement | null>(null);
 const viewBox = ref<HTMLElement | null>(null);
 const notesBox = ref<HTMLElement | null>(null);
+const toolScroll = ref<HTMLElement | null>(null);
+const toolsOpen = ref(true);
 
 const { aiOpen } = defineProps<{
   aiOpen: boolean;
@@ -521,6 +547,76 @@ function toolButton(active: boolean) {
   ];
 }
 
+function narrowTools() {
+  return window.matchMedia('(max-width: 1179px)').matches;
+}
+
+function trayOf(box: HTMLElement | null) {
+  return box?.querySelector(':scope > div') as HTMLElement | null;
+}
+
+function clearTray(box: HTMLElement | null) {
+  const tray = trayOf(box);
+  if (!tray) return;
+  tray.style.position = '';
+  tray.style.left = '';
+  tray.style.right = '';
+  tray.style.top = '';
+  tray.style.bottom = '';
+}
+
+function placeTray(box: HTMLElement | null) {
+  const tray = trayOf(box);
+  if (!tray || !box || !narrowTools()) {
+    clearTray(box);
+    return;
+  }
+  const button = box.querySelector(':scope > button');
+  const rect = (button || box).getBoundingClientRect();
+  tray.style.position = 'fixed';
+  tray.style.top = 'auto';
+  tray.style.bottom = `${Math.max(8, window.innerHeight - rect.top + 8)}px`;
+  const width = tray.getBoundingClientRect().width || 240;
+  let left = rect.left;
+  const maxLeft = window.innerWidth - width - 12;
+  if (left > maxLeft) left = Math.max(12, maxLeft);
+  tray.style.left = `${left}px`;
+  tray.style.right = 'auto';
+}
+
+async function anchorOpenTray() {
+  await nextTick();
+  if (sunOpen.value) placeTray(sunBox.value);
+  else clearTray(sunBox.value);
+  if (viewOpen.value) placeTray(viewBox.value);
+  else clearTray(viewBox.value);
+  if (rulerOpen.value) placeTray(rulerBox.value);
+  else clearTray(rulerBox.value);
+  if (notesOpen.value) placeTray(notesBox.value);
+  else clearTray(notesBox.value);
+}
+
+function closeTrays() {
+  sunOpen.value = false;
+  viewOpen.value = false;
+  rulerOpen.value = false;
+  notesOpen.value = false;
+  clearTray(sunBox.value);
+  clearTray(viewBox.value);
+  clearTray(rulerBox.value);
+  clearTray(notesBox.value);
+}
+
+function toggleTools() {
+  toolsOpen.value = !toolsOpen.value;
+  if (!toolsOpen.value) closeTrays();
+}
+
+function onToolScroll() {
+  if (!narrowTools()) return;
+  if (sunOpen.value || viewOpen.value || rulerOpen.value || notesOpen.value) closeTrays();
+}
+
 function toggleSun() {
   sunOpen.value = !sunOpen.value;
   if (sunOpen.value) {
@@ -529,6 +625,7 @@ function toggleSun() {
     rulerOpen.value = false;
     notesOpen.value = false;
   }
+  void anchorOpenTray();
 }
 
 function toggleView() {
@@ -539,6 +636,7 @@ function toggleView() {
     rulerOpen.value = false;
     notesOpen.value = false;
   }
+  void anchorOpenTray();
 }
 
 function toggleRuler() {
@@ -549,6 +647,7 @@ function toggleRuler() {
     viewOpen.value = false;
     notesOpen.value = false;
   }
+  void anchorOpenTray();
 }
 
 function toggleNotesTray() {
@@ -559,6 +658,7 @@ function toggleNotesTray() {
     viewOpen.value = false;
     rulerOpen.value = false;
   }
+  void anchorOpenTray();
 }
 
 function toggleMood() {
@@ -628,12 +728,18 @@ onMounted(() => {
   document.addEventListener('fullscreenchange', syncFullscreen);
   document.addEventListener('pointerdown', onDocumentPointerDown);
   document.addEventListener('keydown', onKey);
+  window.addEventListener('resize', onToolResize);
 });
+
+function onToolResize() {
+  void anchorOpenTray();
+}
 
 onBeforeUnmount(() => {
   document.removeEventListener('fullscreenchange', syncFullscreen);
   document.removeEventListener('pointerdown', onDocumentPointerDown);
   document.removeEventListener('keydown', onKey);
+  window.removeEventListener('resize', onToolResize);
 });
 
 </script>
@@ -660,5 +766,10 @@ onBeforeUnmount(() => {
 .group:hover > .tool-tip,
 .group:focus-visible > .tool-tip {
   opacity: 1;
+}
+@media (max-width: 1179px) {
+  .tool-tip {
+    display: none;
+  }
 }
 </style>

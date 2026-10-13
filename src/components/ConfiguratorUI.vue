@@ -115,7 +115,7 @@
       </div>
 
       <!-- Fixed Menu / Category Navigation (Pinned at top of panel) -->
-      <div v-show="!isMobileCollapsed" class="px-4 py-3 md:px-5 border-b border-slate-100/80 bg-white/50 shrink-0">
+      <div v-show="!isMobileCollapsed" class="w-full min-w-0 px-4 py-3 md:px-5 border-b border-slate-100/80 bg-white/50 shrink-0">
         <CategoryNav />
       </div>
 

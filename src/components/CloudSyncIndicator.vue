@@ -2,15 +2,18 @@
   <div class="relative inline-block" ref="containerRef">
     <!-- Cloud Synced Status Button Pill -->
     <button
-      id="btn-cloud-sync-status"
+      :id="compact ? 'btn-cloud-sync-status-mobile' : 'btn-cloud-sync-status'"
       type="button"
-      class="group inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 select-none cursor-pointer"
-      :class="[
-        isOnline
-          ? 'bg-emerald-50/70 hover:bg-emerald-100/70 border-emerald-200/80 text-emerald-950 shadow-2xs'
-          : 'bg-slate-100 hover:bg-slate-200/80 border-slate-300 text-slate-700',
-        popoverOpen ? 'ring-2 ring-emerald-500/30 border-emerald-300' : ''
-      ]"
+      class="group cursor-pointer select-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500"
+      :class="compact
+        ? 'inline-flex h-11 w-11 items-center justify-center gap-1 rounded-xl text-emerald-800 hover:bg-[#F5F3EC]'
+        : [
+          'inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-colors duration-200',
+          isOnline
+            ? 'bg-emerald-50/70 hover:bg-emerald-100/70 border-emerald-200/80 text-emerald-950 shadow-2xs'
+            : 'bg-slate-100 hover:bg-slate-200/80 border-slate-300 text-slate-700',
+          popoverOpen ? 'ring-2 ring-emerald-500/30 border-emerald-300' : ''
+        ]"
       :aria-expanded="popoverOpen"
       :aria-label="t('header.cloudSync.allReady')"
       :title="t('header.cloudSync.allReady')"
@@ -67,14 +70,10 @@
         </svg>
       </span>
 
+      <template v-if="!compact">
       <!-- Text Label -->
-      <span class="hidden sm:inline font-medium text-[11px] min-[1180px]:text-xs tracking-tight text-emerald-900">
+      <span class="font-medium text-[11px] min-[1180px]:text-xs tracking-tight text-emerald-900">
         {{ labelText }}
-      </span>
-
-      <!-- Mobile / ultra-compact label -->
-      <span class="sm:hidden font-medium text-[10px] text-emerald-900">
-        {{ status === 'syncing' ? t('header.cloudSync.syncing') : t('header.cloudSync.synced') }}
       </span>
 
       <!-- Dropdown chevron -->
@@ -91,6 +90,7 @@
           clip-rule="evenodd"
         />
       </svg>
+      </template>
     </button>
 
     <!-- Cloudflare Status Detail Popover -->
@@ -104,8 +104,9 @@
     >
       <div
         v-if="popoverOpen"
-        id="cloud-sync-popover"
-        class="absolute left-0 top-full mt-2 z-50 w-72 sm:w-80 rounded-2xl border border-slate-200/90 bg-white/98 p-4 shadow-xl backdrop-blur-md text-xs text-slate-700 animate-fadeIn"
+        :id="compact ? 'cloud-sync-popover-mobile' : 'cloud-sync-popover'"
+        class="absolute top-full z-50 mt-2 w-72 rounded-2xl border border-slate-200/90 bg-white/98 p-4 text-xs text-slate-700 shadow-xl backdrop-blur-md animate-fadeIn sm:w-80"
+        :class="compact ? 'right-0' : 'left-0'"
         role="dialog"
         :aria-label="t('header.cloudSync.statusDetails')"
       >
@@ -183,7 +184,7 @@
           </span>
           <button
             type="button"
-            id="btn-verify-cloudflare"
+            :id="compact ? 'btn-verify-cloudflare-mobile' : 'btn-verify-cloudflare'"
             class="inline-flex items-center gap-1 font-semibold text-emerald-700 hover:text-emerald-900 transition-colors disabled:opacity-50"
             :disabled="isVerifying"
             @click="handleManualVerify"
@@ -211,6 +212,12 @@ import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { initCloudSync, useCloudSync } from '../services/cloudSync';
 import { useLabels } from '../i18n';
 import { pulseFeedback } from '../services/feedback';
+
+withDefaults(defineProps<{
+  compact?: boolean;
+}>(), {
+  compact: false
+});
 
 const { t } = useLabels();
 const {

@@ -453,6 +453,8 @@ const sv = {
   },
   tools: {
     label: '3D Vyverktyg',
+    collapse: 'Dölj verktyg',
+    expand: 'Visa verktyg',
     zoomIn: 'Zooma in',
     zoomOut: 'Zooma ut',
     ruler: 'Linjal',
@@ -1138,6 +1140,8 @@ const en = {
   },
   tools: {
     label: '3D view tools',
+    collapse: 'Hide tools',
+    expand: 'Show tools',
     zoomIn: 'Zoom in',
     zoomOut: 'Zoom out',
     ruler: 'Ruler',

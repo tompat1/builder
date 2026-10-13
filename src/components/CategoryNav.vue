@@ -1,5 +1,9 @@
 <template>
-  <nav class="grid grid-cols-4 gap-1.5" :aria-label="t('nav.label')">
+  <nav
+    ref="navEl"
+    class="flex w-full min-w-0 gap-1.5 overflow-x-auto overscroll-x-contain min-[1180px]:grid min-[1180px]:grid-cols-4 min-[1180px]:overflow-visible"
+    :aria-label="t('nav.label')"
+  >
     <button
       v-for="(cat, idx) in categories"
       :key="cat.id"
@@ -7,7 +11,7 @@
       type="button"
       @click="store.selectCategory(cat.id)"
       :class="[
-        'flex flex-col items-center justify-center min-h-11 py-2 px-1 rounded-xl transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
+        'flex w-[4.75rem] shrink-0 flex-col items-center justify-center min-h-11 py-2 px-1 rounded-xl transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 min-[1180px]:w-auto min-[1180px]:shrink',
         store.selectedCategory === cat.id
           ? 'bg-slate-900 text-white shadow-sm border border-slate-900'
           : 'bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-slate-200/60 hover:border-[#FF5A00]'
@@ -86,12 +90,23 @@
 </template>
 
 <script setup lang="ts">
+import { nextTick, ref, watch } from 'vue';
 import { useConfigStore, type CategoryKey } from '../store/useConfigStore';
 import { useLabels } from '../i18n';
 import Cms from './Cms.vue';
 
 const store = useConfigStore();
 const { t } = useLabels();
+const navEl = ref<HTMLElement | null>(null);
+
+watch(() => store.selectedCategory, async () => {
+  await nextTick();
+  const nav = navEl.value;
+  const btn = nav?.querySelector<HTMLElement>(`#category-${store.selectedCategory}`);
+  if (!nav || !btn || nav.scrollWidth <= nav.clientWidth) return;
+  const left = btn.offsetLeft - (nav.clientWidth - btn.offsetWidth) / 2;
+  nav.scrollTo({ left: Math.max(0, left), behavior: 'smooth' });
+});
 
 const categories: { id: CategoryKey }[] = [
   { id: 'size' },
