@@ -312,7 +312,7 @@
 import { nextTick, onBeforeUnmount, onMounted, ref, watch, computed } from 'vue';
 import { useConfigStore } from '../store/useConfigStore';
 import { useSessionStore } from '../store/useSessionStore';
-import { useLabels } from '../i18n';
+import { applyLocale, useLabels } from '../i18n';
 import Cms from './Cms.vue';
 import {
   clearHousePending,
@@ -321,6 +321,8 @@ import {
   markHousePending,
   openNamedHouse,
   readActiveHouseId,
+  localHouseNeedsUpload,
+  noteHouseSynced,
   readLocalHouse,
   watchActiveHouseId,
   readPendingHouse,
@@ -372,6 +374,7 @@ const stopActiveHouseWatch = watchActiveHouseId(syncActiveHouse);
 const panelStyle = ref({ top: '64px', left: '12px' });
 let draft = '';
 let saveTimer = 0;
+let adopting = false;
 let titleSaveTimer = 0;
 let savedTitleTimer = 0;
 
@@ -443,54 +446,57 @@ async function refresh() {
   if (active && !houseThumb(active)) attachThumb(active);
 }
 
+function applyAccountHouse(config: unknown, id?: string, locale?: string) {
+  if (locale === 'sv' || locale === 'en') applyLocale(locale);
+  store.importHouse(config);
+  writeLocalHouse(store.exportHouse());
+  noteHouseSynced();
+  if (id) {
+    writeActiveHouseId(id);
+    activeId.value = id;
+    attachThumb(id);
+  }
+  draft = JSON.stringify(store.exportHouse());
+}
+
 async function adoptWorkingHouse() {
   if (!session.user) return;
+  adopting = true;
+  window.clearTimeout(saveTimer);
+  const keepLocalEdit = localHouseNeedsUpload();
+  const pendingUpload = keepLocalEdit ? JSON.stringify(store.exportHouse()) : '';
   try {
+    const pending = readPendingHouse();
     const activeCloud = await getActiveHouse();
-    if (activeCloud && activeCloud.config && typeof activeCloud.config === 'object') {
-      const local = readLocalHouse();
-      if (!local || activeCloud.activeId) {
-        store.importHouse(activeCloud.config);
-        writeLocalHouse(activeCloud.config);
-        if (activeCloud.activeId) {
-          writeActiveHouseId(activeCloud.activeId);
-          activeId.value = activeCloud.activeId;
-          attachThumb(activeCloud.activeId);
-        }
-        draft = JSON.stringify(store.exportHouse());
-        void publishAccountMood();
-        return;
-      }
-    }
-  } catch {
-    // fallback
-  }
-
-  let active = readActiveHouseId();
-  if (!active) {
-    try {
-      const listed = await listHouses();
-      if (listed.length > 0) {
-        active = listed[0].id;
-        writeActiveHouseId(active);
-        const full = await openNamedHouse(active);
-        if (full.config) {
-          store.importHouse(full.config);
-          writeLocalHouse(full.config);
-          draft = JSON.stringify(store.exportHouse());
-        }
-      }
-    } catch {
-      void publishAccountMood();
+    if (!pending?.name && !keepLocalEdit && activeCloud?.config && typeof activeCloud.config === 'object') {
+      applyAccountHouse(activeCloud.config, activeCloud.activeId, activeCloud.locale);
       return;
     }
+    if (!pending?.name && !keepLocalEdit) {
+      let active = readActiveHouseId();
+      if (!active) {
+        const listed = await listHouses();
+        if (listed.length > 0) {
+          active = listed[0].id;
+          const full = await openNamedHouse(active);
+          if (full.config) applyAccountHouse(full.config, active);
+        }
+      }
+      activeId.value = active;
+      if (active && !houseThumb(active)) attachThumb(active);
+    }
+  } catch {
+    // The browser copy stays until the account can be reached.
+  } finally {
+    adopting = false;
+    draft = JSON.stringify(store.exportHouse());
+    if (pendingUpload) rememberDraft(pendingUpload);
+    void publishAccountMood();
   }
-  activeId.value = active;
-  if (active && !houseThumb(active)) attachThumb(active);
-  void publishAccountMood();
 }
 
 function rememberDraft(json: string) {
+  if (adopting) return;
   draft = json;
   const config = JSON.parse(json) as unknown;
   writeLocalHouse(config);
@@ -514,7 +520,7 @@ function rememberDraft(json: string) {
 }
 
 function queueDraft(json: string) {
-  if (!draft || json === draft) return;
+  if (adopting || !draft || json === draft) return;
   triggerSessionAutosaveBadge('3d');
   window.clearTimeout(saveTimer);
   saveTimer = window.setTimeout(() => rememberDraft(json), 800);

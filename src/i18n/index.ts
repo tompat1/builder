@@ -1565,13 +1565,16 @@ export function readStoredLocale(): AppLocale {
   return 'sv';
 }
 
-export function applyLocale(next: AppLocale) {
+export function applyLocale(next: AppLocale, persistAccount = false) {
   i18n.global.locale.value = next;
   document.documentElement.lang = next;
   try {
     localStorage.setItem(STORAGE_KEY, next);
   } catch {
     /* The choice still applies for this visit. */
+  }
+  if (persistAccount) {
+    void import('../services/houseSave').then(({ saveAccountLocale }) => saveAccountLocale());
   }
 }
 

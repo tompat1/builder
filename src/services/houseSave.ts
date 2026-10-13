@@ -5,6 +5,8 @@ import { sessionToken, workerBase } from './account';
 const HOUSE_KEY = 'builder.house';
 const PENDING_KEY = 'builder.house.pending';
 const ACTIVE_KEY = 'builder.house.active';
+const LOCAL_AT_KEY = 'builder.house.localAt';
+const SYNCED_AT_KEY = 'builder.house.syncedAt';
 const ACTIVE_EVENT = 'builder:house-active';
 
 export function acceptActiveHouseId(value: unknown) {
@@ -65,6 +67,23 @@ export function readLocalHouse(): unknown | null {
 
 export function writeLocalHouse(config: unknown) {
   localStorage.setItem(HOUSE_KEY, JSON.stringify(config));
+  localStorage.setItem(LOCAL_AT_KEY, new Date().toISOString());
+}
+
+/** This browser has an edit that has not reached the account yet. */
+export function localHouseNeedsUpload() {
+  const localAt = localStorage.getItem(LOCAL_AT_KEY) || '';
+  const syncedAt = localStorage.getItem(SYNCED_AT_KEY) || '';
+  return Boolean(localAt && syncedAt && localAt > syncedAt);
+}
+
+function markHouseSynced(stamp: string) {
+  if (stamp) localStorage.setItem(SYNCED_AT_KEY, stamp);
+}
+
+/** The open house matches the account copy, so the next visit can take a newer one. */
+export function noteHouseSynced() {
+  markHouseSynced(localStorage.getItem(LOCAL_AT_KEY) || '');
 }
 
 export function markHousePending(name: string, config: unknown) {
@@ -164,6 +183,7 @@ export async function removeNamedHouse(id: string) {
 export interface ActiveHouseData {
   activeId?: string;
   name?: string;
+  locale?: string;
   config: unknown;
 }
 
@@ -181,10 +201,34 @@ export async function getActiveHouse(): Promise<ActiveHouseData | null> {
 export async function saveActiveHouse(config: unknown, activeId?: string, name?: string): Promise<boolean> {
   const token = sessionToken();
   if (!token) return false;
+  const stamp = localStorage.getItem(LOCAL_AT_KEY) || '';
   try {
-    await houseFetch('/api/houses/active', 'PUT', { config, activeId, name });
+    await houseFetch('/api/houses/active', 'PUT', {
+      config,
+      activeId,
+      name,
+      locale: readAccountLocale()
+    });
+    markHouseSynced(stamp);
     return true;
   } catch {
     return false;
   }
+}
+
+function readAccountLocale() {
+  try {
+    const saved = localStorage.getItem('builder.locale');
+    if (saved === 'en' || saved === 'sv') return saved;
+  } catch {
+    /* Swedish stays the default when storage is blocked. */
+  }
+  return 'sv';
+}
+
+/** Keep the language with the account so the next device opens in the same language. */
+export function saveAccountLocale() {
+  const config = readLocalHouse();
+  if (!config) return;
+  void saveActiveHouse(config, readActiveHouseId() || undefined);
 }

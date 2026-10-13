@@ -54,6 +54,6 @@ const howCurrent = computed(() => (route.path === '/homes' && route.hash === '#h
 
 function onLocale(event: Event) {
   const value = (event.target as HTMLSelectElement).value;
-  if (value === 'sv' || value === 'en') applyLocale(value as AppLocale);
+  if (value === 'sv' || value === 'en') applyLocale(value as AppLocale, true);
 }
 </script>

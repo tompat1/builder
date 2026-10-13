@@ -121,7 +121,11 @@ test('handleHouse saves and loads active house via PUT and GET', async () => {
   const putReq = new Request('https://example.com/api/houses/active', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ activeId: 'hus_0123456789abcdef0123456789abcdef', config: { buildingWidth: 6040 } })
+    body: JSON.stringify({
+      activeId: 'hus_0123456789abcdef0123456789abcdef',
+      locale: 'en',
+      config: { buildingWidth: 6040 }
+    })
   });
   const putRes = await handleHouse(putReq, env, {}, sessionUser);
   assert.equal(putRes.status, 200);
@@ -134,4 +138,16 @@ test('handleHouse saves and loads active house via PUT and GET', async () => {
   const data = await getRes.json();
   assert.equal(data.active.activeId, 'hus_0123456789abcdef0123456789abcdef');
   assert.equal(data.active.config.buildingWidth, 6040);
+  assert.equal(data.active.locale, 'en');
+
+  const keepLocale = new Request('https://example.com/api/houses/active', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ config: { buildingWidth: 5000 } })
+  });
+  assert.equal((await handleHouse(keepLocale, env, {}, sessionUser)).status, 200);
+  const again = await handleHouse(new Request('https://example.com/api/houses/active', { method: 'GET' }), env, {}, sessionUser);
+  const kept = await again.json();
+  assert.equal(kept.active.locale, 'en');
+  assert.equal(kept.active.config.buildingWidth, 5000);
 });

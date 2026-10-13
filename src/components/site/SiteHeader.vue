@@ -130,7 +130,7 @@ const open = ref(false);
 const logoutBusy = ref(false);
 
 function toggleLocale() {
-  applyLocale(locale.value === 'en' ? 'sv' : 'en');
+  applyLocale(locale.value === 'en' ? 'sv' : 'en', true);
 }
 
 async function signOut() {

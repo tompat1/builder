@@ -48,7 +48,7 @@
         <button
           type="button"
           :aria-pressed="locale === 'sv'"
-          @click="applyLocale('sv')"
+          @click="applyLocale('sv', true)"
           :class="[
             'flex items-center justify-center px-2.5 min-[1180px]:px-3 py-1 text-xs min-[1180px]:text-sm font-bold rounded-lg transition-all duration-200 min-h-[30px] min-[1180px]:min-h-[34px]',
             locale === 'sv'
@@ -62,7 +62,7 @@
         <button
           type="button"
           :aria-pressed="locale === 'en'"
-          @click="applyLocale('en')"
+          @click="applyLocale('en', true)"
           :class="[
             'flex items-center justify-center px-2.5 min-[1180px]:px-3 py-1 text-xs min-[1180px]:text-sm font-bold rounded-lg transition-all duration-200 min-h-[30px] min-[1180px]:min-h-[34px]',
             locale === 'en'
