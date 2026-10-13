@@ -5622,6 +5622,8 @@ export class HouseScene {
         : Boolean(config.showInnerWalls);
       if (this.currentConfig.viewMode === 'insida') {
         this.framingGroup.visible = !config.showInnerWalls;
+      } else {
+        this.framingGroup.visible = false;
       }
       return;
     }
@@ -6449,7 +6451,7 @@ export class HouseScene {
     } else if (this.loftCutaway()) {
       this.roofGroup.visible = false;
       this.trussesGroup.visible = true;
-      this.framingGroup.visible = true;
+      this.framingGroup.visible = !showInner;
       this.innerWallsGroup.visible = showInner;
       this.loftGroup.visible = true;
       this.dimensionsGroup.visible = false;
@@ -6469,7 +6471,7 @@ export class HouseScene {
     } else {
       this.roofGroup.visible = true;
       this.trussesGroup.visible = false;
-      this.framingGroup.visible = true;
+      this.framingGroup.visible = false;
       this.innerWallsGroup.visible = showInner;
       this.loftGroup.visible = true;
       this.dimensionsGroup.visible = this.currentConfig.showDimensions;
