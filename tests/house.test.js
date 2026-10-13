@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { acceptHouse, acceptHouseId, acceptHouseName, handleHouse, houseAreaSqMeters } from '../workers/house.js';
 import { acceptHouseThumb } from '../src/services/houseThumb.ts';
+import { accountHouseConfig, chooseWorkingHouse } from '../src/services/houseSync.ts';
 
 test('a house config is stored only as a bounded object', () => {
   const saved = acceptHouse({ config: { buildingWidth: 6040, wallSlots: { front: { itemId: 'STEHAG' } } } });
@@ -152,4 +153,34 @@ test('handleHouse saves and loads active house via PUT and GET', async () => {
   assert.equal(kept.active.locale, 'en');
   assert.equal(kept.active.name, 'Attefall');
   assert.equal(kept.active.config.buildingWidth, 5000);
+});
+
+test('sign-in on another device opens the account house', () => {
+  assert.equal(chooseWorkingHouse({
+    hasAccountHouse: true,
+    localAt: '2026-10-13T10:00:00.000Z',
+    syncedAt: ''
+  }), 'account');
+  assert.equal(chooseWorkingHouse({
+    hasAccountHouse: true,
+    localAt: '2026-10-13T12:00:00.000Z',
+    syncedAt: '2026-10-13T11:00:00.000Z'
+  }), 'local');
+  assert.equal(chooseWorkingHouse({
+    hasAccountHouse: false,
+    localAt: '2026-10-13T10:00:00.000Z',
+    syncedAt: ''
+  }), 'local');
+  assert.equal(chooseWorkingHouse({
+    hasAccountHouse: true,
+    localAt: '',
+    syncedAt: ''
+  }), 'account');
+});
+
+test('an active house can be the wrapped copy or the older bare config', () => {
+  assert.deepEqual(accountHouseConfig({ config: { buildingWidth: 6040 } }), { buildingWidth: 6040 });
+  assert.deepEqual(accountHouseConfig({ buildingWidth: 6040 }), { buildingWidth: 6040 });
+  assert.equal(accountHouseConfig(null), null);
+  assert.equal(accountHouseConfig({ name: 'Attefall' }), null);
 });

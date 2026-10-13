@@ -9,7 +9,8 @@
       :key="cat.id"
       :id="`category-${cat.id}`"
       type="button"
-      @click="store.selectCategory(cat.id)"
+      @click="pick(cat.id)"
+      :aria-expanded="store.selectedCategory === cat.id ? expanded : undefined"
       :class="[
         'flex w-[4.75rem] shrink-0 flex-col items-center justify-center min-h-11 py-2 px-1 rounded-xl transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 min-[1180px]:w-auto min-[1180px]:shrink',
         store.selectedCategory === cat.id
@@ -98,6 +99,18 @@ import Cms from './Cms.vue';
 const store = useConfigStore();
 const { t } = useLabels();
 const navEl = ref<HTMLElement | null>(null);
+
+defineProps<{
+  expanded: boolean;
+}>();
+
+const emit = defineEmits<{
+  (e: 'pick', id: CategoryKey): void;
+}>();
+
+function pick(id: CategoryKey) {
+  emit('pick', id);
+}
 
 watch(() => store.selectedCategory, async () => {
   await nextTick();

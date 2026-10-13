@@ -576,6 +576,7 @@ export const useConfigStore = defineStore('config', () => {
   const generateElectricalSignal = ref(0);
   const interiorFocusSignal = ref(0);
   const selectedCategory = ref<CategoryKey>('size');
+  const categoryRequest = ref(0);
   const activeMaterial = ref<MaterialKey>('wood');
   const savedPaints = ref<SavedPaint[]>([]);
   const activePaintId = ref<string | null>(null);
@@ -1069,6 +1070,7 @@ export const useConfigStore = defineStore('config', () => {
       interactionMode.value = 'default';
     }
     selectedCategory.value = category;
+    categoryRequest.value += 1;
   }
 
   function clampMeasure(axis: BuildingAxis, value: number) {
@@ -1706,12 +1708,23 @@ export const useConfigStore = defineStore('config', () => {
     slotScreenPosition.value = null;
   }
 
+  const factoryHouse = JSON.stringify(houseState());
+
+  function isFactoryHouse(data: unknown) {
+    try {
+      return JSON.stringify(data) === factoryHouse;
+    } catch {
+      return false;
+    }
+  }
+
   return {
     viewMode,
     interactionMode,
     generateElectricalSignal,
     interiorFocusSignal,
     selectedCategory,
+    categoryRequest,
     activeMaterial,
     customPaint,
     savedPaints,
@@ -1844,6 +1857,7 @@ export const useConfigStore = defineStore('config', () => {
     redo,
     exportHouse,
     importHouse,
+    isFactoryHouse,
     notes,
     showNotes,
     showMood,

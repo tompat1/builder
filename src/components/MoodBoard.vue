@@ -1360,10 +1360,14 @@ onMounted(() => {
 
   watch(
     () => sessionStore.user,
-    (user) => {
+    (user, previous) => {
       if (user) {
         clearStoredParticipant();
         backfillExistingPiecesAuthor();
+      }
+      if (user && user !== previous) {
+        cloudSettled = false;
+        void pullCloud();
       }
     },
     { immediate: true }

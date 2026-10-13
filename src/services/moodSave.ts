@@ -212,7 +212,11 @@ export async function publishAccountMood() {
   for (const houseKey of keys) {
     const remote = await syncMoodWithCloudflare(houseKey);
     const local = loadMood(houseKey);
-    if (!local.pieces.length || !remote) continue;
+    if (!local.pieces.length) continue;
+    if (!remote) {
+      await saveMoodToCloudflare(local, houseKey, false);
+      continue;
+    }
     const remoteIds = new Set(remote.pieces.map((piece) => piece.id));
     const missing = local.pieces.some((piece) => !remoteIds.has(piece.id));
     if (missing) await saveMoodToCloudflare(local, houseKey, false);

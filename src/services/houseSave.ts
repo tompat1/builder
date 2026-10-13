@@ -1,6 +1,9 @@
 /** Named houses kept on the signed-in account, plus one local copy of the open design. */
 
 import { sessionToken, workerBase } from './account';
+import { accountHouseConfig, chooseWorkingHouse, type ActiveHouseData } from './houseSync';
+
+export { accountHouseConfig, chooseWorkingHouse };
 
 const HOUSE_KEY = 'builder.house';
 const PENDING_KEY = 'builder.house.pending';
@@ -72,10 +75,16 @@ export function writeLocalHouse(config: unknown) {
 
 /** This browser has an edit that has not reached the account yet. A missing sync time means the local copy has never been uploaded. */
 export function localHouseNeedsUpload() {
-  const localAt = localStorage.getItem(LOCAL_AT_KEY) || '';
-  const syncedAt = localStorage.getItem(SYNCED_AT_KEY) || '';
+  const { localAt, syncedAt } = readHouseStamps();
   if (!localAt) return false;
   return !syncedAt || localAt > syncedAt;
+}
+
+export function readHouseStamps() {
+  return {
+    localAt: localStorage.getItem(LOCAL_AT_KEY) || '',
+    syncedAt: localStorage.getItem(SYNCED_AT_KEY) || ''
+  };
 }
 
 function markHouseSynced(stamp: string) {
@@ -179,13 +188,6 @@ export async function renameNamedHouse(id: string, name: string) {
 
 export async function removeNamedHouse(id: string) {
   await houseFetch(`/api/houses/${encodeURIComponent(id)}`, 'DELETE');
-}
-
-export interface ActiveHouseData {
-  activeId?: string;
-  name?: string;
-  locale?: string;
-  config: unknown;
 }
 
 export async function getActiveHouse(): Promise<ActiveHouseData | null> {

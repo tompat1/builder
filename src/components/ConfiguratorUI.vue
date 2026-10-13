@@ -89,47 +89,42 @@
     <!-- Right Sidebar / Mobile Bottom Sheet -->
     <aside
       v-if="!store.isFullscreen"
-      class="pointer-events-auto bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-slate-200/80 transition-all duration-300 flex flex-col justify-between mt-auto w-full min-[1180px]:w-[410px] min-[1180px]:absolute min-[1180px]:right-6 min-[1180px]:top-24 min-[1180px]:bottom-[max(1.5rem,env(safe-area-inset-bottom))] max-h-[62dvh] min-[1180px]:max-h-[calc(100dvh-7.5rem)] z-40 overflow-hidden"
-      :class="isMobileCollapsed ? 'h-auto max-h-[140px]' : 'h-[min(62dvh,calc(100dvh-31.5rem))] min-[1180px]:h-auto'"
+      class="pointer-events-auto z-40 mt-auto flex w-full flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 shadow-xl backdrop-blur-md max-[1179px]:max-h-[min(68dvh,calc(100dvh-11rem))] min-[1180px]:absolute min-[1180px]:bottom-[max(1.5rem,env(safe-area-inset-bottom))] min-[1180px]:right-6 min-[1180px]:top-24 min-[1180px]:h-auto min-[1180px]:max-h-[calc(100dvh-7.5rem)] min-[1180px]:w-[410px] min-[1180px]:justify-between"
       :aria-label="t('panel.label')"
     >
-      <!-- Mobile Drawer Drag Handle & Collapse Header -->
-      <div class="flex min-h-11 shrink-0 items-center justify-between gap-3 rounded-t-2xl border-b border-[#173D35]/10 bg-[#F5F3EC] px-4 min-[1180px]:hidden">
-        <span class="text-xs font-bold text-[#173D35]"><Cms k="panel.title" /></span>
-        <button
-          type="button"
-          id="btn-toggle-mobile-sheet"
-          @click="isMobileCollapsed = !isMobileCollapsed"
-          class="min-h-11 rounded-lg px-3 text-xs font-semibold text-[#173D35] hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5A00]"
-        >
-          <Cms v-if="isMobileCollapsed" k="panel.show" />
-          <Cms v-else k="panel.hide" />
-        </button>
-      </div>
-
       <!-- Main Panel Title (Desktop) -->
-      <div class="hidden min-[1180px]:block px-5 pt-4 pb-2 border-b border-slate-100 shrink-0">
-        <h2 class="text-base font-extrabold text-slate-900 tracking-tight">
+      <div class="hidden min-[1180px]:block shrink-0 border-b border-slate-100 px-5 pb-2 pt-4">
+        <h2 class="text-base font-extrabold tracking-tight text-slate-900">
           <Cms k="panel.title" />
         </h2>
       </div>
 
-      <!-- Fixed Menu / Category Navigation (Pinned at top of panel) -->
-      <div v-show="!isMobileCollapsed" class="w-full min-w-0 px-4 py-3 md:px-5 border-b border-slate-100/80 bg-white/50 shrink-0">
-        <CategoryNav />
+      <!-- Options sit above the icon row on a phone, and under it on a wide screen. -->
+      <div
+        id="config-sheet-options"
+        class="sheet-reveal min-h-0 max-[1179px]:order-1 min-[1180px]:flex min-[1180px]:min-h-0 min-[1180px]:flex-1 min-[1180px]:flex-col"
+        :class="sheetOpen ? 'is-open' : ''"
+        :aria-hidden="narrow && !sheetOpen ? true : undefined"
+        :inert="narrow && !sheetOpen ? true : undefined"
+      >
+        <div class="min-h-0 max-[1179px]:overflow-hidden min-[1180px]:flex min-[1180px]:min-h-0 min-[1180px]:flex-1 min-[1180px]:flex-col">
+          <div
+            ref="optionsScroll"
+            class="panel-scrollbar max-h-[calc(min(68dvh,100dvh-11rem)-6.25rem)] space-y-4 overflow-y-auto overscroll-contain p-4 min-[1180px]:max-h-none min-[1180px]:min-h-0 min-[1180px]:flex-1 md:p-5"
+          >
+            <OptionsGrid />
+            <AIAssistantBar />
+          </div>
+        </div>
       </div>
 
-      <!-- Main Scrollable Panel Content -->
-      <div v-show="!isMobileCollapsed" class="p-4 md:p-5 overflow-y-auto overscroll-contain space-y-4 flex-1 min-h-0 panel-scrollbar">
-        <!-- Dynamic Category & Material Options Grid -->
-        <OptionsGrid />
-
-        <!-- Embedded AI Architect Assistant -->
-        <AIAssistantBar />
+      <!-- Category icons. On a phone this row is the whole bar until a step is chosen. -->
+      <div class="w-full min-w-0 shrink-0 border-t border-slate-100/80 bg-white/50 px-3 py-2.5 max-[1179px]:order-2 max-[1179px]:pb-[max(0.625rem,env(safe-area-inset-bottom))] min-[1180px]:border-b min-[1180px]:border-t-0 min-[1180px]:px-5 min-[1180px]:py-3">
+        <CategoryNav :expanded="narrow ? sheetOpen : true" @pick="onPickCategory" />
       </div>
 
       <!-- Footer Quick Status Summary -->
-      <div class="p-3 md:p-4 bg-slate-50/90 border-t border-slate-100 rounded-b-2xl flex items-center shrink-0">
+      <div class="hidden shrink-0 items-center rounded-b-2xl border-t border-slate-100 bg-slate-50/90 p-3 min-[1180px]:flex md:p-4">
         <div class="flex items-center gap-2 min-w-0">
           <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-2xs shrink-0"></span>
           <span class="text-xs text-slate-700 font-semibold truncate">
@@ -146,8 +141,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
-import { useConfigStore } from '../store/useConfigStore';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { useConfigStore, type CategoryKey } from '../store/useConfigStore';
 import { headingForFacing, sunAlongDay, sunPlacement } from '../three-engine/sunPosition';
 import { useLabels } from '../i18n';
 import HeaderBar from './HeaderBar.vue';
@@ -173,14 +168,39 @@ const sunShown = computed(() => {
 });
 const sunLeft = computed(() => `${(8 + sunAlongDay(store.sunHour) * 84).toFixed(1)}%`);
 const isExportOpen = ref(false);
-const isMobileCollapsed = ref(false);
 const isHouseImportOpen = ref(false);
+const sheetOpen = ref(false);
+const narrow = ref(false);
+const optionsScroll = ref<HTMLElement | null>(null);
 
-// Auto-expand drawer when user selects a category (e.g. from 3D wall slot action pills)
+function readNarrow() {
+  narrow.value = window.matchMedia('(max-width: 1179px)').matches;
+}
+
+function onPickCategory(id: CategoryKey) {
+  if (narrow.value && sheetOpen.value && store.selectedCategory === id) {
+    sheetOpen.value = false;
+    return;
+  }
+  store.selectCategory(id);
+}
+
+onMounted(() => {
+  readNarrow();
+  window.addEventListener('resize', readNarrow);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', readNarrow);
+});
+
 watch(
-  () => store.selectedCategory,
+  () => store.categoryRequest,
   () => {
-    isMobileCollapsed.value = false;
+    sheetOpen.value = true;
+    void nextTick(() => {
+      if (optionsScroll.value) optionsScroll.value.scrollTop = 0;
+    });
   }
 );
 
@@ -193,6 +213,28 @@ defineEmits<{
 </script>
 
 <style scoped>
+.sheet-reveal {
+  transition: grid-template-rows 320ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (max-width: 1179px) {
+  .sheet-reveal {
+    display: grid;
+    grid-template-rows: 0px;
+    transition: grid-template-rows 320ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .sheet-reveal.is-open {
+    grid-template-rows: calc(min(68dvh, 100dvh - 11rem) - 6.25rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheet-reveal {
+    transition: none;
+  }
+}
+
 .day-sun {
   width: 92px;
   height: 92px;

@@ -316,11 +316,14 @@ import { applyLocale, useLabels } from '../i18n';
 import Cms from './Cms.vue';
 import {
   clearHousePending,
+  accountHouseConfig,
+  chooseWorkingHouse,
   getActiveHouse,
   listHouses,
   markHousePending,
   openNamedHouse,
   readActiveHouseId,
+  readHouseStamps,
   localHouseNeedsUpload,
   noteHouseSynced,
   readLocalHouse,
@@ -463,16 +466,41 @@ async function adoptWorkingHouse() {
   if (!session.user) return;
   adopting = true;
   window.clearTimeout(saveTimer);
-  const keepLocalEdit = localHouseNeedsUpload();
-  const pendingUpload = keepLocalEdit ? JSON.stringify(store.exportHouse()) : '';
+  const stored = readLocalHouse();
+  if (stored) store.importHouse(stored);
+  let uploadLocal = false;
   try {
     const pending = readPendingHouse();
+    if (pending?.name) return;
     const activeCloud = await getActiveHouse();
-    if (!pending?.name && !keepLocalEdit && activeCloud?.config && typeof activeCloud.config === 'object') {
-      applyAccountHouse(activeCloud.config, activeCloud.activeId, activeCloud.locale);
+    const cloudConfig = accountHouseConfig(activeCloud);
+    const stamps = readHouseStamps();
+    const choice = chooseWorkingHouse({
+      hasAccountHouse: cloudConfig != null,
+      localAt: stamps.localAt,
+      syncedAt: stamps.syncedAt
+    });
+    if (choice === 'account' && cloudConfig) {
+      const same = stored != null && JSON.stringify(stored) === JSON.stringify(cloudConfig);
+      if (
+        stored &&
+        stamps.localAt &&
+        !stamps.syncedAt &&
+        !same &&
+        !store.isFactoryHouse(stored)
+      ) {
+        try {
+          await saveNamedHouse(t('header.houseOnDevice'), stored);
+        } catch {
+          // The account house still opens. This browser's copy stays in the list once that save succeeds.
+        }
+      }
+      applyAccountHouse(cloudConfig, activeCloud?.activeId, activeCloud?.locale);
       return;
     }
-    if (!pending?.name && !keepLocalEdit) {
+    if (stored && localHouseNeedsUpload()) {
+      uploadLocal = true;
+    } else if (!cloudConfig) {
       let active = readActiveHouseId();
       if (!active) {
         const listed = await listHouses();
@@ -490,7 +518,7 @@ async function adoptWorkingHouse() {
   } finally {
     adopting = false;
     draft = JSON.stringify(store.exportHouse());
-    if (pendingUpload) rememberDraft(pendingUpload);
+    if (uploadLocal) rememberDraft(draft);
     void publishAccountMood();
   }
 }
