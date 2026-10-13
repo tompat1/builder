@@ -19,7 +19,7 @@ test('a door canopy on an interior bay has symmetric overhang and brackets', () 
   assert.equal(layout.rightBracketX, 0.68);
 });
 
-test('a door canopy on a left corner bay does not glitch into the corner trim', () => {
+test('a door canopy on a left corner bay stays centered on the door with symmetric overhang', () => {
   // In Attefallshus 30m2 (front wall: 4 bays, panelWidth = 1.51m), corner clearance is 0.185m
   const panelWidth = 1.51;
   const layout = computeDoorCanopyLayout({
@@ -29,23 +29,27 @@ test('a door canopy on a left corner bay does not glitch into the corner trim', 
     cornerSide: 'left'
   });
 
-  // Corner of building is at -panelWidth / 2 = -0.755
-  // Corner trim (145mm face + thickness & reveal) ends around -0.585
-  // With 0.185 clearance: minX = -0.755 + 0.185 = -0.570
+  // Canopy is strictly centered over the door
+  assert.equal(layout.canopyX, 0.0625);
   assert.equal(layout.left, -0.57);
-  // Fascia (left - 0.01) stops cleanly around -0.58, leaving a reveal before corner trim
-  const fasciaLeft = layout.canopyX - layout.fasciaWidth / 2;
-  assert.ok(Math.abs(fasciaLeft - (-0.58)) < 1e-3);
+  assert.equal(layout.right, 0.695);
+  assert.equal(layout.width, 1.265);
 
-  // Left bracket has at least 60mm inset from the left canopy edge and stays clear of corner
-  assert.ok(layout.leftBracketX >= layout.left + 0.06);
-  assert.ok(layout.leftBracketX > -0.55);
+  // Overhangs are equal on both sides of the door (0.1325m)
+  const leftOverhang = (0.0625 - 0.5) - layout.left;
+  const rightOverhang = layout.right - (0.0625 + 0.5);
+  assert.ok(Math.abs(leftOverhang - rightOverhang) < 1e-4);
 
-  // Right side remains unconstrained with full overhang
-  assert.equal(layout.right, 0.8425);
+  // Fascia (width + 0.02) is also centered on the door
+  assert.equal(layout.fasciaWidth, 1.285);
+
+  // Left and right brackets are placed symmetrically relative to door center
+  assert.equal(layout.leftBracketX, -0.51);
+  assert.equal(layout.rightBracketX, 0.635);
+  assert.ok(Math.abs((layout.canopyX - layout.leftBracketX) - (layout.rightBracketX - layout.canopyX)) < 1e-4);
 });
 
-test('a door canopy on a right corner bay clamps its right edge away from the corner', () => {
+test('a door canopy on a right corner bay stays centered on the door with symmetric overhang', () => {
   const panelWidth = 1.51;
   const layout = computeDoorCanopyLayout({
     doorX: -0.0625,
@@ -54,9 +58,19 @@ test('a door canopy on a right corner bay clamps its right edge away from the co
     cornerSide: 'right'
   });
 
-  const maxX = 0.57;
-  assert.equal(layout.right, maxX);
-  const fasciaRight = layout.canopyX + layout.fasciaWidth / 2;
-  assert.ok(Math.abs(fasciaRight - (maxX + 0.01)) < 1e-3);
-  assert.ok(layout.rightBracketX <= layout.right - 0.06);
+  // Canopy is strictly centered over the door
+  assert.equal(layout.canopyX, -0.0625);
+  assert.equal(layout.left, -0.695);
+  assert.equal(layout.right, 0.57);
+  assert.equal(layout.width, 1.265);
+
+  // Overhangs are equal on both sides of the door
+  const leftOverhang = (-0.0625 - 0.5) - layout.left;
+  const rightOverhang = layout.right - (-0.0625 + 0.5);
+  assert.ok(Math.abs(leftOverhang - rightOverhang) < 1e-4);
+
+  // Brackets are symmetric relative to door center
+  assert.equal(layout.leftBracketX, -0.635);
+  assert.equal(layout.rightBracketX, 0.51);
+  assert.ok(Math.abs((layout.canopyX - layout.leftBracketX) - (layout.rightBracketX - layout.canopyX)) < 1e-4);
 });
