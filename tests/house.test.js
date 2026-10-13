@@ -89,3 +89,49 @@ test('house config preserves the corner boards toggle', () => {
   const withoutCorners = acceptHouse({ config: { buildingWidth: 6040, cornerBoards: false } });
   assert.match(withoutCorners, /"cornerBoards":false/);
 });
+
+test('handleHouse saves and loads active house via PUT and GET', async () => {
+  let stored = null;
+  const env = {
+    DB: {
+      prepare(sql) {
+        return {
+          bind(...args) {
+            return {
+              async run() {
+                if (sql.includes('INSERT INTO houses')) {
+                  stored = { config: args[1], updated_at: args[2] };
+                }
+                return { meta: { changes: 1 } };
+              },
+              async first() {
+                if (sql.includes('FROM houses')) {
+                  return stored;
+                }
+                return null;
+              }
+            };
+          }
+        };
+      }
+    }
+  };
+  const sessionUser = async () => ({ id: 'usr_1', login: 'tompat1' });
+
+  const putReq = new Request('https://example.com/api/houses/active', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ activeId: 'hus_0123456789abcdef0123456789abcdef', config: { buildingWidth: 6040 } })
+  });
+  const putRes = await handleHouse(putReq, env, {}, sessionUser);
+  assert.equal(putRes.status, 200);
+
+  const getReq = new Request('https://example.com/api/houses/active', {
+    method: 'GET'
+  });
+  const getRes = await handleHouse(getReq, env, {}, sessionUser);
+  assert.equal(getRes.status, 200);
+  const data = await getRes.json();
+  assert.equal(data.active.activeId, 'hus_0123456789abcdef0123456789abcdef');
+  assert.equal(data.active.config.buildingWidth, 6040);
+});

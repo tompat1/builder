@@ -57,13 +57,14 @@ export async function handleMood(request, env, headers, sessionUser) {
 
   const user = sessionUser ? await sessionUser(request, env).catch(() => null) : null;
   const userId = user?.id || null;
+  const boardId = (route.id === 'draft' && userId) ? `draft_${userId}` : route.id;
   const now = new Date().toISOString();
 
   // 1. GET /api/mood/:id -> Fetch board
   if (request.method === 'GET' && !route.action) {
     const row = await env.DB.prepare(
       `SELECT id, user_id, title, data, created_at, updated_at FROM mood_boards WHERE id = ?`
-    ).bind(route.id).first();
+    ).bind(boardId).first();
 
     if (!row) {
       return json({ mood: null }, 200, headers);
@@ -125,7 +126,7 @@ export async function handleMood(request, env, headers, sessionUser) {
          data = excluded.data,
          updated_at = excluded.updated_at,
          user_id = COALESCE(excluded.user_id, mood_boards.user_id)`
-    ).bind(route.id, userId, title, dataText, now, now).run();
+    ).bind(boardId, userId, title, dataText, now, now).run();
 
     return json({ ok: true, id: route.id, updatedAt: now }, 200, headers);
   }
@@ -145,7 +146,7 @@ export async function handleMood(request, env, headers, sessionUser) {
 
     const row = await env.DB.prepare(
       `SELECT data FROM mood_boards WHERE id = ?`
-    ).bind(route.id).first();
+    ).bind(boardId).first();
 
     if (!row) return json({ error: 'board_not_found' }, 404, headers);
 
@@ -176,7 +177,7 @@ export async function handleMood(request, env, headers, sessionUser) {
 
     await env.DB.prepare(
       `UPDATE mood_boards SET data = ?, updated_at = ? WHERE id = ?`
-    ).bind(JSON.stringify(state), now, route.id).run();
+    ).bind(JSON.stringify(state), now, boardId).run();
 
     return json({ pieceId, likes: piece.likes, liked, likedBy: piece.likedBy }, 200, headers);
   }
@@ -203,7 +204,7 @@ export async function handleMood(request, env, headers, sessionUser) {
 
     const row = await env.DB.prepare(
       `SELECT data FROM mood_boards WHERE id = ?`
-    ).bind(route.id).first();
+    ).bind(boardId).first();
 
     if (!row) return json({ error: 'board_not_found' }, 404, headers);
 
@@ -234,7 +235,7 @@ export async function handleMood(request, env, headers, sessionUser) {
 
     await env.DB.prepare(
       `UPDATE mood_boards SET data = ?, updated_at = ? WHERE id = ?`
-    ).bind(JSON.stringify(state), now, route.id).run();
+    ).bind(JSON.stringify(state), now, boardId).run();
 
     return json({ pieceId, comment, totalComments: piece.comments.length }, 200, headers);
   }

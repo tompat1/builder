@@ -160,3 +160,31 @@ export async function renameNamedHouse(id: string, name: string) {
 export async function removeNamedHouse(id: string) {
   await houseFetch(`/api/houses/${encodeURIComponent(id)}`, 'DELETE');
 }
+
+export interface ActiveHouseData {
+  activeId?: string;
+  name?: string;
+  config: unknown;
+}
+
+export async function getActiveHouse(): Promise<ActiveHouseData | null> {
+  const token = sessionToken();
+  if (!token) return null;
+  try {
+    const data = (await houseFetch('/api/houses/active', 'GET')) as { active?: ActiveHouseData | null };
+    return data.active || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function saveActiveHouse(config: unknown, activeId?: string, name?: string): Promise<boolean> {
+  const token = sessionToken();
+  if (!token) return false;
+  try {
+    await houseFetch('/api/houses/active', 'PUT', { config, activeId, name });
+    return true;
+  } catch {
+    return false;
+  }
+}

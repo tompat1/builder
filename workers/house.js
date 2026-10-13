@@ -65,6 +65,23 @@ function houseId(pathname) {
   return acceptHouseId(decodeURIComponent(pathname.slice('/api/houses/'.length)));
 }
 
+let housesTableChecked = false;
+async function ensureHousesTable(db) {
+  if (housesTableChecked || !db) return;
+  try {
+    await db.prepare(`
+      CREATE TABLE IF NOT EXISTS houses (
+        user_id TEXT PRIMARY KEY REFERENCES users(id),
+        config TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      )
+    `).run();
+    housesTableChecked = true;
+  } catch {
+    // ignore
+  }
+}
+
 export async function handleHouse(request, env, headers, sessionUser) {
   if (!env.DB) return json({ error: 'storage' }, 503, headers);
   const user = await sessionUser(request, env);
@@ -73,6 +90,79 @@ export async function handleHouse(request, env, headers, sessionUser) {
   const url = new URL(request.url);
   const id = houseId(url.pathname);
   const listing = url.pathname === '/api/houses';
+  const activeRoute = url.pathname === '/api/houses/active';
+
+  if (request.method === 'GET' && activeRoute) {
+    await ensureHousesTable(env.DB);
+    const row = await env.DB.prepare(
+      `SELECT config, updated_at FROM houses WHERE user_id = ?`
+    ).bind(user.id).first();
+    if (row) {
+      let data = null;
+      try {
+        data = JSON.parse(row.config);
+      } catch {
+        data = null;
+      }
+      if (data && typeof data === 'object') {
+        return json({ active: data }, 200, headers);
+      }
+    }
+    const latestSaved = await env.DB.prepare(
+      `SELECT id, name, created_at, created_by, config FROM saved_houses WHERE user_id = ? ORDER BY created_at DESC LIMIT 1`
+    ).bind(user.id).first();
+    if (latestSaved) {
+      let config = null;
+      try {
+        config = JSON.parse(latestSaved.config);
+      } catch {
+        config = null;
+      }
+      return json({
+        active: {
+          activeId: latestSaved.id,
+          name: latestSaved.name,
+          config
+        }
+      }, 200, headers);
+    }
+    return json({ active: null }, 200, headers);
+  }
+
+  if ((request.method === 'PUT' || request.method === 'POST') && activeRoute) {
+    await ensureHousesTable(env.DB);
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return json({ error: 'house' }, 400, headers);
+    }
+    const config = acceptHouse(body);
+    if (!config) return json({ error: 'house' }, 400, headers);
+    const activeId = acceptHouseId(body?.activeId) || '';
+    const name = acceptHouseName(body?.name) || '';
+    const payload = JSON.stringify({ activeId, name, config: JSON.parse(config) });
+    const now = new Date().toISOString();
+
+    await env.DB.prepare(
+      `INSERT INTO houses (user_id, config, updated_at)
+       VALUES (?, ?, ?)
+       ON CONFLICT(user_id) DO UPDATE SET config = excluded.config, updated_at = excluded.updated_at`
+    ).bind(user.id, payload, now).run();
+
+    if (activeId) {
+      if (name) {
+        await env.DB.prepare(
+          'UPDATE saved_houses SET name = ?, config = ? WHERE id = ? AND user_id = ?'
+        ).bind(name, config, activeId, user.id).run();
+      } else {
+        await env.DB.prepare(
+          'UPDATE saved_houses SET config = ? WHERE id = ? AND user_id = ?'
+        ).bind(config, activeId, user.id).run();
+      }
+    }
+    return json({ ok: true, activeId }, 200, headers);
+  }
 
   if (request.method === 'GET' && listing) {
     const rows = await env.DB.prepare(

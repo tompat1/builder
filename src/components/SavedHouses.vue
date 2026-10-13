@@ -316,6 +316,7 @@ import { useLabels } from '../i18n';
 import Cms from './Cms.vue';
 import {
   clearHousePending,
+  getActiveHouse,
   listHouses,
   markHousePending,
   openNamedHouse,
@@ -324,6 +325,7 @@ import {
   watchActiveHouseId,
   readPendingHouse,
   removeNamedHouse,
+  saveActiveHouse,
   saveNamedHouse,
   updateNamedHouse,
   renameNamedHouse,
@@ -442,13 +444,39 @@ async function refresh() {
 
 async function adoptWorkingHouse() {
   if (!session.user) return;
+  try {
+    const activeCloud = await getActiveHouse();
+    if (activeCloud && activeCloud.config && typeof activeCloud.config === 'object') {
+      const local = readLocalHouse();
+      if (!local || activeCloud.activeId) {
+        store.importHouse(activeCloud.config);
+        writeLocalHouse(activeCloud.config);
+        if (activeCloud.activeId) {
+          writeActiveHouseId(activeCloud.activeId);
+          activeId.value = activeCloud.activeId;
+          attachThumb(activeCloud.activeId);
+        }
+        draft = JSON.stringify(store.exportHouse());
+        return;
+      }
+    }
+  } catch {
+    // fallback
+  }
+
   let active = readActiveHouseId();
   if (!active) {
     try {
       const listed = await listHouses();
-      if (listed.length === 1) {
+      if (listed.length > 0) {
         active = listed[0].id;
         writeActiveHouseId(active);
+        const full = await openNamedHouse(active);
+        if (full.config) {
+          store.importHouse(full.config);
+          writeLocalHouse(full.config);
+          draft = JSON.stringify(store.exportHouse());
+        }
       }
     } catch {
       return;
@@ -464,10 +492,14 @@ function rememberDraft(json: string) {
   writeLocalHouse(config);
   const active = readActiveHouseId();
   if (active) attachThumb(active);
-  if (!active || !session.user) return;
-  void updateNamedHouse(active, config).catch(() => {
-    // The browser copy is already written. The account catches up on the next change.
-  });
+  if (!session.user) return;
+  const currentName = houses.value.find((h) => h.id === active)?.name || '';
+  void saveActiveHouse(config, active || undefined, currentName);
+  if (active) {
+    void updateNamedHouse(active, config).catch(() => {
+      // The browser copy is already written. The account catches up on the next change.
+    });
+  }
 }
 
 function queueDraft(json: string) {
