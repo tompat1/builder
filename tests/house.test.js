@@ -123,6 +123,7 @@ test('handleHouse saves and loads active house via PUT and GET', async () => {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       activeId: 'hus_0123456789abcdef0123456789abcdef',
+      name: 'Attefall',
       locale: 'en',
       config: { buildingWidth: 6040 }
     })
@@ -149,5 +150,6 @@ test('handleHouse saves and loads active house via PUT and GET', async () => {
   const again = await handleHouse(new Request('https://example.com/api/houses/active', { method: 'GET' }), env, {}, sessionUser);
   const kept = await again.json();
   assert.equal(kept.active.locale, 'en');
+  assert.equal(kept.active.name, 'Attefall');
   assert.equal(kept.active.config.buildingWidth, 5000);
 });

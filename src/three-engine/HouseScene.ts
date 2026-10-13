@@ -279,7 +279,8 @@ export class HouseScene {
       0.1,
       1000
     );
-    this.camera.position.set(0, 3.2, 13.5);
+    const narrowStart = container.clientWidth < 1180;
+    this.camera.position.set(0, narrowStart ? 6.5 : 3.2, narrowStart ? 26 : 13.5);
 
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
@@ -300,7 +301,7 @@ export class HouseScene {
     this.controls.maxPolarAngle = Math.PI / 2 - 0.02;
     this.controls.minDistance = 3.5;
     this.controls.maxDistance = 35;
-    this.controls.target.set(0, 2.2, 0);
+    this.controls.target.set(0, narrowStart ? 0.4 : 2.2, 0);
     this.controls.addEventListener('start', this.onControlStart);
 
     this.setupLighting();
@@ -6477,7 +6478,7 @@ export class HouseScene {
       this.dimensionsGroup.visible = this.currentConfig.showDimensions;
 
       if (this.currentConfig.roofView) this.frameCamera(0, 10, 8, 0, 2.5, 0);
-      else this.frameCamera(0, 3.2, 13.5, 0, 2.2, 0);
+      else this.frameOutsideStart();
 
       if (this.gridHelper) this.gridHelper.visible = false;
     }
@@ -6497,6 +6498,13 @@ export class HouseScene {
       this.updateHighlightBox(null);
       this.onPanelHover?.(null, 0, 0);
     }
+  }
+
+  /** The first outside view. A phone needs the whole house above the bottom sheet. */
+  private frameOutsideStart() {
+    const narrow = this.container.clientWidth < 1180;
+    if (narrow) this.frameCamera(0, 6.5, 26, 0, 0.4, 0);
+    else this.frameCamera(0, 3.2, 13.5, 0, 2.2, 0);
   }
 
   /** Ease the camera onto a framed pose. The first frame, and reduced motion, land at once. */

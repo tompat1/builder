@@ -1,16 +1,16 @@
 <template>
   <div
-    class="pointer-events-auto absolute transition-all duration-300 flex flex-col items-start gap-2 z-20"
-    :class="store.isFullscreen ? 'top-6 left-6 min-[1180px]:top-auto min-[1180px]:bottom-[max(1.5rem,env(safe-area-inset-bottom))] min-[1180px]:left-6' : 'top-28 right-3 min-[1180px]:top-auto min-[1180px]:right-auto min-[1180px]:bottom-[max(1.5rem,env(safe-area-inset-bottom))] min-[1180px]:left-6'"
+    class="pointer-events-auto z-20 flex w-full max-w-full flex-row flex-wrap items-end gap-2 transition-all duration-300 min-[1180px]:absolute min-[1180px]:w-auto min-[1180px]:flex-col min-[1180px]:flex-nowrap min-[1180px]:items-start"
+    :class="store.isFullscreen ? 'absolute bottom-[max(1rem,env(safe-area-inset-bottom))] left-3 right-3 min-[1180px]:bottom-[max(1.5rem,env(safe-area-inset-bottom))] min-[1180px]:left-6 min-[1180px]:right-auto' : 'relative w-full min-[1180px]:bottom-[max(1.5rem,env(safe-area-inset-bottom))] min-[1180px]:left-6 min-[1180px]:w-auto'"
     :aria-label="t('tools.label')"
   >
     <!-- Camera toolbar: daylight, zoom, fullscreen, view -->
-    <div class="w-fit self-start bg-white/95 backdrop-blur-md rounded-2xl shadow-md border border-slate-200/80 p-1.5 flex flex-col gap-1">
+    <div class="flex w-fit shrink-0 flex-row gap-1 self-start rounded-2xl border border-slate-200/80 bg-white/95 p-1.5 shadow-md backdrop-blur-md min-[1180px]:flex-col">
       <div ref="sunBox" class="relative">
         <div
           id="sun-timebox"
-          class="absolute top-0 z-30 w-[240px] origin-left transition-all duration-200 ease-out"
-          :class="sunOpen ? 'left-14 opacity-100' : 'pointer-events-none left-0 opacity-0'"
+          class="absolute bottom-[calc(100%+8px)] left-0 z-30 w-[240px] origin-bottom-left transition-all duration-200 ease-out min-[1180px]:bottom-auto min-[1180px]:top-0 min-[1180px]:origin-left"
+          :class="sunOpen ? 'min-[1180px]:left-14 opacity-100' : 'pointer-events-none min-[1180px]:left-0 opacity-0'"
           :inert="!sunOpen"
           :aria-hidden="!sunOpen"
         >
@@ -97,7 +97,7 @@
         </button>
       </div>
 
-      <div class="h-px bg-slate-100 mx-1"></div>
+      <div class="mx-1 hidden h-px bg-slate-100 min-[1180px]:block"></div>
 
       <button
         type="button"
@@ -115,7 +115,7 @@
         <span class="tool-tip"><Cms k="tools.zoomIn" /></span>
       </button>
 
-      <div class="h-px bg-slate-100 mx-1"></div>
+      <div class="mx-1 hidden h-px bg-slate-100 min-[1180px]:block"></div>
 
       <button
         type="button"
@@ -132,7 +132,7 @@
         <span class="tool-tip"><Cms k="tools.zoomOut" /></span>
       </button>
 
-      <div class="h-px bg-slate-100 mx-1"></div>
+      <div class="mx-1 hidden h-px bg-slate-100 min-[1180px]:block"></div>
 
       <button
         type="button"
@@ -162,13 +162,13 @@
         <span class="tool-tip"><Cms :k="store.isFullscreen ? 'tools.exitFullscreen' : 'tools.fullscreen'" /></span>
       </button>
 
-      <div class="h-px bg-slate-100 mx-1"></div>
+      <div class="mx-1 hidden h-px bg-slate-100 min-[1180px]:block"></div>
 
       <div ref="viewBox" class="relative">
         <div
           id="view-tools"
-          class="absolute top-1/2 z-30 -translate-y-1/2 origin-left transition-all duration-200 ease-out"
-          :class="viewOpen ? 'left-14 opacity-100' : 'pointer-events-none left-0 opacity-0'"
+          class="absolute bottom-[calc(100%+8px)] left-0 z-30 origin-bottom-left transition-all duration-200 ease-out min-[1180px]:bottom-auto min-[1180px]:top-1/2 min-[1180px]:-translate-y-1/2 min-[1180px]:origin-left"
+          :class="viewOpen ? 'min-[1180px]:left-14 opacity-100' : 'pointer-events-none opacity-0'"
           :inert="!viewOpen"
           :aria-hidden="!viewOpen"
         >
@@ -252,7 +252,7 @@
     </div>
 
     <!-- Bottom Button Row: Ruler toolbox / Undo / Redo / Notes -->
-    <div class="bg-white/95 backdrop-blur-md rounded-2xl shadow-md border border-slate-200/80 p-1.5 flex items-center gap-1">
+    <div class="flex shrink-0 items-center gap-1 rounded-2xl border border-slate-200/80 bg-white/95 p-1.5 shadow-md backdrop-blur-md">
       <div ref="rulerBox" class="relative">
         <div
           id="ruler-tools"

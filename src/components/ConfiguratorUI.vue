@@ -34,6 +34,7 @@
 
     <MoodBoard v-if="store.showMood" />
 
+    <div class="pointer-events-none mt-auto flex w-full min-w-0 flex-col gap-2 min-[1180px]:contents">
     <!-- Lower-Left Toolset (Zoom, Fullscreen, Center, Measure, Undo, Redo, Notes) -->
     <ToolSet
       :ai-open="isHouseImportOpen"
@@ -140,6 +141,7 @@
         </div>
       </div>
     </aside>
+    </div>
 
     <!-- Export Modal -->
     <ExportModal :is-open="isExportOpen" @close="isExportOpen = false" />

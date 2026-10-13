@@ -140,17 +140,17 @@ export async function handleHouse(request, env, headers, sessionUser) {
     const config = acceptHouse(body);
     if (!config) return json({ error: 'house' }, 400, headers);
     const activeId = acceptHouseId(body?.activeId) || '';
-    const name = acceptHouseName(body?.name) || '';
+    let name = acceptHouseName(body?.name) || '';
     let locale = body?.locale === 'en' || body?.locale === 'sv' ? body.locale : '';
-    if (!locale) {
-      const existing = await env.DB.prepare(`SELECT config FROM houses WHERE user_id = ?`).bind(user.id).first();
-      try {
-        const prev = JSON.parse(existing?.config || '{}');
-        if (prev.locale === 'en' || prev.locale === 'sv') locale = prev.locale;
-      } catch {
-        locale = '';
-      }
+    const existing = await env.DB.prepare(`SELECT config FROM houses WHERE user_id = ?`).bind(user.id).first();
+    let prev = {};
+    try {
+      prev = JSON.parse(existing?.config || '{}');
+    } catch {
+      prev = {};
     }
+    if (!name) name = acceptHouseName(prev.name) || '';
+    if (!locale && (prev.locale === 'en' || prev.locale === 'sv')) locale = prev.locale;
     const payload = JSON.stringify({ activeId, name, locale, config: JSON.parse(config) });
     const now = new Date().toISOString();
 

@@ -70,11 +70,12 @@ export function writeLocalHouse(config: unknown) {
   localStorage.setItem(LOCAL_AT_KEY, new Date().toISOString());
 }
 
-/** This browser has an edit that has not reached the account yet. */
+/** This browser has an edit that has not reached the account yet. A missing sync time means the local copy has never been uploaded. */
 export function localHouseNeedsUpload() {
   const localAt = localStorage.getItem(LOCAL_AT_KEY) || '';
   const syncedAt = localStorage.getItem(SYNCED_AT_KEY) || '';
-  return Boolean(localAt && syncedAt && localAt > syncedAt);
+  if (!localAt) return false;
+  return !syncedAt || localAt > syncedAt;
 }
 
 function markHouseSynced(stamp: string) {
