@@ -1047,6 +1047,7 @@ import {
 import { defaultAccountAvatar } from '../mood/avatar';
 import { generateQrSvg } from '../mood/qr';
 import { pictureDataUrl } from '../mood/image';
+import { showToast, startFeedback } from '../services/feedback';
 import {
   clearStoredParticipant,
   deleteClip,
@@ -1656,55 +1657,68 @@ function addPostIt(color: MoodColor = 'yellow') {
   };
   pieces.value.push(note);
   persist();
+  showToast('Post-it tillagd', 'success');
 }
 
 async function addFiles(files: File[]) {
-  notice.value = '';
-  for (const file of files) {
-    if (pieces.value.length >= MOOD_LIMIT) {
-      notice.value = 'mood.full';
-      break;
-    }
-    if (file.type.startsWith('video/')) {
-      if (file.size > CLIP_LIMIT) {
-        notice.value = 'mood.big';
+  if (!files.length) return;
+  const finish = startFeedback('Läser in bildfiler...');
+  try {
+    notice.value = '';
+    let added = 0;
+    for (const file of files) {
+      if (pieces.value.length >= MOOD_LIMIT) {
+        notice.value = 'mood.full';
+        break;
+      }
+      if (file.type.startsWith('video/')) {
+        if (file.size > CLIP_LIMIT) {
+          notice.value = 'mood.big';
+          continue;
+        }
+        const id = moodId();
+        try {
+          await putClip(id, file);
+        } catch {
+          notice.value = 'mood.bad';
+          continue;
+        }
+        const parsed = readLink(`local:${id}`);
+        if (!parsed) continue;
+        urls.value = { ...urls.value, [id]: URL.createObjectURL(file) };
+        const pieceY = isMobile.value && pieces.value.length > 0 ? Math.max(...pieces.value.map((p) => p.y)) + 25 : placeFor(pieces.value.length).y;
+        pieces.value.push({ id, ...parsed, ...placeFor(pieces.value.length), y: pieceY, caption: '', author: { ...currentAuthor.value } });
+        added++;
         continue;
       }
-      const id = moodId();
+      if (!file.type.startsWith('image/')) {
+        notice.value = 'mood.bad';
+        continue;
+      }
       try {
-        await putClip(id, file);
+        const data = await pictureDataUrl(file);
+        const parsed = readLink(data);
+        if (!parsed) {
+          notice.value = 'mood.bad';
+          continue;
+        }
+        const piece = pieceFrom(parsed, pieces.value.length, '', { ...currentAuthor.value });
+        if (isMobile.value && pieces.value.length > 0) {
+          piece.y = Math.max(...pieces.value.map((p) => p.y)) + 25;
+        }
+        pieces.value.push(piece);
+        added++;
       } catch {
-        notice.value = 'mood.bad';
-        continue;
+        notice.value = 'mood.big';
       }
-      const parsed = readLink(`local:${id}`);
-      if (!parsed) continue;
-      urls.value = { ...urls.value, [id]: URL.createObjectURL(file) };
-      const pieceY = isMobile.value && pieces.value.length > 0 ? Math.max(...pieces.value.map((p) => p.y)) + 25 : placeFor(pieces.value.length).y;
-      pieces.value.push({ id, ...parsed, ...placeFor(pieces.value.length), y: pieceY, caption: '', author: { ...currentAuthor.value } });
-      continue;
     }
-    if (!file.type.startsWith('image/')) {
-      notice.value = 'mood.bad';
-      continue;
+    persist();
+    if (added > 0) {
+      showToast(`${added} ${added === 1 ? 'fil tillagd' : 'filer tillagda'}`, 'success');
     }
-    try {
-      const data = await pictureDataUrl(file);
-      const parsed = readLink(data);
-      if (!parsed) {
-        notice.value = 'mood.bad';
-        continue;
-      }
-      const piece = pieceFrom(parsed, pieces.value.length, '', { ...currentAuthor.value });
-      if (isMobile.value && pieces.value.length > 0) {
-        piece.y = Math.max(...pieces.value.map((p) => p.y)) + 25;
-      }
-      pieces.value.push(piece);
-    } catch {
-      notice.value = 'mood.big';
-    }
+  } finally {
+    finish();
   }
-  persist();
 }
 
 function onFileInput(event: Event) {

@@ -96,6 +96,7 @@
 <script setup lang="ts">
 import { useConfigStore } from '../store/useConfigStore';
 import { exportBlueprintSvg, exportRenderedImage } from '../services/exportService';
+import { showToast, startFeedback } from '../services/feedback';
 import { useLabels } from '../i18n';
 import Cms from './Cms.vue';
 
@@ -111,20 +112,36 @@ const store = useConfigStore();
 const { t, catalog } = useLabels();
 
 async function downloadBlueprint() {
-  const svgContent = await exportBlueprintSvg(store.dimensions);
-  const blob = new Blob([svgContent], { type: 'image/svg+xml' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `planritning-${catalog(store.currentSize.id, 'name', store.currentSize.name).toLowerCase().replace(/\s+/g, '-')}.svg`;
-  a.click();
-  URL.revokeObjectURL(url);
+  const finish = startFeedback('Genererar planritning...');
+  try {
+    const svgContent = await exportBlueprintSvg(store.dimensions);
+    const blob = new Blob([svgContent], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `planritning-${catalog(store.currentSize.id, 'name', store.currentSize.name).toLowerCase().replace(/\s+/g, '-')}.svg`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Planritning nedladdad', 'success');
+  } catch {
+    showToast('Kunde inte exportera ritning', 'error');
+  } finally {
+    finish();
+  }
 }
 
 function downloadImage() {
-  const canvas = document.querySelector('canvas');
-  if (canvas) {
-    exportRenderedImage(canvas, 'modular-hus-3d.png');
+  const finish = startFeedback('Skapar 3D-bild...');
+  try {
+    const canvas = document.querySelector('canvas');
+    if (canvas) {
+      exportRenderedImage(canvas, 'modular-hus-3d.png');
+      showToast('3D-bild sparad', 'success');
+    }
+  } catch {
+    showToast('Kunde inte exportera bild', 'error');
+  } finally {
+    finish();
   }
 }
 </script>

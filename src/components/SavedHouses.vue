@@ -335,6 +335,7 @@ import {
 } from '../services/houseSave';
 import { captureHouseThumb, forgetHouseThumb, houseThumb, rememberHouseThumb } from '../services/houseThumb';
 import { hasMoodBoard, linkDraftMoodToHouse } from '../services/moodSave';
+import { showToast } from '../services/feedback';
 
 const props = defineProps<{ open: boolean }>();
 const emit = defineEmits<{
@@ -535,10 +536,12 @@ async function save() {
     if (thumb) rememberHouseThumb(saved.id, thumb);
     name.value = '';
     notice.value = t('header.houseSaved');
+    showToast(t('header.houseSaved'), 'success');
     houses.value = [{ ...saved, thumb }, ...houses.value.filter((house) => house.id !== saved.id)].slice(0, 24);
     session.setSavedHouseCount(houses.value.length);
   } catch {
     error.value = t('header.saveFailed');
+    showToast(t('header.saveFailed'), 'error');
   } finally {
     busy.value = false;
   }
@@ -578,9 +581,11 @@ async function manualSave(id?: string) {
     attachThumb(targetId);
     draft = JSON.stringify(config);
     notice.value = t('header.houseSaved');
+    showToast(t('header.houseSaved'), 'success');
     if (target && thumb) target.thumb = thumb;
   } catch {
     error.value = t('header.saveFailed');
+    showToast(t('header.saveFailed'), 'error');
   } finally {
     savingId.value = null;
   }
@@ -604,8 +609,10 @@ async function openHouse(id: string) {
     draft = JSON.stringify(store.exportHouse());
     attachThumb(id);
     notice.value = t('header.houseSwitched', { name: targetName });
+    showToast(t('header.houseSwitched', { name: targetName }), 'info');
   } catch {
     error.value = t('header.saveFailed');
+    showToast(t('header.saveFailed'), 'error');
   } finally {
     busy.value = false;
     switchingId.value = null;

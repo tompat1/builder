@@ -7,6 +7,8 @@ import LoginView from '../views/LoginView.vue';
 import BuilderView from '../views/BuilderView.vue';
 import MoodView from '../views/MoodView.vue';
 
+import { startFeedback } from '../services/feedback';
+
 acceptGithubReturn();
 
 const router = createRouter({
@@ -25,7 +27,12 @@ const router = createRouter({
   }
 });
 
+let navFinish: (() => void) | null = null;
+
 router.beforeEach((to) => {
+  if (navFinish) navFinish();
+  navFinish = startFeedback('Laddar vy...');
+
   if (to.path === '/build') {
     const isInvited = typeof localStorage !== 'undefined'
       && Boolean(localStorage.getItem('builder.mood.participant') || localStorage.getItem('mood_participant'))
@@ -33,6 +40,13 @@ router.beforeEach((to) => {
     if (isInvited) {
       return { path: '/mood' };
     }
+  }
+});
+
+router.afterEach(() => {
+  if (navFinish) {
+    navFinish();
+    navFinish = null;
   }
 });
 
