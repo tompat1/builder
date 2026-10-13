@@ -94,16 +94,13 @@
       :aria-label="t('panel.label')"
     >
       <!-- Mobile Drawer Drag Handle & Collapse Header -->
-      <div class="min-[1180px]:hidden flex items-center justify-between px-4 py-2 border-b border-slate-100 bg-slate-50/80 rounded-t-2xl shrink-0">
-        <div class="flex items-center gap-2">
-          <span class="w-8 h-1 bg-slate-300 rounded-full mx-auto block"></span>
-          <span class="text-xs font-bold text-slate-700"><Cms k="panel.title" /></span>
-        </div>
+      <div class="flex min-h-11 shrink-0 items-center justify-between gap-3 rounded-t-2xl border-b border-[#173D35]/10 bg-[#F5F3EC] px-4 min-[1180px]:hidden">
+        <span class="text-xs font-bold text-[#173D35]"><Cms k="panel.title" /></span>
         <button
           type="button"
           id="btn-toggle-mobile-sheet"
           @click="isMobileCollapsed = !isMobileCollapsed"
-          class="text-xs font-semibold text-slate-600 hover:text-slate-900 py-1 px-2 rounded-lg"
+          class="min-h-11 rounded-lg px-3 text-xs font-semibold text-[#173D35] hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5A00]"
         >
           <Cms v-if="isMobileCollapsed" k="panel.show" />
           <Cms v-else k="panel.hide" />

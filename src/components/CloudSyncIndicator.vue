@@ -4,7 +4,7 @@
     <button
       id="btn-cloud-sync-status"
       type="button"
-      class="group inline-flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-full text-xs font-semibold border transition-all duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 select-none cursor-pointer"
+      class="group inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-colors duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-500 select-none cursor-pointer"
       :class="[
         isOnline
           ? 'bg-emerald-50/70 hover:bg-emerald-100/70 border-emerald-200/80 text-emerald-950 shadow-2xs'

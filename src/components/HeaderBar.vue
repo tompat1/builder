@@ -1,5 +1,5 @@
 <template>
-  <div class="relative z-20 min-[1180px]:hidden">
+  <div class="relative min-[1180px]:hidden" :class="menuOpen ? 'z-50' : 'z-20'">
     <header
       class="pointer-events-auto flex items-center justify-between rounded-2xl border border-slate-200/80 bg-white/95 px-2 py-1.5 shadow-sm backdrop-blur-md"
       role="banner"
@@ -34,6 +34,7 @@
         appearance="text"
         direction="forward"
         id="btn-save-project-mobile"
+        class="min-h-11"
         :aria-expanded="housesOpen"
         @click="toggleHouses"
       >
@@ -47,22 +48,36 @@
         </span>
       </ActionControl>
       <CloudSyncIndicator />
-      <nav class="flex w-fit bg-graphite p-1 rounded-xl shadow-inner" role="group" :aria-label="locale === 'sv' ? 'Språk' : 'Language'">
-        <button type="button" :aria-pressed="locale === 'sv'" class="min-h-11 min-w-11 rounded-lg px-3 text-sm font-bold" :class="locale === 'sv' ? 'bg-[#FF5A00] text-graphite' : 'text-ivory'" @click="applyLocale('sv', true)">SV</button>
-        <button type="button" :aria-pressed="locale === 'en'" class="min-h-11 min-w-11 rounded-lg px-3 text-sm font-bold" :class="locale === 'en' ? 'bg-[#FF5A00] text-graphite' : 'text-ivory'" @click="applyLocale('en', true)">EN</button>
+      <nav class="flex w-fit rounded-xl bg-graphite p-1 shadow-inner" role="group" :aria-label="locale === 'sv' ? 'Språk' : 'Language'">
+        <button type="button" :aria-pressed="locale === 'sv'" class="min-h-11 min-w-11 rounded-lg px-3 text-sm font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5A00]" :class="locale === 'sv' ? 'bg-[#FF5A00] text-graphite' : 'text-ivory hover:text-white'" @click="applyLocale('sv', true)">SV</button>
+        <button type="button" :aria-pressed="locale === 'en'" class="min-h-11 min-w-11 rounded-lg px-3 text-sm font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5A00]" :class="locale === 'en' ? 'bg-[#FF5A00] text-graphite' : 'text-ivory hover:text-white'" @click="applyLocale('en', true)">EN</button>
       </nav>
-      <nav class="flex w-fit bg-graphite p-1 rounded-xl shadow-inner" role="tablist" :aria-label="t('header.view')">
-        <button type="button" role="tab" class="min-h-11 rounded-lg px-4 text-sm font-semibold" :aria-selected="store.viewMode === 'utsida'" :class="store.viewMode === 'utsida' ? 'bg-[#FF5A00] text-graphite' : 'text-ivory'" @click="store.setViewMode('utsida')"><Cms k="header.outside" /></button>
-        <button type="button" role="tab" class="min-h-11 rounded-lg px-4 text-sm font-semibold" :aria-selected="store.viewMode === 'insida'" :class="store.viewMode === 'insida' ? 'bg-[#FF5A00] text-graphite' : 'text-ivory'" @click="store.setViewMode('insida')"><Cms k="header.inside" /></button>
+      <nav class="flex w-fit rounded-xl bg-graphite p-1 shadow-inner" role="tablist" :aria-label="t('header.view')">
+        <button type="button" role="tab" class="min-h-11 rounded-lg px-4 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5A00]" :aria-selected="store.viewMode === 'utsida'" :class="store.viewMode === 'utsida' ? 'bg-[#FF5A00] text-graphite' : 'text-ivory hover:text-white'" @click="store.setViewMode('utsida')"><Cms k="header.outside" /></button>
+        <button type="button" role="tab" class="min-h-11 rounded-lg px-4 text-sm font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5A00]" :aria-selected="store.viewMode === 'insida'" :class="store.viewMode === 'insida' ? 'bg-[#FF5A00] text-graphite' : 'text-ivory hover:text-white'" @click="store.setViewMode('insida')"><Cms k="header.inside" /></button>
       </nav>
       <div class="flex items-center justify-between gap-3">
-        <button type="button" class="text-left" :aria-expanded="showPriceBreakdown" @click="showPriceBreakdown = !showPriceBreakdown">
-          <span class="block text-[10px] font-bold uppercase text-slate-500"><Cms k="header.total" /></span>
-          <span class="text-lg font-extrabold tabular-nums text-slate-900">{{ money(store.totalPriceSek) }}</span>
+        <button type="button" class="min-h-11 rounded-xl px-1 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5A00]" :aria-expanded="showPriceBreakdown" @click="showPriceBreakdown = !showPriceBreakdown">
+          <span class="block text-[10px] font-bold uppercase tracking-wide text-[#173D35]/70"><Cms k="header.total" /></span>
+          <span class="text-lg font-extrabold tabular-nums text-[#173D35]">{{ money(store.totalPriceSek) }}</span>
         </button>
         <ActionControl prominent tone="graphite" direction="down" id="btn-next-step-mobile" class="shrink-0" @click="emitExport">
           <Cms k="panel.export" />
         </ActionControl>
+      </div>
+      <div v-if="showPriceBreakdown" class="rounded-xl border border-[#173D35]/10 bg-[#F5F3EC] px-3 py-2.5 text-xs text-[#173D35]">
+        <div class="flex justify-between gap-3">
+          <span><Cms :k="`catalog.${store.currentSize.id}.name`" :fallback="store.currentSize.name" /></span>
+          <span class="font-semibold tabular-nums">{{ money(store.currentSize.basePrice) }}</span>
+        </div>
+        <div class="mt-1.5 flex justify-between gap-3">
+          <span>{{ t('header.facade', { name: catalog(store.currentMaterial.id, 'name', store.currentMaterial.name) }) }}</span>
+          <span v-if="store.currentMaterial.id !== 'custom'" class="font-semibold tabular-nums">{{ delta(store.currentMaterial.priceDelta) }}</span>
+        </div>
+        <div v-if="store.hasLoft" class="mt-1.5 flex justify-between gap-3 text-emerald-800">
+          <span><Cms k="header.loftExtra" /></span>
+          <span class="font-semibold tabular-nums">{{ delta(21500) }}</span>
+        </div>
       </div>
       <button
         v-if="session.user?.role === 'admin'"
@@ -239,7 +254,7 @@
   <!-- Price Breakdown Flyout Modal -->
   <div
     v-if="showPriceBreakdown"
-    class="pointer-events-auto absolute top-20 right-6 z-30 bg-white rounded-xl shadow-xl border border-slate-200 p-4 w-72 text-xs text-slate-700 animate-fade-in"
+    class="pointer-events-auto absolute top-20 right-6 z-30 hidden w-72 animate-fade-in rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-700 shadow-xl min-[1180px]:block"
   >
     <div class="flex items-center justify-between pb-2 mb-2 border-b border-slate-100 font-bold text-slate-900">
       <span><Cms k="header.breakdown" /></span>
