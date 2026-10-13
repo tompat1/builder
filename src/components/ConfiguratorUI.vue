@@ -88,12 +88,12 @@
     <!-- Right Sidebar / Mobile Bottom Sheet -->
     <aside
       v-if="!store.isFullscreen"
-      class="pointer-events-auto bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-slate-200/80 transition-all duration-300 flex flex-col justify-between mt-auto w-full min-[1180px]:w-[410px] min-[1180px]:absolute min-[1180px]:right-6 min-[1180px]:top-24 min-[1180px]:bottom-[max(1.5rem,env(safe-area-inset-bottom))] max-h-[62dvh] min-[1180px]:max-h-[calc(100dvh-7.5rem)] z-40"
+      class="pointer-events-auto bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-slate-200/80 transition-all duration-300 flex flex-col justify-between mt-auto w-full min-[1180px]:w-[410px] min-[1180px]:absolute min-[1180px]:right-6 min-[1180px]:top-24 min-[1180px]:bottom-[max(1.5rem,env(safe-area-inset-bottom))] max-h-[62dvh] min-[1180px]:max-h-[calc(100dvh-7.5rem)] z-40 overflow-hidden"
       :class="isMobileCollapsed ? 'h-auto max-h-[140px]' : 'h-[min(62dvh,calc(100dvh-31.5rem))] min-[1180px]:h-auto'"
       :aria-label="t('panel.label')"
     >
       <!-- Mobile Drawer Drag Handle & Collapse Header -->
-      <div class="min-[1180px]:hidden flex items-center justify-between px-4 py-2 border-b border-slate-100 bg-slate-50/80 rounded-t-2xl">
+      <div class="min-[1180px]:hidden flex items-center justify-between px-4 py-2 border-b border-slate-100 bg-slate-50/80 rounded-t-2xl shrink-0">
         <div class="flex items-center gap-2">
           <span class="w-8 h-1 bg-slate-300 rounded-full mx-auto block"></span>
           <span class="text-xs font-bold text-slate-700"><Cms k="panel.title" /></span>
@@ -110,27 +110,28 @@
       </div>
 
       <!-- Main Panel Title (Desktop) -->
-      <div class="hidden min-[1180px]:block px-5 pt-4 pb-2 border-b border-slate-100">
+      <div class="hidden min-[1180px]:block px-5 pt-4 pb-2 border-b border-slate-100 shrink-0">
         <h2 class="text-base font-extrabold text-slate-900 tracking-tight">
           <Cms k="panel.title" />
         </h2>
       </div>
 
-      <!-- Main Scrollable Panel Content -->
-      <div v-show="!isMobileCollapsed" class="p-4 md:p-5 overflow-y-auto space-y-4 flex-1">
-        <!-- Step Navigation Bar -->
+      <!-- Fixed Menu / Category Navigation (Pinned at top of panel) -->
+      <div v-show="!isMobileCollapsed" class="px-4 py-3 md:px-5 border-b border-slate-100/80 bg-white/50 shrink-0">
         <CategoryNav />
+      </div>
 
+      <!-- Main Scrollable Panel Content -->
+      <div v-show="!isMobileCollapsed" class="p-4 md:p-5 overflow-y-auto overscroll-contain space-y-4 flex-1 min-h-0 panel-scrollbar">
         <!-- Dynamic Category & Material Options Grid -->
         <OptionsGrid />
 
         <!-- Embedded AI Architect Assistant -->
         <AIAssistantBar />
-
       </div>
 
       <!-- Footer Quick Status Summary -->
-      <div class="p-3 md:p-4 bg-slate-50/90 border-t border-slate-100 rounded-b-2xl flex items-center">
+      <div class="p-3 md:p-4 bg-slate-50/90 border-t border-slate-100 rounded-b-2xl flex items-center shrink-0">
         <div class="flex items-center gap-2 min-w-0">
           <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-2xs shrink-0"></span>
           <span class="text-xs text-slate-700 font-semibold truncate">
@@ -217,5 +218,27 @@ defineEmits<{
       0 0 12px 2px rgb(255 176 64 / 0.35),
       0 0 22px 6px rgb(255 140 32 / 0.18);
   }
+}
+
+.panel-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.panel-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.panel-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.panel-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 9999px;
+}
+
+.panel-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
 }
 </style>
