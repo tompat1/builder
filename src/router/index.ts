@@ -7,6 +7,7 @@ import LoginView from '../views/LoginView.vue';
 import BuilderView from '../views/BuilderView.vue';
 import MoodView from '../views/MoodView.vue';
 
+import { i18n } from '../i18n';
 import { startFeedback } from '../services/feedback';
 
 acceptGithubReturn();
@@ -31,7 +32,7 @@ let navFinish: (() => void) | null = null;
 
 router.beforeEach((to) => {
   if (navFinish) navFinish();
-  navFinish = startFeedback('Laddar vy...');
+  navFinish = startFeedback(String(i18n.global.t('feedback.view')));
 
   if (to.path === '/build') {
     const isInvited = typeof localStorage !== 'undefined'

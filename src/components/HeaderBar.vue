@@ -19,7 +19,7 @@
       <div class="h-6 w-px bg-slate-200 hidden min-[1180px]:block"></div>
 
       <!-- Action Quick-links -->
-      <div class="flex items-center gap-4">
+      <div class="flex items-center gap-2.5 min-[1180px]:gap-4">
         <ActionControl
           appearance="text"
           direction="forward"
@@ -36,6 +36,9 @@
             <Cms k="header.projects" fallback="Projects" />
           </span>
         </ActionControl>
+
+        <!-- Cloud Synced with green online marker -->
+        <CloudSyncIndicator />
       </div>
     </div>
 
@@ -197,6 +200,7 @@ import { applyLocale, useLabels } from '../i18n';
 import { readLocalHouse } from '../services/houseSave';
 import SavedHouses from './SavedHouses.vue';
 import AdminAiPanel from './AdminAiPanel.vue';
+import CloudSyncIndicator from './CloudSyncIndicator.vue';
 import Cms from './Cms.vue';
 
 const store = useConfigStore();

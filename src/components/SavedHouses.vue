@@ -12,7 +12,7 @@
           <p class="font-bold text-slate-900 text-sm"><Cms k="header.houses" /></p>
           <span
             class="rounded-full px-2 py-0.5 text-[10px] font-medium"
-            :class="autoSaveOn ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'"
+            :class="autoSaveOn ? 'bg-emerald-100 text-emerald-800' : 'bg-[#E7E4DA] text-[#173D35]'"
           >
             <Cms :k="autoSaveOn ? 'header.autoSaveOn' : 'header.autoSaveOff'" />
           </span>
@@ -334,7 +334,7 @@ import {
   type SavedHouse
 } from '../services/houseSave';
 import { captureHouseThumb, forgetHouseThumb, houseThumb, rememberHouseThumb } from '../services/houseThumb';
-import { hasMoodBoard, linkDraftMoodToHouse } from '../services/moodSave';
+import { hasMoodBoard, linkDraftMoodToHouse, publishAccountMood } from '../services/moodSave';
 import { showToast, triggerSessionAutosaveBadge } from '../services/feedback';
 
 const props = defineProps<{ open: boolean }>();
@@ -458,6 +458,7 @@ async function adoptWorkingHouse() {
           attachThumb(activeCloud.activeId);
         }
         draft = JSON.stringify(store.exportHouse());
+        void publishAccountMood();
         return;
       }
     }
@@ -480,11 +481,13 @@ async function adoptWorkingHouse() {
         }
       }
     } catch {
+      void publishAccountMood();
       return;
     }
   }
   activeId.value = active;
   if (active && !houseThumb(active)) attachThumb(active);
+  void publishAccountMood();
 }
 
 function rememberDraft(json: string) {
@@ -495,7 +498,14 @@ function rememberDraft(json: string) {
   if (active) attachThumb(active);
   if (!session.user) return;
   const currentName = houses.value.find((h) => h.id === active)?.name || '';
-  void saveActiveHouse(config, active || undefined, currentName);
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('builder:cloud-sync', { detail: { state: 'syncing' } }));
+  }
+  void saveActiveHouse(config, active || undefined, currentName).then((ok) => {
+    if (ok && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('builder:cloud-sync', { detail: { state: 'synced' } }));
+    }
+  });
   if (active) {
     void updateNamedHouse(active, config).catch(() => {
       // The browser copy is already written. The account catches up on the next change.
@@ -529,8 +539,14 @@ async function save() {
     return;
   }
   busy.value = true;
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('builder:cloud-sync', { detail: { state: 'syncing' } }));
+  }
   try {
     const saved = await saveNamedHouse(title, config);
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('builder:cloud-sync', { detail: { state: 'synced' } }));
+    }
     writeActiveHouseId(saved.id);
     linkDraftMoodToHouse(saved.id);
     activeId.value = saved.id;

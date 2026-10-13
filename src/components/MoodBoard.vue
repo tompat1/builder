@@ -594,12 +594,12 @@
       </div>
     </div>
 
-    <!-- Floating down-bobbing arrow button centered at the end of the viewport -->
+    <!-- Floating arrow when more of the board sits below the viewport -->
     <button
       v-if="hasMoreBelow"
       type="button"
       id="btn-mood-scroll-down"
-      class="pointer-events-auto absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex h-11 w-11 items-center justify-center rounded-full bg-[#173D35]/90 text-[#F5F3EC] shadow-xl border border-white/20 backdrop-blur-md transition-all duration-200 hover:bg-[#173D35] hover:scale-110 active:scale-95 animate-bounce focus:outline-none focus:ring-2 focus:ring-[#173D35] focus:ring-offset-2"
+      class="pointer-events-auto absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex h-11 w-11 items-center justify-center rounded-full bg-[#173D35]/90 text-[#F5F3EC] shadow-xl border border-white/20 backdrop-blur-md transition-transform duration-200 ease-out hover:bg-[#173D35] hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-[#173D35] focus:ring-offset-2"
       :aria-label="t('mood.scrollDown')"
       :title="t('mood.scrollDown')"
       @click="scrollDownNext"
@@ -1137,6 +1137,7 @@ const profileEmail = ref('');
 const profileEmailSavedNotice = ref(false);
 
 let houseKey = (typeof route?.query?.board === 'string' && route.query.board) ? route.query.board : moodHouseKey();
+let cloudSettled = false;
 let dragDepth = 0;
 let stopWatch = () => {};
 let justDragged = false;
@@ -1370,38 +1371,7 @@ onMounted(() => {
 
   void hydrate();
 
-  // Background Cloudflare database sync
-  void syncMoodWithCloudflare(houseKey).then((remote) => {
-    if (!remote) return;
-    if (remote.title && !title.value) title.value = remote.title;
-    if (remote.createdAt && !createdAt.value) createdAt.value = remote.createdAt;
-    if (remote.participants?.length) {
-      const mergedPart = [...participants.value];
-      for (const p of remote.participants) {
-        if (!mergedPart.some((existing) => existing.id === p.id)) mergedPart.push(p);
-      }
-      participants.value = mergedPart;
-    }
-    if (remote.pieces?.length) {
-      const localMap = new Map(pieces.value.map((p) => [p.id, p]));
-      for (const rp of remote.pieces) {
-        const lp = localMap.get(rp.id);
-        if (!lp) {
-          localMap.set(rp.id, rp);
-        } else {
-          if (Array.isArray(rp.likedBy) && rp.likedBy.length >= (lp.likedBy?.length || 0)) {
-            lp.likedBy = rp.likedBy;
-            lp.likes = rp.likes;
-          }
-          if (Array.isArray(rp.comments) && rp.comments.length >= (lp.comments?.length || 0)) {
-            lp.comments = rp.comments;
-          }
-        }
-      }
-      pieces.value = Array.from(localMap.values());
-      void hydrate();
-    }
-  });
+  void pullCloud();
 
   window.addEventListener('paste', onPaste);
   window.addEventListener('keydown', onKeyDown);
@@ -1413,6 +1383,7 @@ onMounted(() => {
     playing.value = '';
     broken.value = {};
     revokeUrls();
+    cloudSettled = false;
     const nextData = loadMood(houseKey);
     pieces.value = nextData.pieces;
     participants.value = nextData.participants || [];
@@ -1420,7 +1391,7 @@ onMounted(() => {
     createdAt.value = nextData.createdAt || (nextData.pieces.length > 0 ? new Date().toISOString() : '');
     backfillExistingPiecesAuthor();
     void hydrate();
-    void syncMoodWithCloudflare(houseKey);
+    void pullCloud();
   });
 });
 
@@ -1597,6 +1568,46 @@ function revokeUrls() {
   urls.value = {};
 }
 
+function applyRemote(remote: { title: string; createdAt: string; pieces: MoodPiece[]; participants?: MoodParticipant[] }) {
+  if (remote.title && !title.value) title.value = remote.title;
+  if (remote.createdAt && !createdAt.value) createdAt.value = remote.createdAt;
+  if (remote.participants?.length) {
+    const mergedPart = [...participants.value];
+    for (const person of remote.participants) {
+      if (!mergedPart.some((existing) => existing.id === person.id)) mergedPart.push(person);
+    }
+    participants.value = mergedPart;
+  }
+  if (!remote.pieces?.length) return;
+  const localMap = new Map(pieces.value.map((piece) => [piece.id, piece]));
+  for (const remotePiece of remote.pieces) {
+    const localPiece = localMap.get(remotePiece.id);
+    if (!localPiece) {
+      localMap.set(remotePiece.id, remotePiece);
+    } else {
+      if (Array.isArray(remotePiece.likedBy) && remotePiece.likedBy.length >= (localPiece.likedBy?.length || 0)) {
+        localPiece.likedBy = remotePiece.likedBy;
+        localPiece.likes = remotePiece.likes;
+      }
+      if (Array.isArray(remotePiece.comments) && remotePiece.comments.length >= (localPiece.comments?.length || 0)) {
+        localPiece.comments = remotePiece.comments;
+      }
+    }
+  }
+  pieces.value = Array.from(localMap.values());
+  void hydrate();
+}
+
+async function pullCloud() {
+  const requested = houseKey;
+  const remote = await syncMoodWithCloudflare(requested);
+  if (!remote || requested !== houseKey) return;
+  const remoteCount = remote.pieces.length;
+  applyRemote(remote);
+  cloudSettled = true;
+  if (pieces.value.length > remoteCount) persist();
+}
+
 function persist() {
   if (!createdAt.value && (pieces.value.length > 0 || title.value.trim())) {
     createdAt.value = new Date().toISOString();
@@ -1606,7 +1617,7 @@ function persist() {
     createdAt: createdAt.value,
     pieces: pieces.value,
     participants: participants.value
-  }, houseKey);
+  }, houseKey, cloudSettled);
   triggerSessionAutosaveBadge('moodboard');
 }
 

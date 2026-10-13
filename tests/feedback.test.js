@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  apiFeedbackKey,
   errorFeedback,
   pulseFeedback,
   showToast,
@@ -69,6 +70,25 @@ test('pulseFeedback activates the progress bar', () => {
   const { isBarVisible } = useFeedback();
   pulseFeedback('Snabb åtgärd');
   assert.equal(isBarVisible.value, true);
+});
+
+test('a pulse does not finish a wait that is still running', async () => {
+  const { isActive, isBarVisible, statusMessage } = useFeedback();
+  const done = startFeedback('Sparar hus...');
+  pulseFeedback('Klart');
+  await new Promise((resolve) => setTimeout(resolve, 250));
+  assert.equal(isActive.value, true);
+  assert.equal(isBarVisible.value, true);
+  assert.equal(statusMessage.value, 'Sparar hus...');
+  done();
+  assert.equal(isActive.value, false);
+});
+
+test('an api label follows the request', () => {
+  assert.equal(apiFeedbackKey('/api/houses/active', 'GET'), 'feedback.loadHouse');
+  assert.equal(apiFeedbackKey('/api/houses/active', 'PUT'), 'feedback.saveHouse');
+  assert.equal(apiFeedbackKey('/api/mood/draft', 'PUT'), 'feedback.syncMood');
+  assert.equal(apiFeedbackKey('/api/auth/login', 'POST'), 'feedback.account');
 });
 
 test('autosave badge triggers once per session for 3D and moodboard', async () => {

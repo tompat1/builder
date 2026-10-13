@@ -191,7 +191,27 @@ const sv = {
     houseTitleSaved: 'Namn sparat',
     houseTitleSaving: 'Sparar namn...',
     houseSaveChanges: 'Spara ändringar',
-    houseOverwriteConfirm: 'Vill du spara aktuellt hus till {name}?'
+    houseOverwriteConfirm: 'Vill du spara aktuellt hus till {name}?',
+    cloudSync: {
+      synced: 'Molnsynkad',
+      syncing: 'Synkar...',
+      offline: 'Offline',
+      allReady: 'Allt är online och redo i Cloudflare',
+      cloudflareEdge: 'Cloudflare Edge',
+      cloudflareStatus: 'Ansluten till Cloudflare',
+      workerReady: 'Cloudflare Workers & D1',
+      aiReady: 'Workers AI',
+      connected: 'Ansluten och redo',
+      active: 'Aktiv',
+      latency: 'Svarstid',
+      lastSync: 'Senast synkad',
+      justNow: 'Alldeles nyss',
+      verifyNow: 'Kontrollera Cloudflare',
+      verifying: 'Kontrollerar...',
+      statusDetails: 'Cloudflare systemstatus',
+      designSynced: '3D-ritning & konfiguration',
+      edgeNetwork: 'Globalt edge-nätverk'
+    }
   },
   cms: {
     edit: 'Redigera',
@@ -486,6 +506,20 @@ const sv = {
     hidden: 'Den delen syns inte från den här vinkeln.',
     limit: 'Tavlan rymmer 24 lappar.',
     empty: 'Lägg en lapp på tavlan.'
+  },
+  feedback: {
+    loading: 'Laddar...',
+    wait: 'Ett ögonblick.',
+    view: 'Laddar vy...',
+    sync: 'Synkroniserar...',
+    saveHouse: 'Sparar hus...',
+    loadHouse: 'Hämtar hus...',
+    syncMood: 'Synkroniserar moodboard...',
+    render: 'Skapar 3D-ritning...',
+    ask: 'Söker svar...',
+    sources: 'Hämtar källor...',
+    content: 'Hämtar innehåll...',
+    account: 'Kontrollerar konto...'
   },
   mood: {
     tool: 'Moodboard',
@@ -842,7 +876,27 @@ const en = {
     houseTitleSaved: 'Name saved',
     houseTitleSaving: 'Saving name...',
     houseSaveChanges: 'Save changes',
-    houseOverwriteConfirm: 'Save current design to {name}?'
+    houseOverwriteConfirm: 'Save current design to {name}?',
+    cloudSync: {
+      synced: 'Cloud synced',
+      syncing: 'Syncing...',
+      offline: 'Offline',
+      allReady: 'Everything online & ready in Cloudflare',
+      cloudflareEdge: 'Cloudflare Edge',
+      cloudflareStatus: 'Connected to Cloudflare',
+      workerReady: 'Cloudflare Workers & D1',
+      aiReady: 'Workers AI',
+      connected: 'Connected and ready',
+      active: 'Active',
+      latency: 'Latency',
+      lastSync: 'Last synced',
+      justNow: 'Just now',
+      verifyNow: 'Verify Cloudflare',
+      verifying: 'Verifying...',
+      statusDetails: 'Cloudflare system status',
+      designSynced: '3D design & configuration',
+      edgeNetwork: 'Global Edge Network'
+    }
   },
   cms: {
     edit: 'Edit',
@@ -1137,6 +1191,20 @@ const en = {
     hidden: 'That part is hidden from this angle.',
     limit: 'The board holds 24 notes.',
     empty: 'Put a note on the board.'
+  },
+  feedback: {
+    loading: 'Loading...',
+    wait: 'One moment.',
+    view: 'Loading view...',
+    sync: 'Syncing...',
+    saveHouse: 'Saving house...',
+    loadHouse: 'Loading house...',
+    syncMood: 'Syncing mood board...',
+    render: 'Making the drawing...',
+    ask: 'Looking for an answer...',
+    sources: 'Loading sources...',
+    content: 'Loading content...',
+    account: 'Checking account...'
   },
   mood: {
     tool: 'Mood board',

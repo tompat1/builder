@@ -115,7 +115,7 @@ export function loadMood(houseKey = moodHouseKey()): MoodBoardState {
   };
 }
 
-export function saveMood(content: MoodBoardState | MoodPiece[], houseKey = moodHouseKey()) {
+export function saveMood(content: MoodBoardState | MoodPiece[], houseKey = moodHouseKey(), authoritative = false) {
   const all = bucket();
   if (Array.isArray(content)) {
     const prev = all[houseKey] as Record<string, unknown> | undefined;
@@ -156,24 +156,29 @@ export function saveMood(content: MoodBoardState | MoodPiece[], houseKey = moodH
     }
   }
   // Also persist to Cloudflare database in background
-  scheduleCloudflareSave(houseKey, all[houseKey] as MoodBoardState);
+  scheduleCloudflareSave(houseKey, all[houseKey] as MoodBoardState, authoritative);
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
-let pendingState: { houseKey: string; state: MoodBoardState } | null = null;
+let pendingState: { houseKey: string; state: MoodBoardState; authoritative: boolean } | null = null;
 
-function scheduleCloudflareSave(houseKey: string, state: MoodBoardState) {
-  pendingState = { houseKey, state };
+function scheduleCloudflareSave(houseKey: string, state: MoodBoardState, authoritative: boolean) {
+  const sameBoard = pendingState?.houseKey === houseKey && pendingState.authoritative;
+  pendingState = {
+    houseKey,
+    state,
+    authoritative: authoritative || sameBoard
+  };
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(() => {
     if (pendingState) {
-      void saveMoodToCloudflare(pendingState.state, pendingState.houseKey);
+      void saveMoodToCloudflare(pendingState.state, pendingState.houseKey, pendingState.authoritative);
       pendingState = null;
     }
   }, 400);
 }
 
-export async function saveMoodToCloudflare(state: MoodBoardState, houseKey = moodHouseKey()): Promise<boolean> {
+export async function saveMoodToCloudflare(state: MoodBoardState, houseKey = moodHouseKey(), authoritative = false): Promise<boolean> {
   if (!houseKey) return false;
   try {
     const headers = new Headers();
@@ -185,7 +190,8 @@ export async function saveMoodToCloudflare(state: MoodBoardState, houseKey = moo
       title: state.title,
       createdAt: state.createdAt,
       pieces: state.pieces,
-      participants: state.participants
+      participants: state.participants,
+      authoritative
     };
 
     const res = await fetch(`${workerBase()}/api/mood/${encodeURIComponent(houseKey)}`, {
@@ -196,6 +202,21 @@ export async function saveMoodToCloudflare(state: MoodBoardState, houseKey = moo
     return res.ok;
   } catch {
     return false;
+  }
+}
+
+/** Push this device's collage up when the account copy is missing pictures. */
+export async function publishAccountMood() {
+  if (!sessionToken()) return;
+  const keys = new Set([moodHouseKey(), 'draft']);
+  for (const houseKey of keys) {
+    const local = loadMood(houseKey);
+    if (!local.pieces.length) continue;
+    const remote = await syncMoodWithCloudflare(houseKey);
+    if (!remote) continue;
+    const remoteIds = new Set(remote.pieces.map((piece) => piece.id));
+    const missing = local.pieces.some((piece) => !remoteIds.has(piece.id));
+    if (missing) await saveMoodToCloudflare(local, houseKey, false);
   }
 }
 
@@ -211,8 +232,8 @@ export async function syncMoodWithCloudflare(houseKey = moodHouseKey()): Promise
       headers
     });
     if (!res.ok) return null;
-    const body = (await res.json().catch(() => null)) as { mood?: unknown };
-    if (!body || !body.mood) return null;
+    const body = (await res.json().catch(() => null)) as { mood?: unknown } | null;
+    if (!body || !('mood' in body)) return null;
     const parsed = acceptMoodBoard(body.mood);
     const boardState: MoodBoardState = {
       title: parsed.title,
@@ -221,9 +242,10 @@ export async function syncMoodWithCloudflare(houseKey = moodHouseKey()): Promise
       ...(parsed.participants ? { participants: parsed.participants } : {})
     };
 
-    // Cache locally as well
+    // Keep a fuller copy already on this device. An empty phone must not erase it.
     const all = bucket();
-    all[houseKey] = boardState;
+    const local = acceptMoodBoard(all[houseKey]);
+    if (boardState.pieces.length >= local.pieces.length) all[houseKey] = boardState;
     try {
       if (typeof localStorage !== 'undefined') {
         localStorage.setItem(KEY, JSON.stringify(fit(all, houseKey)));

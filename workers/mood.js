@@ -41,10 +41,145 @@ async function ensureMoodTable(db) {
         updated_at TEXT NOT NULL
       )
     `).run();
+    await db.prepare(`
+      CREATE TABLE IF NOT EXISTS mood_assets (
+        id TEXT PRIMARY KEY,
+        board_id TEXT NOT NULL,
+        data TEXT NOT NULL
+      )
+    `).run();
     tableChecked = true;
   } catch {
     // ignore
   }
+}
+
+function pieceCount(row) {
+  if (!row || typeof row.data !== 'string') return 0;
+  try {
+    const data = JSON.parse(row.data);
+    return Array.isArray(data.pieces) ? data.pieces.length : 0;
+  } catch {
+    return 0;
+  }
+}
+
+function richerBoard(current, candidate) {
+  if (!candidate) return current;
+  if (!current || pieceCount(candidate) > pieceCount(current)) return candidate;
+  return current;
+}
+
+async function boardById(db, id) {
+  if (!id) return null;
+  return db.prepare(
+    `SELECT id, user_id, title, data, created_at, updated_at FROM mood_boards WHERE id = ?`
+  ).bind(id).first();
+}
+
+async function boardsForUser(db, userId) {
+  if (!userId) return [];
+  const statement = db.prepare(
+    `SELECT id, user_id, title, data, created_at, updated_at FROM mood_boards WHERE user_id = ? ORDER BY updated_at DESC LIMIT 20`
+  ).bind(userId);
+  if (typeof statement.all === 'function') {
+    const result = await statement.all();
+    return Array.isArray(result?.results) ? result.results : [];
+  }
+  const row = await statement.first();
+  return row ? [row] : [];
+}
+
+/** The requested board, or the signed-in user's fullest board when that one is empty. */
+async function resolveBoard(db, boardId, userId) {
+  let row = await boardById(db, boardId);
+  if (!userId || pieceCount(row) > 0) return row;
+  for (const owned of await boardsForUser(db, userId)) {
+    row = richerBoard(row, owned);
+  }
+  if (pieceCount(row) === 0) {
+    const legacy = await boardById(db, 'draft');
+    if (legacy && (legacy.user_id == null || legacy.user_id === userId)) {
+      row = richerBoard(row, legacy);
+    }
+  }
+  return row;
+}
+
+function mergeBoardData(existingText, incoming) {
+  let prev = {};
+  try {
+    prev = existingText ? JSON.parse(existingText) : {};
+  } catch {
+    prev = {};
+  }
+  const pieces = new Map();
+  for (const piece of Array.isArray(prev.pieces) ? prev.pieces : []) {
+    if (piece && piece.id) pieces.set(piece.id, piece);
+  }
+  for (const piece of incoming.pieces) {
+    if (piece && piece.id) pieces.set(piece.id, piece);
+  }
+  const participants = new Map();
+  for (const person of Array.isArray(prev.participants) ? prev.participants : []) {
+    if (person && person.id) participants.set(person.id, person);
+  }
+  for (const person of incoming.participants) {
+    if (person && person.id) participants.set(person.id, person);
+  }
+  return {
+    title: incoming.title || (typeof prev.title === 'string' ? prev.title : ''),
+    createdAt: incoming.createdAt || (typeof prev.createdAt === 'string' ? prev.createdAt : ''),
+    pieces: [...pieces.values()],
+    participants: [...participants.values()]
+  };
+}
+
+async function assetRows(db, boardId) {
+  const statement = db.prepare(`SELECT id, data FROM mood_assets WHERE board_id = ?`).bind(boardId);
+  if (typeof statement.all !== 'function') return [];
+  const result = await statement.all();
+  return Array.isArray(result?.results) ? result.results : [];
+}
+
+/** Picture bytes live in their own rows so a full collage fits in D1. */
+async function externalizePieceImages(db, boardId, pieces, dropMissing) {
+  const stored = [];
+  const keep = new Set();
+  for (const piece of pieces) {
+    if (!piece || typeof piece !== 'object') continue;
+    const src = typeof piece.src === 'string' ? piece.src : '';
+    if (src.startsWith('data:image/') && piece.id) {
+      await db.prepare(
+        `INSERT INTO mood_assets (id, board_id, data) VALUES (?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET board_id = excluded.board_id, data = excluded.data`
+      ).bind(piece.id, boardId, src).run();
+      keep.add(piece.id);
+      stored.push({ ...piece, src: `asset:${piece.id}` });
+    } else {
+      if (src.startsWith('asset:') && piece.id) keep.add(piece.id);
+      stored.push(piece);
+    }
+  }
+  if (dropMissing) {
+    for (const row of await assetRows(db, boardId)) {
+      if (!keep.has(row.id)) {
+        await db.prepare(`DELETE FROM mood_assets WHERE id = ?`).bind(row.id).run();
+      }
+    }
+  }
+  return stored;
+}
+
+async function inflatePieceImages(db, boardId, pieces) {
+  const rows = await assetRows(db, boardId);
+  if (!rows.length) return pieces;
+  const images = new Map(rows.map((row) => [row.id, row.data]));
+  return pieces.map((piece) => {
+    if (!piece || typeof piece.src !== 'string' || !piece.src.startsWith('asset:')) return piece;
+    const data = images.get(piece.src.slice(6));
+    return data ? { ...piece, src: data } : piece;
+  });
 }
 
 export async function handleMood(request, env, headers, sessionUser) {
@@ -62,9 +197,7 @@ export async function handleMood(request, env, headers, sessionUser) {
 
   // 1. GET /api/mood/:id -> Fetch board
   if (request.method === 'GET' && !route.action) {
-    const row = await env.DB.prepare(
-      `SELECT id, user_id, title, data, created_at, updated_at FROM mood_boards WHERE id = ?`
-    ).bind(boardId).first();
+    const row = await resolveBoard(env.DB, boardId, userId);
 
     if (!row) {
       return json({ mood: null }, 200, headers);
@@ -75,6 +208,9 @@ export async function handleMood(request, env, headers, sessionUser) {
       parsedData = JSON.parse(row.data);
     } catch {
       parsedData = { pieces: [] };
+    }
+    if (Array.isArray(parsedData.pieces)) {
+      parsedData.pieces = await inflatePieceImages(env.DB, row.id, parsedData.pieces);
     }
 
     return json({
@@ -102,14 +238,24 @@ export async function handleMood(request, env, headers, sessionUser) {
     }
 
     const title = typeof body.title === 'string' ? body.title.slice(0, 100) : '';
+    const incoming = {
+      title,
+      createdAt: typeof body.createdAt === 'string' ? body.createdAt : now,
+      pieces: Array.isArray(body.pieces) ? body.pieces : [],
+      participants: Array.isArray(body.participants) ? body.participants : []
+    };
+    let stored = incoming;
+    if (body.authoritative !== true) {
+      const existing = await boardById(env.DB, boardId);
+      if (existing) stored = mergeBoardData(existing.data, incoming);
+    }
+    stored = {
+      ...stored,
+      pieces: await externalizePieceImages(env.DB, boardId, stored.pieces, body.authoritative === true)
+    };
     let dataText = '';
     try {
-      dataText = JSON.stringify({
-        title,
-        createdAt: typeof body.createdAt === 'string' ? body.createdAt : now,
-        pieces: Array.isArray(body.pieces) ? body.pieces : [],
-        participants: Array.isArray(body.participants) ? body.participants : []
-      });
+      dataText = JSON.stringify(stored);
     } catch {
       return json({ error: 'serialization_error' }, 400, headers);
     }

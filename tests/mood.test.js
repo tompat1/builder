@@ -231,7 +231,13 @@ test('placeFor scales y downwards for endless scrolling', () => {
 });
 
 function createMockD1(initialRow = null) {
-  let storedRow = initialRow;
+  const rows = new Map();
+  if (initialRow?.id) rows.set(initialRow.id, initialRow);
+  function owned(userId) {
+    return [...rows.values()]
+      .filter((row) => row.user_id === userId)
+      .sort((a, b) => String(b.updated_at).localeCompare(String(a.updated_at)));
+  }
   return {
     DB: {
       prepare(sql) {
@@ -239,23 +245,29 @@ function createMockD1(initialRow = null) {
           bind(...args) {
             return {
               async first() {
-                if (sql.includes('SELECT')) return storedRow;
+                if (sql.includes('WHERE id = ?')) return rows.get(args[0]) || null;
+                if (sql.includes('WHERE user_id = ?')) return owned(args[0])[0] || null;
                 return null;
+              },
+              async all() {
+                const results = sql.includes('WHERE user_id = ?') ? owned(args[0]) : [];
+                return { results };
               },
               async run() {
                 if (sql.includes('INSERT INTO mood_boards')) {
-                  storedRow = {
+                  rows.set(args[0], {
                     id: args[0],
                     user_id: args[1],
                     title: args[2],
                     data: args[3],
                     created_at: args[4],
                     updated_at: args[5]
-                  };
+                  });
                 } else if (sql.includes('UPDATE mood_boards SET data = ?')) {
-                  if (storedRow) {
-                    storedRow.data = args[0];
-                    storedRow.updated_at = args[1];
+                  const row = rows.get(args[2]);
+                  if (row) {
+                    row.data = args[0];
+                    row.updated_at = args[1];
                   }
                 }
                 return { meta: { changes: 1 } };
@@ -357,6 +369,36 @@ test('handleMood saves and loads moodboard from Cloudflare D1 database', async (
   assert.equal(commentBody.totalComments, 1);
   assert.equal(commentBody.comment.text, 'Superbra idé!');
   assert.equal(commentBody.comment.author.name, 'Karin');
+});
+
+test('a signed-in device loads the account mood board even under another house key', async () => {
+  const env = createMockD1();
+  const sessionUser = async () => ({ id: 'usr_1', login: 'tompat1' });
+  const pieces = [
+    { id: 'mood_aabbccdd', kind: 'image', src: 'https://photos.example/pine.jpg', x: 4, y: 8, w: 30, tilt: 0, caption: 'Pine' },
+    { id: 'mood_11223344', kind: 'note', color: 'yellow', x: 40, y: 12, w: 22, tilt: 1, caption: 'Sauna' }
+  ];
+  const put = await handleMood(new Request('https://example.com/api/mood/draft', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: 'Hemmet', pieces, authoritative: true })
+  }), env, {}, sessionUser);
+  assert.equal(put.status, 200);
+
+  const phone = await handleMood(new Request('https://example.com/api/mood/house_mobile', { method: 'GET' }), env, {}, sessionUser);
+  const body = await phone.json();
+  assert.equal(body.mood.pieces.length, 2);
+  assert.equal(body.mood.pieces[0].src, 'https://photos.example/pine.jpg');
+
+  const wipe = await handleMood(new Request('https://example.com/api/mood/draft_usr_1', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: '', pieces: [] })
+  }), env, {}, sessionUser);
+  assert.equal(wipe.status, 200);
+  const kept = await handleMood(new Request('https://example.com/api/mood/draft', { method: 'GET' }), env, {}, sessionUser);
+  const keptBody = await kept.json();
+  assert.equal(keptBody.mood.pieces.length, 2);
 });
 
 test('invited guests without account token are isolated from builder 3d', () => {

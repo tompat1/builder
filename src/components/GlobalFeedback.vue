@@ -26,7 +26,8 @@
       <div
         v-if="isSpinnerVisible"
         id="global-throbber-overlay"
-        class="pointer-events-none fixed inset-0 z-[9998] flex items-center justify-center p-4"
+        class="pointer-events-auto fixed inset-0 z-[9998] flex items-center justify-center p-4"
+        aria-busy="true"
       >
         <!-- Soft background blur veil -->
         <div class="absolute inset-0 bg-slate-900/20 backdrop-blur-[2.5px] transition-opacity"></div>
@@ -42,18 +43,16 @@
               <circle class="opacity-15" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"></circle>
               <path class="opacity-95" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
             </svg>
-            <!-- Center pulsing emerald dot -->
-            <div class="absolute h-2.5 w-2.5 rounded-full bg-emerald-500 animate-ping opacity-70"></div>
             <div class="absolute h-2 w-2 rounded-full bg-[#173D35]"></div>
           </div>
 
           <!-- Dynamic Status Description -->
           <div class="flex flex-col items-center text-center">
             <span class="text-xs sm:text-sm font-bold tracking-tight text-[#173D35]">
-              {{ statusMessage || 'Laddar...' }}
+              {{ statusMessage || t('feedback.loading') }}
             </span>
-            <span class="text-[11px] font-medium text-[#173D35]/65 mt-0.5">
-              Ett ögonblick, vänligen vänta...
+            <span class="text-[11px] font-medium text-[#173D35]/70 mt-0.5">
+              {{ t('feedback.wait') }}
             </span>
           </div>
         </div>
@@ -146,7 +145,13 @@ try {
   const labels = useLabels();
   t = labels.t;
 } catch {
-  t = (k: string) => (k === 'autosave.saving' ? 'Autosparar...' : 'Sparat');
+  t = (key: string) => {
+    if (key === 'autosave.saving') return 'Autosparar...';
+    if (key === 'autosave.saved') return 'Sparat';
+    if (key === 'feedback.loading') return 'Laddar...';
+    if (key === 'feedback.wait') return 'Ett ögonblick.';
+    return '';
+  };
 }
 
 const {

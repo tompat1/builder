@@ -18,8 +18,12 @@ let spinnerTimer: ReturnType<typeof setTimeout> | null = null;
 let progressInterval: ReturnType<typeof setInterval> | null = null;
 let toastTimer: ReturnType<typeof setTimeout> | null = null;
 let nextToastId = 1;
+let pulseTimer: ReturnType<typeof setTimeout> | null = null;
 
 const SPINNER_THRESHOLD_MS = 380;
+
+type FeedbackJob = { label: string; spinner: boolean };
+const jobs: FeedbackJob[] = [];
 
 function clearProgressAnimation() {
   if (progressInterval) {
@@ -30,6 +34,10 @@ function clearProgressAnimation() {
 
 function startBarAnimation() {
   clearProgressAnimation();
+  if (barTimer) {
+    clearTimeout(barTimer);
+    barTimer = null;
+  }
   isBarVisible.value = true;
   barProgress.value = 15;
 
@@ -59,43 +67,62 @@ function completeBarAnimation() {
   }
 }
 
+function armSpinner() {
+  if (spinnerTimer || isSpinnerVisible.value || typeof window === 'undefined') return;
+  if (!jobs.some((job) => job.spinner)) return;
+  spinnerTimer = setTimeout(() => {
+    spinnerTimer = null;
+    if (jobs.some((job) => job.spinner)) isSpinnerVisible.value = true;
+  }, SPINNER_THRESHOLD_MS);
+}
+
+function syncJobs() {
+  activeCount.value = jobs.length;
+  statusMessage.value = jobs.length ? jobs[jobs.length - 1].label : '';
+  if (!jobs.some((job) => job.spinner)) {
+    if (spinnerTimer) {
+      clearTimeout(spinnerTimer);
+      spinnerTimer = null;
+    }
+    isSpinnerVisible.value = false;
+  }
+  if (!jobs.length) completeBarAnimation();
+}
+
 /**
  * Start an asynchronous action.
  * Returns a completion function that must be called when the action finishes.
+ * Background work, such as an autosave, passes `{ spinner: false }` so a slow request does not cover the page.
  */
-export function startFeedback(label = 'Laddar...'): () => void {
-  activeCount.value++;
+export function startFeedback(label = 'Laddar...', options?: { spinner?: boolean }): () => void {
+  const job: FeedbackJob = { label, spinner: options?.spinner !== false };
+  jobs.push(job);
+  activeCount.value = jobs.length;
   statusMessage.value = label;
-
-  if (activeCount.value === 1) {
-    startBarAnimation();
-
-    if (spinnerTimer) clearTimeout(spinnerTimer);
-    if (typeof window !== 'undefined') {
-      spinnerTimer = setTimeout(() => {
-        if (activeCount.value > 0) {
-          isSpinnerVisible.value = true;
-        }
-      }, SPINNER_THRESHOLD_MS);
-    }
-  }
+  if (jobs.length === 1) startBarAnimation();
+  if (job.spinner) armSpinner();
 
   let ended = false;
   return () => {
     if (ended) return;
     ended = true;
-    activeCount.value = Math.max(0, activeCount.value - 1);
-
-    if (activeCount.value === 0) {
-      if (spinnerTimer) {
-        clearTimeout(spinnerTimer);
-        spinnerTimer = null;
-      }
-      isSpinnerVisible.value = false;
-      completeBarAnimation();
-      statusMessage.value = '';
-    }
+    const index = jobs.indexOf(job);
+    if (index >= 0) jobs.splice(index, 1);
+    syncJobs();
   };
+}
+
+/** Label key for a worker request. Reading a house is not the same as saving one. */
+export function apiFeedbackKey(url: string, method: string) {
+  const writing = method !== 'GET' && method !== 'HEAD';
+  if (url.includes('/api/houses')) return writing ? 'feedback.saveHouse' : 'feedback.loadHouse';
+  if (url.includes('/api/mood')) return 'feedback.syncMood';
+  if (url.includes('/api/render')) return 'feedback.render';
+  if (url.includes('/api/ask')) return 'feedback.ask';
+  if (url.includes('/api/sources')) return 'feedback.sources';
+  if (url.includes('/api/content')) return 'feedback.content';
+  if (url.includes('/api/account') || url.includes('/api/auth')) return 'feedback.account';
+  return 'feedback.sync';
 }
 
 /**
@@ -103,11 +130,13 @@ export function startFeedback(label = 'Laddar...'): () => void {
  * Animates the top status bar across for a brief moment.
  */
 export function pulseFeedback(label?: string, tone: 'success' | 'info' = 'success') {
+  if (label) showToast(label, tone);
+  if (jobs.length > 0) return;
   startBarAnimation();
-  if (label) {
-    showToast(label, tone);
-  }
-  setTimeout(() => {
+  if (pulseTimer) clearTimeout(pulseTimer);
+  pulseTimer = setTimeout(() => {
+    pulseTimer = null;
+    if (jobs.length > 0) return;
     completeBarAnimation();
   }, 200);
 }

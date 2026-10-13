@@ -9,6 +9,7 @@
         </a>
       </nav>
       <div class="ml-auto flex items-center gap-2 md:ml-0">
+        <CloudSyncIndicator class="hidden sm:inline-block" />
         <button
           type="button"
           class="inline-flex h-[34px] items-center gap-[3px] rounded-md border border-pine/15 bg-white px-3 text-[11px] tracking-[0.05em] shadow-[0_1px_2px_rgba(23,61,53,0.06)] hover:border-pine focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine"
@@ -112,6 +113,7 @@ import BrandLockup from '../brand/BrandLockup.vue';
 import BuildAction from './BuildAction.vue';
 import ArrowMark from './ArrowMark.vue';
 import BagDrawer from './BagDrawer.vue';
+import CloudSyncIndicator from '../CloudSyncIndicator.vue';
 import Cms from '../Cms.vue';
 import { applyLocale, useLabels } from '../../i18n';
 import { useBagStore } from '../../store/useBagStore';
