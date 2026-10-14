@@ -1949,10 +1949,15 @@ function isWindowActiveInSelectedSlot(winId: string): boolean {
   return slot?.type === 'window' && slot.itemId === winId;
 }
 
+const emit = defineEmits<{
+  (e: 'placed'): void;
+}>();
+
 function placeDoor(doorId: string) {
   store.selectDoor(doorId);
   if (store.selectedSlotId) {
     store.assignSlotItem(store.selectedSlotId, 'door', doorId);
+    emit('placed');
   }
 }
 
@@ -1960,6 +1965,7 @@ function placeWindow(winId: string) {
   store.selectWindow(winId);
   if (store.selectedSlotId) {
     store.assignSlotItem(store.selectedSlotId, 'window', winId);
+    emit('placed');
   }
 }
 
@@ -1967,6 +1973,7 @@ function placeGate(gateId: string) {
   store.selectGate(gateId);
   if (store.selectedSlotId) {
     store.assignSlotItem(store.selectedSlotId, 'gate', gateId);
+    emit('placed');
   }
 }
 </script>

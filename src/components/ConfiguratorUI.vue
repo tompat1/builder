@@ -112,7 +112,7 @@
             ref="optionsScroll"
             class="panel-scrollbar max-h-[calc(min(68dvh,100dvh-11rem)-6.25rem)] space-y-4 overflow-y-auto overscroll-contain p-4 min-[1180px]:max-h-none min-[1180px]:min-h-0 min-[1180px]:flex-1 md:p-5"
           >
-            <OptionsGrid />
+            <OptionsGrid @placed="closeMobilePicker" />
             <AIAssistantBar />
           </div>
         </div>
@@ -175,6 +175,12 @@ const optionsScroll = ref<HTMLElement | null>(null);
 
 function readNarrow() {
   narrow.value = window.matchMedia('(max-width: 1179px)').matches;
+}
+
+function closeMobilePicker() {
+  if (!narrow.value) return;
+  sheetOpen.value = false;
+  store.deselectSlot();
 }
 
 function onPickCategory(id: CategoryKey) {
