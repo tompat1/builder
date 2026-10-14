@@ -1176,6 +1176,7 @@ const profileEmail = ref('');
 const profileEmailSavedNotice = ref(false);
 
 let houseKey = (typeof route?.query?.board === 'string' && route.query.board) ? route.query.board : moodHouseKey();
+const previewAsked = new Set<string>();
 let cloudSettled = false;
 let dragDepth = 0;
 let stopWatch = () => {};
@@ -1433,6 +1434,7 @@ onMounted(() => {
     title.value = nextData.title;
     createdAt.value = nextData.createdAt || (nextData.pieces.length > 0 ? new Date().toISOString() : '');
     backfillExistingPiecesAuthor();
+    previewAsked.clear();
     refreshLinkPreviews();
     void hydrate();
     void pullCloud();
@@ -1623,6 +1625,7 @@ function applyRemote(remote: { title: string; createdAt: string; pieces: MoodPie
     participants.value = mergedPart;
   }
   if (!remote.pieces?.length) return;
+  const previousIds = new Set(pieces.value.map((piece) => piece.id));
   const localMap = new Map(pieces.value.map((piece) => [piece.id, piece]));
   for (const remotePiece of remote.pieces) {
     const localPiece = localMap.get(remotePiece.id);
@@ -1639,6 +1642,9 @@ function applyRemote(remote: { title: string; createdAt: string; pieces: MoodPie
     }
   }
   pieces.value = Array.from(localMap.values());
+  for (const id of previewAsked) {
+    if (!localMap.has(id) || !previousIds.has(id)) previewAsked.delete(id);
+  }
   refreshLinkPreviews();
   void hydrate();
 }
@@ -1692,8 +1698,6 @@ function addLink(raw: string) {
   attachPreview(piece);
 }
 
-const previewAsked = new Set<string>();
-
 function refreshLinkPreviews() {
   for (const piece of pieces.value) attachPreview(piece);
 }
@@ -1701,9 +1705,12 @@ function refreshLinkPreviews() {
 function attachPreview(piece: MoodPiece) {
   if (piece.kind !== 'link' || piece.thumb || previewAsked.has(piece.id)) return;
   previewAsked.add(piece.id);
+  const requestedHouse = houseKey;
+  const requestedSrc = piece.src;
   void fetchLinkPreview(piece.src).then((preview) => {
+    if (requestedHouse !== houseKey) return;
     const current = pieces.value.find((item) => item.id === piece.id);
-    if (!current || current.kind !== 'link' || !preview) return;
+    if (!current || current.kind !== 'link' || current.src !== requestedSrc || !preview) return;
     let changed = false;
     if (preview.image && current.thumb !== preview.image) {
       current.thumb = preview.image;
