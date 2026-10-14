@@ -9,7 +9,7 @@ import { inferNoteNormal, noteAxes, noteCameraTransform, noteSheetTransform, not
 import { paintBoards } from '../color/paint';
 import { INTERIOR_FLOOR_TOP, LOFT_FLOORBOARD, curvedLoftStair, loftEndRotation, loftIsGhosted, loftJoistTop, loftStairOpening, loftStairRun, loftStairTreads, straightLoftStair, isLoftRoom } from './loftLevel';
 import { ceilingStations, loftCeilingY, sliceStations, type CeilingStation, type RoofSlope } from './roofClearance';
-import { OVERLIGHT, PORTRAIT_PANORAMA, overlightHeight, portraitPane } from './windowFit';
+import { OVERLIGHT, PORTRAIT_PANORAMA, fittedDoorOpening, overlightHeight, portraitPane } from './windowFit';
 import { fitRoom, innerHalf, roomFootprint, roomWallRuns, shellSides, type ShellSides } from './roomWalls';
 
 const PULPET_PITCH_RAD = (PULPET_PITCH_DEG * Math.PI) / 180;
@@ -2730,12 +2730,11 @@ export class HouseScene {
     const centerY = panelBase + panelHeight / 2;
 
     if (kind === 'door') {
-      const wanted = itemId === 'SKJUTDORR' ? 2.0 : itemId === 'SVANSHALL' ? 1.6 : 1.0;
-      const doorW = Math.min(wanted, winW);
+      const fitted = fittedDoorOpening(itemId, panelWidth, cornerSide);
       const doorH = Math.min(2.1, Math.max(1.7, panelHeight - headBoard - 0.06));
       const sill = panelBase;
       const head = sill + doorH;
-      return { winW: doorW, winH: doorH, winY: (sill + head) / 2 - centerY, sill, head, x: shift };
+      return { winW: fitted.width, winH: doorH, winY: (sill + head) / 2 - centerY, sill, head, x: fitted.shift };
     }
 
     if (itemId === 'standard-single' && !isUpper && panelWidth >= 1.8) {

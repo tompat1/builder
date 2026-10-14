@@ -156,6 +156,7 @@
         <span class="tool-tip"><Cms k="tools.zoomOut" /></span>
       </button>
 
+      <template v-if="showFullscreenButton">
       <div class="mx-1 hidden h-px bg-slate-100 min-[1180px]:block"></div>
 
       <button
@@ -187,6 +188,7 @@
       </button>
 
       <div class="mx-1 hidden h-px bg-slate-100 min-[1180px]:block"></div>
+      </template>
 
       <div ref="viewBox" class="relative">
         <div
@@ -753,6 +755,17 @@ type FullscreenDocument = Document & {
 type FullscreenRoot = HTMLElement & {
   webkitRequestFullscreen?: () => Promise<void> | void;
 };
+
+function fullscreenSupported() {
+  if (typeof document === 'undefined') return false;
+  const doc = document as FullscreenDocument;
+  const root = document.documentElement as FullscreenRoot;
+  const request = typeof root.requestFullscreen === 'function' || typeof root.webkitRequestFullscreen === 'function';
+  return request && (document.fullscreenEnabled || doc.webkitFullscreenEnabled === true);
+}
+
+const canFullscreen = ref(fullscreenSupported());
+const showFullscreenButton = computed(() => store.isFullscreen || (canFullscreen.value && !narrow.value));
 
 function nativeFullscreenElement() {
   const doc = document as FullscreenDocument;

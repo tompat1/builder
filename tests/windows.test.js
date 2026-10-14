@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { overlightHeight, overlightItem, portraitPane } from '../src/three-engine/windowFit.ts';
+import { fittedDoorOpening, overlightHeight, overlightItem, portraitPane } from '../src/three-engine/windowFit.ts';
 
 test('a portrait panorama in a tall panel stays portrait inside the smaller pane', () => {
   const pane = portraitPane(1.86, 2.3, true);
@@ -100,4 +100,21 @@ test('an overlight stays a low wide pane', () => {
   assert.ok(height < 0.5);
   assert.ok(height > 0.3);
   assert.ok(height < 1.08);
+});
+
+test('a 10×21 door keeps its width when a corner bay shrinks to 1.2 m', () => {
+  const door = fittedDoorOpening('LERVIK', 1.2, 'left');
+  assert.ok(door.width >= 0.95, `door narrowed to ${door.width}`);
+  assert.ok(door.width <= 1);
+  const left = door.shift - door.width / 2;
+  const right = door.shift + door.width / 2;
+  assert.ok(left >= -1.2 / 2 + 0.16);
+  assert.ok(right <= 1.2 / 2 + 0.001);
+});
+
+test('a door on a wider bay stays a 10×21, and a slider stays a 20×21', () => {
+  assert.equal(fittedDoorOpening('STEHAG', 1.51, 'left').width, 1);
+  assert.equal(fittedDoorOpening('LERVIK', 1.2, null).width, 1);
+  assert.equal(fittedDoorOpening('SKJUTDORR', 2.4, null).width, 2);
+  assert.equal(fittedDoorOpening('SVANSHALL', 2.2, null).width, 1.6);
 });
