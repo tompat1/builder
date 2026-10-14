@@ -48,6 +48,18 @@
       <div class="flex items-center gap-1.5 sm:gap-2 self-end sm:self-auto shrink-0">
         <button
           type="button"
+          id="btn-mood-lang"
+          class="inline-flex h-11 items-center gap-[3px] rounded-xl border border-[#173D35]/15 bg-white px-3 text-[11px] tracking-[0.05em] shadow-[0_1px_2px_rgba(23,61,53,0.06)] hover:border-[#173D35] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#173D35]"
+          :aria-label="locale === 'sv' ? 'English' : 'Svenska'"
+          :title="locale === 'sv' ? 'English' : 'Svenska'"
+          @click="applyLocale(locale === 'en' ? 'sv' : 'en', true)"
+        >
+          <span :class="locale === 'sv' ? 'font-extrabold text-[#173D35]' : 'font-semibold text-[#173D35]/40'">SV</span>
+          <span class="font-semibold text-[#173D35]/30" aria-hidden="true">/</span>
+          <span :class="locale === 'en' ? 'font-extrabold text-[#173D35]' : 'font-semibold text-[#173D35]/40'">EN</span>
+        </button>
+        <button
+          type="button"
           id="btn-mood-profile"
           class="flex items-center gap-1.5 rounded-xl border border-[#d7d1c4] bg-white/80 p-1.5 sm:px-2.5 sm:py-1.5 text-xs font-semibold text-[#173D35] shadow-xs backdrop-blur-xs transition hover:border-[#173D35] hover:bg-white"
           :title="t('mood.myProfile')"
@@ -1064,7 +1076,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router';
 import { useConfigStore } from '../store/useConfigStore';
 import { useSessionStore } from '../store/useSessionStore';
-import { useLabels } from '../i18n';
+import { applyLocale, useLabels } from '../i18n';
 import Cms from './Cms.vue';
 import {
   MOOD_LIMIT,
@@ -1625,7 +1637,6 @@ function applyRemote(remote: { title: string; createdAt: string; pieces: MoodPie
     participants.value = mergedPart;
   }
   if (!remote.pieces?.length) return;
-  const previousIds = new Set(pieces.value.map((piece) => piece.id));
   const localMap = new Map(pieces.value.map((piece) => [piece.id, piece]));
   for (const remotePiece of remote.pieces) {
     const localPiece = localMap.get(remotePiece.id);
@@ -1643,7 +1654,7 @@ function applyRemote(remote: { title: string; createdAt: string; pieces: MoodPie
   }
   pieces.value = Array.from(localMap.values());
   for (const id of previewAsked) {
-    if (!localMap.has(id) || !previousIds.has(id)) previewAsked.delete(id);
+    if (!localMap.has(id)) previewAsked.delete(id);
   }
   refreshLinkPreviews();
   void hydrate();

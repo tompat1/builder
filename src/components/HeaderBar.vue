@@ -10,7 +10,19 @@
     >
       <BrandMark class="h-8 w-auto text-[#FF5A00]" />
     </router-link>
-    <div class="flex items-center">
+    <div class="flex items-center gap-1">
+      <button
+        type="button"
+        id="btn-lang-mobile"
+        class="inline-flex h-11 items-center gap-[3px] rounded-xl border border-[#173D35]/15 bg-white px-3 text-[11px] tracking-[0.05em] shadow-[0_1px_2px_rgba(23,61,53,0.06)] hover:border-[#173D35] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5A00]"
+        :aria-label="locale === 'sv' ? 'English' : 'Svenska'"
+        :title="locale === 'sv' ? 'English' : 'Svenska'"
+        @click="applyLocale(locale === 'en' ? 'sv' : 'en', true)"
+      >
+        <span :class="locale === 'sv' ? 'font-extrabold text-[#173D35]' : 'font-semibold text-[#173D35]/40'">SV</span>
+        <span class="font-semibold text-[#173D35]/30" aria-hidden="true">/</span>
+        <span :class="locale === 'en' ? 'font-extrabold text-[#173D35]' : 'font-semibold text-[#173D35]/40'">EN</span>
+      </button>
       <button
         type="button"
         id="btn-save-project-mobile"
