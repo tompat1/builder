@@ -85,8 +85,8 @@
       <form v-else class="mt-8 space-y-6" @submit.prevent="submitJoin">
         <!-- 1. Name input -->
         <div class="space-y-1.5">
-          <label for="participant-name" class="block text-xs font-bold uppercase tracking-wider text-[#173D35]">
-            1. {{ t('mood.yourName') || 'Ditt namn' }} <span class="text-rose-600">*</span>
+          <label for="participant-name" class="block text-sm font-semibold text-[#173D35]">
+            1. {{ t('mood.yourName') }} <span class="text-rose-600">*</span>
           </label>
           <div class="relative">
             <input
@@ -95,7 +95,7 @@
               type="text"
               maxlength="40"
               autocomplete="name"
-              placeholder="t.ex. Alex, Maria..."
+              :placeholder="t('mood.namePlaceholder')"
               class="w-full rounded-xl border border-[#d7d1c4] bg-[#FDFBF7] px-4 py-3 text-base text-[#222925] transition placeholder:text-stone-400 focus:border-[#173D35] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#173D35]/20"
               :class="errors.name ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-200' : ''"
               @input="onNameChange"
@@ -105,16 +105,16 @@
         </div>
 
         <!-- 2. Preset theme selection -->
-        <div class="space-y-2">
-          <div class="flex items-center justify-between">
-            <label class="block text-xs font-bold uppercase tracking-wider text-[#173D35]">
-              2. {{ t('mood.chooseThemes') || 'Välj upp till 3 teman för AI-avataren' }}
+        <div class="space-y-3">
+          <div class="flex items-center justify-between gap-3">
+            <label class="min-w-0 text-sm font-semibold text-[#173D35]">
+              2. {{ t('mood.chooseThemes') }}
             </label>
             <span
-              class="rounded-full px-2 py-0.5 text-xs font-semibold"
+              class="shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums"
               :class="selectedThemes.length === 3 ? 'bg-[#173D35] text-white' : 'bg-stone-200 text-stone-700'"
             >
-              {{ selectedThemes.length }} / 3
+              {{ selectedThemes.length }}/3
             </span>
           </div>
 
@@ -123,25 +123,25 @@
               v-for="theme in AVATAR_THEMES"
               :key="theme.id"
               type="button"
-              class="group relative flex items-center gap-2.5 rounded-xl border p-2.5 text-left transition"
+              class="relative flex min-h-16 flex-col items-start rounded-xl border p-3 text-left"
               :class="[
                 selectedThemes.includes(theme.id)
                   ? 'border-[#173D35] bg-[#173D35]/8 ring-2 ring-[#173D35]'
                   : 'border-stone-200 bg-stone-50/70 hover:border-stone-300 hover:bg-stone-100'
               ]"
+              :aria-pressed="selectedThemes.includes(theme.id)"
               @click="toggleTheme(theme.id)"
             >
-              <span class="text-lg transition-transform group-hover:scale-110">{{ theme.emoji }}</span>
-              <div class="min-w-0 flex-1">
-                <p class="truncate text-xs font-bold text-stone-900">{{ theme.name }}</p>
-                <p class="truncate text-[10px] text-stone-500">{{ theme.taglineEn }}</p>
-              </div>
               <span
                 v-if="selectedThemes.includes(theme.id)"
-                class="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-[#173D35] text-[10px] text-white"
+                class="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-[#173D35] text-[11px] text-white"
+                aria-hidden="true"
               >
                 ✓
               </span>
+              <span class="text-lg" aria-hidden="true">{{ theme.emoji }}</span>
+              <span class="mt-1 pr-6 text-sm font-semibold leading-tight text-[#222925]">{{ themeTitle(theme) }}</span>
+              <span class="mt-0.5 line-clamp-2 pr-1 text-[11px] leading-snug text-[#4a5851]">{{ themeLine(theme) }}</span>
             </button>
           </div>
           <p v-if="errors.themes" class="text-xs font-medium text-rose-600">{{ errors.themes }}</p>
@@ -165,7 +165,7 @@
                   class="flex h-full w-full flex-col items-center justify-center bg-[#173D35] text-white"
                 >
                   <span class="animate-spin text-2xl">🍳</span>
-                  <span class="mt-1 text-[9px] font-bold uppercase tracking-wider">Lagar...</span>
+                  <span class="mt-1 text-[11px] font-semibold">{{ t('mood.cooking') }}</span>
                 </div>
                 <div v-else class="flex h-full w-full items-center justify-center text-stone-400 text-2xl">
                   👤
@@ -174,10 +174,10 @@
 
               <div>
                 <p class="text-sm font-bold text-[#173D35]">
-                  {{ isCooking ? cookingStepText : (avatarDataUrl ? 'Din avatar är serverad!' : 'Ingen avatar än') }}
+                  {{ isCooking ? cookingStepText : (avatarDataUrl ? t('mood.avatarReady') : t('mood.avatarEmpty')) }}
                 </p>
-                <p class="mt-0.5 text-xs text-stone-500">
-                  {{ selectedThemes.length > 0 ? selectedThemes.join(' + ') : 'Välj minst 1 tema ovan' }}
+                <p class="mt-0.5 text-xs text-[#4a5851]">
+                  {{ selectedThemes.length > 0 ? selectedThemes.map(themeTitleById).join(' + ') : t('mood.pickThemesHint') }}
                 </p>
               </div>
             </div>
@@ -186,7 +186,7 @@
             <button
               type="button"
               id="btn-cook-avatar"
-              class="flex items-center gap-2 rounded-xl bg-[#173D35] px-4 py-2.5 text-xs font-bold text-white shadow-sm transition hover:bg-[#0f2b25] hover:shadow active:scale-95 disabled:opacity-50"
+              class="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#173D35] px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-[#0f2b25] disabled:opacity-50 sm:w-auto"
               :disabled="isCooking || selectedThemes.length === 0"
               @click="cookAvatar"
             >
@@ -206,7 +206,7 @@
             v-model="email"
             type="email"
             autocomplete="email"
-            placeholder="din.epost@exempel.se"
+            :placeholder="t('mood.emailPlaceholder')"
             class="w-full rounded-xl border border-[#d7d1c4] bg-[#FDFBF7] px-4 py-2.5 text-sm text-[#222925] transition placeholder:text-stone-400 focus:border-[#173D35] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#173D35]/20"
           />
           <p class="text-xs text-stone-500">
@@ -252,7 +252,7 @@
 import { ref, onMounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { useLabels } from '../i18n';
-import { AVATAR_THEMES, generateAiAvatar } from '../mood/avatar';
+import { AVATAR_THEMES, generateAiAvatar, getTheme, type AvatarTheme } from '../mood/avatar';
 import {
   getStoredParticipant,
   saveStoredParticipant,
@@ -275,7 +275,7 @@ const emit = defineEmits<{
   (e: 'joined', participant: MoodParticipant): void;
 }>();
 
-const { t } = useLabels();
+const { t, locale } = useLabels();
 const route = useRoute();
 
 const activeHouseKey = computed(() => {
@@ -295,7 +295,7 @@ const email = ref('');
 const selectedThemes = ref<string[]>(['Foresty', 'Chill']);
 const avatarDataUrl = ref('');
 const isCooking = ref(false);
-const cookingStepText = ref('Blandar smaker...');
+const cookingStepText = ref('');
 const errors = ref<{ name?: string; themes?: string }>({});
 
 onMounted(() => {
@@ -326,6 +326,18 @@ function onNameChange() {
   }
 }
 
+function themeTitle(theme: AvatarTheme) {
+  return locale.value === 'en' ? theme.nameEn : theme.name;
+}
+
+function themeLine(theme: AvatarTheme) {
+  return locale.value === 'en' ? theme.taglineEn : theme.tagline;
+}
+
+function themeTitleById(id: string) {
+  return themeTitle(getTheme(id));
+}
+
 function toggleTheme(id: string) {
   if (errors.value.themes) errors.value.themes = '';
   const idx = selectedThemes.value.indexOf(id);
@@ -342,17 +354,16 @@ function toggleTheme(id: string) {
 
 async function cookAvatar() {
   if (selectedThemes.value.length === 0) {
-    errors.value.themes = 'Välj minst 1 tema att koka ihop';
+    errors.value.themes = t('mood.themeRequired');
     return;
   }
   isCooking.value = true;
-  cookingStepText.value = 'Blandar teman...';
+  cookingStepText.value = t('mood.cookingMix');
 
-  // Creative multi-step cooking animation
   await sleep(250);
-  cookingStepText.value = 'Analyserar färgpalett...';
+  cookingStepText.value = t('mood.cookingPalette');
   await sleep(250);
-  cookingStepText.value = 'Genererar stilar...';
+  cookingStepText.value = t('mood.cookingStyles');
   await sleep(200);
 
   const seed = String(Date.now());
@@ -370,7 +381,7 @@ async function handleRestore() {
   restoreSuccess.value = '';
   const trimmed = restoreEmail.value.trim();
   if (!trimmed) {
-    restoreError.value = 'Vänligen ange din e-postadress';
+    restoreError.value = t('mood.emailRequired');
     return;
   }
   isSearching.value = true;
@@ -386,7 +397,7 @@ async function handleRestore() {
     await sleep(400);
     emit('joined', found);
   } catch {
-    restoreError.value = 'Ett fel uppstod vid hämtning av profilen. Försök igen.';
+    restoreError.value = t('mood.restoreFailed');
   } finally {
     isSearching.value = false;
   }
@@ -396,11 +407,11 @@ function submitJoin() {
   errors.value = {};
   const trimmedName = name.value.trim();
   if (!trimmedName) {
-    errors.value.name = 'Vänligen ange ditt namn';
+    errors.value.name = t('mood.nameRequired');
     return;
   }
   if (selectedThemes.value.length === 0) {
-    errors.value.themes = 'Välj minst ett tema';
+    errors.value.themes = t('mood.themeRequired');
     return;
   }
 

@@ -183,8 +183,10 @@ test('ai avatar generator blends up to three themes into an svg avatar', () => {
   assert.ok(avatar.startsWith('data:image/svg+xml;utf8,'));
   const decoded = decodeURIComponent(avatar.replace('data:image/svg+xml;utf8,', ''));
   assert.ok(decoded.includes('<svg'));
-  assert.ok(decoded.includes('ML'));
-  assert.ok(decoded.includes('Foresty'));
+  assert.equal(decoded.includes('<text'), false);
+  assert.equal(decoded.includes('ML'), false);
+  assert.equal(decoded.includes('Foresty'), false);
+  assert.ok(decoded.includes('M15,95'));
 });
 
 test('default account avatar creates branded owner initials badge', () => {

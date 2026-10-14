@@ -1207,7 +1207,7 @@ let drag: {
 
 const shareUrl = computed(() => {
   const base = typeof window !== 'undefined' ? window.location.origin : '';
-  return `${base}/mood?board=${encodeURIComponent(houseKey)}`;
+  return `${base}/mood?board=${encodeURIComponent(houseKey)}&lang=en`;
 });
 
 const currentAuthor = computed<MoodAuthor>(() => {

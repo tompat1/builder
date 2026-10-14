@@ -21,6 +21,7 @@ import { ref, onMounted, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import MoodJoinLoading from '../components/MoodJoinLoading.vue';
 import MoodBoard from '../components/MoodBoard.vue';
+import { applyLocale } from '../i18n';
 import { clearStoredParticipant, getStoredParticipant, moodHouseKey } from '../services/moodSave';
 import { useSessionStore } from '../store/useSessionStore';
 import type { MoodParticipant } from '../mood/board';
@@ -47,6 +48,8 @@ onMounted(async () => {
   const hasUser = Boolean(sessionStore.user);
 
   if (forceJoin || (!hasParticipant && !hasUser)) {
+    const requested = route.query.lang;
+    applyLocale(requested === 'sv' ? 'sv' : 'en');
     showJoinScreen.value = true;
   } else {
     showJoinScreen.value = false;

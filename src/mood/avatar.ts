@@ -166,7 +166,6 @@ export function generateAiAvatar(options: {
   const secondary = picked[1] || primary;
   const tertiary = picked[2] || secondary;
 
-  const initials = getInitials(name);
   const hash = hashCode(`${name}:${themes.join(',')}:${seed}`);
 
   // Base background gradient stops
@@ -304,9 +303,6 @@ export function generateAiAvatar(options: {
     <!-- Head circle -->
     <circle cx="60" cy="58" r="22" fill="#ffffff" fill-opacity="0.22" stroke="${accent1}" stroke-width="1.8" stroke-opacity="0.75"/>
 
-    <!-- Dynamic Monogram Badge -->
-    <text x="60" y="65" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-weight="800" font-size="18" fill="#ffffff" letter-spacing="-0.5">${escapeXml(initials)}</text>
-
     <!-- Theme Accents on Character -->
     ${hasChill ? `
     <!-- Cool glasses -->
@@ -328,9 +324,6 @@ export function generateAiAvatar(options: {
     <line x1="36" y1="44" x2="84" y2="44" stroke="#ffffff" stroke-width="1.2" opacity="0.75"/>
     ` : ''}
 
-    <!-- Bottom Theme Tag Pill -->
-    <rect x="22" y="96" width="76" height="16" rx="8" fill="#000000" fill-opacity="0.55" stroke="${accent1}" stroke-width="0.8"/>
-    <text x="60" y="108" text-anchor="middle" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-weight="700" font-size="8.5" fill="${accent1}" letter-spacing="0.2">${escapeXml(picked.map((p) => p.nameEn).join(' • ').slice(0, 24))}</text>
   </g>
 </svg>`;
 
