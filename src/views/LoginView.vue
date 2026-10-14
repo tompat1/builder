@@ -1,7 +1,7 @@
 <template>
   <SiteFrame>
     <div class="grid md:min-h-[calc(100svh-8.5rem)] md:grid-cols-2">
-      <div class="relative min-h-72 md:min-h-full">
+      <div class="relative h-36 md:h-auto md:min-h-full">
         <CmsImage k="login.heroImage" class="absolute inset-0 h-full w-full block">
           <img src="/brand/login.webp" :alt="t('site.heroAlt')" class="h-full w-full object-cover object-center" />
         </CmsImage>
