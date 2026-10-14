@@ -53,6 +53,8 @@ export function doorModuleMetres(itemId: string | undefined): number {
  * Leaf width for a door in one wall bay.
  * The module size stays put when the house is resized. The bay only narrows
  * the leaf when the panel itself cannot hold that module clear of a corner board.
+ * A corner door stays centred in the gap between that board and the far edge,
+ * which is (cornerClearance - edge) / 2 from the middle of the panel.
  */
 export function fittedDoorOpening(
   itemId: string | undefined,
@@ -61,18 +63,22 @@ export function fittedDoorOpening(
 ): { width: number; shift: number } {
   const wanted = doorModuleMetres(itemId);
   const corner = cornerSide === 'left' || cornerSide === 'right';
-  const cornerInset = 0.17;
-  const inset = corner ? cornerInset : 0;
-  const reveal = corner ? 0.04 : 0.08;
-  let available = panelWidth - inset - reveal;
-  available = Math.min(available, Math.max(0.46, panelWidth - 0.04));
-  available = Math.max(0.46, available);
-  const width = Math.min(wanted, available);
-  let shift = 0;
-  if (corner) {
-    const edge = cornerSide === 'left' ? -panelWidth / 2 + inset : panelWidth / 2 - inset;
-    shift = cornerSide === 'left' ? edge + width / 2 : edge - width / 2;
+  if (!corner) {
+    const available = Math.max(0.46, panelWidth - 0.08);
+    return { width: Math.min(wanted, available), shift: 0 };
   }
+  const cornerClearance = 0.170;
+  const edge = 0.045;
+  const half = panelWidth / 2;
+  const minLeft = cornerSide === 'left' ? -half + cornerClearance : -half + edge;
+  const maxRight = cornerSide === 'right' ? half - cornerClearance : half - edge;
+  const span = Math.max(0, maxRight - minLeft);
+  const width = Math.min(wanted, Math.max(0.46, span));
+  const centered = (cornerClearance - edge) / 2;
+  let shift = cornerSide === 'left' ? centered : -centered;
+  const minShift = minLeft + width / 2;
+  const maxShift = maxRight - width / 2;
+  if (minShift <= maxShift) shift = Math.min(maxShift, Math.max(minShift, shift));
   return { width, shift };
 }
 

@@ -113,7 +113,11 @@ test('a 10×21 door keeps its width when a corner bay shrinks to 1.2 m', () => {
 });
 
 test('a door on a wider bay stays a 10×21, and a slider stays a 20×21', () => {
-  assert.equal(fittedDoorOpening('STEHAG', 1.51, 'left').width, 1);
+  const corner = fittedDoorOpening('STEHAG', 1.51, 'left');
+  assert.equal(corner.width, 1);
+  assert.ok(Math.abs(corner.shift - (0.170 - 0.045) / 2) < 1e-9);
+  const right = fittedDoorOpening('STEHAG', 1.51, 'right');
+  assert.equal(right.shift, -corner.shift);
   assert.equal(fittedDoorOpening('LERVIK', 1.2, null).width, 1);
   assert.equal(fittedDoorOpening('SKJUTDORR', 2.4, null).width, 2);
   assert.equal(fittedDoorOpening('SVANSHALL', 2.2, null).width, 1.6);
