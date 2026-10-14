@@ -217,6 +217,37 @@ export function parseCustomPaint(value: unknown): CustomPaint | null {
   };
 }
 
+export interface SampleBox {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+/** A point on a contained sample picture, or null when the tap misses the picture. */
+export function sampleImagePoint(
+  box: SampleBox,
+  image: { width: number; height: number },
+  clientX: number,
+  clientY: number
+): { x: number; y: number; left: number; top: number } | null {
+  if (box.width <= 0 || box.height <= 0 || image.width <= 0 || image.height <= 0) return null;
+  const scale = Math.min(box.width / image.width, box.height / image.height);
+  const drawnW = image.width * scale;
+  const drawnH = image.height * scale;
+  const offsetX = (box.width - drawnW) / 2;
+  const offsetY = (box.height - drawnH) / 2;
+  const x = clientX - box.left - offsetX;
+  const y = clientY - box.top - offsetY;
+  if (x < 0 || y < 0 || x >= drawnW || y >= drawnH) return null;
+  return {
+    x: Math.min(image.width - 1, Math.floor((x / drawnW) * image.width)),
+    y: Math.min(image.height - 1, Math.floor((y / drawnH) * image.height)),
+    left: (offsetX + x) / box.width,
+    top: (offsetY + y) / box.height
+  };
+}
+
 function samePaint(left: CustomPaint, right: CustomPaint) {
   return left.hex === right.hex && left.ral === right.ral && left.pantone === right.pantone;
 }

@@ -450,7 +450,12 @@ const sv = {
     percent: '0–100',
     closest: 'Närmaste RAL {code}',
     pickRal: 'Välj RAL {code}',
-    save: 'Spara kulör'
+    save: 'Spara kulör',
+    sample: 'Färgprov',
+    sampleAdd: 'Lägg till en bild',
+    sampleHint: 'Tryck i bilden för att ta den kulören till fasaden.',
+    sampleClear: 'Ta bort bilden',
+    sampleError: 'Välj en bild på högst 12 MB.'
   },
   tools: {
     label: '3D Vyverktyg',
@@ -1139,7 +1144,12 @@ const en = {
     percent: '0–100',
     closest: 'Closest RAL {code}',
     pickRal: 'Use RAL {code}',
-    save: 'Save colour'
+    save: 'Save colour',
+    sample: 'Colour sample',
+    sampleAdd: 'Add a picture',
+    sampleHint: 'Tap the picture to take that colour for the facade.',
+    sampleClear: 'Remove picture',
+    sampleError: 'Choose a picture of 12 MB or less.'
   },
   tools: {
     label: '3D view tools',

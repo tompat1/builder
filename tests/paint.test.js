@@ -5,6 +5,7 @@ import {
   lookupRal,
   nearestRal,
   normalizeHex,
+  sampleImagePoint,
   parseCustomPaint,
   parseSavedPaints,
   rgbToCmyk,
@@ -35,6 +36,14 @@ test('a RAL Classic code sets the screen colour and an unknown code does not', (
   const saved = parseCustomPaint({ hex: '#383e42', system: 'ral', ral: '7016', pantone: '19-4052 TCX' });
   assert.deepEqual(saved, { hex: '#383e42', system: 'ral', ral: '7016', pantone: '19-4052 TCX' });
   assert.equal(parseCustomPaint({ hex: 'nope' }), null);
+});
+
+test('a tap on a sample picture lands on that pixel, and a tap beside it does not', () => {
+  const box = { left: 10, top: 20, width: 200, height: 100 };
+  const image = { width: 100, height: 100 };
+  const hit = sampleImagePoint(box, image, 10 + 50 + 25, 20 + 25);
+  assert.deepEqual(hit, { x: 25, y: 25, left: 0.375, top: 0.25 });
+  assert.equal(sampleImagePoint(box, image, 12, 30), null);
 });
 
 test('saved custom colours stay in the gallery when another swatch is the active one', () => {

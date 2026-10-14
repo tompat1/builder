@@ -1,7 +1,69 @@
 <template>
   <div id="custom-paint" class="mt-2 rounded-xl border border-slate-200 bg-white p-3">
+    <div>
+      <span class="mb-1 block text-[11px] font-semibold text-slate-600">{{ t('paint.sample') }}</span>
+      <input
+        id="paint-sample-file"
+        ref="sampleFile"
+        class="sr-only"
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/gif"
+        :aria-label="t('paint.sampleAdd')"
+        @change="onSampleFile"
+      />
+      <button
+        v-if="!sampleUrl"
+        id="btn-paint-sample"
+        type="button"
+        class="flex min-h-11 w-full items-center gap-3 rounded-lg border border-dashed border-slate-300 px-3 text-left text-slate-900 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+        @click="sampleFile?.click()"
+      >
+        <svg class="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+          <rect x="3" y="5" width="18" height="14" rx="2" />
+          <circle cx="8.5" cy="10" r="1.5" />
+          <path d="m21 15-4.5-4.5L7 20" />
+        </svg>
+        <span class="min-w-0">
+          <span class="block text-xs font-semibold">{{ t('paint.sampleAdd') }}</span>
+          <span class="block text-[11px] font-normal text-slate-600">{{ t('paint.sampleHint') }}</span>
+        </span>
+      </button>
+      <div v-else>
+        <div
+          class="relative h-44 cursor-crosshair touch-none overflow-hidden rounded-lg bg-slate-100"
+          @pointerdown="onSample"
+        >
+          <img
+            ref="sampleImg"
+            class="h-full w-full object-contain"
+            :src="sampleUrl"
+            alt=""
+            draggable="false"
+            @load="prepareSample"
+          />
+          <span
+            v-if="sampleMark"
+            class="sv-thumb"
+            :style="{ left: `${sampleMark.left * 100}%`, top: `${sampleMark.top * 100}%`, backgroundColor: hex }"
+          ></span>
+        </div>
+        <div class="mt-2 flex items-center justify-between gap-3">
+          <p class="text-[11px] text-slate-600">{{ t('paint.sampleHint') }}</p>
+          <button
+            id="btn-paint-sample-clear"
+            type="button"
+            class="shrink-0 text-[11px] font-semibold text-slate-700 underline decoration-slate-300 underline-offset-2 hover:text-slate-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+            @click="clearSample"
+          >
+            {{ t('paint.sampleClear') }}
+          </button>
+        </div>
+      </div>
+      <p v-if="sampleError" class="mt-2 text-[11px] font-semibold text-red-700" role="alert">{{ t('paint.sampleError') }}</p>
+    </div>
+
     <div
-      class="sv-field relative h-36 cursor-crosshair touch-none rounded-lg"
+      class="sv-field relative mt-3 h-36 cursor-crosshair touch-none rounded-lg"
       :style="{ backgroundColor: `hsl(${Math.round(hsv.h)} 100% 50%)` }"
       role="slider"
       tabindex="0"
@@ -179,6 +241,7 @@ import {
   rgbToCmyk,
   rgbToHex,
   rgbToHsv,
+  sampleImagePoint,
   type PaintSystem
 } from '../color/paint';
 
@@ -190,6 +253,13 @@ const system = ref<PaintSystem>(store.customPaint?.system ?? 'hex');
 const pantone = ref(store.customPaint?.pantone ?? '');
 const ralText = ref(store.customPaint?.ral ?? '');
 const ralError = ref(false);
+const sampleFile = ref<HTMLInputElement | null>(null);
+const sampleImg = ref<HTMLImageElement | null>(null);
+const sampleUrl = ref('');
+const sampleError = ref(false);
+const sampleMark = ref<{ left: number; top: number } | null>(null);
+const SAMPLE_LIMIT = 12 * 1024 * 1024;
+let sampleCanvas: HTMLCanvasElement | null = null;
 const hsv = ref(rgbToHsv(hexToRgb(store.customPaint?.hex ?? store.currentMaterial.colorHex)));
 
 const rgbFields = [
@@ -230,7 +300,10 @@ watch(() => store.customPaint, (paint) => {
   system.value = paint.system;
 });
 
-onUnmounted(() => store.setPaintPreview(null));
+onUnmounted(() => {
+  store.setPaintPreview(null);
+  revokeSample();
+});
 
 watch(() => store.activeMaterial, () => {
   if (store.customPaint) return;
@@ -343,6 +416,81 @@ function onRal(event: Event) {
 function onPantone(event: Event) {
   pantone.value = (event.target as HTMLInputElement).value;
   preview();
+}
+
+function revokeSample() {
+  if (sampleUrl.value) URL.revokeObjectURL(sampleUrl.value);
+  sampleUrl.value = '';
+  sampleCanvas = null;
+  sampleMark.value = null;
+}
+
+function clearSample() {
+  sampleError.value = false;
+  revokeSample();
+  if (sampleFile.value) sampleFile.value.value = '';
+}
+
+function onSampleFile(event: Event) {
+  const file = (event.target as HTMLInputElement).files?.[0];
+  if (!file || !file.type.startsWith('image/') || file.size > SAMPLE_LIMIT) {
+    sampleError.value = true;
+    return;
+  }
+  sampleError.value = false;
+  if (sampleUrl.value) URL.revokeObjectURL(sampleUrl.value);
+  sampleCanvas = null;
+  sampleMark.value = null;
+  sampleUrl.value = URL.createObjectURL(file);
+}
+
+function prepareSample() {
+  const img = sampleImg.value;
+  if (!img || !img.naturalWidth) return;
+  const longest = Math.max(img.naturalWidth, img.naturalHeight);
+  const scale = Math.min(1, 1600 / longest);
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+  canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return;
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  sampleCanvas = canvas;
+}
+
+function applySample(rgb: { r: number; g: number; b: number }) {
+  hsv.value = rgbToHsv(rgb);
+  ralText.value = '';
+  preview();
+}
+
+function onSample(event: PointerEvent) {
+  const frame = event.currentTarget as HTMLElement;
+  const read = (pointer: PointerEvent) => {
+    const img = sampleImg.value;
+    const canvas = sampleCanvas;
+    const ctx = canvas?.getContext('2d', { willReadFrequently: true });
+    if (!img || !canvas || !ctx || !img.naturalWidth) return;
+    const rect = frame.getBoundingClientRect();
+    const point = sampleImagePoint(
+      { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
+      { width: img.naturalWidth, height: img.naturalHeight },
+      pointer.clientX,
+      pointer.clientY
+    );
+    if (!point) return;
+    const x = Math.min(canvas.width - 1, Math.floor(point.x * canvas.width / img.naturalWidth));
+    const y = Math.min(canvas.height - 1, Math.floor(point.y * canvas.height / img.naturalHeight));
+    const pixel = ctx.getImageData(x, y, 1, 1).data;
+    sampleMark.value = { left: point.left, top: point.top };
+    applySample({ r: pixel[0], g: pixel[1], b: pixel[2] });
+  };
+  read(event);
+  frame.setPointerCapture(event.pointerId);
+  const finish = () => frame.removeEventListener('pointermove', read);
+  frame.addEventListener('pointermove', read);
+  frame.addEventListener('pointerup', finish, { once: true });
+  frame.addEventListener('pointercancel', finish, { once: true });
 }
 </script>
 
