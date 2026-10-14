@@ -23,10 +23,6 @@
         ref="toolScroll"
         class="flex min-w-0 flex-1 cursor-pointer items-end gap-1 overflow-x-auto overscroll-x-contain min-[1180px]:contents"
         :class="toolsOpen ? '' : 'max-[1179px]:hidden'"
-        @pointerdown="onToolPointerDown"
-        @pointermove="onToolPointerMove"
-        @pointerup="onToolPointerUp"
-        @pointercancel="onToolPointerUp"
         @scroll.passive="onToolScroll"
       >
     <!-- Camera toolbar: daylight, zoom, fullscreen, view -->
@@ -35,7 +31,7 @@
         <div
           id="sun-timebox"
           ref="sunTray"
-          class="z-30 origin-bottom-left ease-out"
+          class="z-30 origin-bottom-left transition-[opacity,left] duration-200 ease-out"
           :class="narrow && sunOpen
             ? 'relative w-[240px] max-w-full opacity-100'
             : ['absolute bottom-[calc(100%+8px)] left-0 w-[240px] min-[1180px]:bottom-auto min-[1180px]:top-0 min-[1180px]:origin-left', sunOpen ? 'min-[1180px]:left-14 opacity-100' : 'pointer-events-none opacity-0 min-[1180px]:left-0']"
@@ -196,7 +192,7 @@
         <div
           id="view-tools"
           ref="viewTray"
-          class="z-30 origin-bottom-left ease-out"
+          class="z-30 origin-bottom-left transition-[opacity,left] duration-200 ease-out"
           :class="narrow && viewOpen
             ? 'relative w-fit opacity-100'
             : ['absolute bottom-[calc(100%+8px)] left-0 min-[1180px]:bottom-auto min-[1180px]:top-1/2 min-[1180px]:-translate-y-1/2 min-[1180px]:origin-left', viewOpen ? 'min-[1180px]:left-14 opacity-100' : 'pointer-events-none opacity-0']"
@@ -289,7 +285,7 @@
         <div
           id="ruler-tools"
           ref="rulerTray"
-          class="z-30 origin-bottom-left ease-out"
+          class="z-30 origin-bottom-left transition-[opacity,left] duration-200 ease-out"
           :class="narrow && rulerOpen
             ? 'relative w-fit opacity-100'
             : ['absolute bottom-[calc(100%+8px)]', rulerOpen ? 'left-16 opacity-100' : 'pointer-events-none left-0 opacity-0']"
@@ -398,7 +394,7 @@
         <div
           id="note-tools"
           ref="notesTray"
-          class="z-30 origin-bottom-left ease-out"
+          class="z-30 origin-bottom-left transition-[opacity,left] duration-200 ease-out"
           :class="narrow && notesOpen
             ? 'relative w-fit opacity-100'
             : ['absolute bottom-[calc(100%+8px)]', notesOpen ? 'left-16 opacity-100' : 'pointer-events-none left-0 opacity-0']"
@@ -583,12 +579,36 @@ function resetTrayStyle(tray: HTMLElement | null) {
   tray.style.marginLeft = '';
 }
 
+function clampTray(tray: HTMLElement | null, open: boolean) {
+  if (!tray) return;
+  if (!narrowTools()) {
+    tray.style.transform = '';
+    return;
+  }
+  if (!open) return;
+  tray.style.transform = '';
+  const bounds = toolScroll.value?.getBoundingClientRect();
+  if (!bounds) return;
+  const rect = tray.getBoundingClientRect();
+  const pad = 4;
+  let shift = 0;
+  const overflowRight = rect.right - bounds.right;
+  if (overflowRight > 1) shift -= overflowRight + pad;
+  const overflowLeft = bounds.left - (rect.left + shift);
+  if (overflowLeft > 1) shift += overflowLeft + pad;
+  if (Math.abs(shift) > 1) tray.style.transform = `translateX(${Math.round(shift)}px)`;
+}
+
 async function anchorOpenTray() {
   await nextTick();
   resetTrayStyle(sunTray.value);
   resetTrayStyle(viewTray.value);
   resetTrayStyle(rulerTray.value);
   resetTrayStyle(notesTray.value);
+  clampTray(sunTray.value, sunOpen.value);
+  clampTray(viewTray.value, viewOpen.value);
+  clampTray(rulerTray.value, rulerOpen.value);
+  clampTray(notesTray.value, notesOpen.value);
 }
 
 function closeTrays() {
@@ -607,29 +627,34 @@ function toggleTools() {
   if (!toolsOpen.value) closeTrays();
 }
 
-let toolDrag = false;
-let toolDownX = 0;
+let scrollLeft = 0;
+let ignoreToolScroll = false;
 
-function onToolPointerDown(event: PointerEvent) {
-  toolDrag = false;
-  toolDownX = event.clientX;
+function noteScrollLeft() {
+  scrollLeft = toolScroll.value?.scrollLeft ?? 0;
 }
 
-function onToolPointerMove(event: PointerEvent) {
-  if (event.buttons === 0) return;
-  if (Math.abs(event.clientX - toolDownX) > 8) toolDrag = true;
-}
-
-function onToolPointerUp() {
-  toolDrag = false;
+function holdScrollClose() {
+  ignoreToolScroll = true;
+  void nextTick(() => {
+    requestAnimationFrame(() => {
+      noteScrollLeft();
+      ignoreToolScroll = false;
+    });
+  });
 }
 
 function onToolScroll() {
-  if (!toolDrag || !narrowTools()) return;
+  if (!narrowTools() || !toolScroll.value) return;
+  const left = toolScroll.value.scrollLeft;
+  const moved = Math.abs(left - scrollLeft) > 2;
+  scrollLeft = left;
+  if (ignoreToolScroll || !moved) return;
   if (sunOpen.value || viewOpen.value || rulerOpen.value || notesOpen.value) closeTrays();
 }
 
 function toggleSun() {
+  holdScrollClose();
   sunOpen.value = !sunOpen.value;
   if (sunOpen.value) {
     emit('close-ai');
@@ -641,6 +666,7 @@ function toggleSun() {
 }
 
 function toggleView() {
+  holdScrollClose();
   viewOpen.value = !viewOpen.value;
   if (viewOpen.value) {
     emit('close-ai');
@@ -652,6 +678,7 @@ function toggleView() {
 }
 
 function toggleRuler() {
+  holdScrollClose();
   rulerOpen.value = !rulerOpen.value;
   if (rulerOpen.value) {
     emit('close-ai');
@@ -663,6 +690,7 @@ function toggleRuler() {
 }
 
 function toggleNotesTray() {
+  holdScrollClose();
   notesOpen.value = !notesOpen.value;
   if (notesOpen.value) {
     emit('close-ai');
@@ -782,6 +810,7 @@ async function toggleFullscreen() {
 
 onMounted(() => {
   narrow.value = narrowTools();
+  noteScrollLeft();
   syncFullscreen();
   document.addEventListener('fullscreenchange', syncFullscreen);
   document.addEventListener('pointerdown', onDocumentPointerDown);
