@@ -1,9 +1,9 @@
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import { fileURLToPath, URL } from 'node:url';
 import { fetchPagePreview } from './workers/linkPreview.js';
 
-function linkPreviewDev() {
+function linkPreviewDev(): Plugin {
   return {
     name: 'link-preview',
     configureServer(server) {
