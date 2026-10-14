@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { acceptMood, acceptMoodBoard, pieceFrom, placeFor, readLink, youtubeEmbed, vimeoEmbed } from '../src/mood/board.ts';
+import { readPagePreview, safePreviewUrl } from '../workers/linkPreview.js';
 import { generateAiAvatar, defaultAccountAvatar } from '../src/mood/avatar.ts';
 import { generateQrSvg } from '../src/mood/qr.ts';
 import { handleMood } from '../workers/mood.js';
@@ -29,6 +30,52 @@ test('a mood link refuses scripts and bare words', () => {
   assert.equal(readLink('data:text/html,hi'), null);
   assert.equal(readLink('not a link'), null);
   assert.equal(readLink(''), null);
+});
+
+test('a page address keeps a preview picture', () => {
+  const link = readLink('https://www.example.com/kitchen');
+  assert.equal(link?.kind, 'link');
+  assert.equal(readLink('https://photos.example/pine.jpg')?.kind, 'image');
+
+  const preview = readPagePreview(`
+    <html><head>
+      <meta property="og:title" content="Pine kitchen &amp; oak">
+      <meta content="https://cdn.example/pine.jpg" property="og:image">
+      <title>Ignored</title>
+    </head></html>
+  `, 'https://www.example.com/kitchen');
+  assert.equal(preview.title, 'Pine kitchen & oak');
+  assert.equal(preview.image, 'https://cdn.example/pine.jpg');
+  assert.equal(preview.host, 'example.com');
+
+  const relative = readPagePreview(
+    '<meta property="og:image" content="/photos/pine.jpg">',
+    'https://example.com/kitchen'
+  );
+  assert.equal(relative.image, 'https://example.com/photos/pine.jpg');
+
+  const piece = pieceFrom(link, 0, preview.title);
+  piece.thumb = preview.image;
+  const saved = acceptMood([piece]);
+  assert.equal(saved[0].kind, 'link');
+  assert.equal(saved[0].thumb, preview.image);
+
+  const older = acceptMood([{
+    id: piece.id,
+    kind: 'image',
+    src: 'https://www.example.com/kitchen',
+    x: 4,
+    y: 8,
+    w: 30,
+    tilt: 0,
+    caption: 'Saved earlier'
+  }]);
+  assert.equal(older[0].kind, 'link');
+  assert.equal(older[0].caption, 'Saved earlier');
+
+  assert.equal(safePreviewUrl('https://127.0.0.1/secret'), null);
+  assert.equal(safePreviewUrl('https://localhost/a'), null);
+  assert.equal(safePreviewUrl('javascript:alert(1)'), null);
 });
 
 test('a saved mood board keeps only bounded pieces', () => {

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { portraitPane } from '../src/three-engine/windowFit.ts';
+import { overlightHeight, overlightItem, portraitPane } from '../src/three-engine/windowFit.ts';
 
 test('a portrait panorama in a tall panel stays portrait inside the smaller pane', () => {
   const pane = portraitPane(1.86, 2.3, true);
@@ -85,4 +85,19 @@ test('moving a window to an upper bay is permitted', async () => {
   assert.equal(slots['front-0'].type, 'empty');
   assert.equal(slots['front-0u'].type, 'window');
   assert.equal(slots['front-0u'].itemId, 'standard-single');
+});
+
+test('the low window above a hinged door is an overlight, not a 10×12 tilt window', () => {
+  assert.equal(overlightItem('standard-single', true, 'LERVIK'), 'overlight');
+  assert.equal(overlightItem('standard-single', true, 'STEHAG'), 'overlight');
+  assert.equal(overlightItem('standard-single', false, 'LERVIK'), 'standard-single');
+  assert.equal(overlightItem('standard-single', true, 'SKJUTDORR'), 'standard-single');
+  assert.equal(overlightItem('panorama', true, 'LERVIK'), 'panorama');
+});
+
+test('an overlight stays a low wide pane', () => {
+  const height = overlightHeight(1.08);
+  assert.ok(height < 0.5);
+  assert.ok(height > 0.3);
+  assert.ok(height < 1.08);
 });

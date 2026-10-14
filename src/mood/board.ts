@@ -4,7 +4,7 @@ export const MOOD_LIMIT = 1000;
 export const CAPTION_LIMIT = 500;
 export const SRC_LIMIT = 180_000;
 
-export type MoodKind = 'image' | 'clip' | 'note';
+export type MoodKind = 'image' | 'clip' | 'link' | 'note';
 export type MoodClip = '' | 'youtube' | 'vimeo' | 'file';
 export type MoodColor = 'yellow' | 'sand' | 'moss' | 'sky' | 'rose';
 
@@ -42,6 +42,8 @@ export interface MoodPiece {
   w: number;
   tilt: number;
   caption: string;
+  /** Preview picture for a page link. Empty until the page has been read. */
+  thumb?: string;
   color?: MoodColor;
   author?: MoodAuthor;
   likes?: number;
@@ -126,12 +128,21 @@ export function readLink(raw: string): MoodLink | null {
 
   const path = url.pathname.toLowerCase();
   const video = /\.(mp4|webm|mov|ogv|m4v)$/.test(path);
+  const image = /\.(avif|gif|jpe?g|png|svg|webp)$/.test(path);
   return {
-    kind: video ? 'clip' : 'image',
+    kind: video ? 'clip' : image ? 'image' : 'link',
     src: url.toString(),
     clip: video ? 'file' : '',
     ref: ''
   };
+}
+
+export function linkHost(src: string) {
+  try {
+    return new URL(src).hostname.replace(/^www\./, '');
+  } catch {
+    return '';
+  }
 }
 
 export function acceptMood(value: unknown): MoodPiece[] {
@@ -285,7 +296,9 @@ function acceptPiece(value: unknown): MoodPiece | null {
     ? { kind: 'image' as const, src: '', clip: '' as const, ref: '' }
     : readLink(rawSrc);
   if (!link) return null;
-  if (record.kind !== undefined && record.kind !== link.kind) return null;
+  const upgradedPage = record.kind === 'image' && link.kind === 'link';
+  if (record.kind !== undefined && record.kind !== link.kind && !upgradedPage) return null;
+  const thumb = acceptThumb(record.thumb);
   const clip = link.clip;
   const ref = link.ref;
   return {
@@ -299,11 +312,25 @@ function acceptPiece(value: unknown): MoodPiece | null {
     w: clamp(Number(record.w), 16, 72),
     tilt: clamp(Number(record.tilt), -8, 8),
     caption: typeof record.caption === 'string' ? record.caption.trim().slice(0, CAPTION_LIMIT) : '',
+    ...(thumb && link.kind === 'link' ? { thumb } : {}),
     ...(author ? { author } : {}),
     ...(likes !== undefined ? { likes } : {}),
     ...(rawLikedBy && rawLikedBy.length > 0 ? { likedBy: rawLikedBy } : {}),
     ...(comments ? { comments } : {})
   };
+}
+
+function acceptThumb(value: unknown) {
+  if (typeof value !== 'string') return '';
+  const text = value.trim();
+  if (!text.startsWith('https://') || text.length > 2000) return '';
+  try {
+    const url = new URL(text);
+    if (url.protocol !== 'https:' || url.username || url.password) return '';
+    return url.href;
+  } catch {
+    return '';
+  }
 }
 
 function asHttps(text: string): URL | null {

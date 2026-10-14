@@ -21,6 +21,7 @@ import {
 import { eaveLiftMm, gablePitchDegrees, wallPlateHeightM } from './roof';
 import { floorAreaSqMeters } from './area';
 import { isLoftRoom } from '../three-engine/loftLevel';
+import { overlightItem } from '../three-engine/windowFit';
 import { acceptPlacedRooms, type PlacedRoom } from '../three-engine/roomWalls';
 import {
   acceptTerraces,
@@ -384,6 +385,13 @@ export const WINDOWS_OPTIONS: OptionItem[] = [
     priceDelta: 0
   },
   {
+    id: 'overlight',
+    name: 'Fast överljus',
+    desc: 'Lågt fönster ovanför dörren, i samma bredd som dörrfältet.',
+    spec: 'Mått 11×4, fast glas',
+    priceDelta: 0
+  },
+  {
     id: 'panorama',
     name: 'Fast Panoramafönster',
     desc: 'Golv-till-tak glasparti för spektakulärt ljusinsläpp.',
@@ -490,6 +498,7 @@ export function createWallSlots(): Record<string, WallSlot> {
     const upperId = `front-${index}u`;
     slots[upperId] = { ...slots[upperId], type: 'window', itemId: 'standard-single' };
   }
+  slots['front-0u'] = { ...slots['front-0u'], type: 'window', itemId: 'overlight' };
   return slots;
 }
 
@@ -507,7 +516,7 @@ function clearedWallSlots(): Record<string, WallSlot> {
 export function cubeWallSlots(): Record<string, WallSlot> {
   const slots = clearedWallSlots();
   slots['front-0'] = { ...slots['front-0'], type: 'door', itemId: 'LERVIK' };
-  slots['front-0u'] = { ...slots['front-0u'], type: 'window', itemId: 'standard-single' };
+  slots['front-0u'] = { ...slots['front-0u'], type: 'window', itemId: 'overlight' };
   slots['front-3'] = { ...slots['front-3'], type: 'window', itemId: 'panorama' };
   slots['front-3u'] = { ...slots['front-3u'], type: 'window', itemId: 'panorama' };
   slots['left-1'] = { ...slots['left-1'], type: 'window', itemId: 'panorama-portrait' };
@@ -566,6 +575,12 @@ function mergeWallSlots(saved: Record<string, WallSlot> | undefined): Record<str
       isUpper: upper,
       canAcceptDoor: upper ? false : slot.canAcceptDoor !== false
     };
+  }
+  for (const slot of Object.values(slots)) {
+    if (slot.type !== 'window' || !slot.isUpper) continue;
+    const lower = slots[slot.id.replace(/u$/, '')];
+    const aboveDoor = lower?.type === 'door';
+    slot.itemId = overlightItem(slot.itemId, aboveDoor, lower?.itemId);
   }
   return slots;
 }

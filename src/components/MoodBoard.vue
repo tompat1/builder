@@ -9,7 +9,10 @@
     @dragleave="onDragLeave"
     @drop.prevent="onDrop"
   >
-    <header class="flex flex-col gap-2 px-3 pb-2 pt-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4 sm:px-6 sm:pt-4 md:px-8 md:pt-6">
+    <header
+      class="flex flex-col gap-2 px-3 pb-2 pt-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4 sm:px-6 sm:pt-4 md:px-8 md:pt-6"
+      :class="isMobile ? 'pr-16' : ''"
+    >
       <div class="min-w-0 flex-1">
         <div class="group flex items-center gap-2">
           <input
@@ -88,7 +91,9 @@
           v-if="!standalone || !isInvited"
           type="button"
           id="btn-mood-close"
-          class="flex h-9 w-9 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl text-[#173D35] hover:bg-[#173D35] hover:text-[#F5F3EC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#173D35]"
+          class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-[#173D35] hover:bg-[#173D35] hover:text-[#F5F3EC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#173D35]"
+          :class="isMobile ? 'absolute right-3 top-3 z-30 bg-[#F5F3EC] shadow-[0_10px_22px_-12px_rgba(34,41,37,0.55)]' : ''"
+          :style="isMobile ? { top: 'max(0.75rem, env(safe-area-inset-top))', right: 'max(0.75rem, env(safe-area-inset-right))' } : undefined"
           :aria-label="t('mood.close')"
           @click="handleClose"
         >
@@ -413,8 +418,30 @@
                 </button>
               </div>
 
+              <a
+                v-if="piece.kind === 'link'"
+                class="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#F5F3EC]"
+                :href="piece.src"
+                target="_blank"
+                rel="noopener noreferrer"
+                :aria-label="t('mood.openLink')"
+                @pointerdown.stop
+                @click.stop
+              >
+                <img
+                  v-if="piece.thumb && !broken[piece.id]"
+                  class="block aspect-[1.91/1] w-full object-cover rounded-xl"
+                  :src="piece.thumb"
+                  :alt="piece.caption || linkHost(piece.src)"
+                  draggable="false"
+                  @error="markBroken(piece.id)"
+                />
+                <div v-else class="flex aspect-[1.91/1] w-full items-end bg-[#173D35] px-3 pb-3 rounded-xl">
+                  <span class="text-xs font-semibold tracking-wide text-[#F5F3EC]">{{ linkHost(piece.src) }}</span>
+                </div>
+              </a>
               <iframe
-                v-if="playing === piece.id && embed(piece)"
+                v-else-if="playing === piece.id && embed(piece)"
                 class="aspect-video w-full rounded-xl"
                 :src="embed(piece)"
                 :title="piece.caption || t('mood.play')"
@@ -490,6 +517,16 @@
                 </svg>
               </button>
             </div>
+
+            <a
+              v-if="piece.kind === 'link'"
+              class="mt-2 block truncate px-2 text-[11px] font-semibold text-[#173D35] underline decoration-[#B7C7AF] underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#173D35]"
+              :href="piece.src"
+              target="_blank"
+              rel="noopener noreferrer"
+              @pointerdown.stop
+              @click.stop
+            >{{ linkHost(piece.src) }}</a>
 
             <label class="sr-only" :for="`mood-caption-${piece.id}`">{{ t('mood.caption') }}</label>
             <textarea
@@ -1034,6 +1071,7 @@ import {
   moodId,
   pieceFrom,
   placeFor,
+  linkHost,
   readLink,
   vimeoEmbed,
   youtubeEmbed,
@@ -1064,6 +1102,7 @@ import {
   addPieceCommentCloudflare
 } from '../services/moodSave';
 import { watchActiveHouseId } from '../services/houseSave';
+import { fetchLinkPreview } from '../services/linkPreview';
 
 const props = withDefaults(
   defineProps<{
@@ -1357,6 +1396,7 @@ onMounted(() => {
   title.value = data.title;
   createdAt.value = data.createdAt || (data.pieces.length > 0 ? new Date().toISOString() : '');
   backfillExistingPiecesAuthor();
+  refreshLinkPreviews();
 
   watch(
     () => sessionStore.user,
@@ -1365,12 +1405,11 @@ onMounted(() => {
         clearStoredParticipant();
         backfillExistingPiecesAuthor();
       }
-      if (user && user !== previous) {
+      if (user && previous !== user) {
         cloudSettled = false;
         void pullCloud();
       }
-    },
-    { immediate: true }
+    }
   );
 
   void hydrate();
@@ -1394,6 +1433,7 @@ onMounted(() => {
     title.value = nextData.title;
     createdAt.value = nextData.createdAt || (nextData.pieces.length > 0 ? new Date().toISOString() : '');
     backfillExistingPiecesAuthor();
+    refreshLinkPreviews();
     void hydrate();
     void pullCloud();
   });
@@ -1599,6 +1639,7 @@ function applyRemote(remote: { title: string; createdAt: string; pieces: MoodPie
     }
   }
   pieces.value = Array.from(localMap.values());
+  refreshLinkPreviews();
   void hydrate();
 }
 
@@ -1648,6 +1689,32 @@ function addLink(raw: string) {
   }
   pieces.value.push(piece);
   persist();
+  attachPreview(piece);
+}
+
+const previewAsked = new Set<string>();
+
+function refreshLinkPreviews() {
+  for (const piece of pieces.value) attachPreview(piece);
+}
+
+function attachPreview(piece: MoodPiece) {
+  if (piece.kind !== 'link' || piece.thumb || previewAsked.has(piece.id)) return;
+  previewAsked.add(piece.id);
+  void fetchLinkPreview(piece.src).then((preview) => {
+    const current = pieces.value.find((item) => item.id === piece.id);
+    if (!current || current.kind !== 'link' || !preview) return;
+    let changed = false;
+    if (preview.image && current.thumb !== preview.image) {
+      current.thumb = preview.image;
+      changed = true;
+    }
+    if (preview.title && !current.caption) {
+      current.caption = preview.title.slice(0, 500);
+      changed = true;
+    }
+    if (changed) persist();
+  });
 }
 
 function addPostIt(color: MoodColor = 'yellow') {

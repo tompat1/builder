@@ -467,8 +467,8 @@ async function adoptWorkingHouse() {
   adopting = true;
   window.clearTimeout(saveTimer);
   const stored = readLocalHouse();
-  if (stored) store.importHouse(stored);
   let uploadLocal = false;
+  let opened = false;
   try {
     const pending = readPendingHouse();
     if (pending?.name) return;
@@ -496,28 +496,39 @@ async function adoptWorkingHouse() {
         }
       }
       applyAccountHouse(cloudConfig, activeCloud?.activeId, activeCloud?.locale);
+      opened = true;
       return;
     }
-    if (stored && localHouseNeedsUpload()) {
-      uploadLocal = true;
-    } else if (!cloudConfig) {
+    const needsUpload = Boolean(stored && localHouseNeedsUpload());
+    if (!needsUpload && !cloudConfig) {
       let active = readActiveHouseId();
       if (!active) {
         const listed = await listHouses();
         if (listed.length > 0) {
           active = listed[0].id;
           const full = await openNamedHouse(active);
-          if (full.config) applyAccountHouse(full.config, active);
+          if (full.config) {
+            applyAccountHouse(full.config, active);
+            opened = true;
+          }
         }
       }
       activeId.value = active;
       if (active && !houseThumb(active)) attachThumb(active);
     }
+    if (!opened && stored) {
+      store.importHouse(stored);
+      opened = true;
+      uploadLocal = needsUpload;
+    }
   } catch {
-    // The browser copy stays until the account can be reached.
+    if (!opened && stored) {
+      store.importHouse(stored);
+      opened = true;
+    }
   } finally {
     adopting = false;
-    draft = JSON.stringify(store.exportHouse());
+    if (opened) draft = JSON.stringify(store.exportHouse());
     if (uploadLocal) rememberDraft(draft);
     void publishAccountMood();
   }

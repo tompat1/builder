@@ -9,7 +9,7 @@ import { inferNoteNormal, noteAxes, noteCameraTransform, noteSheetTransform, not
 import { paintBoards } from '../color/paint';
 import { INTERIOR_FLOOR_TOP, LOFT_FLOORBOARD, curvedLoftStair, loftEndRotation, loftIsGhosted, loftJoistTop, loftStairOpening, loftStairRun, loftStairTreads, straightLoftStair, isLoftRoom } from './loftLevel';
 import { ceilingStations, loftCeilingY, sliceStations, type CeilingStation, type RoofSlope } from './roofClearance';
-import { PORTRAIT_PANORAMA, portraitPane } from './windowFit';
+import { OVERLIGHT, PORTRAIT_PANORAMA, overlightHeight, portraitPane } from './windowFit';
 import { fitRoom, innerHalf, roomFootprint, roomWallRuns, shellSides, type ShellSides } from './roomWalls';
 
 const PULPET_PITCH_RAD = (PULPET_PITCH_DEG * Math.PI) / 180;
@@ -2202,7 +2202,7 @@ export class HouseScene {
     const lowerBay = this.currentConfig.wallSlots[`${wallSide}-${index}`];
     const aboveDoor = Boolean(
       band.upper
-      && slot?.itemId === 'standard-single'
+      && (slot?.itemId === 'standard-single' || slot?.itemId === OVERLIGHT)
       && lowerBay?.type === 'door'
       && lowerBay.itemId !== 'SKJUTDORR'
       && lowerBay.itemId !== 'SKJUTDORR3'
@@ -2753,12 +2753,26 @@ export class HouseScene {
       return { winW: pane.width, winH: pane.height, winY: (sill + head) / 2 - centerY, sill, head };
     }
 
+    if (itemId === OVERLIGHT) {
+      const height = overlightHeight(winW);
+      const sill = isUpper
+        ? panelBase + (aboveDoor ? 0.42 : 0.36)
+        : panelBase + Math.min(1.05, Math.max(0.7, panelHeight * 0.38));
+      const headLimit = panelBase + panelHeight - headBoard - 0.08;
+      const head = Math.max(sill + 0.28, Math.min(sill + height, headLimit));
+      const fittedH = head - sill;
+      return { winW, winH: fittedH, winY: (sill + head) / 2 - centerY, sill, head, x: shift };
+    }
+
     let winH: number;
     let sill: number;
-    if (isUpper && aboveDoor && itemId === 'standard-single') {
-      winH = Math.min(0.46, Math.max(0.34, winW * 0.38));
-      // The belt sits just over the door canopy, so the window needs a course of boards above it.
-      sill = panelBase + 0.42;
+    if (itemId === 'standard-single' && isUpper && aboveDoor) {
+      const width = Math.min(1.0, winW);
+      const sillTop = panelBase + 0.42;
+      const headLimit = panelBase + panelHeight - 0.16 - headBoard;
+      const height = Math.min(1.2, Math.max(0.72, headLimit - sillTop));
+      const head = sillTop + height;
+      return { winW: width, winH: height, winY: (sillTop + head) / 2 - centerY, sill: sillTop, head, x: shift };
     } else if (isUpper && itemId !== 'panorama') {
       // Sit the head just under the fascia, the way the reference row does.
       const gapAbove = 0.16;
@@ -3345,7 +3359,7 @@ export class HouseScene {
         const lower = this.currentConfig.wallSlots[`${wall}-${p}`];
         const aboveDoor = Boolean(
           band.upper
-          && slot.itemId === 'standard-single'
+          && (slot.itemId === 'standard-single' || slot.itemId === OVERLIGHT)
           && lower?.type === 'door'
           && lower.itemId !== 'SKJUTDORR'
           && lower.itemId !== 'SKJUTDORR3'

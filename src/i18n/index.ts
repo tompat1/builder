@@ -530,8 +530,9 @@ const sv = {
     editTitle: 'Redigera rubrik',
     created: 'Skapad',
     lead: 'Dra in bilder och klipp, eller klistra en länk. Det sätter tonen för huset.',
-    link: 'Länk till bild eller klipp',
+    link: 'Länk till bild, sida eller klipp',
     placeholder: 'Klistra en länk',
+    openLink: 'Öppna sidan',
     add: 'Lägg till',
     files: 'Välj filer',
     postit: 'Kom-ihåg-lapp',
@@ -1218,8 +1219,9 @@ const en = {
     editTitle: 'Edit title',
     created: 'Created',
     lead: 'Drop pictures and clips, or paste a link. This sets the tone of the house.',
-    link: 'Link to a picture or clip',
+    link: 'Link to a picture, page, or clip',
     placeholder: 'Paste a link',
+    openLink: 'Open page',
     add: 'Add',
     files: 'Choose files',
     postit: 'Post-it',
@@ -1501,6 +1503,11 @@ const en = {
       name: 'Triple-glazed tilt window',
       desc: 'A practical tilt window, cleaned from inside, with a child lock.',
       spec: 'Size 10×12, U-value 1.0'
+    },
+    overlight: {
+      name: 'Fixed transom window',
+      desc: 'A low window above the door, as wide as the door bay.',
+      spec: 'Size 11×4, fixed glass'
     },
     panorama: {
       name: 'Fixed panorama window',

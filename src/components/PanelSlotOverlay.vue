@@ -126,7 +126,7 @@ import { useLabels } from '../i18n';
 import Cms from './Cms.vue';
 
 const store = useConfigStore();
-const { t } = useLabels();
+const { t, catalog } = useLabels();
 
 const activeSlot = computed(() => {
   return store.selectedSlotId ? store.wallSlots[store.selectedSlotId] : null;
@@ -198,7 +198,9 @@ const hoverPromptStyle = computed(() => {
 function productName(slot: WallSlot | null) {
   if (!slot || slot.type === 'empty') return '';
   const list = slot.type === 'door' ? DOORS_OPTIONS : slot.type === 'window' ? WINDOWS_OPTIONS : GATES_OPTIONS;
-  return list.find((item) => item.id === slot.itemId)?.name ?? slot.itemId ?? '';
+  const item = list.find((entry) => entry.id === slot.itemId);
+  if (!item) return slot.itemId ?? '';
+  return catalog(item.id, 'name', item.name);
 }
 
 function openCategory(category: CategoryKey) {

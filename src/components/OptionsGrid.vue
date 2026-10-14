@@ -1507,6 +1507,10 @@
                 <line x1="80" y1="16" x2="80" y2="64" stroke="currentColor" stroke-width="1.2" />
                 <line x1="55" y1="40" x2="105" y2="40" stroke="currentColor" stroke-width="1.2" />
               </template>
+              <template v-else-if="win.id === 'overlight'">
+                <rect x="28" y="30" width="104" height="22" rx="1" stroke="currentColor" stroke-width="2" />
+                <rect x="32" y="34" width="96" height="14" fill="currentColor" fill-opacity="0.18" />
+              </template>
               <template v-else-if="win.id === 'frost'">
                 <rect x="62" y="24" width="36" height="32" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2 2" />
               </template>
