@@ -23,6 +23,36 @@
         <span class="font-semibold text-[#173D35]/30" aria-hidden="true">/</span>
         <span :class="locale === 'en' ? 'font-extrabold text-[#173D35]' : 'font-semibold text-[#173D35]/40'">EN</span>
       </button>
+      <div class="flex h-11 items-center rounded-full border border-[#173D35]/15 bg-white">
+        <button
+          v-if="session.user"
+          id="btn-account-mobile"
+          type="button"
+          class="grid h-11 w-11 place-items-center rounded-full bg-[#FF5A00] text-[#222925] hover:bg-[#e95000] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5A00] disabled:cursor-wait disabled:opacity-60"
+          :aria-label="t('account.logout')"
+          :title="t('account.logout')"
+          :disabled="logoutBusy"
+          @click="signOut"
+        >
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <path d="M10 5H6.5A1.5 1.5 0 0 0 5 6.5v11A1.5 1.5 0 0 0 6.5 19H10" />
+            <path d="M13 8l4 4-4 4M17 12H9" />
+          </svg>
+        </button>
+        <router-link
+          v-else
+          id="btn-account-mobile"
+          to="/login"
+          class="grid h-11 w-11 place-items-center rounded-full text-[#173D35] hover:bg-[#173D35]/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5A00]"
+          :aria-label="t('site.login')"
+          :title="t('site.login')"
+        >
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <circle cx="12" cy="8" r="3.2" />
+            <path d="M5.5 19.2a6.5 6.5 0 0 1 13 0" />
+          </svg>
+        </router-link>
+      </div>
       <button
         type="button"
         id="btn-save-project-mobile"
@@ -239,6 +269,7 @@ import { useConfigStore } from '../store/useConfigStore';
 import { useContentStore } from '../store/useContentStore';
 import { useSessionStore } from '../store/useSessionStore';
 import { applyLocale, useLabels } from '../i18n';
+import { logoutAccount } from '../services/account';
 import { readLocalHouse } from '../services/houseSave';
 import SavedHouses from './SavedHouses.vue';
 import AdminAiPanel from './AdminAiPanel.vue';
@@ -249,6 +280,7 @@ const store = useConfigStore();
 const content = useContentStore();
 const session = useSessionStore();
 const housesOpen = ref(false);
+const logoutBusy = ref(false);
 const { t, locale, catalog, money, delta } = useLabels();
 const showPriceBreakdown = ref(false);
 
@@ -258,6 +290,20 @@ defineEmits<{
 
 function toggleHouses() {
   housesOpen.value = !housesOpen.value;
+}
+
+async function signOut() {
+  if (logoutBusy.value) return;
+  logoutBusy.value = true;
+  try {
+    await logoutAccount();
+  } catch {
+    // A failed server sign-out must not leave the browser session active.
+  } finally {
+    session.clearAccount();
+    content.editing = false;
+    logoutBusy.value = false;
+  }
 }
 
 onMounted(() => {

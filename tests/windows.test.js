@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { fittedDoorOpening, overlightHeight, overlightItem, portraitPane } from '../src/three-engine/windowFit.ts';
+import { fittedDoorOpening, openingClearOfRoof, overlightHeight, overlightItem, portraitPane } from '../src/three-engine/windowFit.ts';
 
 test('a portrait panorama in a tall panel stays portrait inside the smaller pane', () => {
   const pane = portraitPane(1.86, 2.3, true);
@@ -110,6 +110,37 @@ test('a 10×21 door keeps its width when a corner bay shrinks to 1.2 m', () => {
   const right = door.shift + door.width / 2;
   assert.ok(left >= -1.2 / 2 + 0.16);
   assert.ok(right <= 1.2 / 2 + 0.001);
+});
+
+test('a window under a steeper roof moves down and stays clear of the low side', () => {
+  const panelHeight = 3.2;
+  const slope = Math.tan((12 * Math.PI) / 180);
+  const opening = { winW: 1.2, winH: 1.1, winY: 0.7, x: 0, sill: 1.4, head: 2.5 };
+  const moved = openingClearOfRoof(opening, panelHeight, slope);
+  const half = panelHeight / 2;
+  const lowRoof = half + Math.min(-0.6, 0.6) * slope;
+  const head = moved.winY + moved.winH / 2;
+  assert.ok(head <= lowRoof - 0.3 + 1e-6);
+  assert.equal(moved.winH, opening.winH);
+  assert.ok(moved.winY < opening.winY);
+  assert.ok(Math.abs((moved.sill ?? 0) - (opening.sill - (opening.winY - moved.winY))) < 1e-9);
+});
+
+test('a window already clear of the roof, and one on a level wall, stays put', () => {
+  const clear = { winW: 1, winH: 0.8, winY: -0.4, x: 0, sill: 0.9, head: 1.7 };
+  assert.equal(openingClearOfRoof(clear, 3, 0.2), clear);
+  const high = { winW: 1, winH: 0.6, winY: 0.8 };
+  assert.equal(openingClearOfRoof(high, 3, 0), high);
+});
+
+test('a door keeps its sill and shortens when the roof would cut the head', () => {
+  const door = { winW: 1, winH: 2.1, winY: 0.2, x: 0.4, sill: 0.25, head: 2.35 };
+  const fitted = openingClearOfRoof(door, 2.3, 0.35, { pinSill: true, minHeight: 0.9 });
+  assert.equal(fitted.sill, door.sill);
+  assert.ok(fitted.winH < door.winH);
+  const half = 2.3 / 2;
+  const lowRoof = half + Math.min(0.4 - 0.5, 0.4 + 0.5) * 0.35;
+  assert.ok(fitted.winY + fitted.winH / 2 <= lowRoof - 0.3 + 1e-6);
 });
 
 test('a door on a wider bay stays a 10×21, and a slider stays a 20×21', () => {

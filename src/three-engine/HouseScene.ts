@@ -9,7 +9,7 @@ import { inferNoteNormal, noteAxes, noteCameraTransform, noteSheetTransform, not
 import { paintBoards } from '../color/paint';
 import { INTERIOR_FLOOR_TOP, LOFT_FLOORBOARD, curvedLoftStair, loftEndRotation, loftIsGhosted, loftJoistTop, loftStairOpening, loftStairRun, loftStairTreads, straightLoftStair, isLoftRoom } from './loftLevel';
 import { ceilingStations, loftCeilingY, sliceStations, type CeilingStation, type RoofSlope } from './roofClearance';
-import { OVERLIGHT, PORTRAIT_PANORAMA, fittedDoorOpening, overlightHeight, portraitPane } from './windowFit';
+import { OVERLIGHT, PORTRAIT_PANORAMA, fittedDoorOpening, openingClearOfRoof, overlightHeight, portraitPane } from './windowFit';
 import { fitRoom, innerHalf, roomFootprint, roomWallRuns, shellSides, type ShellSides } from './roomWalls';
 
 const PULPET_PITCH_RAD = (PULPET_PITCH_DEG * Math.PI) / 180;
@@ -2212,10 +2212,16 @@ export class HouseScene {
       index,
       (wallSide === 'front' || wallSide === 'back') ? 4 : 3
     );
-    const opening: { winW: number; winH: number; winY: number; x?: number } | null = wide
+    const fitted: { winW: number; winH: number; winY: number; x?: number; sill?: number; head?: number } | null = wide
       ?? ((slotType === 'window' || slotType === 'door')
         ? this.fittedOpening(slotType, slot?.itemId, band.upper, panelWidth, band.height, band.base, aboveDoor, cornerSide)
         : null);
+    const opening = fitted && band.reachesRoof
+      ? openingClearOfRoof(fitted, band.height, slope, {
+          pinSill: Boolean(wide) || slotType === 'door',
+          minHeight: wide || slotType === 'door' ? 0.9 : 0.28
+        })
+      : fitted;
     const userData = {
       slotId: band.slotId,
       wall: wallSide,
@@ -3349,9 +3355,11 @@ export class HouseScene {
           : null;
         if (wide) {
           if (wide.drawDoor) {
-            const local = wide.x ?? 0;
+            const slope = this.alongWallSlope(wall);
+            const fit = openingClearOfRoof(wide, band.panelH, slope, { pinSill: true, minHeight: 0.9 });
+            const local = fit.x ?? 0;
             const x = wall === 'front' || wall === 'left' ? center + local : center - local;
-            openings.push({ x, winW: wide.winW, winH: wide.winH, winY: wide.winY, sill: wide.sill, head: wide.head });
+            openings.push({ x, winW: fit.winW, winH: fit.winH, winY: fit.winY, sill: fit.sill, head: fit.head });
           }
           continue;
         }
@@ -3364,7 +3372,12 @@ export class HouseScene {
           && lower.itemId !== 'SKJUTDORR3'
         );
         const cornerSide = this.cornerSideForPanel(wall, p, count);
-        const fit = this.fittedOpening(slot.type, slot.itemId, band.upper, panelW, band.panelH, band.panelBase, aboveDoor, cornerSide);
+        const fitted = this.fittedOpening(slot.type, slot.itemId, band.upper, panelW, band.panelH, band.panelBase, aboveDoor, cornerSide);
+        const slope = band.upper || !split ? this.alongWallSlope(wall) : 0;
+        const fit = openingClearOfRoof(fitted, band.panelH, slope, {
+          pinSill: slot.type === 'door',
+          minHeight: slot.type === 'door' ? 0.9 : 0.28
+        });
         const ox = fit.x ?? 0;
         const worldX = (wall === 'front' || wall === 'left') ? center + ox : center - ox;
         openings.push({
