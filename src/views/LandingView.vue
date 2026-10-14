@@ -22,7 +22,7 @@
         <CmsImage k="landing.heroMobile" class="mt-8 h-64 w-full object-cover object-[75%_center] md:hidden">
           <img src="/brand/landing.webp" alt="" class="h-full w-full object-cover object-[75%_center]" />
         </CmsImage>
-        <ul class="relative mt-12 grid gap-x-10 gap-y-8 sm:grid-cols-2 md:mt-auto md:max-w-2xl [@media(min-width:1280px)_and_(min-height:1040px)]:mb-10 md:before:pointer-events-none md:before:absolute md:before:-bottom-4 md:before:-left-8 md:before:top-0 md:before:w-[46rem] md:before:bg-gradient-to-r md:before:from-ivory md:before:from-70% md:before:to-transparent md:before:content-['']">
+        <ul class="relative mt-12 grid gap-x-10 gap-y-8 sm:grid-cols-2 md:mt-auto md:pt-16 md:max-w-2xl [@media(min-width:1280px)_and_(min-height:1040px)]:mb-10 md:before:pointer-events-none md:before:absolute md:before:-bottom-4 md:before:-left-8 md:before:top-0 md:before:w-[46rem] md:before:bg-gradient-to-r md:before:from-ivory md:before:from-70% md:before:to-transparent md:before:content-['']">
           <li v-for="point in points" :key="point.title" class="relative z-10">
             <img v-if="point.icon === 'concierge'" src="/brand/icon_aiconcierge.svg" alt="" class="h-11 w-[3.2rem]" />
             <svg v-else class="h-9 w-9 text-pine" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
