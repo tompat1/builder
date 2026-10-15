@@ -11,8 +11,7 @@ import { INTERIOR_FLOOR_TOP, LOFT_FLOORBOARD, curvedLoftStair, loftEndRotation, 
 import { ceilingStations, loftCeilingY, sliceStations, type CeilingStation, type RoofSlope } from './roofClearance';
 import { OVERLIGHT, PORTRAIT_PANORAMA, fittedDoorOpening, openingClearOfRoof, overlightHeight, portraitPane } from './windowFit';
 import { fitRoom, innerHalf, roomFootprint, roomWallRuns, shellSides, type ShellSides } from './roomWalls';
-import { CONCRETE_STOREY_TOP_M, panelOnConcrete } from '../store/paabyggnad';
-
+import { timberShellOnConcrete } from '../store/paabyggnad';
 const PULPET_PITCH_RAD = (PULPET_PITCH_DEG * Math.PI) / 180;
 
 function easeInOutCubic(t: number) {
@@ -76,8 +75,15 @@ export interface SceneConfig {
   cornerColor?: string | null;
   /** Whether exterior corner boards (knutbrädor) are visible. */
   cornerBoards?: boolean;
-  /** Lower storey is the existing 520 × 520 cm concrete house. Timber starts above it. */
+  /** Lower storey is the existing concrete house. Timber starts above it. */
   concreteBase?: boolean;
+  /** Concrete house plan, millimetres. Centered inside the timber shell. */
+  concreteWidthMm?: number;
+  concreteDepthMm?: number;
+  /** Top of the concrete walls, millimetres above the ground. */
+  concreteHeightMm?: number;
+  /** Extra concrete walls inside the open shell. */
+  concreteWalls?: { id: string; axis: 'x' | 'z'; offsetMm: number }[];
 }
 
 interface OutsideAnchor {
@@ -117,6 +123,7 @@ export class HouseScene {
     renderOrder: number;
   }>();
   private wallsGroup: THREE.Group;
+  private concreteGroup: THREE.Group;
   private framingGroup: THREE.Group;
   private innerWallsGroup: THREE.Group;
   private ceilingDrywallGroup: THREE.Group | null = null;
@@ -271,7 +278,11 @@ export class HouseScene {
       terraces: initialConfig?.terraces ?? [],
       cornerColor: initialConfig?.cornerColor ?? 'same',
       cornerBoards: initialConfig?.cornerBoards ?? true,
-      concreteBase: initialConfig?.concreteBase ?? false
+      concreteBase: initialConfig?.concreteBase ?? false,
+      concreteWidthMm: initialConfig?.concreteWidthMm ?? 5200,
+      concreteDepthMm: initialConfig?.concreteDepthMm ?? 5200,
+      concreteHeightMm: initialConfig?.concreteHeightMm ?? 2500,
+      concreteWalls: initialConfig?.concreteWalls ?? []
     };
 
     this.scene = new THREE.Scene();
@@ -311,6 +322,7 @@ export class HouseScene {
     this.setupLighting();
 
     this.houseGroup = new THREE.Group();
+    this.concreteGroup = new THREE.Group();
     this.wallsGroup = new THREE.Group();
     this.framingGroup = new THREE.Group();
     this.innerWallsGroup = new THREE.Group();
@@ -334,6 +346,7 @@ export class HouseScene {
     this.houseGroup.add(this.loftGroup);
     this.houseGroup.add(this.interiorGroup);
     this.scene.add(this.houseGroup);
+    this.scene.add(this.concreteGroup);
     this.scene.add(this.dimensionsGroup);
 
     this.setupRaycasting();
@@ -1640,6 +1653,9 @@ export class HouseScene {
     while (this.wallsGroup.children.length > 0) {
       this.wallsGroup.remove(this.wallsGroup.children[0]);
     }
+    while (this.concreteGroup.children.length > 0) {
+      this.concreteGroup.remove(this.concreteGroup.children[0]);
+    }
     while (this.framingGroup.children.length > 0) {
       this.framingGroup.remove(this.framingGroup.children[0]);
     }
@@ -1664,8 +1680,11 @@ export class HouseScene {
       this.highlightBox = null;
     }
     this.interactivePanels = [];
-    const w = this.currentConfig.widthMm / 1000;
-    const d = this.currentConfig.depthMm / 1000;
+    const shell = this.timberShell();
+    const w = shell.widthM;
+    const d = shell.depthM;
+    this.houseGroup.position.set(shell.x, 0, shell.z);
+    this.dimensionsGroup.position.set(shell.x, 0, shell.z);
     const h = this.wallTopM();
     const wallThick = 0.18; // standard 180mm modular wall (145mm stud + 22mm cladding + air gap)
 
@@ -1740,6 +1759,7 @@ export class HouseScene {
     this.buildModularWall('back', 4, w, d, h, wallThick, exteriorMat, doorBayMat, trimMat, casingMat, concreteWallMat);
     this.buildModularWall('left', 3, w, d, h, wallThick, exteriorMat, doorBayMat, trimMat, casingMat, concreteWallMat);
     this.buildModularWall('right', 3, w, d, h, wallThick, exteriorMat, doorBayMat, trimMat, casingMat, concreteWallMat);
+    this.addConcreteWalls(concreteWallMat);
     this.buildOutsideAdditions(w, d, h);
     if (!this.interiorCut() && this.currentConfig.panelOrientation !== 'liggande') {
       this.addBeltFlashing(w, d, h);
@@ -1980,12 +2000,9 @@ export class HouseScene {
 
       if (!this.interiorCut()) panelWallH += 0.04;
 
-      const concrete = this.currentConfig.concreteBase === true;
-      const belt = this.storeyRise(h);
+      const belt = this.beltRise(h);
       const upperId = `${wallSide}-${i}u`;
-      const split = concrete
-        ? panelWallH > belt + 0.4
-        : Boolean(this.currentConfig.wallSlots[upperId]) && panelWallH > belt + 0.4;
+      const split = Boolean(this.currentConfig.wallSlots[upperId]) && panelWallH > belt + 0.4;
       const bands = split
         ? [
             { slotId, height: belt, base: baseElev, upper: false, reachesRoof: false },
@@ -2004,10 +2021,7 @@ export class HouseScene {
           && bay.itemId !== 'SKJUTDORR'
           && bay.itemId !== 'SKJUTDORR3'
         );
-        const oldConcrete = concrete
-          && !band.upper
-          && panelOnConcrete(wallSide, px, pz, panelWidth);
-        const faceMat = oldConcrete ? concreteWallMat : (uprightDoor ? doorBayMat : exteriorMat);
+        const faceMat = uprightDoor ? doorBayMat : exteriorMat;
         this.buildWallBand(
           band,
           px,
@@ -2069,10 +2083,98 @@ export class HouseScene {
     return 2.15;
   }
 
-  /** Height of the lower storey, measured from the wall base. Concrete houses stop at 2.5 m. */
-  private storeyRise(wallTop: number) {
-    if (this.currentConfig.concreteBase) return CONCRETE_STOREY_TOP_M - 0.25;
-    return this.beltRise(wallTop);
+  /**
+   * Timber walls sit on the concrete outer faces. Extra floor area grows to
+   * the right and the front, so the left and back facades stay in line.
+   */
+  private timberShell() {
+    const widthM = this.currentConfig.widthMm / 1000;
+    const depthM = this.currentConfig.depthMm / 1000;
+    if (!this.currentConfig.concreteBase) return { widthM, depthM, x: 0, z: 0 };
+    return timberShellOnConcrete(
+      widthM,
+      depthM,
+      (this.currentConfig.concreteWidthMm ?? 5200) / 1000,
+      (this.currentConfig.concreteDepthMm ?? 5200) / 1000
+    );
+  }
+
+  /**
+   * Local X interval of a panel that sits on the concrete outer wall.
+   * The rest of a longer timber wall is the extension and stays full height.
+   */
+  private concreteSpanLocal(
+    wallSide: 'front' | 'back' | 'left' | 'right',
+    px: number,
+    pz: number,
+    panelWidth: number
+  ) {
+    const shell = this.timberShell();
+    const half = panelWidth / 2;
+    const cw = (this.currentConfig.concreteWidthMm ?? 5200) / 1000;
+    const cd = (this.currentConfig.concreteDepthMm ?? 5200) / 1000;
+    let from = -half;
+    let to = half;
+    if (wallSide === 'front' || wallSide === 'back') {
+      const sign = wallSide === 'front' ? 1 : -1;
+      const center = shell.x + px;
+      const a = sign * (-cw / 2 - center);
+      const b = sign * (cw / 2 - center);
+      from = Math.max(-half, Math.min(a, b));
+      to = Math.min(half, Math.max(a, b));
+    } else {
+      const sign = wallSide === 'left' ? 1 : -1;
+      const center = shell.z + pz;
+      const a = sign * (-cd / 2 - center);
+      const b = sign * (cd / 2 - center);
+      from = Math.max(-half, Math.min(a, b));
+      to = Math.min(half, Math.max(a, b));
+    }
+    if (to - from < 0.02) return null;
+    return { from, to };
+  }
+
+  /** This timber face is the concrete outer facade, so the wood above continues it. */
+  private concreteFacade(wallSide: 'front' | 'back' | 'left' | 'right') {
+    if (!this.currentConfig.concreteBase) return false;
+    const shell = this.timberShell();
+    const cw = (this.currentConfig.concreteWidthMm ?? 5200) / 1000;
+    const cd = (this.currentConfig.concreteDepthMm ?? 5200) / 1000;
+    if (wallSide === 'left' || wallSide === 'back') return true;
+    if (wallSide === 'right') return shell.widthM - cw < 0.02;
+    return shell.depthM - cd < 0.02;
+  }
+
+  /**
+   * The old concrete house: four walls and an open top. No roof.
+   * The plan measure is the outside face, the same line as the timber cladding.
+   */
+  private addConcreteWalls(material: THREE.Material) {
+    if (!this.currentConfig.concreteBase) return;
+    const cw = (this.currentConfig.concreteWidthMm ?? 5200) / 1000;
+    const cd = (this.currentConfig.concreteDepthMm ?? 5200) / 1000;
+    const top = (this.currentConfig.concreteHeightMm ?? 2500) / 1000;
+    const base = 0.25;
+    const height = Math.max(0.4, top - base);
+    const thick = 0.16;
+    const y = base + height / 2;
+    const add = (size: [number, number, number], pos: [number, number, number]) => {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(...size), material);
+      mesh.position.set(...pos);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.userData.concrete = true;
+      this.concreteGroup.add(mesh);
+    };
+    add([cw, height, thick], [0, y, cd / 2 - thick / 2]);
+    add([cw, height, thick], [0, y, -(cd / 2 - thick / 2)]);
+    add([thick, height, cd], [-(cw / 2 - thick / 2), y, 0]);
+    add([thick, height, cd], [cw / 2 - thick / 2, y, 0]);
+    for (const wall of this.currentConfig.concreteWalls ?? []) {
+      const offset = wall.offsetMm / 1000;
+      if (wall.axis === 'z') add([thick, height, Math.max(0.4, cd - thick * 2)], [offset, y, 0]);
+      else add([Math.max(0.4, cw - thick * 2), height, thick], [0, y, offset]);
+    }
   }
 
   /** Rolled white metal: fine horizontal ribs, a bright top edge, a darker drip. */
@@ -2108,7 +2210,7 @@ export class HouseScene {
    */
   private addBeltFlashing(w: number, d: number, wallTop: number) {
     if (this.currentConfig.panelOrientation === 'liggande') return;
-    const y = 0.25 + this.storeyRise(wallTop);
+    const y = 0.25 + this.beltRise(wallTop);
     const faceH = 0.11;
     const proj = 0.036;
     const standOff = 0.008;
@@ -2253,12 +2355,16 @@ export class HouseScene {
     };
 
     const sloped = band.reachesRoof && Math.abs(slope) > 0.0001;
+    const facadeTop = this.concreteFacade(wallSide)
+      ? (this.currentConfig.concreteHeightMm ?? 2500) / 1000
+      : null;
+    const facadeSpan = facadeTop == null ? null : this.concreteSpanLocal(wallSide, px, pz, panelWidth);
     if (sloped) {
-      this.addSlopedCladding(panelGroup, panelWidth, band.height, slope, claddingThick, exteriorMat, userData, opening);
+      this.addSlopedCladding(panelGroup, panelWidth, band.height, slope, claddingThick, exteriorMat, userData, opening, facadeTop);
     } else if (opening) {
-      this.addCladdingAroundOpening(panelGroup, panelWidth, band.height, claddingThick, exteriorMat, opening, userData);
+      this.addCladdingAroundOpening(panelGroup, panelWidth, band.height, claddingThick, exteriorMat, opening, userData, facadeTop, facadeSpan);
     } else {
-      this.addSolidCladding(panelGroup, panelWidth, band.height, claddingThick, exteriorMat, userData);
+      this.addSolidCladding(panelGroup, panelWidth, band.height, claddingThick, exteriorMat, userData, facadeTop, facadeSpan);
     }
 
     const ownsOpening = wide ? wide.drawDoor : (slotType === 'door' || slotType === 'window');
@@ -3361,7 +3467,7 @@ export class HouseScene {
         center = -d / 2 + endInset + (p + 0.5) * panelW;
         panelWallH = this.sidePanelHeight(d, h, rearH, yMid, PULPET_PITCH_RAD, center, base);
       }
-      const belt = this.storeyRise(h);
+      const belt = this.beltRise(h);
       const lowerH = Math.min(belt, panelWallH);
       const split = Boolean(this.currentConfig.wallSlots[`${wall}-${p}u`]) && panelWallH > belt + 0.4 && !this.interiorCut();
       const bands = split
@@ -3525,9 +3631,15 @@ export class HouseScene {
       { x: 1, z: -1, top: rearH }
     ];
     for (const corner of corners) {
+      const along = corner.z > 0 ? 'front' : 'back';
+      const side = corner.x < 0 ? 'left' : 'right';
+      const foot = this.concreteFacade(along) && this.concreteFacade(side)
+        ? Math.max(baseElev, (this.currentConfig.concreteHeightMm ?? 2500) / 1000)
+        : baseElev;
       const top = corner.top;
-      const height = top - baseElev;
-      const y = baseElev + height / 2;
+      const height = top - foot;
+      if (height < 0.05) continue;
+      const y = foot + height / 2;
       const alongFront = new THREE.Mesh(new THREE.BoxGeometry(face, height, thick), material);
       alongFront.position.set(corner.x * (w / 2 + thick - face / 2), y, corner.z * (d / 2 + thick / 2));
       const alongSide = new THREE.Mesh(new THREE.BoxGeometry(thick, height, sideFace), material);
@@ -3549,14 +3661,18 @@ export class HouseScene {
     claddingThick: number,
     material: THREE.Material,
     userData: Record<string, unknown>,
-    opening: { winW: number; winH: number; winY: number; x?: number } | null
+    opening: { winW: number; winH: number; winY: number; x?: number } | null,
+    facadeTop: number | null = null
   ) {
     const halfW = panelWidth / 2;
     const halfH = panelHeight / 2;
+    const cut = facadeTop == null ? -halfH : facadeTop - parent.position.y;
+    const bottomY = Math.max(-halfH, cut);
+    if (halfH - bottomY < 0.01) return null;
     const topAt = (x: number) => halfH + x * slope;
     const shape = new THREE.Shape();
-    shape.moveTo(-halfW, -halfH);
-    shape.lineTo(halfW, -halfH);
+    shape.moveTo(-halfW, bottomY);
+    shape.lineTo(halfW, bottomY);
     shape.lineTo(halfW, topAt(halfW));
     shape.lineTo(-halfW, topAt(-halfW));
     shape.closePath();
@@ -3566,14 +3682,16 @@ export class HouseScene {
       const right = Math.min(halfW, cx + opening.winW / 2);
       if (right - left > 0.02) {
         const hole = new THREE.Path();
-        const bottom = opening.winY - opening.winH / 2;
+        const bottom = Math.max(bottomY, opening.winY - opening.winH / 2);
         const top = opening.winY + opening.winH / 2;
-        hole.moveTo(left, bottom);
-        hole.lineTo(left, top);
-        hole.lineTo(right, top);
-        hole.lineTo(right, bottom);
-        hole.closePath();
-        shape.holes.push(hole);
+        if (top - bottom > 0.02) {
+          hole.moveTo(left, bottom);
+          hole.lineTo(left, top);
+          hole.lineTo(right, top);
+          hole.lineTo(right, bottom);
+          hole.closePath();
+          shape.holes.push(hole);
+        }
       }
     }
     const geo = new THREE.ExtrudeGeometry(shape, { depth: claddingThick, bevelEnabled: false });
@@ -3594,17 +3712,57 @@ export class HouseScene {
     panelHeight: number,
     claddingThick: number,
     material: THREE.Material,
-    userData: Record<string, unknown>
+    userData: Record<string, unknown>,
+    facadeTop: number | null = null,
+    facadeSpan: { from: number; to: number } | null = null
   ) {
-    const panelGeo = new THREE.BoxGeometry(panelWidth, panelHeight, claddingThick);
-    this.writeMetreUvs(panelGeo, parent.position.y);
-    const panelMesh = new THREE.Mesh(panelGeo, material);
-    panelMesh.castShadow = true;
-    panelMesh.receiveShadow = true;
-    panelMesh.userData = userData;
-    parent.add(panelMesh);
-    this.interactivePanels.push(panelMesh);
-    return panelMesh;
+    const halfW = panelWidth / 2;
+    const halfH = panelHeight / 2;
+    const cut = facadeTop == null || facadeSpan == null ? -halfH : facadeTop - parent.position.y;
+    const pieces = this.facadeCladdingPieces(halfW, halfH, cut, facadeSpan);
+    let first: THREE.Mesh | null = null;
+    for (const piece of pieces) {
+      const panelGeo = new THREE.BoxGeometry(piece.w, piece.h, claddingThick);
+      this.writeMetreUvs(panelGeo, parent.position.y + piece.y);
+      const panelMesh = new THREE.Mesh(panelGeo, material);
+      panelMesh.position.set(piece.x, piece.y, 0);
+      panelMesh.castShadow = true;
+      panelMesh.receiveShadow = true;
+      panelMesh.userData = userData;
+      parent.add(panelMesh);
+      this.interactivePanels.push(panelMesh);
+      first ??= panelMesh;
+    }
+    return first;
+  }
+
+  /** Cladding rectangles. On the concrete span, boards start at the concrete top. */
+  private facadeCladdingPieces(
+    halfW: number,
+    halfH: number,
+    cut: number,
+    span: { from: number; to: number } | null
+  ) {
+    const along = span
+      ? [
+          { from: -halfW, to: span.from, clip: false },
+          { from: span.from, to: span.to, clip: true },
+          { from: span.to, to: halfW, clip: false }
+        ]
+      : [{ from: -halfW, to: halfW, clip: cut > -halfH }];
+    const pieces: { x: number; y: number; w: number; h: number }[] = [];
+    for (const part of along) {
+      if (part.to - part.from < 0.01) continue;
+      const bottom = part.clip ? Math.max(-halfH, cut) : -halfH;
+      if (halfH - bottom < 0.01) continue;
+      pieces.push({
+        x: (part.from + part.to) / 2,
+        y: (halfH + bottom) / 2,
+        w: part.to - part.from,
+        h: halfH - bottom
+      });
+    }
+    return pieces;
   }
 
   private addCladdingAroundOpening(
@@ -3614,7 +3772,9 @@ export class HouseScene {
     claddingThick: number,
     material: THREE.Material,
     opening: { winW: number; winH: number; winY: number; x?: number },
-    userData: Record<string, unknown>
+    userData: Record<string, unknown>,
+    facadeTop: number | null = null,
+    facadeSpan: { from: number; to: number } | null = null
   ) {
     const { winW, winH, winY } = opening;
     const half = panelWidth / 2;
@@ -3641,8 +3801,27 @@ export class HouseScene {
       }
     }
 
+    const cut = facadeTop == null || facadeSpan == null ? null : facadeTop - parent.position.y;
+    const visible = cut == null || facadeSpan == null ? boards : boards.flatMap((board) => {
+      const top = board.y + board.h / 2;
+      const boardLeft = board.x - board.w / 2;
+      const boardRight = board.x + board.w / 2;
+      const span = facadeSpan ?? { from: boardLeft, to: boardRight };
+      const slices = [
+        { from: boardLeft, to: Math.min(boardRight, span.from), clip: false },
+        { from: Math.max(boardLeft, span.from), to: Math.min(boardRight, span.to), clip: true },
+        { from: Math.max(boardLeft, span.to), to: boardRight, clip: false }
+      ];
+      return slices.flatMap((slice) => {
+        if (slice.to - slice.from < 0.01) return [];
+        const kept = slice.clip ? Math.max(board.y - board.h / 2, cut) : board.y - board.h / 2;
+        if (top - kept < 0.01) return [];
+        return [{ x: (slice.from + slice.to) / 2, y: (top + kept) / 2, w: slice.to - slice.from, h: top - kept }];
+      });
+    });
+
     let first: THREE.Mesh | null = null;
-    for (const board of boards) {
+    for (const board of visible) {
       const piece = new THREE.BoxGeometry(board.w, board.h, claddingThick);
       this.writeMetreUvs(piece, parent.position.y + board.y);
       const mesh = new THREE.Mesh(piece, material);
@@ -6342,20 +6521,21 @@ export class HouseScene {
   }
 
   private anchorFor(id: string) {
-    const w = this.currentConfig.widthMm / 1000;
-    const d = this.currentConfig.depthMm / 1000;
+    const shell = this.timberShell();
+    const w = shell.widthM;
+    const d = shell.depthM;
     const h = this.wallTopM();
     const mid = Math.max((h - 0.25) * 0.45, 0.8);
-    if (id === 'roof') return this.notePoint.set(0, (this.currentConfig.heightMm / 1000) + 0.1, 0);
-    if (id === 'floor') return this.notePoint.set(0, 0.4, 0);
+    if (id === 'roof') return this.notePoint.set(shell.x, (this.currentConfig.heightMm / 1000) + 0.1, shell.z);
+    if (id === 'floor') return this.notePoint.set(shell.x, 0.4, shell.z);
     if (id === 'loft') {
       if (!this.currentConfig.hasLoft) return null;
-      return this.notePoint.set(0, h * 0.72, 0);
+      return this.notePoint.set(shell.x, h * 0.72, shell.z);
     }
-    if (id === 'wall-front') return this.notePoint.set(0, mid, d / 2);
-    if (id === 'wall-back') return this.notePoint.set(0, mid, -d / 2);
-    if (id === 'wall-left') return this.notePoint.set(-w / 2, mid, 0);
-    if (id === 'wall-right') return this.notePoint.set(w / 2, mid, 0);
+    if (id === 'wall-front') return this.notePoint.set(shell.x, mid, shell.z + d / 2);
+    if (id === 'wall-back') return this.notePoint.set(shell.x, mid, shell.z - d / 2);
+    if (id === 'wall-left') return this.notePoint.set(shell.x - w / 2, mid, shell.z);
+    if (id === 'wall-right') return this.notePoint.set(shell.x + w / 2, mid, shell.z);
     if (id.startsWith('slot:')) {
       const mesh = this.interactivePanels.find((item) => item.userData.slotId === id.slice(5));
       if (!mesh) return null;

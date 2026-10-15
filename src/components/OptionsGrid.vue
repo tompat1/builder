@@ -79,7 +79,7 @@
 
         <div class="flex items-center justify-between gap-3 mt-3 mb-1.5">
           <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">
-            <Cms k="category.customSize" />
+            <Cms :k="store.selectedSizeId === 'size-paabyggnad' ? 'category.timberSize' : 'category.customSize'" />
           </h4>
           <div class="relative shrink-0 flex items-center">
             <input
@@ -159,6 +159,153 @@
         <p v-if="store.selectedSizeId === 'size-paabyggnad'" class="text-[11px] text-slate-600 mt-1.5 leading-snug">
           <Cms k="category.paabyggnadHint" />
         </p>
+
+        <div v-if="store.selectedSizeId === 'size-paabyggnad'" class="mt-4">
+          <div class="flex items-center justify-between gap-3 mb-1.5">
+            <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">
+              <Cms k="category.concreteSize" />
+            </h4>
+            <span class="text-xs font-extrabold tabular-nums text-slate-700">
+              {{ concreteArea.toFixed(1) }} m²
+            </span>
+          </div>
+          <div class="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_minmax(0,1fr)] items-end gap-2">
+            <label class="block min-w-0">
+              <span class="block text-[11px] font-semibold text-slate-600 mb-1">
+                <Cms k="category.width" />
+                <span class="font-medium text-slate-400"> ({{ t('category.unitCm') }})</span>
+              </span>
+              <input
+                type="number"
+                id="measure-concrete-width"
+                class="w-full text-xs font-semibold tabular-nums bg-white border border-slate-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                :min="concreteLimit('width', 'min')"
+                :max="concreteLimit('width', 'max')"
+                step="0.1"
+                :value="centimetres(store.concreteWidth)"
+                @change="commitConcrete('width', $event)"
+              />
+            </label>
+            <button
+              type="button"
+              id="btn-swap-concrete"
+              class="mb-px flex h-[30px] w-7 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-600 hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus-visible:ring-1 focus-visible:ring-slate-900"
+              :aria-label="t('category.swapMeasures')"
+              :title="t('category.swapMeasures')"
+              @click="store.swapConcretePlan()"
+            >
+              <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M4 8h13M14 5l3 3-3 3" />
+                <path d="M20 16H7M10 13l-3 3 3 3" />
+              </svg>
+            </button>
+            <label class="block min-w-0">
+              <span class="block text-[11px] font-semibold text-slate-600 mb-1">
+                <Cms k="category.depth" />
+                <span class="font-medium text-slate-400"> ({{ t('category.unitCm') }})</span>
+              </span>
+              <input
+                type="number"
+                id="measure-concrete-depth"
+                class="w-full text-xs font-semibold tabular-nums bg-white border border-slate-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                :min="concreteLimit('depth', 'min')"
+                :max="concreteLimit('depth', 'max')"
+                step="0.1"
+                :value="centimetres(store.concreteDepth)"
+                @change="commitConcrete('depth', $event)"
+              />
+            </label>
+            <label class="block min-w-0">
+              <span class="block text-[11px] font-semibold text-slate-600 mb-1">
+                <Cms k="category.height" />
+                <span class="font-medium text-slate-400"> ({{ t('category.unitCm') }})</span>
+              </span>
+              <input
+                type="number"
+                id="measure-concrete-height"
+                class="w-full text-xs font-semibold tabular-nums bg-white border border-slate-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-slate-900"
+                :min="concreteLimit('height', 'min')"
+                :max="concreteLimit('height', 'max')"
+                step="0.1"
+                :value="centimetres(store.concreteHeight)"
+                @change="commitConcrete('height', $event)"
+              />
+            </label>
+          </div>
+          <div class="mt-3 flex items-center justify-between gap-3">
+            <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">
+              <Cms k="category.concreteWalls" />
+            </h4>
+            <button
+              type="button"
+              id="btn-add-concrete-wall"
+              class="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-800 hover:border-slate-400 hover:bg-slate-50 focus:outline-none focus-visible:ring-1 focus-visible:ring-slate-900 disabled:cursor-not-allowed disabled:opacity-40"
+              :disabled="store.concreteWalls.length >= 8"
+              @click="store.addConcreteWall()"
+            >
+              <Cms k="category.addConcreteWall" />
+            </button>
+          </div>
+          <div v-if="store.concreteWalls.length === 0" class="mt-1.5 text-[11px] leading-snug text-slate-500">
+            <Cms k="category.concreteWallsHint" />
+          </div>
+          <div
+            v-for="wall in store.concreteWalls"
+            :key="wall.id"
+            class="mt-2 grid grid-cols-[minmax(0,1fr)_minmax(0,0.7fr)_auto] items-end gap-2"
+          >
+            <div class="min-w-0">
+              <span class="mb-1 block text-[11px] font-semibold text-slate-600">
+                <Cms k="category.concreteWallRun" />
+              </span>
+              <div class="flex rounded-lg border border-slate-300 bg-white p-0.5">
+                <button
+                  type="button"
+                  class="min-h-7 flex-1 rounded-md px-1.5 text-[11px] font-bold focus:outline-none focus-visible:ring-1 focus-visible:ring-slate-900"
+                  :class="wall.axis === 'x' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-50'"
+                  :aria-pressed="wall.axis === 'x'"
+                  @click="store.setConcreteWall(wall.id, { axis: 'x' })"
+                >
+                  <Cms k="category.concreteWallAcross" />
+                </button>
+                <button
+                  type="button"
+                  class="min-h-7 flex-1 rounded-md px-1.5 text-[11px] font-bold focus:outline-none focus-visible:ring-1 focus-visible:ring-slate-900"
+                  :class="wall.axis === 'z' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-50'"
+                  :aria-pressed="wall.axis === 'z'"
+                  @click="store.setConcreteWall(wall.id, { axis: 'z' })"
+                >
+                  <Cms k="category.concreteWallAlong" />
+                </button>
+              </div>
+            </div>
+            <label class="block min-w-0">
+              <span class="mb-1 block text-[11px] font-semibold text-slate-600">
+                <Cms k="category.concreteWallPlace" />
+                <span class="font-medium text-slate-400"> ({{ t('category.unitCm') }})</span>
+              </span>
+              <input
+                type="number"
+                class="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-semibold tabular-nums focus:outline-none focus:ring-1 focus:ring-slate-900"
+                :min="concreteWallLimit(wall.axis, 'min')"
+                :max="concreteWallLimit(wall.axis, 'max')"
+                step="1"
+                :value="centimetres(wall.offsetMm)"
+                @change="commitConcreteWall(wall.id, $event)"
+              />
+            </label>
+            <button
+              type="button"
+              class="mb-px flex h-[30px] w-7 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-600 hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus-visible:ring-1 focus-visible:ring-slate-900"
+              :aria-label="t('category.removeConcreteWall')"
+              @click="store.removeConcreteWall(wall.id)"
+            >
+              <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+                <path d="M6 6l12 12M18 6 6 18" />
+              </svg>
+            </button>
+          </div>
+        </div>
       </div>
 
       <div class="pt-3 border-t border-slate-200/70">
@@ -1881,13 +2028,33 @@ const panelOrientations = [
   { id: 'liggande' as const, label: 'category.lying' }
 ];
 
+const concreteArea = computed(() => Math.round((store.concreteWidth * store.concreteDepth) / 1e5) / 10);
+
 function planLimit(axis: 'width' | 'depth' | 'height', edge: 'min' | 'max') {
   if (store.selectedSizeId !== 'size-paabyggnad') return BUILDING_LIMITS[axis][edge] / 10;
   if (axis === 'height') return edge === 'min' ? 450 : 500;
-  if (edge === 'min') return 520;
+  if (edge === 'min') return BUILDING_LIMITS[axis].min / 10;
   const otherMm = axis === 'width' ? store.dimensions.depth : store.dimensions.width;
   const capCm = (35 * 1_000_000) / otherMm / 10;
   return Math.min(BUILDING_LIMITS[axis].max / 10, capCm);
+}
+
+function concreteLimit(axis: 'width' | 'depth' | 'height', edge: 'min' | 'max') {
+  if (axis === 'height') return edge === 'min' ? 200 : 400;
+  return BUILDING_LIMITS[axis][edge] / 10;
+}
+
+function concreteWallLimit(axis: 'x' | 'z', edge: 'min' | 'max') {
+  const span = axis === 'x' ? store.concreteDepth : store.concreteWidth;
+  const max = Math.max(0, span / 2 - 400) / 10;
+  return edge === 'min' ? -max : max;
+}
+
+function commitConcreteWall(id: string, event: Event) {
+  const raw = Number((event.target as HTMLInputElement).value);
+  store.setConcreteWall(id, { offsetMm: Math.round(raw * 10) });
+  const wall = store.concreteWalls.find((item) => item.id === id);
+  if (wall) (event.target as HTMLInputElement).value = centimetres(wall.offsetMm);
 }
 
 function centimetres(millimetres: number) {
@@ -1899,6 +2066,17 @@ function commitMeasure(axis: 'width' | 'depth' | 'height', event: Event) {
   const raw = Number((event.target as HTMLInputElement).value);
   store.setBuildingMeasure(axis, Math.round(raw * 10));
   (event.target as HTMLInputElement).value = centimetres(store.dimensions[axis]);
+}
+
+function commitConcrete(axis: 'width' | 'depth' | 'height', event: Event) {
+  const raw = Number((event.target as HTMLInputElement).value);
+  store.setConcreteMeasure(axis, Math.round(raw * 10));
+  const millimetres = axis === 'width'
+    ? store.concreteWidth
+    : axis === 'depth'
+      ? store.concreteDepth
+      : store.concreteHeight;
+  (event.target as HTMLInputElement).value = centimetres(millimetres);
 }
 
 function commitArea(event: Event) {

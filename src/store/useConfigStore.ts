@@ -21,7 +21,17 @@ import {
 import { eaveLiftMm, gablePitchDegrees, wallPlateHeightM } from './roof';
 import { floorAreaSqMeters } from './area';
 import { isLoftRoom } from '../three-engine/loftLevel';
-import { clampPaabyggnadPlan, paabyggnadLoftAreas } from './paabyggnad';
+import {
+  CONCRETE_DEFAULT_HEIGHT_MM,
+  CONCRETE_PLAN_MM,
+  acceptConcreteWalls,
+  clampConcretePlan,
+  clampConcreteWall,
+  clampPaabyggnadPlan,
+  paabyggnadLoftAreas,
+  CONCRETE_WALL_LIMIT,
+  type ConcreteWall
+} from './paabyggnad';
 import { overlightItem } from '../three-engine/windowFit';
 import { acceptPlacedRooms, type PlacedRoom } from '../three-engine/roomWalls';
 import {
@@ -639,6 +649,10 @@ export const useConfigStore = defineStore('config', () => {
   const buildingWidth = ref(startingSize.width);
   const buildingDepth = ref(startingSize.depth);
   const buildingHeight = ref(startingSize.height);
+  const concreteWidth = ref(CONCRETE_PLAN_MM);
+  const concreteDepth = ref(CONCRETE_PLAN_MM);
+  const concreteHeight = ref(CONCRETE_DEFAULT_HEIGHT_MM);
+  const concreteWalls = ref<ConcreteWall[]>([]);
   const activeRoof = ref<string>('pulpettak');
   const roofCovering = ref<RoofCovering>('felt');
   const activeLoft = ref<string>('none');
@@ -756,6 +770,10 @@ export const useConfigStore = defineStore('config', () => {
       buildingWidth: buildingWidth.value,
       buildingDepth: buildingDepth.value,
       buildingHeight: buildingHeight.value,
+      concreteWidth: concreteWidth.value,
+      concreteDepth: concreteDepth.value,
+      concreteHeight: concreteHeight.value,
+      concreteWalls: concreteWalls.value.map((wall) => ({ ...wall })),
       activeRoof: activeRoof.value,
       roofCovering: roofCovering.value,
       activeLoft: activeLoft.value,
@@ -825,6 +843,17 @@ export const useConfigStore = defineStore('config', () => {
       buildingWidth.value = clampMeasure('width', data.buildingWidth ?? preset.width);
       buildingDepth.value = clampMeasure('depth', data.buildingDepth ?? preset.depth);
       buildingHeight.value = clampMeasure('height', data.buildingHeight ?? preset.height);
+      const loadedConcrete = clampConcretePlan('width', {
+        width: Number.isFinite(data.concreteWidth) ? data.concreteWidth : CONCRETE_PLAN_MM,
+        depth: Number.isFinite(data.concreteDepth) ? data.concreteDepth : CONCRETE_PLAN_MM,
+        height: Number.isFinite(data.concreteHeight) ? data.concreteHeight : CONCRETE_DEFAULT_HEIGHT_MM
+      });
+      const loadedDepth = clampConcretePlan('depth', loadedConcrete);
+      const loadedHeight = clampConcretePlan('height', loadedDepth);
+      concreteWidth.value = loadedHeight.width;
+      concreteDepth.value = loadedHeight.depth;
+      concreteHeight.value = loadedHeight.height;
+      concreteWalls.value = acceptConcreteWalls(data.concreteWalls, loadedHeight.width, loadedHeight.depth);
       activeRoof.value = data.activeRoof;
       if (ROOF_COVERINGS.some((item) => item.id === data.roofCovering)) {
         roofCovering.value = data.roofCovering;
@@ -1228,6 +1257,10 @@ export const useConfigStore = defineStore('config', () => {
     else if (id === 'size-shed') applyShedShell();
     else if (leavingShell) applyPlainShell();
     if (id === 'size-paabyggnad') {
+      concreteWidth.value = CONCRETE_PLAN_MM;
+      concreteDepth.value = CONCRETE_PLAN_MM;
+      concreteHeight.value = CONCRETE_DEFAULT_HEIGHT_MM;
+      concreteWalls.value = [];
       activeLoft.value = 'sleeping';
       const loftAreas = paabyggnadLoftAreas(buildingWidth.value, buildingDepth.value);
       selectedLoftSize.value = loftAreas[loftAreas.length - 1];
@@ -1261,6 +1294,69 @@ export const useConfigStore = defineStore('config', () => {
     if (axis === 'width') buildingWidth.value = next;
     else if (axis === 'depth') buildingDepth.value = next;
     else buildingHeight.value = next;
+    saveSnapshot();
+  }
+
+  function setConcreteMeasure(axis: BuildingAxis, value: number) {
+    if (selectedSizeId.value !== 'size-paabyggnad') return;
+    const concrete = {
+      width: axis === 'width' ? value : concreteWidth.value,
+      depth: axis === 'depth' ? value : concreteDepth.value,
+      height: axis === 'height' ? value : concreteHeight.value
+    };
+    const fitted = clampConcretePlan(axis, concrete);
+    concreteWidth.value = fitted.width;
+    concreteDepth.value = fitted.depth;
+    concreteHeight.value = fitted.height;
+    concreteWalls.value = concreteWalls.value.map((wall) => clampConcreteWall(wall, fitted.width, fitted.depth));
+    saveSnapshot();
+  }
+
+  function addConcreteWall() {
+    if (selectedSizeId.value !== 'size-paabyggnad') return;
+    if (concreteWalls.value.length >= CONCRETE_WALL_LIMIT) return;
+    const axis: ConcreteWall['axis'] = concreteWalls.value.length % 2 === 0 ? 'x' : 'z';
+    const same = concreteWalls.value.filter((wall) => wall.axis === axis).length;
+    const wall = clampConcreteWall({
+      id: `cw_${crypto.randomUUID().replaceAll('-', '').slice(0, 12)}`,
+      axis,
+      offsetMm: same * 800
+    }, concreteWidth.value, concreteDepth.value);
+    concreteWalls.value = [...concreteWalls.value, wall];
+    saveSnapshot();
+  }
+
+  function setConcreteWall(id: string, patch: Partial<Pick<ConcreteWall, 'axis' | 'offsetMm'>>) {
+    concreteWalls.value = concreteWalls.value.map((wall) => {
+      if (wall.id !== id) return wall;
+      return clampConcreteWall({
+        ...wall,
+        axis: patch.axis === 'x' || patch.axis === 'z' ? patch.axis : wall.axis,
+        offsetMm: Number.isFinite(patch.offsetMm) ? patch.offsetMm! : wall.offsetMm
+      }, concreteWidth.value, concreteDepth.value);
+    });
+    saveSnapshot();
+  }
+
+  function removeConcreteWall(id: string) {
+    if (!concreteWalls.value.some((wall) => wall.id === id)) return;
+    concreteWalls.value = concreteWalls.value.filter((wall) => wall.id !== id);
+    saveSnapshot();
+  }
+
+  function swapConcretePlan() {
+    if (selectedSizeId.value !== 'size-paabyggnad') return;
+    const width = concreteDepth.value;
+    const depth = concreteWidth.value;
+    if (width === concreteWidth.value && depth === concreteDepth.value) return;
+    const swapped = clampConcretePlan('depth', clampConcretePlan('width', {
+      width,
+      depth,
+      height: concreteHeight.value
+    }));
+    concreteWidth.value = swapped.width;
+    concreteDepth.value = swapped.depth;
+    concreteWalls.value = concreteWalls.value.map((wall) => clampConcreteWall(wall, swapped.width, swapped.depth));
     saveSnapshot();
   }
 
@@ -1862,6 +1958,15 @@ export const useConfigStore = defineStore('config', () => {
     selectSize,
     setBuildingMeasure,
     swapBuildingPlan,
+    concreteWidth,
+    concreteDepth,
+    concreteHeight,
+    concreteWalls,
+    setConcreteMeasure,
+    swapConcretePlan,
+    addConcreteWall,
+    setConcreteWall,
+    removeConcreteWall,
     selectRoof,
     selectRoofCovering,
     selectLoft,

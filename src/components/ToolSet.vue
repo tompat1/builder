@@ -5,18 +5,25 @@
     :aria-label="t('tools.label')"
   >
     <div
-      class="flex min-w-0 items-end rounded-2xl border border-slate-200/80 bg-white/95 p-1 shadow-md min-[1180px]:contents"
-      :class="toolsOpen ? 'w-full' : 'w-auto'"
+      class="flex min-w-0 items-end min-[1180px]:contents"
+      :class="toolsOpen
+        ? 'w-full rounded-2xl border border-slate-200/80 bg-white/95 p-1 shadow-md'
+        : 'w-auto self-start'"
     >
       <button
+        id="btn-toggle-tools"
         type="button"
-        class="grid h-12 w-12 shrink-0 place-items-center rounded-xl text-[#173D35] hover:bg-[#F5F3EC] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5A00] min-[1180px]:hidden"
+        class="grid h-12 w-12 shrink-0 place-items-center rounded-xl text-[#173D35] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5A00] min-[1180px]:hidden"
+        :class="toolsOpen ? 'hover:bg-[#F5F3EC]' : 'border border-slate-200/80 bg-white/95 shadow-md hover:bg-[#F5F3EC]'"
         :aria-expanded="toolsOpen"
         :aria-label="toolsOpen ? t('tools.collapse') : t('tools.expand')"
         @click="toggleTools"
       >
-        <svg class="h-5 w-5 transition-transform" :class="toolsOpen ? '' : 'rotate-180'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <svg v-if="toolsOpen" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M6 9l6 6 6-6" />
+        </svg>
+        <svg v-else class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
         </svg>
       </button>
       <div

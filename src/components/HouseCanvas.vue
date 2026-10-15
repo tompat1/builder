@@ -167,7 +167,11 @@ onMounted(() => {
       doorCanopy: store.doorCanopy,
       flushRoof: store.flushRoof,
       terraces: store.terraces.map((item) => ({ ...item })),
-      concreteBase: store.selectedSizeId === 'size-paabyggnad'
+      concreteBase: store.selectedSizeId === 'size-paabyggnad',
+      concreteWidthMm: store.concreteWidth,
+      concreteDepthMm: store.concreteDepth,
+      concreteHeightMm: store.concreteHeight,
+      concreteWalls: store.concreteWalls.map((wall) => ({ ...wall }))
     });
 
     // Wire raycast clicks & hover from 3D scene to store
@@ -394,9 +398,21 @@ watch(
 );
 
 watch(
-  () => store.selectedSizeId,
-  (id) => {
-    engine?.updateConfig({ concreteBase: id === 'size-paabyggnad' });
+  () => [
+    store.selectedSizeId,
+    store.concreteWidth,
+    store.concreteDepth,
+    store.concreteHeight,
+    store.concreteWalls.map((wall) => `${wall.id}:${wall.axis}:${wall.offsetMm}`).join('|')
+  ] as const,
+  ([id, width, depth, height]) => {
+    engine?.updateConfig({
+      concreteBase: id === 'size-paabyggnad',
+      concreteWidthMm: width,
+      concreteDepthMm: depth,
+      concreteHeightMm: height,
+      concreteWalls: store.concreteWalls.map((wall) => ({ ...wall }))
+    });
   }
 );
 
