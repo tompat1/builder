@@ -11,6 +11,7 @@ import { INTERIOR_FLOOR_TOP, LOFT_FLOORBOARD, curvedLoftStair, loftEndRotation, 
 import { ceilingStations, loftCeilingY, sliceStations, type CeilingStation, type RoofSlope } from './roofClearance';
 import { OVERLIGHT, PORTRAIT_PANORAMA, fittedDoorOpening, openingClearOfRoof, overlightHeight, portraitPane } from './windowFit';
 import { fitRoom, innerHalf, roomFootprint, roomWallRuns, shellSides, type ShellSides } from './roomWalls';
+import { CONCRETE_STOREY_TOP_M, panelOnConcrete } from '../store/paabyggnad';
 
 const PULPET_PITCH_RAD = (PULPET_PITCH_DEG * Math.PI) / 180;
 
@@ -75,6 +76,8 @@ export interface SceneConfig {
   cornerColor?: string | null;
   /** Whether exterior corner boards (knutbrädor) are visible. */
   cornerBoards?: boolean;
+  /** Lower storey is the existing 520 × 520 cm concrete house. Timber starts above it. */
+  concreteBase?: boolean;
 }
 
 interface OutsideAnchor {
@@ -267,7 +270,8 @@ export class HouseScene {
       flushRoof: initialConfig?.flushRoof ?? false,
       terraces: initialConfig?.terraces ?? [],
       cornerColor: initialConfig?.cornerColor ?? 'same',
-      cornerBoards: initialConfig?.cornerBoards ?? true
+      cornerBoards: initialConfig?.cornerBoards ?? true,
+      concreteBase: initialConfig?.concreteBase ?? false
     };
 
     this.scene = new THREE.Scene();
@@ -1710,6 +1714,11 @@ export class HouseScene {
       color: '#94a3b8',
       roughness: 0.95
     });
+    const concreteWallMat = new THREE.MeshStandardMaterial({
+      color: '#b7b3ac',
+      roughness: 0.94,
+      metalness: 0
+    });
 
     // 1. Concrete slab foundation
     const slabGeo = new THREE.BoxGeometry(w + 0.35, 0.25, d + 0.35);
@@ -1727,10 +1736,10 @@ export class HouseScene {
     this.wallsGroup.add(floor);
 
     // 3. Modular Exterior Walls Construction (outer wood siding, inside left open for beams)
-    this.buildModularWall('front', 4, w, d, h, wallThick, exteriorMat, doorBayMat, trimMat, casingMat);
-    this.buildModularWall('back', 4, w, d, h, wallThick, exteriorMat, doorBayMat, trimMat, casingMat);
-    this.buildModularWall('left', 3, w, d, h, wallThick, exteriorMat, doorBayMat, trimMat, casingMat);
-    this.buildModularWall('right', 3, w, d, h, wallThick, exteriorMat, doorBayMat, trimMat, casingMat);
+    this.buildModularWall('front', 4, w, d, h, wallThick, exteriorMat, doorBayMat, trimMat, casingMat, concreteWallMat);
+    this.buildModularWall('back', 4, w, d, h, wallThick, exteriorMat, doorBayMat, trimMat, casingMat, concreteWallMat);
+    this.buildModularWall('left', 3, w, d, h, wallThick, exteriorMat, doorBayMat, trimMat, casingMat, concreteWallMat);
+    this.buildModularWall('right', 3, w, d, h, wallThick, exteriorMat, doorBayMat, trimMat, casingMat, concreteWallMat);
     this.buildOutsideAdditions(w, d, h);
     if (!this.interiorCut() && this.currentConfig.panelOrientation !== 'liggande') {
       this.addBeltFlashing(w, d, h);
@@ -1915,7 +1924,8 @@ export class HouseScene {
     exteriorMat: THREE.Material,
     doorBayMat: THREE.Material,
     trimMat: THREE.Material,
-    casingMat: THREE.Material
+    casingMat: THREE.Material,
+    concreteWallMat: THREE.Material
   ) {
     const isPulpettak = this.currentConfig.roofType === 'pulpettak';
     const angleRad = PULPET_PITCH_RAD;
@@ -1970,9 +1980,12 @@ export class HouseScene {
 
       if (!this.interiorCut()) panelWallH += 0.04;
 
-      const belt = this.beltRise(h);
+      const concrete = this.currentConfig.concreteBase === true;
+      const belt = this.storeyRise(h);
       const upperId = `${wallSide}-${i}u`;
-      const split = Boolean(this.currentConfig.wallSlots[upperId]) && panelWallH > belt + 0.4;
+      const split = concrete
+        ? panelWallH > belt + 0.4
+        : Boolean(this.currentConfig.wallSlots[upperId]) && panelWallH > belt + 0.4;
       const bands = split
         ? [
             { slotId, height: belt, base: baseElev, upper: false, reachesRoof: false },
@@ -1991,6 +2004,10 @@ export class HouseScene {
           && bay.itemId !== 'SKJUTDORR'
           && bay.itemId !== 'SKJUTDORR3'
         );
+        const oldConcrete = concrete
+          && !band.upper
+          && panelOnConcrete(wallSide, px, pz, panelWidth);
+        const faceMat = oldConcrete ? concreteWallMat : (uprightDoor ? doorBayMat : exteriorMat);
         this.buildWallBand(
           band,
           px,
@@ -2002,7 +2019,7 @@ export class HouseScene {
           wallSide,
           i,
           slope,
-          uprightDoor ? doorBayMat : exteriorMat,
+          faceMat,
           casingMat
         );
       }
@@ -2052,6 +2069,12 @@ export class HouseScene {
     return 2.15;
   }
 
+  /** Height of the lower storey, measured from the wall base. Concrete houses stop at 2.5 m. */
+  private storeyRise(wallTop: number) {
+    if (this.currentConfig.concreteBase) return CONCRETE_STOREY_TOP_M - 0.25;
+    return this.beltRise(wallTop);
+  }
+
   /** Rolled white metal: fine horizontal ribs, a bright top edge, a darker drip. */
   private createBeltMetalTexture(): THREE.CanvasTexture {
     const canvas = document.createElement('canvas');
@@ -2085,7 +2108,7 @@ export class HouseScene {
    */
   private addBeltFlashing(w: number, d: number, wallTop: number) {
     if (this.currentConfig.panelOrientation === 'liggande') return;
-    const y = 0.25 + this.beltRise(wallTop);
+    const y = 0.25 + this.storeyRise(wallTop);
     const faceH = 0.11;
     const proj = 0.036;
     const standOff = 0.008;
@@ -3338,7 +3361,7 @@ export class HouseScene {
         center = -d / 2 + endInset + (p + 0.5) * panelW;
         panelWallH = this.sidePanelHeight(d, h, rearH, yMid, PULPET_PITCH_RAD, center, base);
       }
-      const belt = this.beltRise(h);
+      const belt = this.storeyRise(h);
       const lowerH = Math.min(belt, panelWallH);
       const split = Boolean(this.currentConfig.wallSlots[`${wall}-${p}u`]) && panelWallH > belt + 0.4 && !this.interiorCut();
       const bands = split

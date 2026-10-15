@@ -21,6 +21,7 @@ import {
 import { eaveLiftMm, gablePitchDegrees, wallPlateHeightM } from './roof';
 import { floorAreaSqMeters } from './area';
 import { isLoftRoom } from '../three-engine/loftLevel';
+import { clampPaabyggnadPlan, paabyggnadLoftAreas } from './paabyggnad';
 import { overlightItem } from '../three-engine/windowFit';
 import { acceptPlacedRooms, type PlacedRoom } from '../three-engine/roomWalls';
 import {
@@ -205,6 +206,17 @@ export const SIZE_OPTIONS: SizeOption[] = [
     areaSqMeters: 29.9,
     basePrice: 103634,
     desc: '6040 × 4950 mm. Maximal bygglovsfri boendeyta.'
+  },
+  {
+    id: 'size-paabyggnad',
+    name: 'Påbyggnad på betonghus',
+    badge: 'Upp till 35 m²',
+    width: 5200,
+    depth: 5200,
+    height: 5000,
+    areaSqMeters: 27,
+    basePrice: 98000,
+    desc: '5200 × 5200 mm betonghus, 2,5 m högt. Gamla taket tas bort. Träloft och påbyggnad ovanför, höjd upp till 500 cm, yta upp till 35 m².'
   },
   {
     id: 'size-cube',
@@ -987,6 +999,23 @@ export const useConfigStore = defineStore('config', () => {
         { areaSqMeters: 11.0, label: '11,0 m²', descId: 'large', desc: 'Stort sovloft', priceDelta: 20500 },
         { areaSqMeters: 13.7, label: '13,7 m²', descId: 'whole-floor', desc: 'Hela golvytan', priceDelta: 24800 }
       ];
+    } else if (selectedSizeId.value === 'size-paabyggnad') {
+      const areas = paabyggnadLoftAreas(buildingWidth.value, buildingDepth.value);
+      const copy = [
+        { descId: 'compact', desc: 'Sovloft över betongen', priceDelta: 18500 },
+        { descId: 'generous', desc: 'Större loft', priceDelta: 26800 },
+        { descId: 'full-floor', desc: 'Hela den nya våningen', priceDelta: 34800 }
+      ];
+      return areas.map((areaSqMeters, index) => {
+        const item = copy[Math.min(index, copy.length - 1)];
+        return {
+          areaSqMeters,
+          label: `${areaSqMeters.toLocaleString('sv-SE')} m²`,
+          descId: item.descId,
+          desc: item.desc,
+          priceDelta: item.priceDelta
+        };
+      });
     } else if (selectedSizeId.value === 'size-shed') {
       return [
         { areaSqMeters: 4.2, label: '4,2 m²', descId: 'alcove', desc: 'Kompakt förvaring', priceDelta: 9800 },
@@ -1198,6 +1227,11 @@ export const useConfigStore = defineStore('config', () => {
     else if (id === 'size-sauna') applySaunaShell();
     else if (id === 'size-shed') applyShedShell();
     else if (leavingShell) applyPlainShell();
+    if (id === 'size-paabyggnad') {
+      activeLoft.value = 'sleeping';
+      const loftAreas = paabyggnadLoftAreas(buildingWidth.value, buildingDepth.value);
+      selectedLoftSize.value = loftAreas[loftAreas.length - 1];
+    }
     // Ensure selectedLoftSize is valid for this new size
     const available = availableLoftSizes.value;
     if (available.length > 0 && !available.some((s) => Math.abs(s.areaSqMeters - selectedLoftSize.value) < 0.1)) {
@@ -1208,6 +1242,22 @@ export const useConfigStore = defineStore('config', () => {
 
   function setBuildingMeasure(axis: BuildingAxis, value: number) {
     const next = clampMeasure(axis, value);
+    if (selectedSizeId.value === 'size-paabyggnad') {
+      const plan = clampPaabyggnadPlan(
+        axis,
+        axis === 'width' ? next : buildingWidth.value,
+        axis === 'depth' ? next : buildingDepth.value,
+        axis === 'height' ? next : buildingHeight.value
+      );
+      buildingWidth.value = plan.width;
+      buildingDepth.value = plan.depth;
+      buildingHeight.value = plan.height;
+      const loftAreas = paabyggnadLoftAreas(plan.width, plan.depth);
+      const whole = loftAreas[loftAreas.length - 1];
+      if (selectedLoftSize.value > whole + 0.05) selectedLoftSize.value = whole;
+      saveSnapshot();
+      return;
+    }
     if (axis === 'width') buildingWidth.value = next;
     else if (axis === 'depth') buildingDepth.value = next;
     else buildingHeight.value = next;

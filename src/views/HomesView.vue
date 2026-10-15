@@ -75,7 +75,7 @@ const images: Record<string, string> = {
   'size-cube': '/homes/home-cube.webp'
 };
 
-const homes = SIZE_OPTIONS.map((size) => ({ ...size, image: images[size.id] }));
+const homes = SIZE_OPTIONS.filter((size) => images[size.id]).map((size) => ({ ...size, image: images[size.id] }));
 
 const steps = [
   { title: 'site.stepShape', body: 'site.stepShapeBody', image: '/steps/step-01-shape.webp' },

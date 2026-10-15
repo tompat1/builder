@@ -166,7 +166,8 @@ onMounted(() => {
       wallSlots: store.wallSlots,
       doorCanopy: store.doorCanopy,
       flushRoof: store.flushRoof,
-      terraces: store.terraces.map((item) => ({ ...item }))
+      terraces: store.terraces.map((item) => ({ ...item })),
+      concreteBase: store.selectedSizeId === 'size-paabyggnad'
     });
 
     // Wire raycast clicks & hover from 3D scene to store
@@ -390,6 +391,13 @@ watch(
     });
   },
   { deep: true }
+);
+
+watch(
+  () => store.selectedSizeId,
+  (id) => {
+    engine?.updateConfig({ concreteBase: id === 'size-paabyggnad' });
+  }
 );
 
 // Watch roof type

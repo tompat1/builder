@@ -102,8 +102,8 @@
               type="number"
               id="measure-width"
               class="w-full text-xs font-semibold tabular-nums bg-white border border-slate-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-slate-900"
-              :min="BUILDING_LIMITS.width.min / 10"
-              :max="BUILDING_LIMITS.width.max / 10"
+              :min="planLimit('width', 'min')"
+              :max="planLimit('width', 'max')"
               step="0.1"
               :value="centimetres(store.dimensions.width)"
               @change="commitMeasure('width', $event)"
@@ -131,8 +131,8 @@
               type="number"
               id="measure-depth"
               class="w-full text-xs font-semibold tabular-nums bg-white border border-slate-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-slate-900"
-              :min="BUILDING_LIMITS.depth.min / 10"
-              :max="BUILDING_LIMITS.depth.max / 10"
+              :min="planLimit('depth', 'min')"
+              :max="planLimit('depth', 'max')"
               step="0.1"
               :value="centimetres(store.dimensions.depth)"
               @change="commitMeasure('depth', $event)"
@@ -147,8 +147,8 @@
               type="number"
               id="measure-height"
               class="w-full text-xs font-semibold tabular-nums bg-white border border-slate-300 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-1 focus:ring-slate-900"
-              :min="BUILDING_LIMITS.height.min / 10"
-              :max="BUILDING_LIMITS.height.max / 10"
+              :min="planLimit('height', 'min')"
+              :max="planLimit('height', 'max')"
               step="0.1"
               :value="centimetres(store.dimensions.height)"
               @change="commitMeasure('height', $event)"
@@ -156,6 +156,9 @@
           </label>
         </div>
         <p class="text-[11px] text-slate-500 mt-1.5"><Cms k="category.heightHint" /></p>
+        <p v-if="store.selectedSizeId === 'size-paabyggnad'" class="text-[11px] text-slate-600 mt-1.5 leading-snug">
+          <Cms k="category.paabyggnadHint" />
+        </p>
       </div>
 
       <div class="pt-3 border-t border-slate-200/70">
@@ -1877,6 +1880,15 @@ const panelOrientations = [
   { id: 'staende' as const, label: 'category.standing' },
   { id: 'liggande' as const, label: 'category.lying' }
 ];
+
+function planLimit(axis: 'width' | 'depth' | 'height', edge: 'min' | 'max') {
+  if (store.selectedSizeId !== 'size-paabyggnad') return BUILDING_LIMITS[axis][edge] / 10;
+  if (axis === 'height') return edge === 'min' ? 450 : 500;
+  if (edge === 'min') return 520;
+  const otherMm = axis === 'width' ? store.dimensions.depth : store.dimensions.width;
+  const capCm = (35 * 1_000_000) / otherMm / 10;
+  return Math.min(BUILDING_LIMITS[axis].max / 10, capCm);
+}
 
 function centimetres(millimetres: number) {
   const cm = millimetres / 10;
