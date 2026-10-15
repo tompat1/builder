@@ -12,7 +12,13 @@
           <p class="mt-3 text-pine/75"><Cms :k="mode === 'login' ? 'site.loginLead' : 'site.create'" /></p>
           <p v-if="error" class="mt-4 rounded-xl bg-clay/15 px-3 py-2 text-sm text-graphite" role="status">{{ error }}</p>
 
-          <label class="mt-8 block text-sm font-semibold text-pine" for="site-login"><Cms k="account.loginName" /></label>
+          <GithubSignIn id="btn-github" class="mt-8" :disabled="busy" @click="github">
+            <Cms k="site.github" />
+          </GithubSignIn>
+          <p class="mt-2 text-sm text-pine/75"><Cms k="site.githubNote" /></p>
+          <p class="my-5 text-center text-xs uppercase tracking-[0.14em] text-pine/50"><Cms k="site.or" /></p>
+
+          <label class="block text-sm font-semibold text-pine" for="site-login"><Cms k="account.loginName" /></label>
           <div class="relative mt-1.5">
             <svg class="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-pine/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true">
               <circle cx="12" cy="8" r="3.2" />
@@ -60,10 +66,6 @@
               <Cms :k="mode === 'login' ? 'site.newHere' : 'site.login'" />
             </button>
           </p>
-          <p class="my-4 text-center text-xs uppercase tracking-[0.14em] text-pine/50"><Cms k="site.or" /></p>
-          <ActionControl type="button" appearance="outline" direction="external" class="w-full" @click="github">
-            <Cms k="site.github" />
-          </ActionControl>
         </form>
       </div>
     </div>
@@ -73,6 +75,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import GithubSignIn from '../components/account/GithubSignIn.vue';
 import ActionControl from '../components/site/ActionControl.vue';
 import SiteFrame from '../components/site/SiteFrame.vue';
 import Cms from '../components/Cms.vue';
@@ -140,10 +143,12 @@ async function submit() {
 
 async function github() {
   error.value = '';
+  busy.value = true;
   try {
     await beginGithubLogin();
   } catch (caught) {
     showError(caught instanceof Error ? caught.message : 'github');
+    busy.value = false;
   }
 }
 </script>

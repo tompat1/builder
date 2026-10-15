@@ -184,6 +184,17 @@
 
     <!-- Price and Action Cluster -->
     <div class="flex items-center gap-2 min-[1180px]:gap-5 shrink-0">
+      <GithubSignIn
+        v-if="!session.user"
+        id="btn-github-header"
+        :wide="false"
+        :disabled="githubBusy"
+        :aria-label="t('site.github')"
+        :title="t('site.github')"
+        @click="github"
+      >
+        GitHub
+      </GithubSignIn>
       <AdminAiPanel />
       <button
         v-if="session.user?.role === 'admin'"
@@ -263,13 +274,15 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import BrandMark from './brand/BrandMark.vue';
 import ActionControl from './site/ActionControl.vue';
 import { useConfigStore } from '../store/useConfigStore';
 import { useContentStore } from '../store/useContentStore';
 import { useSessionStore } from '../store/useSessionStore';
 import { applyLocale, useLabels } from '../i18n';
-import { logoutAccount } from '../services/account';
+import GithubSignIn from './account/GithubSignIn.vue';
+import { beginGithubLogin, logoutAccount } from '../services/account';
 import { readLocalHouse } from '../services/houseSave';
 import SavedHouses from './SavedHouses.vue';
 import AdminAiPanel from './AdminAiPanel.vue';
@@ -279,8 +292,10 @@ import Cms from './Cms.vue';
 const store = useConfigStore();
 const content = useContentStore();
 const session = useSessionStore();
+const router = useRouter();
 const housesOpen = ref(false);
 const logoutBusy = ref(false);
+const githubBusy = ref(false);
 const { t, locale, catalog, money, delta } = useLabels();
 const showPriceBreakdown = ref(false);
 
@@ -290,6 +305,18 @@ defineEmits<{
 
 function toggleHouses() {
   housesOpen.value = !housesOpen.value;
+}
+
+async function github() {
+  if (githubBusy.value) return;
+  githubBusy.value = true;
+  try {
+    await beginGithubLogin();
+  } catch (caught) {
+    githubBusy.value = false;
+    const code = caught instanceof Error ? caught.message : 'github';
+    await router.push({ path: '/login', query: { auth_error: code } });
+  }
 }
 
 async function signOut() {

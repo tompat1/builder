@@ -8,6 +8,7 @@ This directory contains **Directives** — Standard Operating Procedures (SOPs) 
 | --- | --- |
 | [Testing and deployment verification gate](testing_and_deployment.md) | Repository bootstrap, tests, builds, pushes, CI, Cloudflare, and deployment |
 | [Public image conversion](image_conversion.md) | Turn PNG and JPEG files in `public/` into WebP and rewrite the links |
+| [Account sign-in providers](account_providers.md) | GitHub sign-in, and the plan for Google and Apple |
 
 ## 📄 Template Structure
 
