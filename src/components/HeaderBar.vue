@@ -313,9 +313,10 @@ async function github() {
   try {
     await beginGithubLogin();
   } catch (caught) {
-    githubBusy.value = false;
     const code = caught instanceof Error ? caught.message : 'github';
     await router.push({ path: '/login', query: { auth_error: code } });
+  } finally {
+    githubBusy.value = false;
   }
 }
 

@@ -148,6 +148,7 @@ async function github() {
     await beginGithubLogin();
   } catch (caught) {
     showError(caught instanceof Error ? caught.message : 'github');
+  } finally {
     busy.value = false;
   }
 }
