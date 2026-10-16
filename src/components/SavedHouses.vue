@@ -504,23 +504,42 @@ function attachThumb(id: string) {
 }
 
 async function refreshTrelloLinks(list: SavedHouse[]) {
-  if (!session.user || !list.length) {
+  if (!session.user) {
     trelloBoards.value = {};
+    trelloConnected.value = false;
     return;
   }
   const gen = trelloRefreshGen;
+  if (!list.length) {
+    trelloBoards.value = {};
+    try {
+      const status = await trelloStatus();
+      if (gen !== trelloRefreshGen) return;
+      trelloConfigured.value = status.configured;
+      trelloConnected.value = status.connected;
+    } catch {
+      if (gen !== trelloRefreshGen) return;
+      trelloConnected.value = false;
+    }
+    return;
+  }
   const next: Record<string, TrelloBoardLink> = {};
-  const first = await trelloStatus(list[0].id);
-  if (gen !== trelloRefreshGen) return;
-  trelloConfigured.value = first.configured;
-  trelloConnected.value = first.connected;
-  if (first.board) next[list[0].id] = first.board;
-  await Promise.all(
-    list.slice(1).map(async (house) => {
-      const status = await trelloStatus(house.id);
-      if (status.board) next[house.id] = status.board;
-    })
-  );
+  try {
+    const first = await trelloStatus(list[0].id);
+    if (gen !== trelloRefreshGen) return;
+    trelloConfigured.value = first.configured;
+    trelloConnected.value = first.connected;
+    if (first.board) next[list[0].id] = first.board;
+    await Promise.all(
+      list.slice(1).map(async (house) => {
+        const status = await trelloStatus(house.id);
+        if (status.board) next[house.id] = status.board;
+      })
+    );
+  } catch {
+    if (gen !== trelloRefreshGen) return;
+    trelloConnected.value = false;
+  }
   if (gen !== trelloRefreshGen) return;
   trelloBoards.value = { ...trelloBoards.value, ...next };
 }
