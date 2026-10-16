@@ -1,5 +1,5 @@
 <template>
-  <div class="relative inline-block" ref="containerRef">
+  <div v-if="session.user" class="relative inline-block" ref="containerRef">
     <!-- Cloud Synced Status Button Pill -->
     <button
       :id="compact ? 'btn-cloud-sync-status-mobile' : 'btn-cloud-sync-status'"
@@ -208,10 +208,11 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { initCloudSync, useCloudSync } from '../services/cloudSync';
 import { useLabels } from '../i18n';
 import { pulseFeedback } from '../services/feedback';
+import { useSessionStore } from '../store/useSessionStore';
 
 withDefaults(defineProps<{
   compact?: boolean;
@@ -220,6 +221,7 @@ withDefaults(defineProps<{
 });
 
 const { t } = useLabels();
+const session = useSessionStore();
 const {
   status,
   isOnline,
@@ -268,6 +270,10 @@ function handleKeydown(event: KeyboardEvent) {
 }
 
 let cleanup: (() => void) | null = null;
+
+watch(() => session.user, (user) => {
+  if (!user) popoverOpen.value = false;
+});
 
 onMounted(() => {
   cleanup = initCloudSync(45000);
