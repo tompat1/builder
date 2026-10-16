@@ -105,6 +105,7 @@ html, body, #app {
 
 /* Boot & loading splash screen with architectural logo door animation */
 .boot-splash {
+  --splash-fade: 680ms;
   position: fixed;
   inset: 0;
   z-index: 99999;
@@ -113,15 +114,29 @@ html, body, #app {
   justify-content: center;
   background-color: #ffffff;
   opacity: 1;
-  visibility: visible;
-  transition: opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: opacity var(--splash-fade) cubic-bezier(0.16, 1, 0.3, 1);
   pointer-events: auto;
+}
+
+.boot-splash--from-page {
+  animation: splash-cross-in var(--splash-fade) cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
 .boot-splash--leaving {
   opacity: 0;
-  visibility: hidden;
   pointer-events: none;
+  will-change: opacity;
+}
+
+@keyframes splash-cross-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .boot-splash {
+    --splash-fade: 160ms;
+  }
 }
 
 .boot-splash__logo {

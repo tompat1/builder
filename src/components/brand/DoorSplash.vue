@@ -1,7 +1,11 @@
 <template>
   <div
+    ref="splashEl"
     class="boot-splash"
-    :class="{ 'boot-splash--leaving': leaving }"
+    :class="{
+      'boot-splash--from-page': fadeIn,
+      'boot-splash--leaving': leaving
+    }"
     role="status"
     aria-live="polite"
     :aria-busy="!leaving"
@@ -95,109 +99,6 @@
             :transform="`translate(${b.x}, ${b.y}) rotate(${b.rot}) scale(${b.scale})`"
           >
             <path :d="b.path" fill="#241208" opacity="0.88" />
-          </g>
-
-          <!-- Exposed timber ceiling rafters & beams -->
-          <g class="boot-studio__timber">
-            <!-- Projecting cross-timber beam sticking slightly out from roof corner -->
-            <path
-              d="M92 48 L124 33 L124 43 L92 58 Z"
-              fill="#d49557"
-              stroke="#8c5825"
-              stroke-width="0.5"
-            />
-            <path
-              d="M124 33 L130 36 L130 46 L124 43 Z"
-              fill="#b67a3f"
-              stroke="#8c5825"
-              stroke-width="0.5"
-            />
-            <!-- Top rafter along ceiling slope -->
-            <path
-              d="M24 104 L117 50 L117 58 L24 112 Z"
-              fill="#df9d5b"
-            />
-            <path
-              d="M24 112 L117 58 L117 64 L24 118 Z"
-              fill="#ab6b2c"
-            />
-            <!-- Wall timber posts -->
-            <path
-              d="M26 114 L33 110 L33 245 L26 249 Z"
-              fill="#c68547"
-              opacity="0.85"
-            />
-            <path
-              d="M109 68 L116 64 L116 200 L109 204 Z"
-              fill="#b27135"
-              opacity="0.85"
-            />
-          </g>
-
-          <!-- Architect workbench, blueprint, folding ruler & hammer in foreground -->
-          <g class="boot-studio__workbench">
-            <!-- Tabletop in isometric cross-laminated timber -->
-            <polygon
-              points="24,228 117,180 117,192 24,240"
-              fill="#dfa669"
-            />
-            <polygon
-              points="24,240 117,192 117,201 24,249"
-              fill="#9e672f"
-            />
-
-            <!-- Unfolded architectural blueprint on workbench -->
-            <polygon
-              points="34,226 98,193 105,202 41,235"
-              fill="#1d4e7c"
-              stroke="#60a5fa"
-              stroke-width="0.5"
-            />
-            <!-- Blueprint grid & house wireframe elevation lines -->
-            <g stroke="#93c5fd" stroke-width="0.4" opacity="0.85" fill="none">
-              <!-- House elevation outline on blueprint -->
-              <path d="M52 216 L68 208 L68 219 L52 227 Z" />
-              <path d="M52 216 L60 207 L68 208" />
-              <path d="M57 224 L63 221" />
-              <line x1="74" y1="205" x2="90" y2="197" />
-              <line x1="74" y1="210" x2="86" y2="204" />
-            </g>
-            <!-- Rolled blueprint scroll on desk corner -->
-            <ellipse cx="103" cy="199" rx="3.5" ry="2" fill="#2563eb" />
-            <path d="M92 194 L103 199 L100 202 L89 197 Z" fill="#3b82f6" />
-
-            <!-- Swedish wooden folding ruler (Tumstock) zigzagging on the blueprint -->
-            <g stroke="#f59e0b" stroke-width="1.8" stroke-linecap="square" fill="none">
-              <path d="M46 230 L66 219 L56 212 L78 201" />
-            </g>
-            <!-- Brass joints on folding ruler -->
-            <circle cx="66" cy="219" r="0.9" fill="#78350f" />
-            <circle cx="56" cy="212" r="0.9" fill="#78350f" />
-
-            <!-- Builder claw hammer resting beside blueprint -->
-            <line
-              x1="78"
-              y1="230"
-              x2="97"
-              y2="216"
-              stroke="#b45309"
-              stroke-width="2.2"
-              stroke-linecap="round"
-            />
-            <!-- Steel hammer head & claw -->
-            <path
-              d="M74 233 L80 228 L78 226 L72 231 Z"
-              fill="#94a3b8"
-              stroke="#475569"
-              stroke-width="0.5"
-            />
-            <path
-              d="M72 231 Q70 230 68 232"
-              stroke="#64748b"
-              stroke-width="1.2"
-              fill="none"
-              stroke-linecap="round"
-            />
           </g>
 
           <!-- Architectural jamb and floor reveal -->
@@ -324,10 +225,12 @@ const props = withDefaults(
     ready: boolean;
     animate?: boolean;
     sound?: boolean;
+    fadeIn?: boolean;
   }>(),
   {
     animate: true,
     sound: true,
+    fadeIn: false,
   }
 );
 
@@ -335,8 +238,8 @@ const emit = defineEmits<{ done: [] }>();
 const { t } = useI18n();
 const sessionStore = useSessionStore();
 
-const FADE_MS = 450;
 const rig = createDoorRig(BUILDER_MARK_DOOR);
+const splashEl = ref<HTMLElement | null>(null);
 const angle = ref(0);
 const elapsed = ref(0);
 const leaving = ref(false);
@@ -355,7 +258,7 @@ const minVisibleMs = computed(() => {
   if (missingApproval.value || autoplayBlocked.value) {
     return 6000;
   }
-  return SWING_END_MS + 150;
+  return SWING_END_MS + 2000;
 });
 
 const door = computed(() => rig.frame(angle.value));
@@ -530,10 +433,17 @@ watch(
       return;
     }
     leaving.value = true;
-    fadeTimer = window.setTimeout(() => emit('done'), FADE_MS);
+    fadeTimer = window.setTimeout(() => emit('done'), fadeMs(splashEl.value));
   },
   { immediate: true }
 );
+
+function fadeMs(el: HTMLElement | null) {
+  const raw = el ? getComputedStyle(el).getPropertyValue('--splash-fade').trim() : '';
+  const value = Number.parseFloat(raw);
+  if (!Number.isFinite(value)) return 680;
+  return raw.endsWith('ms') ? value : value * 1000;
+}
 
 onMounted(() => {
   if (isAutomated) {

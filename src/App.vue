@@ -2,7 +2,7 @@
   <router-view />
   <GlobalFeedback />
   <CookieConsent />
-  <DoorSplash v-if="showSplash" :ready="isReady" :sound="true" @done="showSplash = false" />
+  <DoorSplash v-if="showSplash" :ready="isReady" :sound="true" :fade-in="splashFromPage" @done="showSplash = false" />
 </template>
 
 <script setup lang="ts">
@@ -14,13 +14,14 @@ import CookieConsent from './components/brand/CookieConsent.vue';
 
 const router = useRouter();
 const showSplash = ref(true);
+const splashFromPage = ref(false);
 const isReady = ref(false);
 
 onMounted(async () => {
   if (typeof window !== 'undefined') {
     window.addEventListener('builder:replay-splash', () => {
+      splashFromPage.value = true;
       showSplash.value = false;
-      // Next tick re-mount
       setTimeout(() => {
         showSplash.value = true;
       }, 50);
