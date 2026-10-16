@@ -97,6 +97,201 @@
             <path :d="b.path" fill="#241208" opacity="0.88" />
           </g>
 
+          <!-- Exposed timber ceiling rafters & beams -->
+          <g class="boot-studio__timber">
+            <!-- Projecting cross-timber beam sticking slightly out from roof corner -->
+            <path
+              d="M92 48 L124 33 L124 43 L92 58 Z"
+              fill="#d49557"
+              stroke="#8c5825"
+              stroke-width="0.5"
+            />
+            <path
+              d="M124 33 L130 36 L130 46 L124 43 Z"
+              fill="#b67a3f"
+              stroke="#8c5825"
+              stroke-width="0.5"
+            />
+            <!-- Top rafter along ceiling slope -->
+            <path
+              d="M24 104 L117 50 L117 58 L24 112 Z"
+              fill="#df9d5b"
+            />
+            <path
+              d="M24 112 L117 58 L117 64 L24 118 Z"
+              fill="#ab6b2c"
+            />
+            <!-- Wall timber posts -->
+            <path
+              d="M26 114 L33 110 L33 245 L26 249 Z"
+              fill="#c68547"
+              opacity="0.85"
+            />
+            <path
+              d="M109 68 L116 64 L116 200 L109 204 Z"
+              fill="#b27135"
+              opacity="0.85"
+            />
+          </g>
+
+          <!-- Stylized Scandinavian Architect & Builder Couple -->
+          <g class="boot-studio__couple">
+            <!-- WOMAN (Architect, Left) -->
+            <g id="architect-woman">
+              <!-- Body / Terracotta work sweater -->
+              <path
+                d="M36 215 L38 168 Q41 155 52 153 Q63 155 66 168 L68 215 Z"
+                fill="#d26938"
+              />
+              <!-- Sweater knit V-collar -->
+              <path
+                d="M47 153 L52 165 L57 153 Z"
+                fill="#ba5325"
+              />
+              <!-- Neck -->
+              <rect x="49" y="145" width="6" height="10" rx="2" fill="#fcd7ba" />
+
+              <!-- Head & face -->
+              <ellipse cx="52" cy="138" rx="8" ry="9" fill="#fcd7ba" />
+
+              <!-- Hair framing face -->
+              <path
+                d="M43 140 C42 126 62 126 61 140 C61 146 59 152 59 154 C56 150 56 142 56 140 C48 140 48 150 45 154 C45 152 43 146 43 140 Z"
+                fill="#61361c"
+              />
+
+              <!-- White/ivory architect safety helmet with subtle brim -->
+              <path
+                d="M42 134 C42 121 62 121 62 134 Z"
+                fill="#ffffff"
+              />
+              <path
+                d="M40 134 C40 132 64 132 64 134 C64 135 40 135 40 134 Z"
+                fill="#e2e8f0"
+              />
+              <rect x="50.5" y="122" width="3" height="11" rx="1.5" fill="#e2e8f0" />
+
+              <!-- Eyes: smiling curved arcs -->
+              <path d="M47 136 Q49 133.5 51 136" stroke="#4a2810" stroke-width="0.8" fill="none" stroke-linecap="round" />
+              <path d="M53 136 Q55 133.5 57 136" stroke="#4a2810" stroke-width="0.8" fill="none" stroke-linecap="round" />
+
+              <!-- Rosy cheeks -->
+              <circle cx="47" cy="139" r="1.5" fill="#f87171" opacity="0.45" />
+              <circle cx="57" cy="139" r="1.5" fill="#f87171" opacity="0.45" />
+
+              <!-- Happy smiling mouth -->
+              <path d="M48.5 141.5 Q52 145.5 55.5 141.5" stroke="#991b1b" stroke-width="0.9" fill="none" stroke-linecap="round" />
+            </g>
+
+            <!-- MAN (Builder, Right) -->
+            <g id="builder-man">
+              <!-- Body / Cream shirt under pine vest -->
+              <path
+                d="M62 215 L64 162 Q68 148 81 146 Q94 148 98 162 L100 215 Z"
+                fill="#e8e4db"
+              />
+              <!-- Signature Builder Pine Green vest -->
+              <path
+                d="M65 166 L72 150 Q81 147 90 150 L97 166 L98 215 L88 215 L85 168 L77 168 L74 215 L64 215 Z"
+                fill="#173D35"
+              />
+              <!-- Carpenter pencil in vest pocket -->
+              <line x1="88" y1="168" x2="89" y2="158" stroke="#eab308" stroke-width="1.2" stroke-linecap="round" />
+              <line x1="89" y1="158" x2="89.5" y2="156" stroke="#dc2626" stroke-width="1.2" stroke-linecap="round" />
+
+              <!-- Neck -->
+              <rect x="77.5" y="139" width="7" height="10" rx="2" fill="#fbd5b5" />
+
+              <!-- Head -->
+              <ellipse cx="81" cy="131" rx="8.5" ry="9.5" fill="#fbd5b5" />
+
+              <!-- Groomed beard / jawline -->
+              <path
+                d="M74 132 C74 142 88 142 88 132 C88 135 86 142 81 142 C76 142 74 135 74 132 Z"
+                fill="#422a1d"
+              />
+
+              <!-- Hair / Cap -->
+              <path
+                d="M72 129 C72 117 90 117 90 129 C87 122 75 122 72 129 Z"
+                fill="#311e14"
+              />
+
+              <!-- Smiling eyes -->
+              <path d="M76 128 Q78.5 125.5 81 128" stroke="#311e14" stroke-width="0.9" fill="none" stroke-linecap="round" />
+              <path d="M82.5 128 Q85 125.5 87.5 128" stroke="#311e14" stroke-width="0.9" fill="none" stroke-linecap="round" />
+
+              <!-- Broad happy smile with white teeth -->
+              <path d="M77 134 Q81.5 139 86 134 Z" fill="#ffffff" stroke="#311e14" stroke-width="0.6" stroke-linejoin="round" />
+            </g>
+          </g>
+
+          <!-- Architect workbench, blueprint, folding ruler & hammer in foreground -->
+          <g class="boot-studio__workbench">
+            <!-- Tabletop in isometric cross-laminated timber -->
+            <polygon
+              points="24,228 117,180 117,192 24,240"
+              fill="#dfa669"
+            />
+            <polygon
+              points="24,240 117,192 117,201 24,249"
+              fill="#9e672f"
+            />
+
+            <!-- Unfolded architectural blueprint on workbench -->
+            <polygon
+              points="34,226 98,193 105,202 41,235"
+              fill="#1d4e7c"
+              stroke="#60a5fa"
+              stroke-width="0.5"
+            />
+            <!-- Blueprint grid & house wireframe elevation lines -->
+            <g stroke="#93c5fd" stroke-width="0.4" opacity="0.85" fill="none">
+              <!-- House elevation outline on blueprint -->
+              <path d="M52 216 L68 208 L68 219 L52 227 Z" />
+              <path d="M52 216 L60 207 L68 208" />
+              <path d="M57 224 L63 221" />
+              <line x1="74" y1="205" x2="90" y2="197" />
+              <line x1="74" y1="210" x2="86" y2="204" />
+            </g>
+            <!-- Rolled blueprint scroll on desk corner -->
+            <ellipse cx="103" cy="199" rx="3.5" ry="2" fill="#2563eb" />
+            <path d="M92 194 L103 199 L100 202 L89 197 Z" fill="#3b82f6" />
+
+            <!-- Swedish wooden folding ruler (Tumstock) zigzagging on the blueprint -->
+            <g stroke="#f59e0b" stroke-width="1.8" stroke-linecap="square" fill="none">
+              <path d="M46 230 L66 219 L56 212 L78 201" />
+            </g>
+            <!-- Brass joints on folding ruler -->
+            <circle cx="66" cy="219" r="0.9" fill="#78350f" />
+            <circle cx="56" cy="212" r="0.9" fill="#78350f" />
+
+            <!-- Builder claw hammer resting beside blueprint -->
+            <line
+              x1="78"
+              y1="230"
+              x2="97"
+              y2="216"
+              stroke="#b45309"
+              stroke-width="2.2"
+              stroke-linecap="round"
+            />
+            <!-- Steel hammer head & claw -->
+            <path
+              d="M74 233 L80 228 L78 226 L72 231 Z"
+              fill="#94a3b8"
+              stroke="#475569"
+              stroke-width="0.5"
+            />
+            <path
+              d="M72 231 Q70 230 68 232"
+              stroke="#64748b"
+              stroke-width="1.2"
+              fill="none"
+              stroke-linecap="round"
+            />
+          </g>
+
           <!-- Architectural jamb and floor reveal -->
           <path :d="rig.interior.floor" :fill="rig.interior.floorFill" />
           <path :d="rig.interior.jamb" :fill="rig.interior.jambFill" />
