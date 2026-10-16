@@ -18,13 +18,14 @@ Trello is not GitHub login. Builder sign-in stays on GitHub or a password. Trell
 
 ## What the user sees
 
-Projects is the home for this. There is no separate Trello page.
+The first visit to the builder is a four-step tour on the live screens. Skip is always there. It does not show again after Skip or Start building (`builder.onboarding`). Projects has **How it works**, which plays it again.
 
-1. Sign in.
-2. Open **Projects**. The first time, while Trello is not connected, a short note explains the board. **Got it** hides that note on this browser (`builder.trello.intro`).
-3. Save the house if it is not in the list yet.
-4. Click the Trello mark on that house. The first time, Trello asks for permission (`read,write`) and returns to `/build`. Builder then creates the board.
-5. The same mark later opens the linked board. **Disconnect Trello** in Projects removes the stored token.
+1. The house, on the model.
+2. The parts, on the options panel: size, roof, doors, and windows.
+3. The project, on the Projects control.
+4. The board. Projects opens, and the note points at the Trello mark on a saved house.
+
+Sign in, save the house, then click that mark. Trello asks for `read,write` once and returns to `/build`. Builder creates the board. The same mark opens it later. **Disconnect Trello** in Projects removes the stored token.
 
 The board is filled in construction order: critical utilities, earthworks, foundation, then later phases as backlog, plus decisions and sticky notes from the house.
 

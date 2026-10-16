@@ -273,7 +273,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import BrandMark from './brand/BrandMark.vue';
 import ActionControl from './site/ActionControl.vue';
@@ -334,9 +334,18 @@ async function signOut() {
   }
 }
 
+function onTourProjects(event: Event) {
+  housesOpen.value = (event as CustomEvent<{ open?: boolean }>).detail?.open === true;
+}
+
 onMounted(() => {
   const local = readLocalHouse();
   if (local) store.importHouse(local);
+  window.addEventListener('builder:onboarding-projects', onTourProjects);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('builder:onboarding-projects', onTourProjects);
 });
 
 async function toggleEdit() {

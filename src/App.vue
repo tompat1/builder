@@ -2,17 +2,20 @@
   <router-view />
   <GlobalFeedback />
   <CookieConsent />
+  <Onboarding v-if="!showSplash && route.name === 'build'" />
   <DoorSplash v-if="showSplash" :ready="isReady" :sound="true" :fade-in="splashFromPage" @done="showSplash = false" />
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import GlobalFeedback from './components/GlobalFeedback.vue';
 import DoorSplash from './components/brand/DoorSplash.vue';
 import CookieConsent from './components/brand/CookieConsent.vue';
+import Onboarding from './components/Onboarding.vue';
 
 const router = useRouter();
+const route = useRoute();
 const showSplash = ref(true);
 const splashFromPage = ref(false);
 const isReady = ref(false);

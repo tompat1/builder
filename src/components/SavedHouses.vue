@@ -29,6 +29,14 @@
         </button>
       </div>
       <button
+        type="button"
+        id="btn-onboarding"
+        class="mb-2.5 text-[11px] font-semibold text-[#173D35] hover:text-[#222925] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5A00] rounded"
+        @click="replayOnboarding"
+      >
+        {{ t('onboard.replay') }}
+      </button>
+      <button
         v-if="trelloConnected"
         type="button"
         id="btn-trello-disconnect"
@@ -108,22 +116,6 @@
           </button>
         </div>
       </form>
-
-      <div
-        v-if="showTrelloIntro"
-        class="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2"
-      >
-        <p class="font-semibold text-slate-900">{{ t('trello.introTitle') }}</p>
-        <p class="mt-1 text-[11px] leading-relaxed text-slate-600">{{ t('trello.introBody') }}</p>
-        <button
-          type="button"
-          id="btn-trello-intro"
-          class="mt-2 text-[11px] font-semibold text-slate-900 hover:text-slate-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 rounded"
-          @click="dismissTrelloIntro"
-        >
-          {{ t('trello.introDismiss') }}
-        </button>
-      </div>
 
       <!-- Saved Houses List -->
       <ul v-if="houses.length" class="mt-3 space-y-1.5 border-t border-slate-200 pt-3">
@@ -440,21 +432,10 @@ const trelloBusyId = ref<string | null>(null);
 const trelloBoards = ref<Record<string, TrelloBoardLink>>({});
 const trelloConnected = ref(false);
 const trelloConfigured = ref(false);
-const trelloStatusKnown = ref(false);
-const TRELLO_INTRO_KEY = 'builder.trello.intro';
-const trelloIntroSeen = ref(typeof localStorage !== 'undefined' && localStorage.getItem(TRELLO_INTRO_KEY) === 'seen');
 let trelloRefreshGen = 0;
 
-const showTrelloIntro = computed(() => (
-  Boolean(session.user)
-  && trelloStatusKnown.value
-  && !trelloConnected.value
-  && !trelloIntroSeen.value
-));
-
-function dismissTrelloIntro() {
-  trelloIntroSeen.value = true;
-  localStorage.setItem(TRELLO_INTRO_KEY, 'seen');
+function replayOnboarding() {
+  window.dispatchEvent(new Event('builder:replay-onboarding'));
 }
 
 function trelloBoardFor(id: string) {
@@ -523,43 +504,25 @@ function attachThumb(id: string) {
 }
 
 async function refreshTrelloLinks(list: SavedHouse[]) {
-  if (!session.user) {
+  if (!session.user || !list.length) {
     trelloBoards.value = {};
-    trelloStatusKnown.value = false;
-    return;
-  }
-  if (!list.length) {
-    try {
-      const status = await trelloStatus();
-      trelloConfigured.value = status.configured;
-      trelloConnected.value = status.connected;
-    } catch {
-      trelloConnected.value = false;
-    }
-    trelloStatusKnown.value = true;
     return;
   }
   const gen = trelloRefreshGen;
   const next: Record<string, TrelloBoardLink> = {};
-  try {
-    const first = await trelloStatus(list[0].id);
-    if (gen !== trelloRefreshGen) return;
-    trelloConfigured.value = first.configured;
-    trelloConnected.value = first.connected;
-    if (first.board) next[list[0].id] = first.board;
-    await Promise.all(
-      list.slice(1).map(async (house) => {
-        const status = await trelloStatus(house.id);
-        if (status.board) next[house.id] = status.board;
-      })
-    );
-  } catch {
-    if (gen !== trelloRefreshGen) return;
-    trelloConnected.value = false;
-  }
+  const first = await trelloStatus(list[0].id);
+  if (gen !== trelloRefreshGen) return;
+  trelloConfigured.value = first.configured;
+  trelloConnected.value = first.connected;
+  if (first.board) next[list[0].id] = first.board;
+  await Promise.all(
+    list.slice(1).map(async (house) => {
+      const status = await trelloStatus(house.id);
+      if (status.board) next[house.id] = status.board;
+    })
+  );
   if (gen !== trelloRefreshGen) return;
   trelloBoards.value = { ...trelloBoards.value, ...next };
-  trelloStatusKnown.value = true;
 }
 
 function rememberTrelloBoard(id: string, board: TrelloBoardLink) {

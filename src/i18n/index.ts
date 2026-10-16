@@ -254,10 +254,23 @@ const sv = {
     failed: 'Trello-tavlan kunde inte skapas.',
     denied: 'Trello-anslutningen gick inte att slutföra.',
     disconnect: 'Koppla från Trello',
-    disconnected: 'Trello är frånkopplat.',
-    introTitle: 'En Trello-tavla för huset',
-    introBody: 'Anslut Trello en gång. Märket på ett sparat hus bygger en tavla i byggordning: det kritiska först, sedan mark och grund, med beslut och anteckningar från huset.',
-    introDismiss: 'Jag förstår'
+    disconnected: 'Trello är frånkopplat.'
+  },
+  onboard: {
+    houseTitle: 'Huset',
+    houseBody: 'Modellen är huset. Vrid den, och ändra den från panelen.',
+    partsTitle: 'Delarna',
+    partsBody: 'Storlek, tak, dörrar och fönster. Valet syns direkt på modellen.',
+    projectTitle: 'Projektet',
+    projectBody: 'Spara huset under Projekt. Inloggad följer det med kontot.',
+    boardTitle: 'Tavlan',
+    boardBody: 'Trello-märket på ett sparat hus ansluter en gång och bygger tavlan i byggordning.',
+    skip: 'Hoppa över',
+    back: 'Tillbaka',
+    next: 'Nästa',
+    done: 'Börja bygga',
+    replay: 'Så fungerar det',
+    progress: 'Steg {current} av {total}'
   },
   cms: {
     edit: 'Redigera',
@@ -1022,10 +1035,23 @@ const en = {
     failed: 'The Trello board could not be created.',
     denied: 'Trello could not be connected.',
     disconnect: 'Disconnect Trello',
-    disconnected: 'Trello is disconnected.',
-    introTitle: 'A Trello board for the house',
-    introBody: 'Connect Trello once. The mark on a saved house builds a board in construction order: the critical work first, then the ground and the foundation, with the decisions and notes from the house.',
-    introDismiss: 'Got it'
+    disconnected: 'Trello is disconnected.'
+  },
+  onboard: {
+    houseTitle: 'The house',
+    houseBody: 'The model is the house. Turn it, then change it from the panel.',
+    partsTitle: 'The parts',
+    partsBody: 'Size, roof, doors, and windows. The choice shows on the model.',
+    projectTitle: 'The project',
+    projectBody: 'Save the house under Projects. Signed in, it stays with the account.',
+    boardTitle: 'The board',
+    boardBody: 'The Trello mark on a saved house connects once and builds the board in construction order.',
+    skip: 'Skip',
+    back: 'Back',
+    next: 'Next',
+    done: 'Start building',
+    replay: 'How it works',
+    progress: 'Step {current} of {total}'
   },
   cms: {
     edit: 'Edit',

@@ -89,6 +89,7 @@
     <!-- Right Sidebar / Mobile Bottom Sheet -->
     <aside
       v-if="!store.isFullscreen"
+      id="config-panel"
       class="pointer-events-auto z-40 mt-auto flex w-full flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 shadow-xl backdrop-blur-md max-[1179px]:max-h-[min(68dvh,calc(100dvh-11rem))] min-[1180px]:absolute min-[1180px]:bottom-[max(1.5rem,env(safe-area-inset-bottom))] min-[1180px]:right-6 min-[1180px]:top-24 min-[1180px]:h-auto min-[1180px]:max-h-[calc(100dvh-7.5rem)] min-[1180px]:w-[410px] min-[1180px]:justify-between"
       :aria-label="t('panel.label')"
     >
@@ -191,13 +192,20 @@ function onPickCategory(id: CategoryKey) {
   store.selectCategory(id);
 }
 
+function onTourSheet(event: Event) {
+  if (!narrow.value) return;
+  sheetOpen.value = (event as CustomEvent<{ open?: boolean }>).detail?.open === true;
+}
+
 onMounted(() => {
   readNarrow();
   window.addEventListener('resize', readNarrow);
+  window.addEventListener('builder:onboarding-sheet', onTourSheet);
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', readNarrow);
+  window.removeEventListener('builder:onboarding-sheet', onTourSheet);
 });
 
 watch(
