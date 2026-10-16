@@ -1920,7 +1920,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import Cms from './Cms.vue';
 import CmsImage from './CmsImage.vue';
 import {
@@ -1944,6 +1944,7 @@ import { TERRACE_DEPTHS, TERRACE_SIDES, terracePrice, type TerraceDepth } from '
 import { useLabels } from '../i18n';
 import CustomPaint from './CustomPaint.vue';
 import { paintTitle, readableInk } from '../color/paint';
+import { searchAction, searchRequest } from '../search/run';
 
 const store = useConfigStore();
 const loftPlaces: { id: LoftPlacement; label: string }[] = [
@@ -1972,6 +1973,16 @@ const loftStairPositions = computed<{ id: LoftStairPosition; label: string }[]>(
 });
 const { t, catalog, money, delta, locale } = useLabels();
 const sizeTab = ref<'kulor' | 'panel'>('kulor');
+
+function applySearchNavigation() {
+  const action = searchAction.value;
+  if (!action || action.path !== '/build') return;
+  if (action.sizeTab) sizeTab.value = action.sizeTab;
+  if (action.focus === 'custom-paint') paintOpen.value = true;
+}
+
+watch(searchRequest, applySearchNavigation);
+onMounted(applySearchNavigation);
 const doorTab = ref<'single' | 'double' | 'sliding'>('single');
 const interiorTab = ref<'layout' | 'plumbing' | 'electrical'>('layout');
 const floorPlanOpen = computed(() => store.floorPlanDone && Object.keys(store.placedRooms).length > 0);

@@ -1,5 +1,6 @@
 <template>
   <router-view />
+  <SiteSearch />
   <GlobalFeedback />
   <CookieConsent />
   <Onboarding v-if="!showSplash && route.name === 'build'" />
@@ -13,6 +14,7 @@ import GlobalFeedback from './components/GlobalFeedback.vue';
 import DoorSplash from './components/brand/DoorSplash.vue';
 import CookieConsent from './components/brand/CookieConsent.vue';
 import Onboarding from './components/Onboarding.vue';
+import SiteSearch from './components/SiteSearch.vue';
 
 const router = useRouter();
 const route = useRoute();

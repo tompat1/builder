@@ -13,6 +13,18 @@
     <div class="flex items-center gap-1">
       <button
         type="button"
+        id="btn-search-mobile"
+        class="grid h-11 w-11 place-items-center rounded-xl text-[#173D35] hover:bg-[#F5F3EC] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5A00]"
+        :aria-label="t('search.open')"
+        @click="openSearch"
+      >
+        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+          <circle cx="11" cy="11" r="6.5" />
+          <path d="m16 16.5 4 4" />
+        </svg>
+      </button>
+      <button
+        type="button"
         id="btn-lang-mobile"
         class="inline-flex h-11 items-center gap-[3px] rounded-xl border border-[#173D35]/15 bg-white px-3 text-[11px] tracking-[0.05em] shadow-[0_1px_2px_rgba(23,61,53,0.06)] hover:border-[#173D35] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5A00]"
         :aria-label="locale === 'sv' ? 'English' : 'Svenska'"
@@ -115,6 +127,18 @@
     </div>
 
     <div class="flex items-center gap-2 shrink-0">
+      <button
+        type="button"
+        id="btn-search"
+        class="grid h-11 w-11 place-items-center rounded-xl text-[#173D35] hover:bg-[#F5F3EC] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5A00]"
+        :aria-label="t('search.open')"
+        @click="openSearch"
+      >
+        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+          <circle cx="11" cy="11" r="6.5" />
+          <path d="m16 16.5 4 4" />
+        </svg>
+      </button>
       <!-- Language Toggle -->
       <nav class="flex bg-graphite p-1 rounded-xl shadow-inner shrink-0" role="group" :aria-label="locale === 'sv' ? 'Språk' : 'Language'">
         <button
@@ -273,7 +297,7 @@
 </template>
 
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import BrandMark from './brand/BrandMark.vue';
 import ActionControl from './site/ActionControl.vue';
@@ -288,6 +312,7 @@ import SavedHouses from './SavedHouses.vue';
 import AdminAiPanel from './AdminAiPanel.vue';
 import CloudSyncIndicator from './CloudSyncIndicator.vue';
 import Cms from './Cms.vue';
+import { openSearch, searchAction, searchRequest } from '../search/run';
 
 const store = useConfigStore();
 const content = useContentStore();
@@ -338,10 +363,19 @@ function onTourProjects(event: Event) {
   housesOpen.value = (event as CustomEvent<{ open?: boolean }>).detail?.open === true;
 }
 
+function applySearchNavigation() {
+  const action = searchAction.value;
+  if (!action || action.path !== '/build') return;
+  housesOpen.value = action.tool === 'projects';
+}
+
+watch(searchRequest, applySearchNavigation);
+
 onMounted(() => {
   const local = readLocalHouse();
   if (local) store.importHouse(local);
   window.addEventListener('builder:onboarding-projects', onTourProjects);
+  applySearchNavigation();
 });
 
 onBeforeUnmount(() => {

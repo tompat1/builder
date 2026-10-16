@@ -12,6 +12,18 @@
         <CloudSyncIndicator class="hidden sm:inline-block" />
         <button
           type="button"
+          id="btn-search-site"
+          class="grid h-10 w-10 place-items-center rounded-full text-pine hover:bg-pine/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine"
+          :aria-label="t('search.open')"
+          @click="openSearch"
+        >
+          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+            <circle cx="11" cy="11" r="6.5" />
+            <path d="m16 16.5 4 4" />
+          </svg>
+        </button>
+        <button
+          type="button"
           class="inline-flex h-[34px] items-center gap-[3px] rounded-md border border-pine/15 bg-white px-3 text-[11px] tracking-[0.05em] shadow-[0_1px_2px_rgba(23,61,53,0.06)] hover:border-pine focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine"
           :aria-label="locale === 'sv' ? 'English' : 'Svenska'"
           :title="locale === 'sv' ? 'English' : 'Svenska'"
@@ -120,6 +132,7 @@ import { useBagStore } from '../../store/useBagStore';
 import { useSessionStore } from '../../store/useSessionStore';
 import { useContentStore } from '../../store/useContentStore';
 import { logoutAccount } from '../../services/account';
+import { openSearch } from '../../search/run';
 
 const { t, locale } = useLabels();
 const bag = useBagStore();

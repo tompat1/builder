@@ -19,7 +19,7 @@
       </div>
 
       <ul class="mt-8 grid gap-x-5 gap-y-12 sm:grid-cols-2 lg:grid-cols-4">
-        <li v-for="group in groupedShown" :key="group.baseId" class="group flex flex-col">
+        <li v-for="group in groupedShown" :key="group.baseId" :id="`merch-${currentItem(group).id}`" class="group flex flex-col scroll-mt-24">
           <template v-for="item in [currentItem(group)]" :key="item.id">
             <div class="relative overflow-hidden rounded-2xl bg-white" :class="selected === item.id ? 'ring-2 ring-pine' : ''">
               <button
@@ -152,7 +152,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import ActionControl from '../components/site/ActionControl.vue';
 import SiteFrame from '../components/site/SiteFrame.vue';
 import Cms from '../components/Cms.vue';
@@ -160,10 +160,20 @@ import CmsImage from '../components/CmsImage.vue';
 import { useLabels } from '../i18n';
 import { MERCH, lineKey, type MerchItem, type MerchKind } from '../site/merch';
 import { useBagStore } from '../store/useBagStore';
+import { searchAction, searchRequest } from '../search/run';
 
 const { t, money } = useLabels();
 const bag = useBagStore();
 const kind = ref<'all' | MerchKind>('all');
+
+function applySearchNavigation() {
+  const action = searchAction.value;
+  if (!action || action.path !== '/merch' || !action.merchKind) return;
+  kind.value = action.merchKind;
+}
+
+watch(searchRequest, applySearchNavigation);
+onMounted(applySearchNavigation);
 const selected = ref('');
 const picked = ref<Record<string, string>>({});
 const zoomed = ref<MerchItem | null>(null);

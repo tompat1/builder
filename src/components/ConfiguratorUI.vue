@@ -159,6 +159,7 @@ import PanelSlotOverlay from './PanelSlotOverlay.vue';
 import HouseNotes from './HouseNotes.vue';
 import MoodBoard from './MoodBoard.vue';
 import Cms from './Cms.vue';
+import { searchAction, searchRequest } from '../search/run';
 
 const store = useConfigStore();
 const { t } = useLabels();
@@ -202,11 +203,23 @@ function onTourTools(event: Event) {
   isHouseImportOpen.value = tray === 'ai';
 }
 
+function applySearchNavigation() {
+  const action = searchAction.value;
+  if (!action || action.path !== '/build') return;
+  if (action.sizeId) store.selectSize(action.sizeId);
+  if (action.category) store.selectCategory(action.category);
+  isHouseImportOpen.value = action.tool === 'ai';
+  store.showMood = action.tool === 'mood';
+}
+
+watch(searchRequest, applySearchNavigation);
+
 onMounted(() => {
   readNarrow();
   window.addEventListener('resize', readNarrow);
   window.addEventListener('builder:onboarding-sheet', onTourSheet);
   window.addEventListener('builder:onboarding-tools', onTourTools);
+  applySearchNavigation();
 });
 
 onBeforeUnmount(() => {

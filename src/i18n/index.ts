@@ -286,6 +286,33 @@ const sv = {
     replay: 'Så fungerar det',
     progress: 'Steg {current} av {total}'
   },
+  search: {
+    open: 'Sök',
+    close: 'Stäng sök',
+    label: 'Sök i Builder',
+    placeholder: 'Sök kulör, mått, tak, moodboard…',
+    empty: 'Inget matchar. Prova ett annat ord, eller välj ett ämne.',
+    topics: 'Ämnen',
+    all: 'Allt',
+    customSize: 'Egna mått',
+    customSizeHint: 'Bredd, längd och höjd i centimeter.',
+    concreteWallHint: 'En extra vägg på betonghuset.',
+    terrace: 'Altan',
+    terraceHint: 'Lägg en altan mot huset.',
+    canopy: 'Skärmtak',
+    replayHint: 'Spela rundturen igen från Projekt.',
+    topic: {
+      size: 'Storlek',
+      colour: 'Kulör',
+      roof: 'Tak',
+      openings: 'Öppningar',
+      inside: 'Inne',
+      tools: 'Verktyg',
+      projects: 'Projekt',
+      shop: 'Butik',
+      site: 'Sidor'
+    }
+  },
   cms: {
     edit: 'Redigera',
     done: 'Klar'
@@ -1083,6 +1110,33 @@ const en = {
     done: 'Start building',
     replay: 'How it works',
     progress: 'Step {current} of {total}'
+  },
+  search: {
+    open: 'Search',
+    close: 'Close search',
+    label: 'Search Builder',
+    placeholder: 'Search colour, size, roof, mood board…',
+    empty: 'Nothing matches. Try another word, or pick a topic.',
+    topics: 'Topics',
+    all: 'All',
+    customSize: 'Custom size',
+    customSizeHint: 'Width, length, and height in centimetres.',
+    concreteWallHint: 'An extra wall on the concrete house.',
+    terrace: 'Terrace',
+    terraceHint: 'Add a terrace against the house.',
+    canopy: 'Canopy',
+    replayHint: 'Play the tour again from Projects.',
+    topic: {
+      size: 'Size',
+      colour: 'Colour',
+      roof: 'Roof',
+      openings: 'Openings',
+      inside: 'Inside',
+      tools: 'Tools',
+      projects: 'Projects',
+      shop: 'Shop',
+      site: 'Pages'
+    }
   },
   cms: {
     edit: 'Edit',

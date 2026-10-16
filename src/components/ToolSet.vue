@@ -512,12 +512,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useConfigStore } from '../store/useConfigStore';
 import { NOTE_LIMIT } from '../notes/board';
 import { formatSunHour } from '../three-engine/sunPosition';
 import { useLabels } from '../i18n';
 import Cms from './Cms.vue';
+import { searchAction, searchRequest } from '../search/run';
 
 const store = useConfigStore();
 const sunClock = computed(() => formatSunHour(store.sunHour));
@@ -737,6 +738,24 @@ function markAndClose() {
 
 let tourTray: string | null = null;
 
+function applySearchNavigation() {
+  const action = searchAction.value;
+  if (!action || action.path !== '/build') return;
+  const tool = action.tool;
+  sunOpen.value = tool === 'sun';
+  viewOpen.value = tool === 'view';
+  rulerOpen.value = tool === 'ruler';
+  notesOpen.value = tool === 'notes';
+  if (tool === 'sun' || tool === 'view' || tool === 'ruler' || tool === 'notes') {
+    if (narrowTools()) toolsOpen.value = true;
+    void anchorOpenTray();
+  } else {
+    closeTrays();
+  }
+}
+
+watch(searchRequest, applySearchNavigation);
+
 function onTourTools(event: Event) {
   const tray = (event as CustomEvent<{ tray?: string }>).detail?.tray ?? 'none';
   tourTray = tray === 'none' ? null : tray;
@@ -855,6 +874,7 @@ onMounted(() => {
   document.addEventListener('keydown', onKey);
   window.addEventListener('resize', onToolResize);
   window.addEventListener('builder:onboarding-tools', onTourTools);
+  applySearchNavigation();
 });
 
 function onToolResize() {
