@@ -205,9 +205,9 @@
           class="flex flex-col items-center justify-center py-20 px-4 text-center text-[#173D35]/70"
         >
           <span class="text-4xl mb-3">📌</span>
-          <h3 class="text-base font-bold text-[#173D35]">Tavlan är tom än så länge</h3>
+          <h3 class="text-base font-bold text-[#173D35]">{{ t('mood.emptyTitle') }}</h3>
           <p class="mt-1 max-w-xs text-xs text-[#4a5851]">
-            Lägg till länkar, ladda upp bilder eller klistra in en post-it ovan för att börja samla inspiration!
+            {{ t('mood.emptyLead') }}
           </p>
         </div>
 
@@ -1215,7 +1215,7 @@ const currentAuthor = computed<MoodAuthor>(() => {
   if (sessionStore.user) {
     const u = sessionStore.user;
     return {
-      name: u.name || u.login || 'Ägare',
+      name: u.name || u.login || t('mood.owner'),
       avatar: u.avatarUrl || defaultAccountAvatar(u.name || u.login),
       email: u.email
     };
@@ -1229,8 +1229,8 @@ const currentAuthor = computed<MoodAuthor>(() => {
     };
   }
   return {
-    name: 'Ägare',
-    avatar: defaultAccountAvatar('Ägare')
+    name: t('mood.owner'),
+    avatar: defaultAccountAvatar(t('mood.owner'))
   };
 });
 

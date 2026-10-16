@@ -26,8 +26,8 @@
       <h2 class="text-base font-extrabold tracking-tight text-[#173D35]">{{ t(step.title) }}</h2>
       <p class="mt-1.5 text-sm leading-relaxed text-[#173D35]">{{ t(step.body) }}</p>
 
-      <div class="mt-4 flex items-center justify-between gap-3">
-        <div class="flex items-center gap-1.5" role="group" :aria-label="progressLabel">
+      <div class="mt-4 flex flex-col gap-3">
+        <div class="flex flex-wrap items-center gap-1.5" role="group" :aria-label="progressLabel">
           <button
             v-for="(item, index) in steps"
             :key="item.title"
@@ -39,7 +39,7 @@
             @click="go(index)"
           ></button>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center justify-end gap-2">
           <button
             type="button"
             class="rounded-xl px-2 py-1.5 text-sm font-semibold text-[#173D35] hover:bg-[#173D35]/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5A00]"
@@ -77,10 +77,17 @@ const KEY = 'builder.onboarding';
 const { t } = useLabels();
 
 const steps = [
-  { title: 'onboard.houseTitle', body: 'onboard.houseBody', target: '#house-stage', projects: false },
-  { title: 'onboard.partsTitle', body: 'onboard.partsBody', target: '#config-panel', projects: false },
-  { title: 'onboard.projectTitle', body: 'onboard.projectBody', target: 'projects', projects: false },
-  { title: 'onboard.boardTitle', body: 'onboard.boardBody', target: '#house-save-panel', projects: true }
+  { title: 'onboard.houseTitle', body: 'onboard.houseBody', target: '#house-stage', projects: false, tray: 'none' },
+  { title: 'onboard.partsTitle', body: 'onboard.partsBody', target: '#config-panel', projects: false, tray: 'none' },
+  { title: 'onboard.toolsTitle', body: 'onboard.toolsBody', target: '#tool-dock', projects: false, tray: 'dock' },
+  { title: 'onboard.sunTitle', body: 'onboard.sunBody', target: '#sun-timebox', projects: false, tray: 'sun' },
+  { title: 'onboard.viewTitle', body: 'onboard.viewBody', target: '#view-tools', projects: false, tray: 'view' },
+  { title: 'onboard.rulerTitle', body: 'onboard.rulerBody', target: '#ruler-tools', projects: false, tray: 'ruler' },
+  { title: 'onboard.notesTitle', body: 'onboard.notesBody', target: '#note-tools', projects: false, tray: 'notes' },
+  { title: 'onboard.moodTitle', body: 'onboard.moodBody', target: '#mood-board', projects: false, tray: 'mood' },
+  { title: 'onboard.aiTitle', body: 'onboard.aiBody', target: '#ai-concierge-panel', projects: false, tray: 'ai' },
+  { title: 'onboard.projectTitle', body: 'onboard.projectBody', target: 'projects', projects: false, tray: 'none' },
+  { title: 'onboard.boardTitle', body: 'onboard.boardBody', target: '#house-save-panel', projects: true, tray: 'none' }
 ] as const;
 
 const open = ref(false);
@@ -125,6 +132,8 @@ function waitForCookie() {
 function box(id: string) {
   const el = document.getElementById(id.replace(/^#/, ''));
   if (!el) return null;
+  const style = getComputedStyle(el);
+  if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0) return null;
   const rect = el.getBoundingClientRect();
   if (rect.width < 2 || rect.height < 2) return null;
   return rect;
@@ -166,6 +175,16 @@ function setProjects(show: boolean) {
 
 function setSheet(show: boolean) {
   window.dispatchEvent(new CustomEvent('builder:onboarding-sheet', { detail: { open: show } }));
+}
+
+function setTray(tray: string) {
+  window.dispatchEvent(new CustomEvent('builder:onboarding-tools', { detail: { tray } }));
+}
+
+function syncStep() {
+  setProjects(step.value.projects);
+  setSheet(step.value.target === '#config-panel');
+  setTray(step.value.tray);
 }
 
 function measure() {
@@ -220,6 +239,15 @@ function measure() {
   } else if (step.value.target === 'projects') {
     x = rect.right - width;
     y = rect.bottom + 12;
+  } else if (step.value.target === '#mood-board') {
+    x = rect.left + (rect.width - width) / 2;
+    y = rect.bottom - height - 24;
+  } else if (step.value.target === '#ai-concierge-panel' && window.innerWidth - rect.right > width + 28) {
+    x = rect.right + 16;
+    y = rect.top;
+  } else if (step.value.target === '#ai-concierge-panel') {
+    x = rect.left + (rect.width - width) / 2;
+    y = rect.bottom - height - 24;
   } else if (rect.left > width + 28) {
     x = rect.left - width - 16;
     y = rect.top;
@@ -263,6 +291,7 @@ function finish() {
   localStorage.setItem(KEY, 'seen');
   setProjects(false);
   setSheet(false);
+  setTray('none');
 }
 
 function replay() {
@@ -291,26 +320,25 @@ function onResize() {
 
 watch(stepIndex, async () => {
   if (!visible.value) return;
-  setProjects(step.value.projects);
-  setSheet(step.value.target === '#config-panel');
+  syncStep();
   await nextTick();
   window.clearTimeout(measureTimer);
   measureTimer = window.setTimeout(() => {
     measure();
     void focusNext();
-    measureTimer = window.setTimeout(measure, 220);
+    measureTimer = window.setTimeout(measure, 340);
   }, 80);
 });
 
 watch(visible, async (showing) => {
   if (!showing) return;
-  setProjects(step.value.projects);
-  setSheet(step.value.target === '#config-panel');
+  syncStep();
   await nextTick();
   measure();
   measureTimer = window.setTimeout(() => {
     measure();
     void focusNext();
+    measureTimer = window.setTimeout(measure, 340);
   }, 80);
 });
 
@@ -330,6 +358,7 @@ onBeforeUnmount(() => {
   window.clearTimeout(measureTimer);
   setProjects(false);
   setSheet(false);
+  setTray('none');
 });
 </script>
 

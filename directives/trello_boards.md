@@ -18,12 +18,16 @@ Trello is not GitHub login. Builder sign-in stays on GitHub or a password. Trell
 
 ## What the user sees
 
-The first visit to the builder is a four-step tour on the live screens. Skip is always there. It does not show again after Skip or Start building (`builder.onboarding`). Projects has **How it works**, which plays it again.
+The first visit to the builder is a tour on the live screens. Skip is always there. It does not show again after Skip or Start building (`builder.onboarding`). Projects has **How it works**, which plays it again.
 
 1. The house, on the model.
 2. The parts, on the options panel: size, roof, doors, and windows.
-3. The project, on the Projects control.
-4. The board. Projects opens, and the note points at the Trello mark on a saved house.
+3. The tools, on the tool dock.
+4. The sun, view, measure, and notes trays, each opened in turn.
+5. The mood board, open, for pictures, clips, notes, and an invite.
+6. The assistant.
+7. The project, on the Projects control.
+8. The board. Projects opens, and the note points at the Trello mark on a saved house.
 
 Sign in, save the house, then click that mark. Trello asks for `read,write` once and returns to `/build`. Builder creates the board. The same mark opens it later. **Disconnect Trello** in Projects removes the stored token.
 

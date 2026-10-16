@@ -1,5 +1,6 @@
 <template>
   <div
+    id="tool-dock"
     class="pointer-events-auto z-20 flex w-full max-w-full touch-manipulation flex-col items-stretch gap-2 transition-all duration-300 min-[1180px]:absolute min-[1180px]:w-auto min-[1180px]:items-start"
     :class="store.isFullscreen ? 'absolute bottom-[max(1rem,env(safe-area-inset-bottom))] left-3 right-3 min-[1180px]:bottom-[max(1.5rem,env(safe-area-inset-bottom))] min-[1180px]:left-6 min-[1180px]:right-auto' : 'relative w-full min-[1180px]:bottom-[max(1.5rem,env(safe-area-inset-bottom))] min-[1180px]:left-6 min-[1180px]:w-auto'"
     :aria-label="t('tools.label')"
@@ -734,7 +735,24 @@ function markAndClose() {
   emit('mark-view');
 }
 
+let tourTray: string | null = null;
+
+function onTourTools(event: Event) {
+  const tray = (event as CustomEvent<{ tray?: string }>).detail?.tray ?? 'none';
+  tourTray = tray === 'none' ? null : tray;
+  const showTools = tray === 'dock' || tray === 'sun' || tray === 'view' || tray === 'ruler' || tray === 'notes';
+  if (narrowTools() && showTools) toolsOpen.value = true;
+  sunOpen.value = tray === 'sun';
+  viewOpen.value = tray === 'view';
+  rulerOpen.value = tray === 'ruler';
+  notesOpen.value = tray === 'notes';
+  store.showMood = tray === 'mood';
+  if (tray !== 'ai') emit('close-ai');
+  void anchorOpenTray();
+}
+
 function onDocumentPointerDown(event: PointerEvent) {
+  if (tourTray) return;
   const target = event.target;
   if (!(target instanceof Node)) return;
   window.setTimeout(() => {
@@ -747,7 +765,7 @@ function onDocumentPointerDown(event: PointerEvent) {
 }
 
 function onKey(event: KeyboardEvent) {
-  if (event.key !== 'Escape') return;
+  if (event.key !== 'Escape' || tourTray) return;
   closeTrays();
   emit('close-ai');
   if (manualFullscreen) exitManualFullscreen();
@@ -836,6 +854,7 @@ onMounted(() => {
   document.addEventListener('pointerdown', onDocumentPointerDown);
   document.addEventListener('keydown', onKey);
   window.addEventListener('resize', onToolResize);
+  window.addEventListener('builder:onboarding-tools', onTourTools);
 });
 
 function onToolResize() {
@@ -847,6 +866,7 @@ onBeforeUnmount(() => {
   document.removeEventListener('fullscreenchange', syncFullscreen);
   document.removeEventListener('pointerdown', onDocumentPointerDown);
   document.removeEventListener('keydown', onKey);
+  window.removeEventListener('builder:onboarding-tools', onTourTools);
   window.removeEventListener('resize', onToolResize);
 });
 

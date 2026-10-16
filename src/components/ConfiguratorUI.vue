@@ -197,15 +197,22 @@ function onTourSheet(event: Event) {
   sheetOpen.value = (event as CustomEvent<{ open?: boolean }>).detail?.open === true;
 }
 
+function onTourTools(event: Event) {
+  const tray = (event as CustomEvent<{ tray?: string }>).detail?.tray;
+  isHouseImportOpen.value = tray === 'ai';
+}
+
 onMounted(() => {
   readNarrow();
   window.addEventListener('resize', readNarrow);
   window.addEventListener('builder:onboarding-sheet', onTourSheet);
+  window.addEventListener('builder:onboarding-tools', onTourTools);
 });
 
 onBeforeUnmount(() => {
   window.removeEventListener('resize', readNarrow);
   window.removeEventListener('builder:onboarding-sheet', onTourSheet);
+  window.removeEventListener('builder:onboarding-tools', onTourTools);
 });
 
 watch(
