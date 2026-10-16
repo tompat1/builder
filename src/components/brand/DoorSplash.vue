@@ -18,25 +18,90 @@
         <defs>
           <clipPath id="boot-door-opening"><path :d="rig.interior.aperture" /></clipPath>
           <clipPath id="boot-door-wall"><path :d="rig.interior.wallClip" clip-rule="evenodd" /></clipPath>
-          <linearGradient id="boot-door-room" x1="0" y1="54" x2="0" y2="291" gradientUnits="userSpaceOnUse">
-            <stop offset="0" stop-color="#4a1a03" />
-            <stop offset="1" stop-color="#7c3006" />
+
+          <!-- Outdoor morning sky revealed as the door opens -->
+          <linearGradient id="boot-door-sky" x1="0" y1="54" x2="0" y2="291" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#559be2" />
+            <stop offset="0.30" stop-color="#fedaa0" />
+            <stop offset="0.65" stop-color="#ff9938" />
+            <stop offset="1" stop-color="#6e2503" />
           </linearGradient>
-          <linearGradient id="boot-door-daylight" x1="117" y1="150" x2="24" y2="200" gradientUnits="userSpaceOnUse">
-            <stop offset="0" stop-color="#ff8a3a" stop-opacity=".55" />
-            <stop offset="1" stop-color="#ff8a3a" stop-opacity="0" />
+
+          <!-- Radiant morning sun glow from upper right -->
+          <radialGradient id="boot-sun-glow" cx="88%" cy="22%" r="85%">
+            <stop offset="0" stop-color="#ffffff" stop-opacity="0.95" />
+            <stop offset="0.18" stop-color="#fff2cc" stop-opacity="0.9" />
+            <stop offset="0.45" stop-color="#ffbe58" stop-opacity="0.65" />
+            <stop offset="0.75" stop-color="#ff8926" stop-opacity="0.25" />
+            <stop offset="1" stop-color="#ff7012" stop-opacity="0" />
+          </radialGradient>
+
+          <!-- Volumetric sunbeams streaming into doorway -->
+          <linearGradient id="boot-sunray" x1="117" y1="54" x2="35" y2="250" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#ffffff" stop-opacity="0.85" />
+            <stop offset="0.38" stop-color="#ffdf88" stop-opacity="0.5" />
+            <stop offset="1" stop-color="#ff9e3b" stop-opacity="0" />
           </linearGradient>
+
+          <!-- Golden light spill onto the threshold / floor in front of the door -->
+          <linearGradient id="boot-sun-floor-spill" x1="70" y1="264" x2="80" y2="340" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#ffb347" stop-opacity="0.75" />
+            <stop offset="0.45" stop-color="#ffa030" stop-opacity="0.35" />
+            <stop offset="1" stop-color="#ff8a18" stop-opacity="0" />
+          </linearGradient>
+
+          <filter id="boot-sun-blur" x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur stdDeviation="3.5" />
+          </filter>
+
           <filter id="boot-door-soft" x="-50%" y="-50%" width="200%" height="200%">
             <feGaussianBlur :stdDeviation="1.5 + 3.5 * door.swing" />
           </filter>
         </defs>
 
-        <!-- Interior, revealed only once the door moves (frame 0 == the static logo). -->
+        <!-- Golden sunlight spilling forward onto the floor in front of the doorway -->
+        <g :opacity="door.swing * 0.55">
+          <path
+            d="M24 291 L117 237 L175 295 L-15 375 Z"
+            fill="url(#boot-sun-floor-spill)"
+            filter="url(#boot-sun-blur)"
+          />
+        </g>
+
+        <!-- Interior & outdoor sky, revealed as the door opens -->
         <g clip-path="url(#boot-door-opening)" :opacity="door.reveal">
-          <path :d="rig.interior.aperture" fill="url(#boot-door-room)" />
-          <path :d="rig.interior.aperture" fill="url(#boot-door-daylight)" :opacity="door.swing" />
+          <!-- Sky and horizon -->
+          <path :d="rig.interior.aperture" fill="url(#boot-door-sky)" />
+
+          <!-- Golden radiant sunburst in upper right sky -->
+          <path :d="rig.interior.aperture" fill="url(#boot-sun-glow)" :opacity="door.swing * 0.95" />
+
+          <!-- Diagonal sunbeams streaming into doorway -->
+          <polygon
+            points="85,54 117,54 75,250 35,250"
+            fill="url(#boot-sunray)"
+            :opacity="door.swing * 0.45"
+          />
+          <polygon
+            points="100,54 117,70 95,237 60,240"
+            fill="url(#boot-sunray)"
+            :opacity="door.swing * 0.35"
+          />
+
+          <!-- Flying birds across the open morning sky -->
+          <g
+            v-for="(b, idx) in birds"
+            :key="`bird-${idx}`"
+            :transform="`translate(${b.x}, ${b.y}) rotate(${b.rot}) scale(${b.scale})`"
+          >
+            <path :d="b.path" fill="#241208" opacity="0.88" />
+          </g>
+
+          <!-- Architectural jamb and floor reveal -->
           <path :d="rig.interior.floor" :fill="rig.interior.floorFill" />
           <path :d="rig.interior.jamb" :fill="rig.interior.jambFill" />
+
+          <!-- Door slab faces behind wall plane -->
           <path
             v-for="(face, i) in door.behind"
             :key="`b${i}`"
@@ -193,6 +258,65 @@ const minVisibleMs = computed(() => {
 const door = computed(() => rig.frame(angle.value));
 // Hairline edge only once the door has moved, so the first frame is identical to the logo.
 const edgeStroke = computed(() => `rgba(90,60,30,${(door.value.reveal * 0.35).toFixed(3)})`);
+
+interface BirdState {
+  x: number;
+  y: number;
+  rot: number;
+  scale: number;
+  path: string;
+}
+
+function birdPath(flap: number): string {
+  const tipY = -1 - 3.5 * flap;
+  const midY = -0.5 - 1.8 * flap;
+  return `M -6 ${tipY.toFixed(1)} Q -2 ${midY.toFixed(1)} 0 0 Q 2 ${midY.toFixed(1)} 6 ${tipY.toFixed(1)} Q 2 ${(-midY * 0.3).toFixed(1)} 0 0.5 Q -2 ${(-midY * 0.3).toFixed(1)} -6 ${tipY.toFixed(1)} Z`;
+}
+
+const birds = computed<BirdState[]>(() => {
+  const ms = elapsed.value;
+  if (ms < 650) return [];
+
+  const list: BirdState[] = [];
+
+  // Bird 1: Lead swallow soaring across the open sunrise
+  const t1 = Math.min(1, Math.max(0, (ms - 700) / 1750));
+  if (t1 > 0 && t1 < 1) {
+    const x = 12 + 104 * t1;
+    const y = 148 - 64 * t1 - 12 * Math.sin(t1 * Math.PI);
+    const dx = 104;
+    const dy = -64 - 12 * Math.PI * Math.cos(t1 * Math.PI);
+    const rot = (Math.atan2(dy, dx) * 180) / Math.PI;
+    const flap = Math.sin(ms / 105);
+    list.push({ x, y, rot, scale: 1.05, path: birdPath(flap) });
+  }
+
+  // Bird 2: Companion follower
+  const t2 = Math.min(1, Math.max(0, (ms - 950) / 1700));
+  if (t2 > 0 && t2 < 1) {
+    const x = 22 + 86 * t2;
+    const y = 128 - 62 * t2 - 8 * Math.sin(t2 * Math.PI);
+    const dx = 86;
+    const dy = -62 - 8 * Math.PI * Math.cos(t2 * Math.PI);
+    const rot = (Math.atan2(dy, dx) * 180) / Math.PI;
+    const flap = Math.sin(ms / 120 + 1.2);
+    list.push({ x, y, rot, scale: 0.78, path: birdPath(flap) });
+  }
+
+  // Bird 3: Distant high soarer
+  const t3 = Math.min(1, Math.max(0, (ms - 1200) / 1650));
+  if (t3 > 0 && t3 < 1) {
+    const x = 40 + 55 * t3;
+    const y = 96 - 38 * t3 - 6 * Math.sin(t3 * Math.PI);
+    const dx = 55;
+    const dy = -38 - 6 * Math.PI * Math.cos(t3 * Math.PI);
+    const rot = (Math.atan2(dy, dx) * 180) / Math.PI;
+    const flap = Math.sin(ms / 140 + 2.5);
+    list.push({ x, y, rot, scale: 0.52, path: birdPath(flap) });
+  }
+
+  return list;
+});
 
 let raf = 0;
 let fadeTimer = 0;

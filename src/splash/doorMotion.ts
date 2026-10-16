@@ -9,7 +9,7 @@ export const LATCH_END_MS = 420;
 export const SWING_START_MS = 620;
 export const SWING_END_MS = 2300;
 export const LATCH_ANGLE = 3.5;
-export const OPEN_ANGLE = 96;
+export const OPEN_ANGLE = 112;
 
 /** CSS-style cubic-bezier easing (x1, y1, x2, y2), solved with Newton + bisection. */
 export function cubicBezier(x1: number, y1: number, x2: number, y2: number) {

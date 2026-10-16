@@ -173,7 +173,7 @@ export function createDoorRig(spec: DoorRigSpec) {
       behind,
       shadow: svgPath(shadow),
       reveal: clamp01(angleDeg / 6),
-      swing: clamp01(sin),
+      swing: clamp01(angleDeg >= 90 ? 1 : Math.sin(a)),
     };
   }
 
