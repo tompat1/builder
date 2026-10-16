@@ -1,7 +1,7 @@
 /** Client calls for Trello authorize + house board creation. */
 
 import { sessionToken, workerBase } from './account';
-import { trelloCardsFromHouse, type TrelloCardDraft } from '../trello/tasks';
+import { trelloBoardPlanFromHouse, type TrelloBoardPlan, type TrelloCardDraft } from '../trello/tasks';
 
 const PENDING_KEY = 'builder.trello.pending';
 const INCOMING_TOKEN_KEY = 'builder.trello.incoming';
@@ -138,19 +138,22 @@ export async function createHouseTrelloBoard(input: {
   notes: Array<{ text?: string; link?: { kind?: string; wall?: string; slotId?: string } }>;
   config: Record<string, unknown>;
   force?: boolean;
+  plan?: TrelloBoardPlan;
   cards?: TrelloCardDraft[];
 }): Promise<TrelloBoardResult> {
-  const cards = input.cards ?? trelloCardsFromHouse({
+  const plan = input.plan ?? trelloBoardPlanFromHouse({
     name: input.name,
     locale: input.locale,
     notes: input.notes,
     config: input.config
   });
+  const cards = input.cards ?? plan.cards;
   const { response, data } = await trelloFetch('/api/trello/boards', {
     method: 'POST',
     body: JSON.stringify({
       houseId: input.houseId,
       name: input.name,
+      lists: plan.lists,
       cards,
       force: Boolean(input.force)
     })

@@ -8,10 +8,35 @@
 const TOKEN_RE = /^[A-Za-z0-9_-]{20,200}$/;
 const BOARD_ID_RE = /^[a-f0-9]{24}$/i;
 const HOUSE_ID_RE = /^hus_[a-f0-9]{32}$/;
-const CARD_LIMIT = 40;
+const CARD_LIMIT = 50;
 const CARD_NAME_LIMIT = 160;
 const CARD_DESC_LIMIT = 8_000;
 const BOARD_NAME_LIMIT = 80;
+const LIST_NAME_LIMIT = 40;
+const LIST_KEYS = new Set([
+  'milestones',
+  'size',
+  'structure',
+  'roof',
+  'openings',
+  'outdoor',
+  'interior',
+  'notes',
+  'doing',
+  'done'
+]);
+const DEFAULT_LISTS = [
+  { key: 'milestones', name: 'Milestones' },
+  { key: 'size', name: 'Size & permits' },
+  { key: 'structure', name: 'Structure & facade' },
+  { key: 'roof', name: 'Roof' },
+  { key: 'openings', name: 'Openings' },
+  { key: 'outdoor', name: 'Loft & outdoor' },
+  { key: 'interior', name: 'Floor plan' },
+  { key: 'notes', name: 'Notes' },
+  { key: 'doing', name: 'Doing' },
+  { key: 'done', name: 'Done' }
+];
 
 function json(body, status, headers) {
   return new Response(JSON.stringify(body), {
@@ -43,6 +68,26 @@ export function acceptTrelloToken(value) {
   return TOKEN_RE.test(token) ? token : '';
 }
 
+export function acceptTrelloLists(value) {
+  if (!Array.isArray(value) || !value.length) return DEFAULT_LISTS.map((row) => ({ ...row }));
+  const lists = [];
+  const seen = new Set();
+  for (const item of value) {
+    if (!item || typeof item !== 'object') continue;
+    const key = String(item.key ?? '').trim();
+    if (!LIST_KEYS.has(key) || seen.has(key)) continue;
+    const name = String(item.name ?? '').trim().replace(/\s+/g, ' ').slice(0, LIST_NAME_LIMIT);
+    if (!name) continue;
+    seen.add(key);
+    lists.push({ key, name });
+  }
+  for (const row of DEFAULT_LISTS) {
+    if (seen.has(row.key)) continue;
+    lists.push({ ...row });
+  }
+  return lists;
+}
+
 export function acceptTrelloCards(value) {
   if (!Array.isArray(value)) return [];
   const cards = [];
@@ -51,7 +96,8 @@ export function acceptTrelloCards(value) {
     const name = String(item.name ?? '').trim().replace(/\s+/g, ' ').slice(0, CARD_NAME_LIMIT);
     if (!name) continue;
     const desc = String(item.desc ?? '').trim().slice(0, CARD_DESC_LIMIT);
-    cards.push({ name, desc });
+    const listKey = LIST_KEYS.has(String(item.list ?? '')) ? String(item.list) : 'milestones';
+    cards.push({ name, desc, list: listKey });
     if (cards.length >= CARD_LIMIT) break;
   }
   return cards;
@@ -117,13 +163,20 @@ async function trelloFetch(path, key, token, init = {}, params = {}) {
   return { response, data };
 }
 
-function pickTodoList(lists) {
-  if (!Array.isArray(lists) || !lists.length) return null;
-  const prefer = lists.find((list) => {
-    const name = String(list?.name ?? '').toLowerCase();
-    return name === 'to do' || name === 'todo' || name === 'att göra' || name === 'att gora';
-  });
-  return prefer || lists[0];
+async function createBoardLists(key, token, boardId, lists) {
+  const byKey = new Map();
+  // Trello inserts at the left; create in reverse so the first list ends leftmost.
+  for (let i = lists.length - 1; i >= 0; i -= 1) {
+    const row = lists[i];
+    const result = await trelloFetch(`boards/${boardId}/lists`, key, token, { method: 'POST' }, {
+      name: row.name,
+      pos: 'left'
+    });
+    if (result.response.ok && result.data?.id) {
+      byKey.set(row.key, String(result.data.id));
+    }
+  }
+  return byKey;
 }
 
 export async function handleTrello(request, env, headers, sessionUser) {
@@ -262,10 +315,11 @@ async function routeTrello(request, env, headers, sessionUser) {
     }
 
     const boardName = acceptBoardName(body.name, owned.name);
+    const planLists = acceptTrelloLists(body.lists);
     const cards = acceptTrelloCards(body.cards);
     const created = await trelloFetch('boards', env.TRELLO_API_KEY, token, { method: 'POST' }, {
       name: boardName,
-      defaultLists: 'true',
+      defaultLists: 'false',
       desc: `Builder house project ${houseId}`
     });
     if (!created.response.ok || !created.data?.id) {
@@ -280,14 +334,15 @@ async function routeTrello(request, env, headers, sessionUser) {
       ? created.data.url
       : `https://trello.com/b/${boardId}`;
 
-    const lists = await trelloFetch(`boards/${boardId}/lists`, env.TRELLO_API_KEY, token, { method: 'GET' });
-    const todo = pickTodoList(lists.data);
-    if (!todo?.id) return json({ error: 'lists' }, 502, headers);
+    const listIds = await createBoardLists(env.TRELLO_API_KEY, token, boardId, planLists);
+    if (!listIds.size) return json({ error: 'lists' }, 502, headers);
+    const fallbackList = listIds.get('milestones') || [...listIds.values()][0];
 
     let cardsCreated = 0;
     for (const card of cards) {
+      const idList = listIds.get(card.list) || fallbackList;
       const result = await trelloFetch('cards', env.TRELLO_API_KEY, token, { method: 'POST' }, {
-        idList: String(todo.id),
+        idList: String(idList),
         name: card.name,
         desc: card.desc
       });

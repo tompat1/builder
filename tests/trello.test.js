@@ -3,10 +3,11 @@ import assert from 'node:assert/strict';
 import {
   acceptBoardName,
   acceptTrelloCards,
+  acceptTrelloLists,
   acceptTrelloToken,
   handleTrello
 } from '../workers/trello.js';
-import { trelloCardsFromHouse } from '../src/trello/tasks.ts';
+import { trelloBoardPlanFromHouse, trelloCardsFromHouse } from '../src/trello/tasks.ts';
 
 test('trello tokens are short opaque strings', () => {
   assert.equal(acceptTrelloToken('a'.repeat(64)), 'a'.repeat(64));
@@ -14,16 +15,29 @@ test('trello tokens are short opaque strings', () => {
   assert.equal(acceptTrelloToken('bad token!'), '');
 });
 
-test('trello cards keep a bounded name and description', () => {
+test('trello cards keep a bounded name, description, and list', () => {
   const cards = acceptTrelloCards([
-    { name: '  Roof work  ', desc: 'Shingles' },
+    { name: '  Roof work  ', desc: 'Shingles', list: 'roof' },
     { name: '', desc: 'skip' },
-    { name: 'x'.repeat(200), desc: 'y'.repeat(20) }
+    { name: 'x'.repeat(200), desc: 'y'.repeat(20), list: 'nope' }
   ]);
   assert.equal(cards.length, 2);
   assert.equal(cards[0].name, 'Roof work');
   assert.equal(cards[0].desc, 'Shingles');
+  assert.equal(cards[0].list, 'roof');
   assert.equal(cards[1].name.length, 160);
+  assert.equal(cards[1].list, 'milestones');
+});
+
+test('trello lists keep the house milestone columns', () => {
+  const lists = acceptTrelloLists([
+    { key: 'milestones', name: '  Milstolpar  ' },
+    { key: 'notes', name: 'Anteckningar' },
+    { key: 'bogus', name: 'Nope' }
+  ]);
+  assert.equal(lists[0].name, 'Milstolpar');
+  assert.ok(lists.some((row) => row.key === 'done'));
+  assert.ok(!lists.some((row) => row.key === 'bogus'));
 });
 
 test('board names fall back to the house title', () => {
@@ -32,8 +46,8 @@ test('board names fall back to the house title', () => {
   assert.equal(acceptBoardName('', ''), 'Builder house');
 });
 
-test('house notes and checklist become trello cards', () => {
-  const cards = trelloCardsFromHouse({
+test('house milestones, todos, and notes carry into the board plan', () => {
+  const plan = trelloBoardPlanFromHouse({
     name: 'Test house',
     locale: 'en',
     notes: [
@@ -45,16 +59,28 @@ test('house notes and checklist become trello cards', () => {
       buildingDepth: 4950,
       buildingHeight: 5000,
       activeRoof: 'saddle',
+      activeMaterial: 'wood',
+      floorPlanDone: true,
       hasLoft: true,
       loftCount: 1,
       terraces: [{ side: 'front', depth: '2400' }],
-      placedRooms: [{ id: 'room_1' }]
+      placedRooms: [{ id: 'room_1' }],
+      wallSlots: {
+        'front-0': { type: 'door', itemId: 'STEHAG' },
+        'front-1': { type: 'window', itemId: 'WIN_10x12' }
+      }
     }
   });
-  assert.ok(cards.some((card) => card.name === 'Project overview'));
-  assert.ok(cards.some((card) => card.name === 'Sleeping loft'));
-  assert.ok(cards.some((card) => card.name === 'Terrace / deck'));
-  assert.ok(cards.some((card) => card.name === 'Order windows'));
+  assert.ok(plan.lists.some((row) => row.key === 'milestones' && row.name === 'Milestones'));
+  assert.ok(plan.lists.some((row) => row.key === 'done'));
+  const cards = plan.cards;
+  assert.ok(cards.some((card) => card.name === 'Project overview' && card.list === 'milestones'));
+  assert.ok(cards.some((card) => card.name === 'Choose roof' && card.list === 'done'));
+  assert.ok(cards.some((card) => card.name === 'Mark floor plan done' && card.list === 'done'));
+  assert.ok(cards.some((card) => card.name === 'Sleeping loft' && card.list === 'outdoor'));
+  assert.ok(cards.some((card) => card.name === 'Terrace / deck' && card.list === 'outdoor'));
+  assert.ok(cards.some((card) => card.name === 'Order windows' && card.list === 'notes'));
+  assert.equal(trelloCardsFromHouse({ locale: 'en', config: {} }).length > 0, true);
   assert.ok(!cards.some((card) => !card.name.trim()));
 });
 
@@ -188,17 +214,13 @@ test('create board posts to trello and stores the link', async () => {
   const houseId = 'hus_0123456789abcdef0123456789abcdef';
   const calls = [];
   const originalFetch = globalThis.fetch;
+  let listSeq = 0;
   globalThis.fetch = async (input) => {
     const url = String(input);
     calls.push(url);
-    if (url.includes('/boards?') && !url.includes('/lists')) {
-      return new Response(JSON.stringify({
-        id: 'bbbbbbbbbbbbbbbbbbbbbbbb',
-        url: 'https://trello.com/b/newboard'
-      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
-    }
     if (url.includes('/lists')) {
-      return new Response(JSON.stringify([{ id: 'list1', name: 'To Do' }]), {
+      listSeq += 1;
+      return new Response(JSON.stringify({ id: `list${listSeq}`, name: 'List' }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' }
       });
@@ -208,6 +230,12 @@ test('create board posts to trello and stores the link', async () => {
         status: 200,
         headers: { 'Content-Type': 'application/json' }
       });
+    }
+    if (url.includes('/boards')) {
+      return new Response(JSON.stringify({
+        id: 'bbbbbbbbbbbbbbbbbbbbbbbb',
+        url: 'https://trello.com/b/newboard'
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
     }
     return new Response('{}', { status: 404 });
   };
@@ -226,7 +254,15 @@ test('create board posts to trello and stores the link', async () => {
         body: JSON.stringify({
           houseId,
           name: 'Cabin board',
-          cards: [{ name: 'Foundation', desc: 'Pour slab' }]
+          lists: [
+            { key: 'milestones', name: 'Milestones' },
+            { key: 'structure', name: 'Structure' },
+            { key: 'done', name: 'Done' }
+          ],
+          cards: [
+            { name: 'Foundation', desc: 'Pour slab', list: 'structure' },
+            { name: 'Choose size', desc: 'Done', list: 'done' }
+          ]
         })
       }),
       env,
@@ -236,9 +272,10 @@ test('create board posts to trello and stores the link', async () => {
     assert.equal(res.status, 200);
     const data = await res.json();
     assert.equal(data.existing, false);
-    assert.equal(data.cardsCreated, 1);
+    assert.equal(data.cardsCreated, 2);
     assert.equal(data.board.url, 'https://trello.com/b/newboard');
     assert.ok(calls.some((url) => url.includes('/boards?')));
+    assert.ok(calls.some((url) => url.includes('/lists?')));
     assert.ok(calls.some((url) => url.includes('/cards?')));
   } finally {
     globalThis.fetch = originalFetch;
