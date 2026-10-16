@@ -323,6 +323,11 @@ const sv = {
     sizeTitle: 'Storlek & Grundmått',
     roofTitle: 'Taktyp & Vinkel',
     covering: 'Takbeklädnad',
+    roofEdge: 'Takfot',
+    roofOverhang: 'Utsprång',
+    roofOverhangBody: 'Taket sticker ut en bit utanför väggen.',
+    roofFlush: 'Liv med väggen',
+    roofFlushBody: 'Taket slutar i väggens linje, som på skandi-kuben.',
     felt: 'Takpapp',
     feltBody: 'Svart ytpapp',
     metal: 'Plåt',
@@ -1069,6 +1074,11 @@ const en = {
     sizeTitle: 'Size & footprint',
     roofTitle: 'Roof type & pitch',
     covering: 'Roof covering',
+    roofEdge: 'Roof edge',
+    roofOverhang: 'Overhang',
+    roofOverhangBody: 'The roof extends a little past the wall.',
+    roofFlush: 'At the wall line',
+    roofFlushBody: 'The roof stops on the wall line, as on the Scandi cube.',
     felt: 'Felt',
     feltBody: 'Black cap sheet',
     metal: 'Metal',
@@ -1578,8 +1588,8 @@ const en = {
     },
     flackt: {
       name: 'Low roof',
-      desc: 'A cubic modern roof with a discreet crown.',
-      spec: 'EPDM membrane, 2° hidden drainage'
+      desc: 'The Scandi cube roof. A low modern roof with a discreet crown.',
+      spec: 'Scandi cube roof, 2° hidden drainage'
     },
     'loft-none': {
       name: 'No loft',

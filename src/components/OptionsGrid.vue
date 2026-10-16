@@ -825,6 +825,56 @@
       </div>
 
       <div class="pt-1">
+        <p class="text-xs font-bold text-slate-900 mb-2"><Cms k="category.roofEdge" /></p>
+        <div class="grid grid-cols-2 gap-2" role="radiogroup" :aria-label="t('category.roofEdge')">
+          <button
+            type="button"
+            id="option-roof-overhang"
+            role="radio"
+            :aria-checked="!store.flushRoof"
+            @click="store.setFlushRoof(false)"
+            :class="[
+              'text-left p-2.5 rounded-xl border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
+              !store.flushRoof
+                ? 'border-slate-900 ring-1 ring-slate-900 bg-slate-50/70'
+                : 'border-slate-200/90 bg-white hover:border-slate-300'
+            ]"
+          >
+            <span class="mb-2 flex h-8 items-center justify-center text-slate-700">
+              <svg class="h-8 w-full" viewBox="0 0 120 32" fill="none" aria-hidden="true">
+                <path d="M8 14 H112" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
+                <path d="M28 14 V28 H92 V14" stroke="currentColor" stroke-width="1.4" />
+              </svg>
+            </span>
+            <span class="block text-xs font-bold text-slate-900"><Cms k="category.roofOverhang" /></span>
+            <span class="block text-[10px] text-slate-500 mt-0.5"><Cms k="category.roofOverhangBody" /></span>
+          </button>
+          <button
+            type="button"
+            id="option-roof-flush"
+            role="radio"
+            :aria-checked="store.flushRoof"
+            @click="store.setFlushRoof(true)"
+            :class="[
+              'text-left p-2.5 rounded-xl border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
+              store.flushRoof
+                ? 'border-slate-900 ring-1 ring-slate-900 bg-slate-50/70'
+                : 'border-slate-200/90 bg-white hover:border-slate-300'
+            ]"
+          >
+            <span class="mb-2 flex h-8 items-center justify-center text-slate-700">
+              <svg class="h-8 w-full" viewBox="0 0 120 32" fill="none" aria-hidden="true">
+                <path d="M28 14 H92" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
+                <path d="M28 14 V28 H92 V14" stroke="currentColor" stroke-width="1.4" />
+              </svg>
+            </span>
+            <span class="block text-xs font-bold text-slate-900"><Cms k="category.roofFlush" /></span>
+            <span class="block text-[10px] text-slate-500 mt-0.5"><Cms k="category.roofFlushBody" /></span>
+          </button>
+        </div>
+      </div>
+
+      <div class="pt-1">
         <p class="text-xs font-bold text-slate-900 mb-2"><Cms k="category.covering" /></p>
         <div class="grid grid-cols-2 gap-2">
           <button

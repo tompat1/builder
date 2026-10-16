@@ -301,9 +301,9 @@ export const ROOF_OPTIONS: OptionItem[] = [
   },
   {
     id: 'flackt',
-    name: 'Flackt Tak',
-    desc: 'Modern kubisk funkis med diskret integrerat krön.',
-    spec: 'EPDM gummiduk, 2° dold avrinning',
+    name: 'Flackt tak',
+    desc: 'Skandi-kubens tak. Kubisk funkis med diskret krön.',
+    spec: 'Skandi-kubens tak, 2° dold avrinning',
     priceDelta: 8200
   }
 ];
@@ -1374,6 +1374,12 @@ export const useConfigStore = defineStore('config', () => {
     saveSnapshot();
   }
 
+  function setFlushRoof(flush: boolean) {
+    if (flushRoof.value === flush) return;
+    flushRoof.value = flush;
+    saveSnapshot();
+  }
+
   function selectRoofCovering(id: RoofCovering) {
     roofCovering.value = id;
     saveSnapshot();
@@ -1968,6 +1974,7 @@ export const useConfigStore = defineStore('config', () => {
     setConcreteWall,
     removeConcreteWall,
     selectRoof,
+    setFlushRoof,
     selectRoofCovering,
     selectLoft,
     toggleHasLoft,
