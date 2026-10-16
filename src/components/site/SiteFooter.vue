@@ -18,6 +18,7 @@
         <ul class="mt-3 space-y-2 text-sm">
           <li><BuildAction appearance="text" class="hover:text-sage" /></li>
           <li><ActionControl to="/login" appearance="text" class="hover:text-sage"><Cms k="site.login" /></ActionControl></li>
+          <li><button type="button" class="hover:text-sage text-left" @click="openConsent">{{ t('consent.cookieSettings') }}</button></li>
         </ul>
       </div>
       <div class="flex flex-col items-start gap-3 md:items-end">
@@ -55,5 +56,11 @@ const howCurrent = computed(() => (route.path === '/homes' && route.hash === '#h
 function onLocale(event: Event) {
   const value = (event.target as HTMLSelectElement).value;
   if (value === 'sv' || value === 'en') applyLocale(value as AppLocale, true);
+}
+
+function openConsent() {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('builder:open-consent'));
+  }
 }
 </script>

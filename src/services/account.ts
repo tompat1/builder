@@ -8,6 +8,8 @@ export interface AccountUser {
   role: 'admin' | 'member';
   hasPassword: boolean;
   avatarUrl: string;
+  soundConsent?: 'granted' | 'denied';
+  cookieConsent?: 'all' | 'essential';
 }
 
 export function workerBase() {

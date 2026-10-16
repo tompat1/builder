@@ -141,3 +141,145 @@ html, body, #app {
   height: 100%;
   display: block;
 }
+
+.boot-splash__sound-toggle {
+  position: absolute;
+  bottom: 2rem;
+  right: 2rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.85rem;
+  border-radius: 9999px;
+  background-color: rgba(23, 61, 53, 0.06);
+  border: 1px solid rgba(23, 61, 53, 0.15);
+  color: #173D35;
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+  backdrop-filter: blur(8px);
+}
+
+.boot-splash__sound-toggle:hover {
+  background-color: rgba(23, 61, 53, 0.12);
+  border-color: rgba(23, 61, 53, 0.3);
+  transform: translateY(-1px);
+}
+
+.boot-splash__sound-toggle:focus-visible {
+  outline: 2px solid #173D35;
+  outline-offset: 2px;
+}
+
+.boot-splash__prompt {
+  position: absolute;
+  bottom: 2rem;
+  right: 2rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.45rem 0.65rem 0.45rem 0.85rem;
+  border-radius: 9999px;
+  background-color: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(23, 61, 53, 0.18);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
+  backdrop-filter: blur(8px);
+  z-index: 10;
+  user-select: none;
+  animation: splash-prompt-pop 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.boot-splash__prompt-text {
+  color: #173D35;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.boot-splash__prompt-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.boot-splash__prompt-btn {
+  font-family: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0.32rem 0.7rem;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: none;
+}
+
+.boot-splash__prompt-btn--yes {
+  background-color: #173D35;
+  color: #ffffff;
+}
+
+.boot-splash__prompt-btn--yes:hover {
+  background-color: #0f2b25;
+  transform: translateY(-0.5px);
+}
+
+.boot-splash__prompt-btn--no {
+  background-color: rgba(23, 61, 53, 0.08);
+  color: #173D35;
+}
+
+.boot-splash__prompt-btn--no:hover {
+  background-color: rgba(23, 61, 53, 0.15);
+}
+
+@keyframes splash-prompt-pop {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.boot-splash__prompt--unblock {
+  cursor: pointer;
+  background-color: #173D35;
+  color: #ffffff;
+  border-color: #173D35;
+  box-shadow: 0 4px 20px rgba(23, 61, 53, 0.25);
+  animation: splash-prompt-pop 0.3s cubic-bezier(0.16, 1, 0.3, 1), splash-pulse 2s infinite ease-in-out;
+}
+
+.boot-splash__prompt--unblock .boot-splash__prompt-text {
+  color: #ffffff;
+}
+
+.boot-splash__prompt--unblock:hover {
+  background-color: #0f2b25;
+  transform: translateY(-1px);
+}
+
+@keyframes splash-pulse {
+  0%, 100% {
+    box-shadow: 0 4px 20px rgba(23, 61, 53, 0.25);
+  }
+  50% {
+    box-shadow: 0 4px 28px rgba(23, 61, 53, 0.45);
+  }
+}
+
+@media (max-width: 640px) {
+  .boot-splash__prompt,
+  .boot-splash__sound-toggle {
+    bottom: 1.25rem;
+    right: 1.25rem;
+  }
+}

@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
 import { accountMe, saveSession, sessionToken, type AccountUser } from '../services/account';
 import { listHouses } from '../services/houseSave';
+import { syncUserWithLocalConsent, saveUserConsent, type SoundConsent, type CookieConsent } from '../services/consent';
 
 export const useSessionStore = defineStore('session', () => {
   const user = ref<AccountUser | null>(null);
@@ -12,7 +13,19 @@ export const useSessionStore = defineStore('session', () => {
 
   function setUser(next: AccountUser | null) {
     user.value = next;
-    if (!next) savedHouseCount.value = 0;
+    if (!next) {
+      savedHouseCount.value = 0;
+    } else {
+      syncUserWithLocalConsent(next);
+    }
+  }
+
+  function updateUserConsent(sound: SoundConsent, cookies: CookieConsent) {
+    if (user.value) {
+      user.value.soundConsent = sound;
+      user.value.cookieConsent = cookies;
+      saveUserConsent(user.value.id, sound, cookies);
+    }
   }
 
   function setSavedHouseCount(count: number) {
@@ -76,6 +89,7 @@ export const useSessionStore = defineStore('session', () => {
     refreshSavedHouseStatus,
     ensureAccountState,
     finishAuthentication,
-    clearAccount
+    clearAccount,
+    updateUserConsent
   };
 });
