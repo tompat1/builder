@@ -2076,9 +2076,15 @@ export class HouseScene {
    * On a facade about 5 m high the rail sits 2.7 m above the ground,
    * with the floor between the two storeys (the allowed band is 2.4–3.0 m).
    * Shorter houses keep the lower rail.
+   * On the concrete house the rail is the top of the concrete walls, so the
+   * timber storey starts where that wall ends.
    */
   private beltRise(wallTop: number) {
     const wallBase = 0.25;
+    if (this.currentConfig.concreteBase) {
+      const crown = (this.currentConfig.concreteHeightMm ?? 2500) / 1000;
+      return Math.max(0.4, crown - wallBase);
+    }
     if (wallTop >= 4.5) return 2.7 - wallBase;
     return 2.15;
   }
@@ -2210,8 +2216,13 @@ export class HouseScene {
    */
   private addBeltFlashing(w: number, d: number, wallTop: number) {
     if (this.currentConfig.panelOrientation === 'liggande') return;
-    const y = 0.25 + this.beltRise(wallTop);
     const faceH = 0.11;
+    const rise = this.beltRise(wallTop);
+    // The plate hangs from the concrete crown and laps the wall end.
+    // Other houses keep the rail centred on the storey line.
+    const y = this.currentConfig.concreteBase
+      ? 0.25 + rise - faceH / 2
+      : 0.25 + rise;
     const proj = 0.036;
     const standOff = 0.008;
     const { face, thick } = this.cornerTrimSize();
