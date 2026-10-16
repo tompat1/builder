@@ -17,25 +17,27 @@ test('trello tokens are short opaque strings', () => {
 
 test('trello cards keep a bounded name, description, and list', () => {
   const cards = acceptTrelloCards([
-    { name: '  Roof work  ', desc: 'Shingles', list: 'roof' },
+    { name: '  Roof work  ', desc: 'Shingles', list: 'phase4' },
     { name: '', desc: 'skip' },
     { name: 'x'.repeat(200), desc: 'y'.repeat(20), list: 'nope' }
   ]);
   assert.equal(cards.length, 2);
   assert.equal(cards[0].name, 'Roof work');
   assert.equal(cards[0].desc, 'Shingles');
-  assert.equal(cards[0].list, 'roof');
+  assert.equal(cards[0].list, 'phase4');
   assert.equal(cards[1].name.length, 160);
-  assert.equal(cards[1].list, 'milestones');
+  assert.equal(cards[1].list, 'critical');
 });
 
-test('trello lists keep the house milestone columns', () => {
+test('trello lists keep the ground-up build columns', () => {
   const lists = acceptTrelloLists([
-    { key: 'milestones', name: '  Milstolpar  ' },
+    { key: 'critical', name: '  Kritiska beslut först  ' },
+    { key: 'phase1', name: 'Fas 1: Markarbete' },
     { key: 'notes', name: 'Anteckningar' },
     { key: 'bogus', name: 'Nope' }
   ]);
-  assert.equal(lists[0].name, 'Milstolpar');
+  assert.equal(lists[0].name, 'Kritiska beslut först');
+  assert.ok(lists.some((row) => row.key === 'phase2'));
   assert.ok(lists.some((row) => row.key === 'done'));
   assert.ok(!lists.some((row) => row.key === 'bogus'));
 });
@@ -46,7 +48,7 @@ test('board names fall back to the house title', () => {
   assert.equal(acceptBoardName('', ''), 'Builder house');
 });
 
-test('house milestones, todos, and notes carry into the board plan', () => {
+test('house build phases populate ground-up with critical work first', () => {
   const plan = trelloBoardPlanFromHouse({
     name: 'Test house',
     locale: 'en',
@@ -71,16 +73,23 @@ test('house milestones, todos, and notes carry into the board plan', () => {
       }
     }
   });
-  assert.ok(plan.lists.some((row) => row.key === 'milestones' && row.name === 'Milestones'));
+  assert.equal(plan.lists[0].key, 'critical');
+  assert.equal(plan.lists[1].key, 'phase1');
+  assert.ok(plan.lists.some((row) => row.key === 'phase6'));
   assert.ok(plan.lists.some((row) => row.key === 'done'));
   const cards = plan.cards;
-  assert.ok(cards.some((card) => card.name === 'Project overview' && card.list === 'milestones'));
-  assert.ok(cards.some((card) => card.name === 'Choose roof' && card.list === 'done'));
-  assert.ok(cards.some((card) => card.name === 'Mark floor plan done' && card.list === 'done'));
-  assert.ok(cards.some((card) => card.name === 'Sleeping loft' && card.list === 'outdoor'));
-  assert.ok(cards.some((card) => card.name === 'Terrace / deck' && card.list === 'outdoor'));
+  assert.ok(cards.some((card) => card.name.startsWith('1. Water') && card.list === 'critical'));
+  assert.ok(cards.some((card) => card.name.startsWith('1.1 Site') && card.list === 'phase1'));
+  assert.ok(cards.some((card) => card.name.startsWith('2.5 Concrete') && card.list === 'phase2'));
+  assert.ok(cards.some((card) => card.name.startsWith('6.7 Final') && card.list === 'phase6'));
+  assert.ok(cards.some((card) => card.name === 'Builder: roof chosen' && card.list === 'done'));
+  assert.ok(cards.some((card) => card.name === 'Builder: floor plan done' && card.list === 'done'));
+  assert.ok(cards.some((card) => card.name === 'Sleeping loft' && card.list === 'builder'));
   assert.ok(cards.some((card) => card.name === 'Order windows' && card.list === 'notes'));
-  assert.equal(trelloCardsFromHouse({ locale: 'en', config: {} }).length > 0, true);
+  const firstCritical = cards.findIndex((card) => card.list === 'critical');
+  const firstPhase6 = cards.findIndex((card) => card.list === 'phase6');
+  assert.ok(firstCritical >= 0 && firstPhase6 > firstCritical);
+  assert.equal(trelloCardsFromHouse({ locale: 'sv', config: {} }).some((card) => card.name.includes('VA')), true);
   assert.ok(!cards.some((card) => !card.name.trim()));
 });
 
@@ -255,13 +264,13 @@ test('create board posts to trello and stores the link', async () => {
           houseId,
           name: 'Cabin board',
           lists: [
-            { key: 'milestones', name: 'Milestones' },
-            { key: 'structure', name: 'Structure' },
+            { key: 'critical', name: 'Critical first' },
+            { key: 'phase1', name: 'Earthworks' },
             { key: 'done', name: 'Done' }
           ],
           cards: [
-            { name: 'Foundation', desc: 'Pour slab', list: 'structure' },
-            { name: 'Choose size', desc: 'Done', list: 'done' }
+            { name: 'VA capacity', desc: 'Critical', list: 'critical' },
+            { name: 'Excavation', desc: 'Dig footprint', list: 'phase1' }
           ]
         })
       }),

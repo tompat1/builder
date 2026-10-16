@@ -8,31 +8,33 @@
 const TOKEN_RE = /^[A-Za-z0-9_-]{20,200}$/;
 const BOARD_ID_RE = /^[a-f0-9]{24}$/i;
 const HOUSE_ID_RE = /^hus_[a-f0-9]{32}$/;
-const CARD_LIMIT = 50;
+const CARD_LIMIT = 80;
 const CARD_NAME_LIMIT = 160;
 const CARD_DESC_LIMIT = 8_000;
 const BOARD_NAME_LIMIT = 80;
-const LIST_NAME_LIMIT = 40;
+const LIST_NAME_LIMIT = 48;
 const LIST_KEYS = new Set([
-  'milestones',
-  'size',
-  'structure',
-  'roof',
-  'openings',
-  'outdoor',
-  'interior',
+  'critical',
+  'phase1',
+  'phase2',
+  'phase3',
+  'phase4',
+  'phase5',
+  'phase6',
+  'builder',
   'notes',
   'doing',
   'done'
 ]);
 const DEFAULT_LISTS = [
-  { key: 'milestones', name: 'Milestones' },
-  { key: 'size', name: 'Size & permits' },
-  { key: 'structure', name: 'Structure & facade' },
-  { key: 'roof', name: 'Roof' },
-  { key: 'openings', name: 'Openings' },
-  { key: 'outdoor', name: 'Loft & outdoor' },
-  { key: 'interior', name: 'Floor plan' },
+  { key: 'critical', name: '1. Critical first' },
+  { key: 'phase1', name: '2. Phase 1: Earthworks' },
+  { key: 'phase2', name: '3. Phase 2: Foundation' },
+  { key: 'phase3', name: '4. Phase 3: Framing' },
+  { key: 'phase4', name: '5. Phase 4: Weatherproofing' },
+  { key: 'phase5', name: '6. Phase 5: Rough-ins' },
+  { key: 'phase6', name: '7. Phase 6: Interiors' },
+  { key: 'builder', name: 'Builder decisions' },
   { key: 'notes', name: 'Notes' },
   { key: 'doing', name: 'Doing' },
   { key: 'done', name: 'Done' }
@@ -96,7 +98,7 @@ export function acceptTrelloCards(value) {
     const name = String(item.name ?? '').trim().replace(/\s+/g, ' ').slice(0, CARD_NAME_LIMIT);
     if (!name) continue;
     const desc = String(item.desc ?? '').trim().slice(0, CARD_DESC_LIMIT);
-    const listKey = LIST_KEYS.has(String(item.list ?? '')) ? String(item.list) : 'milestones';
+    const listKey = LIST_KEYS.has(String(item.list ?? '')) ? String(item.list) : 'critical';
     cards.push({ name, desc, list: listKey });
     if (cards.length >= CARD_LIMIT) break;
   }
@@ -336,7 +338,7 @@ async function routeTrello(request, env, headers, sessionUser) {
 
     const listIds = await createBoardLists(env.TRELLO_API_KEY, token, boardId, planLists);
     if (!listIds.size) return json({ error: 'lists' }, 502, headers);
-    const fallbackList = listIds.get('milestones') || [...listIds.values()][0];
+    const fallbackList = listIds.get('critical') || [...listIds.values()][0];
 
     let cardsCreated = 0;
     for (const card of cards) {
@@ -344,7 +346,8 @@ async function routeTrello(request, env, headers, sessionUser) {
       const result = await trelloFetch('cards', env.TRELLO_API_KEY, token, { method: 'POST' }, {
         idList: String(idList),
         name: card.name,
-        desc: card.desc
+        desc: card.desc,
+        pos: 'bottom'
       });
       if (result.response.ok) cardsCreated += 1;
     }
