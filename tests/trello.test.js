@@ -86,6 +86,30 @@ test('house build phases populate ground-up with critical work first', () => {
   assert.ok(cards.some((card) => card.name === 'Builder: floor plan done' && card.list === 'done'));
   assert.ok(cards.some((card) => card.name === 'Sleeping loft' && card.list === 'builder'));
   assert.ok(cards.some((card) => card.name === 'Order windows' && card.list === 'notes'));
+  const plain = trelloBoardPlanFromHouse({
+    name: 'Plain',
+    locale: 'en',
+    notes: [{ text: `  ${'Measure the gable'.repeat(8)}  ` }],
+    config: {
+      buildingWidth: 6040,
+      buildingDepth: 4950,
+      activeRoof: 'pulpettak',
+      activeMaterial: 'wood',
+      activeDoor: 'STEHAG',
+      activeWindow: 'standard-single',
+      activeLoft: 'none',
+      hasLoft: false,
+      placedRooms: { room_1: { type: 'bedroom' } }
+    }
+  });
+  const facade = plain.cards.find((card) => card.name === 'Builder: facade chosen');
+  const openingsCard = plain.cards.find((card) => card.name === 'Builder: openings placed');
+  assert.equal(facade?.list, 'builder');
+  assert.equal(openingsCard?.list, 'builder');
+  assert.equal(plain.cards.some((card) => card.name === 'Sleeping loft'), false);
+  assert.ok(plain.cards.some((card) => card.name === 'Interior walls and rooms' && card.desc.includes('1 placed room')));
+  const note = plain.cards.find((card) => card.list === 'notes');
+  assert.ok(note && note.name.endsWith('…') && note.desc.includes('Measure the gable'));
   const firstCritical = cards.findIndex((card) => card.list === 'critical');
   const firstPhase6 = cards.findIndex((card) => card.list === 'phase6');
   assert.ok(firstCritical >= 0 && firstPhase6 > firstCritical);
@@ -96,6 +120,7 @@ test('house build phases populate ground-up with critical work first', () => {
 function memoryDb(seed = {}) {
   const tokens = new Map(Object.entries(seed.tokens || {}));
   const boards = new Map(Object.entries(seed.boards || {}));
+  const states = new Map();
   const houses = new Map(Object.entries(seed.houses || {
     hus_0123456789abcdef0123456789abcdef: { id: 'hus_0123456789abcdef0123456789abcdef', name: 'Cabin', user_id: 'usr_1' }
   }));
@@ -109,6 +134,9 @@ function memoryDb(seed = {}) {
         if (/FROM trello_tokens/.test(sql)) {
           const token = tokens.get(args[0]);
           return token ? { token } : null;
+        }
+        if (/FROM trello_auth_states/.test(sql)) {
+          return states.get(args[0]) || null;
         }
         if (/FROM house_trello_boards/.test(sql)) {
           const key = `${args[0]}:${args[1]}`;
@@ -126,12 +154,30 @@ function memoryDb(seed = {}) {
           tokens.set(args[0], args[1]);
           return { meta: { changes: 1 } };
         }
+        if (/INSERT INTO trello_auth_states/.test(sql)) {
+          states.set(args[0], { state: args[1], created_at: args[2] });
+          return { meta: { changes: 1 } };
+        }
+        if (/DELETE FROM trello_auth_states/.test(sql)) {
+          states.delete(args[0]);
+          return { meta: { changes: 1 } };
+        }
         if (/DELETE FROM trello_tokens/.test(sql)) {
           tokens.delete(args[0]);
           return { meta: { changes: 1 } };
         }
+        if (/DELETE FROM house_trello_boards/.test(sql)) {
+          const key = `${args[0]}:${args[1]}`;
+          const row = boards.get(key);
+          if (!row) return { meta: { changes: 0 } };
+          if (/pending/.test(sql) && row.board_id !== 'pending') return { meta: { changes: 0 } };
+          boards.delete(key);
+          return { meta: { changes: 1 } };
+        }
         if (/INSERT INTO house_trello_boards/.test(sql)) {
-          boards.set(`${args[0]}:${args[1]}`, {
+          const key = `${args[0]}:${args[1]}`;
+          if (/DO NOTHING/.test(sql) && boards.has(key)) return { meta: { changes: 0 } };
+          boards.set(key, {
             board_id: args[2],
             board_url: args[3],
             board_name: args[4],
@@ -176,7 +222,10 @@ test('authorize requires an allowed origin and api key', async () => {
     new Request('https://example.com/api/trello/authorize', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ origin: 'http://localhost:5173' })
+      body: JSON.stringify({
+        origin: 'http://localhost:5173',
+        state: 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
+      })
     }),
     env,
     {},
@@ -186,6 +235,21 @@ test('authorize requires an allowed origin and api key', async () => {
   const data = await ok.json();
   assert.match(data.url, /trello\.com\/1\/authorize/);
   assert.match(data.url, /key=key123/);
+  const authorize = new URL(data.url);
+  const returnUrl = new URL(authorize.searchParams.get('return_url'));
+  assert.equal(returnUrl.searchParams.get('trello_state'), 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee');
+
+  const missingState = await handleTrello(
+    new Request('https://example.com/api/trello/authorize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ origin: 'http://localhost:5173' })
+    }),
+    env,
+    {},
+    sessionUser
+  );
+  assert.equal(missingState.status, 400);
 });
 
 test('status reports connection and linked board', async () => {
@@ -206,6 +270,12 @@ test('status reports connection and linked board', async () => {
     TRELLO_API_KEY: 'key123'
   };
   const sessionUser = async () => ({ id: 'usr_1', login: 'tompat1' });
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({ id: 'me' }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' }
+  });
+  try {
   const res = await handleTrello(
     new Request(`https://example.com/api/trello/status?houseId=${houseId}`),
     env,
@@ -217,6 +287,9 @@ test('status reports connection and linked board', async () => {
   assert.equal(data.configured, true);
   assert.equal(data.connected, true);
   assert.equal(data.board.url, 'https://trello.com/b/abc');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test('create board posts to trello and stores the link', async () => {
@@ -224,9 +297,16 @@ test('create board posts to trello and stores the link', async () => {
   const calls = [];
   const originalFetch = globalThis.fetch;
   let listSeq = 0;
-  globalThis.fetch = async (input) => {
+  globalThis.fetch = async (input, init) => {
     const url = String(input);
-    calls.push(url);
+    const method = init?.method || 'GET';
+    calls.push(`${method} ${url}`);
+    if (url.includes('members/me/boards')) {
+      return new Response('[]', { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    if (url.includes('members/me')) {
+      return new Response(JSON.stringify({ id: 'me' }), { status: 200 });
+    }
     if (url.includes('/lists')) {
       listSeq += 1;
       return new Response(JSON.stringify({ id: `list${listSeq}`, name: 'List' }), {
@@ -283,9 +363,126 @@ test('create board posts to trello and stores the link', async () => {
     assert.equal(data.existing, false);
     assert.equal(data.cardsCreated, 2);
     assert.equal(data.board.url, 'https://trello.com/b/newboard');
-    assert.ok(calls.some((url) => url.includes('/boards?')));
-    assert.ok(calls.some((url) => url.includes('/lists?')));
-    assert.ok(calls.some((url) => url.includes('/cards?')));
+    assert.ok(calls.some((line) => line.startsWith('POST ') && line.includes('/boards?')));
+    assert.ok(calls.some((line) => line.startsWith('POST ') && line.includes('/lists?')));
+    assert.ok(calls.some((line) => line.startsWith('POST ') && line.includes('/cards?')));
+    assert.equal(calls.some((line) => line.startsWith('GET ') && line.includes('/lists?')), true);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('a revoked trello token is reported as disconnected', async () => {
+  const env = {
+    DB: memoryDb({ tokens: { usr_1: 't'.repeat(64) } }),
+    SESSION_SECRET: 'secret',
+    TRELLO_API_KEY: 'key123'
+  };
+  const sessionUser = async () => ({ id: 'usr_1', login: 'tompat1' });
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => new Response(JSON.stringify({ message: 'invalid token' }), {
+    status: 401,
+    headers: { 'Content-Type': 'application/json' }
+  });
+  try {
+    const res = await handleTrello(
+      new Request('https://example.com/api/trello/status'),
+      env,
+      {},
+      sessionUser
+    );
+    assert.equal(res.status, 200);
+    const data = await res.json();
+    assert.equal(data.connected, false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+
+  globalThis.fetch = async () => new Response('{}', { status: 500 });
+  try {
+    const again = await handleTrello(
+      new Request('https://example.com/api/trello/status'),
+      env,
+      {},
+      sessionUser
+    );
+    const body = await again.json();
+    assert.equal(body.connected, false);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('a board is not linked when a list fails', async () => {
+  const houseId = 'hus_0123456789abcdef0123456789abcdef';
+  const calls = [];
+  const originalFetch = globalThis.fetch;
+  let lists = 0;
+  globalThis.fetch = async (input, init) => {
+    const url = String(input);
+    const method = init?.method || 'GET';
+    calls.push(`${method} ${url}`);
+    if (url.includes('members/me/boards')) {
+      return new Response('[]', { status: 200 });
+    }
+    if (url.includes('members/me')) {
+      return new Response(JSON.stringify({ id: 'me' }), { status: 200 });
+    }
+    if (url.includes('/lists') && method === 'GET') {
+      return new Response('[]', { status: 200 });
+    }
+    if (url.includes('/lists')) {
+      lists += 1;
+      const status = lists === 1 ? 429 : 200;
+      return new Response(JSON.stringify({ id: `list${lists}` }), { status });
+    }
+    if (method === 'DELETE') return new Response('', { status: 200 });
+    if (url.includes('/boards')) {
+      return new Response(JSON.stringify({
+        id: 'bbbbbbbbbbbbbbbbbbbbbbbb',
+        url: 'https://trello.com/b/partial'
+      }), { status: 200 });
+    }
+    return new Response('{}', { status: 404 });
+  };
+
+  try {
+    const env = {
+      DB: memoryDb({ tokens: { usr_1: 't'.repeat(64) } }),
+      SESSION_SECRET: 'secret',
+      TRELLO_API_KEY: 'key123'
+    };
+    const sessionUser = async () => ({ id: 'usr_1', login: 'tompat1' });
+    const res = await handleTrello(
+      new Request('https://example.com/api/trello/boards', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          houseId,
+          name: 'Cabin board',
+          lists: [{ key: 'critical', name: 'Critical first' }],
+          cards: [{ name: 'VA capacity', desc: 'Critical', list: 'critical' }]
+        })
+      }),
+      env,
+      {},
+      sessionUser
+    );
+    assert.equal(res.status, 502);
+    const data = await res.json();
+    assert.equal(data.error, 'lists');
+    assert.ok(calls.some((line) => line.startsWith('DELETE ')));
+
+    globalThis.fetch = async () => new Response(JSON.stringify({ id: 'me' }), { status: 200 });
+    const status = await handleTrello(
+      new Request(`https://example.com/api/trello/status?houseId=${houseId}`),
+      env,
+      {},
+      sessionUser
+    );
+    const body = await status.json();
+    assert.equal(body.board, null);
+    assert.equal(body.connected, true);
   } finally {
     globalThis.fetch = originalFetch;
   }

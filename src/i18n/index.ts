@@ -252,7 +252,12 @@ const sv = {
     exists: 'Trello-tavlan finns redan för det här huset.',
     missing: 'Trello saknar API-nyckel på workern.',
     failed: 'Trello-tavlan kunde inte skapas.',
-    denied: 'Trello-anslutningen gick inte att slutföra.'
+    denied: 'Trello-anslutningen gick inte att slutföra.',
+    disconnect: 'Koppla från Trello',
+    disconnected: 'Trello är frånkopplat.',
+    introTitle: 'En Trello-tavla för huset',
+    introBody: 'Anslut Trello en gång. Märket på ett sparat hus bygger en tavla i byggordning: det kritiska först, sedan mark och grund, med beslut och anteckningar från huset.',
+    introDismiss: 'Jag förstår'
   },
   cms: {
     edit: 'Redigera',
@@ -1015,7 +1020,12 @@ const en = {
     exists: 'A Trello board already exists for this house.',
     missing: 'Trello still needs an API key on the worker.',
     failed: 'The Trello board could not be created.',
-    denied: 'Trello could not be connected.'
+    denied: 'Trello could not be connected.',
+    disconnect: 'Disconnect Trello',
+    disconnected: 'Trello is disconnected.',
+    introTitle: 'A Trello board for the house',
+    introBody: 'Connect Trello once. The mark on a saved house builds a board in construction order: the critical work first, then the ground and the foundation, with the decisions and notes from the house.',
+    introDismiss: 'Got it'
   },
   cms: {
     edit: 'Edit',

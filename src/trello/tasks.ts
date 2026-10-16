@@ -511,6 +511,14 @@ function linkLabel(link: { kind?: string; wall?: string; slotId?: string } | und
   return link.kind;
 }
 
+function roomEntries(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value.filter(Boolean);
+  if (value && typeof value === 'object') {
+    return Object.values(value as Record<string, unknown>).filter(Boolean);
+  }
+  return [];
+}
+
 function slotCounts(config: Record<string, unknown>) {
   const slots = config.wallSlots;
   const counts = { door: 0, window: 0, gate: 0, other: 0 };
@@ -569,14 +577,16 @@ export function trelloBoardPlanFromHouse(source: HouseTaskSource): TrelloBoardPl
     .join(' · ');
   const sizeChosen = Boolean(width && depth);
   const roofChosen = Boolean(config.activeRoof);
-  const facadeChosen = Boolean(config.activeMaterial || config.activePaintId || config.customPaint);
+  const material = typeof config.activeMaterial === 'string' ? config.activeMaterial : '';
+  const facadeChosen = Boolean(config.activePaintId || config.customPaint)
+    || (material !== '' && material !== 'wood');
   const openings = slotCounts(config);
-  const openingsChosen = openings.door + openings.window + openings.gate + openings.other > 0
-    || Boolean(config.activeDoor || config.activeWindow || config.activeGate);
+  const openingsChosen = openings.door + openings.window + openings.gate + openings.other > 0;
   const floorDone = Boolean(config.floorPlanDone);
-  const rooms = Array.isArray(config.placedRooms) ? config.placedRooms : [];
+  const rooms = roomEntries(config.placedRooms);
   const terraces = Array.isArray(config.terraces) ? config.terraces : [];
-  const hasLoft = Boolean(config.hasLoft || config.activeLoft);
+  const loftId = typeof config.activeLoft === 'string' ? config.activeLoft : '';
+  const hasLoft = config.hasLoft === true || (loftId !== '' && loftId !== 'none');
 
   push(
     cards,
@@ -635,7 +645,7 @@ export function trelloBoardPlanFromHouse(source: HouseTaskSource): TrelloBoardPl
 
   push(cards, 'builder', copy.sizeConfirm, sizeLine || copy.milestoneOpen);
 
-  if (openingsChosen || config.activeDoor || config.activeWindow) {
+  if (openingsChosen) {
     push(
       cards,
       'builder',
@@ -705,7 +715,7 @@ export function trelloBoardPlanFromHouse(source: HouseTaskSource): TrelloBoardPl
       cards,
       'notes',
       text.length > 80 ? `${text.slice(0, 77)}…` : text,
-      where ? `${copy.note}\n${copy.noteOn}: ${where}` : copy.note
+      [text, where ? `${copy.noteOn}: ${where}` : ''].filter(Boolean).join('\n')
     );
   }
 

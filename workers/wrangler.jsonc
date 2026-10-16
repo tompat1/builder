@@ -24,8 +24,9 @@
       "migrations_dir": "migrations"
     }
   ],
-  // Required for `npx wrangler preview`. Bindings used by the Worker must be
-  // repeated here; Previews do not inherit production bindings.
+  // Previews do not inherit production bindings. Do not point DB at the
+  // production builder-accounts database. Add a separate preview D1 database
+  // here before a preview should read or write accounts.
   "previews": {
     "ai": {
       "binding": "AI"
@@ -33,14 +34,6 @@
     "vars": {
       "ALLOWED_ORIGINS": "http://localhost:5173,https://builder.rynell.app,https://builder.rynell.org",
       "ADMIN_LOGINS": "tompat1"
-    },
-    "d1_databases": [
-      {
-        "binding": "DB",
-        "database_name": "builder-accounts",
-        "database_id": "135d233d-0a83-44da-9df3-708989296ce5",
-        "migrations_dir": "migrations"
-      }
-    ]
+    }
   }
 }

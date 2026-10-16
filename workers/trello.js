@@ -65,9 +65,16 @@ function requireTrelloKey(env, headers) {
   return json({ error: 'trello' }, 503, headers);
 }
 
+const STATE_RE = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
+
 export function acceptTrelloToken(value) {
   const token = String(value ?? '').trim();
   return TOKEN_RE.test(token) ? token : '';
+}
+
+export function acceptTrelloState(value) {
+  const state = String(value ?? '').trim();
+  return STATE_RE.test(state) ? state : '';
 }
 
 export function acceptTrelloLists(value) {
@@ -133,6 +140,13 @@ async function ensureTrelloTables(db) {
       PRIMARY KEY (house_id, user_id)
     )
   `).run();
+  await db.prepare(`
+    CREATE TABLE IF NOT EXISTS trello_auth_states (
+      user_id TEXT PRIMARY KEY REFERENCES users(id),
+      state TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    )
+  `).run();
   tablesChecked = true;
 }
 
@@ -167,18 +181,117 @@ async function trelloFetch(path, key, token, init = {}, params = {}) {
 
 async function createBoardLists(key, token, boardId, lists) {
   const byKey = new Map();
-  // Trello inserts at the left; create in reverse so the first list ends leftmost.
+  let rejected = false;
+  const present = await trelloFetch(`boards/${boardId}/lists`, key, token, { method: 'GET' }, {
+    fields: 'name',
+    filter: 'open'
+  });
+  if (tokenRejected(present.response.status)) {
+    return { byKey, rejected: true };
+  }
+  const have = new Map();
+  if (Array.isArray(present.data)) {
+    for (const list of present.data) {
+      if (list?.name && list.id) have.set(String(list.name), String(list.id));
+    }
+  }
+  // Trello puts `top` at the left. Create in reverse so the first list ends leftmost.
   for (let i = lists.length - 1; i >= 0; i -= 1) {
     const row = lists[i];
+    const existingId = have.get(row.name);
+    if (existingId) {
+      byKey.set(row.key, existingId);
+      continue;
+    }
     const result = await trelloFetch(`boards/${boardId}/lists`, key, token, { method: 'POST' }, {
       name: row.name,
-      pos: 'left'
+      pos: 'top'
     });
+    if (tokenRejected(result.response.status)) {
+      rejected = true;
+      break;
+    }
     if (result.response.ok && result.data?.id) {
       byKey.set(row.key, String(result.data.id));
     }
   }
-  return byKey;
+  return { byKey, rejected };
+}
+
+function tokenRejected(status) {
+  return status === 401 || status === 403;
+}
+
+async function dropToken(db, userId) {
+  await db.prepare('DELETE FROM trello_tokens WHERE user_id = ?').bind(userId).run();
+}
+
+/** A stored token that Trello rejects is not a connection. Other failures leave it in place. */
+async function liveToken(env, userId) {
+  const token = await readUserToken(env.DB, userId);
+  if (!token || !env.TRELLO_API_KEY) return token;
+  try {
+    const probe = await trelloFetch('members/me', env.TRELLO_API_KEY, token, { method: 'GET' });
+    if (tokenRejected(probe.response.status)) {
+      await dropToken(env.DB, userId);
+      return '';
+    }
+  } catch {
+    // Trello did not answer. Keep the stored token.
+  }
+  return token;
+}
+
+async function discardBoard(env, token, boardId) {
+  if (!boardId) return;
+  try {
+    await trelloFetch(`boards/${boardId}`, env.TRELLO_API_KEY, token, { method: 'DELETE' });
+  } catch {
+    // The house is not linked, so the next attempt can create another board.
+  }
+}
+
+async function findHouseBoard(key, token, houseId) {
+  const marker = `Builder house project ${houseId}`;
+  const listed = await trelloFetch('members/me/boards', key, token, { method: 'GET' }, {
+    fields: 'name,desc,url,closed',
+    filter: 'open'
+  });
+  if (!listed.response.ok || !Array.isArray(listed.data)) return null;
+  const match = listed.data.find((board) => (
+    board
+    && board.closed !== true
+    && board.id
+    && board.desc === marker
+  ));
+  if (!match) return null;
+  return {
+    id: String(match.id),
+    url: typeof match.url === 'string' && match.url ? match.url : `https://trello.com/b/${match.id}`,
+    name: typeof match.name === 'string' ? match.name : ''
+  };
+}
+
+function linkedBoard(row) {
+  if (!row || row.board_id === 'pending') return null;
+  return {
+    id: row.board_id,
+    url: row.board_url,
+    name: row.board_name,
+    createdAt: row.created_at
+  };
+}
+
+function pendingFresh(row) {
+  if (!row || row.board_id !== 'pending') return false;
+  const at = Date.parse(row.created_at);
+  return Number.isFinite(at) && Date.now() - at < 3 * 60 * 1000;
+}
+
+async function releaseClaim(db, houseId, userId) {
+  await db.prepare(
+    `DELETE FROM house_trello_boards WHERE house_id = ? AND user_id = ? AND board_id = 'pending'`
+  ).bind(houseId, userId).run();
 }
 
 export async function handleTrello(request, env, headers, sessionUser) {
@@ -204,20 +317,15 @@ async function routeTrello(request, env, headers, sessionUser) {
 
   if (url.pathname === '/api/trello/status' && request.method === 'GET') {
     const houseId = acceptHouseId(url.searchParams.get('houseId'));
-    const token = await readUserToken(env.DB, user.id);
+    const token = await liveToken(env, user.id);
     let board = null;
     if (houseId) {
       const row = await env.DB.prepare(
         `SELECT board_id, board_url, board_name, created_at
          FROM house_trello_boards WHERE house_id = ? AND user_id = ?`
       ).bind(houseId, user.id).first();
-      if (row) {
-        board = {
-          id: row.board_id,
-          url: row.board_url,
-          name: row.board_name,
-          createdAt: row.created_at
-        };
+      if (row && row.board_id !== 'pending') {
+        board = linkedBoard(row);
       }
     }
     return json({
@@ -238,8 +346,10 @@ async function routeTrello(request, env, headers, sessionUser) {
     }
     const origin = allowedOrigin(String(body.origin ?? ''), env);
     if (!origin) return json({ error: 'origin' }, 400, headers);
+    const state = acceptTrelloState(body.state);
+    if (!state) return json({ error: 'state' }, 400, headers);
     const returnPath = body.returnPath === '/mood' ? '/mood' : '/build';
-    const returnUrl = `${origin}${returnPath}`;
+    const returnUrl = `${origin}${returnPath}?trello_state=${encodeURIComponent(state)}`;
     const authorize = new URL('https://trello.com/1/authorize');
     authorize.searchParams.set('expiration', 'never');
     authorize.searchParams.set('name', 'Builder');
@@ -248,6 +358,11 @@ async function routeTrello(request, env, headers, sessionUser) {
     authorize.searchParams.set('key', env.TRELLO_API_KEY);
     authorize.searchParams.set('callback_method', 'fragment');
     authorize.searchParams.set('return_url', returnUrl);
+    const now = new Date().toISOString();
+    await env.DB.prepare(
+      `INSERT INTO trello_auth_states (user_id, state, created_at) VALUES (?, ?, ?)
+       ON CONFLICT(user_id) DO UPDATE SET state = excluded.state, created_at = excluded.created_at`
+    ).bind(user.id, state, now).run();
     return json({ url: authorize.toString() }, 200, headers);
   }
 
@@ -261,7 +376,17 @@ async function routeTrello(request, env, headers, sessionUser) {
       return json({ error: 'token' }, 400, headers);
     }
     const token = acceptTrelloToken(body.token);
-    if (!token) return json({ error: 'token' }, 400, headers);
+    const state = acceptTrelloState(body.state);
+    if (!token || !state) return json({ error: 'state' }, 400, headers);
+    const pending = await env.DB.prepare(
+      'SELECT state, created_at FROM trello_auth_states WHERE user_id = ?'
+    ).bind(user.id).first();
+    const fresh = pending && Number.isFinite(Date.parse(pending.created_at))
+      && Date.now() - Date.parse(pending.created_at) < 30 * 60 * 1000;
+    if (!pending || pending.state !== state || !fresh) {
+      return json({ error: 'state' }, 400, headers);
+    }
+    await env.DB.prepare('DELETE FROM trello_auth_states WHERE user_id = ?').bind(user.id).run();
     const probe = await trelloFetch('members/me', env.TRELLO_API_KEY, token, { method: 'GET' });
     if (!probe.response.ok) return json({ error: 'token' }, 400, headers);
     const now = new Date().toISOString();
@@ -280,7 +405,7 @@ async function routeTrello(request, env, headers, sessionUser) {
   if (url.pathname === '/api/trello/boards' && request.method === 'POST') {
     const missingKey = requireTrelloKey(env, headers);
     if (missingKey) return missingKey;
-    const token = await readUserToken(env.DB, user.id);
+    const token = await liveToken(env, user.id);
     if (!token) return json({ error: 'connect' }, 401, headers);
 
     let body = {};
@@ -298,46 +423,90 @@ async function routeTrello(request, env, headers, sessionUser) {
     ).bind(houseId, user.id).first();
     if (!owned) return json({ error: 'house' }, 404, headers);
 
-    const existing = await env.DB.prepare(
+    let existing = await env.DB.prepare(
       `SELECT board_id, board_url, board_name, created_at
        FROM house_trello_boards WHERE house_id = ? AND user_id = ?`
     ).bind(houseId, user.id).first();
-    if (existing && !body.force) {
+    if (body.force && existing) {
+      await env.DB.prepare(
+        'DELETE FROM house_trello_boards WHERE house_id = ? AND user_id = ?'
+      ).bind(houseId, user.id).run();
+      existing = null;
+    }
+    const linked = linkedBoard(existing);
+    if (linked) {
       return json({
         ok: true,
         existing: true,
-        board: {
-          id: existing.board_id,
-          url: existing.board_url,
-          name: existing.board_name,
-          createdAt: existing.created_at
-        },
+        board: linked,
         cardsCreated: 0
       }, 200, headers);
     }
+    if (pendingFresh(existing)) return json({ error: 'busy' }, 409, headers);
+    if (existing) {
+      await env.DB.prepare(
+        'DELETE FROM house_trello_boards WHERE house_id = ? AND user_id = ?'
+      ).bind(houseId, user.id).run();
+    }
+
+    const claimedAt = new Date().toISOString();
+    const claim = await env.DB.prepare(
+      `INSERT INTO house_trello_boards (house_id, user_id, board_id, board_url, board_name, created_at)
+       VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT(house_id, user_id) DO NOTHING`
+    ).bind(houseId, user.id, 'pending', '', '', claimedAt).run();
+    if (!claim?.meta?.changes) return json({ error: 'busy' }, 409, headers);
 
     const boardName = acceptBoardName(body.name, owned.name);
     const planLists = acceptTrelloLists(body.lists);
     const cards = acceptTrelloCards(body.cards);
-    const created = await trelloFetch('boards', env.TRELLO_API_KEY, token, { method: 'POST' }, {
-      name: boardName,
-      defaultLists: 'false',
-      desc: `Builder house project ${houseId}`
-    });
-    if (!created.response.ok || !created.data?.id) {
-      return json({ error: 'board' }, 502, headers);
+    const marker = `Builder house project ${houseId}`;
+    let createdFresh = false;
+    let boardId = '';
+    let boardUrl = '';
+    const recovered = await findHouseBoard(env.TRELLO_API_KEY, token, houseId);
+    if (recovered) {
+      boardId = recovered.id;
+      boardUrl = recovered.url;
+    } else {
+      const created = await trelloFetch('boards', env.TRELLO_API_KEY, token, { method: 'POST' }, {
+        name: boardName,
+        defaultLists: 'false',
+        desc: marker
+      });
+      if (tokenRejected(created.response.status)) {
+        await dropToken(env.DB, user.id);
+        await releaseClaim(env.DB, houseId, user.id);
+        return json({ error: 'connect' }, 401, headers);
+      }
+      if (!created.response.ok || !created.data?.id) {
+        await releaseClaim(env.DB, houseId, user.id);
+        return json({ error: 'board' }, 502, headers);
+      }
+      boardId = String(created.data.id);
+      if (!BOARD_ID_RE.test(boardId) && boardId.length < 8) {
+        await releaseClaim(env.DB, houseId, user.id);
+        return json({ error: 'board' }, 502, headers);
+      }
+      boardUrl = typeof created.data.url === 'string' && created.data.url
+        ? created.data.url
+        : `https://trello.com/b/${boardId}`;
+      createdFresh = true;
     }
 
-    const boardId = String(created.data.id);
-    if (!BOARD_ID_RE.test(boardId) && boardId.length < 8) {
-      return json({ error: 'board' }, 502, headers);
-    }
-    const boardUrl = typeof created.data.url === 'string' && created.data.url
-      ? created.data.url
-      : `https://trello.com/b/${boardId}`;
+    const failBoard = async (error, status) => {
+      if (createdFresh) await discardBoard(env, token, boardId);
+      await releaseClaim(env.DB, houseId, user.id);
+      return json({ error }, status, headers);
+    };
 
-    const listIds = await createBoardLists(env.TRELLO_API_KEY, token, boardId, planLists);
-    if (!listIds.size) return json({ error: 'lists' }, 502, headers);
+    const lists = await createBoardLists(env.TRELLO_API_KEY, token, boardId, planLists);
+    if (lists.rejected) {
+      await dropToken(env.DB, user.id);
+      return failBoard('connect', 401);
+    }
+    const listIds = lists.byKey;
+    if (listIds.size !== planLists.length) return failBoard('lists', 502);
     const fallbackList = listIds.get('critical') || [...listIds.values()][0];
 
     let cardsCreated = 0;
@@ -349,7 +518,12 @@ async function routeTrello(request, env, headers, sessionUser) {
         desc: card.desc,
         pos: 'bottom'
       });
-      if (result.response.ok) cardsCreated += 1;
+      if (tokenRejected(result.response.status)) {
+        await dropToken(env.DB, user.id);
+        return failBoard('connect', 401);
+      }
+      if (!result.response.ok) return failBoard('cards', 502);
+      cardsCreated += 1;
     }
 
     const now = new Date().toISOString();
@@ -365,7 +539,7 @@ async function routeTrello(request, env, headers, sessionUser) {
 
     return json({
       ok: true,
-      existing: false,
+      existing: !createdFresh,
       board: { id: boardId, url: boardUrl, name: boardName, createdAt: now },
       cardsCreated
     }, 200, headers);

@@ -5,6 +5,9 @@ import { trelloBoardPlanFromHouse, type TrelloBoardPlan, type TrelloCardDraft } 
 
 const PENDING_KEY = 'builder.trello.pending';
 const INCOMING_TOKEN_KEY = 'builder.trello.incoming';
+const INCOMING_ERROR_KEY = 'builder.trello.incoming-error';
+const INCOMING_STATE_KEY = 'builder.trello.incoming-state';
+const STATE_RE = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 
 export interface TrelloBoardLink {
   id: string;
@@ -29,6 +32,7 @@ export interface TrelloBoardResult {
 interface PendingCreate {
   houseId: string;
   name: string;
+  state: string;
 }
 
 async function trelloFetch(path: string, init: RequestInit = {}) {
@@ -43,37 +47,52 @@ async function trelloFetch(path: string, init: RequestInit = {}) {
   return { response, data: data as Record<string, unknown> };
 }
 
-/** Pull a Trello authorize return off the hash (or a stashed incoming token). */
+/** Pull a Trello authorize return off the hash (or a stashed incoming token or error). */
 export function takeTrelloTokenFromHash() {
   const stashed = sessionStorage.getItem(INCOMING_TOKEN_KEY) || '';
+  const stashedError = sessionStorage.getItem(INCOMING_ERROR_KEY) || '';
+  const stashedState = sessionStorage.getItem(INCOMING_STATE_KEY) || '';
   if (stashed) sessionStorage.removeItem(INCOMING_TOKEN_KEY);
+  if (stashedError) sessionStorage.removeItem(INCOMING_ERROR_KEY);
+  if (stashedState) sessionStorage.removeItem(INCOMING_STATE_KEY);
 
   const raw = window.location.hash.replace(/^#/, '');
-  if (!raw && !stashed) return { token: '', error: '' };
+  if (!raw && !stashed && !stashedError) return { token: '', error: '', state: '' };
   const hash = raw ? new URLSearchParams(raw.includes('=') ? raw : `token=${raw}`) : null;
   // Trello may return #token=… or #error=…
   const token = ((hash?.get('token') || '') || stashed).trim();
-  const error = (hash?.get('error') || '').trim();
-  const looksLikeTrello = Boolean(stashed)
+  const error = ((hash?.get('error') || '') || stashedError).trim();
+  const looksLikeTrello = Boolean(stashed || stashedError)
     || Boolean(hash && (hash.has('token') || hash.has('error')));
-  if (!looksLikeTrello) return { token: '', error: '' };
+  if (!looksLikeTrello) return { token: '', error: '', state: '' };
   if (token || error) {
     const next = `${window.location.pathname}${window.location.search}`;
     window.history.replaceState(null, '', next);
   }
-  return { token, error };
+  return { token, error, state: stashedState };
 }
 
 /** Keep a Trello return off the route hash before the router reads the URL. */
 export function acceptTrelloReturn() {
+  const params = new URLSearchParams(window.location.search);
+  const state = params.get('trello_state') || '';
   const landed = takeTrelloTokenFromHash();
   if (landed.token) sessionStorage.setItem(INCOMING_TOKEN_KEY, landed.token);
-  return landed;
+  if (landed.error) sessionStorage.setItem(INCOMING_ERROR_KEY, landed.error);
+  if (state && (landed.token || landed.error)) {
+    sessionStorage.setItem(INCOMING_STATE_KEY, state);
+    params.delete('trello_state');
+    const search = params.toString();
+    window.history.replaceState(null, '', `${window.location.pathname}${search ? `?${search}` : ''}`);
+  }
+  return { ...landed, state };
 }
 
 export function rememberTrelloPending(houseId: string, name: string) {
-  const pending: PendingCreate = { houseId, name };
+  const state = crypto.randomUUID();
+  const pending: PendingCreate = { houseId, name, state };
   sessionStorage.setItem(PENDING_KEY, JSON.stringify(pending));
+  return state;
 }
 
 export function readTrelloPending(): PendingCreate | null {
@@ -82,10 +101,29 @@ export function readTrelloPending(): PendingCreate | null {
     if (!raw) return null;
     const data = JSON.parse(raw) as PendingCreate;
     if (!data?.houseId || typeof data.houseId !== 'string') return null;
-    return { houseId: data.houseId, name: typeof data.name === 'string' ? data.name : '' };
+    if (!STATE_RE.test(String(data.state ?? ''))) return null;
+    return {
+      houseId: data.houseId,
+      name: typeof data.name === 'string' ? data.name : '',
+      state: data.state
+    };
   } catch {
     return null;
   }
+}
+
+export function readTrelloReturn() {
+  return {
+    token: (sessionStorage.getItem(INCOMING_TOKEN_KEY) || '').trim(),
+    error: (sessionStorage.getItem(INCOMING_ERROR_KEY) || '').trim(),
+    state: (sessionStorage.getItem(INCOMING_STATE_KEY) || '').trim()
+  };
+}
+
+export function clearTrelloReturn() {
+  sessionStorage.removeItem(INCOMING_TOKEN_KEY);
+  sessionStorage.removeItem(INCOMING_ERROR_KEY);
+  sessionStorage.removeItem(INCOMING_STATE_KEY);
 }
 
 export function clearTrelloPending() {
@@ -109,9 +147,11 @@ export async function trelloStatus(houseId?: string): Promise<TrelloStatus> {
 }
 
 export async function beginTrelloAuthorize(returnPath: '/build' | '/mood' = '/build') {
+  const state = readTrelloPending()?.state || '';
+  if (!state) throw new Error('trello');
   const { response, data } = await trelloFetch('/api/trello/authorize', {
     method: 'POST',
-    body: JSON.stringify({ origin: window.location.origin, returnPath })
+    body: JSON.stringify({ origin: window.location.origin, returnPath, state })
   });
   if (!response.ok || typeof data.url !== 'string' || !data.url) {
     throw new Error(typeof data.error === 'string' ? data.error : 'trello');
@@ -119,16 +159,17 @@ export async function beginTrelloAuthorize(returnPath: '/build' | '/mood' = '/bu
   window.location.assign(data.url);
 }
 
-export async function saveTrelloToken(token: string) {
+export async function saveTrelloToken(token: string, state: string) {
   const { response, data } = await trelloFetch('/api/trello/token', {
     method: 'POST',
-    body: JSON.stringify({ token })
+    body: JSON.stringify({ token, state })
   });
   if (!response.ok) throw new Error(typeof data.error === 'string' ? data.error : 'token');
 }
 
 export async function disconnectTrello() {
-  await trelloFetch('/api/trello/token', { method: 'DELETE' });
+  const { response } = await trelloFetch('/api/trello/token', { method: 'DELETE' });
+  if (!response.ok) throw new Error('trello');
 }
 
 export async function createHouseTrelloBoard(input: {
