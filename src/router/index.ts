@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { acceptGithubReturn } from '../services/account';
+import { acceptTrelloReturn } from '../services/trello';
 import HomesView from '../views/HomesView.vue';
 import LandingView from '../views/LandingView.vue';
 import MerchView from '../views/MerchView.vue';
@@ -11,6 +12,7 @@ import { i18n } from '../i18n';
 import { startFeedback } from '../services/feedback';
 
 acceptGithubReturn();
+acceptTrelloReturn();
 
 const router = createRouter({
   history: createWebHistory(),

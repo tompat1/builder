@@ -223,12 +223,43 @@
                     </svg>
                     {{ t('mood.tool') }}
                   </span>
+
+                  <a
+                    v-if="trelloBoardFor(house.id)"
+                    :href="trelloBoardFor(house.id)?.url"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="inline-flex items-center gap-1 rounded-full bg-sky-50 border border-sky-200/90 px-1.5 py-0.5 text-[9px] font-semibold text-sky-800 hover:bg-sky-100"
+                    :title="t('trello.open')"
+                    @click.stop
+                  >
+                    {{ t('trello.badge') }}
+                  </a>
                 </div>
               </span>
             </button>
 
-            <!-- Action buttons: Green Save Icon & Red Trash Can Icon -->
+            <!-- Action buttons: Trello, Save, Delete -->
             <div class="flex items-center gap-1 shrink-0">
+              <button
+                type="button"
+                class="flex h-7 w-7 items-center justify-center rounded-lg text-sky-700 hover:bg-sky-100 hover:text-sky-900 disabled:opacity-50 transition-colors"
+                :title="trelloBoardFor(house.id) ? t('trello.open') : t('trello.create')"
+                :aria-label="trelloBoardFor(house.id) ? t('trello.open') : t('trello.create')"
+                :disabled="busy || !!savingId || !!switchingId || trelloBusyId === house.id"
+                @click.stop="onTrello(house)"
+              >
+                <svg v-if="trelloBusyId === house.id" class="h-4 w-4 animate-spin text-sky-700" viewBox="0 0 24 24" fill="none">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <svg v-else class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <rect x="3" y="3" width="18" height="18" rx="2" />
+                  <rect x="6" y="6" width="4" height="12" rx="0.5" fill="white" />
+                  <rect x="12" y="6" width="4" height="8" rx="0.5" fill="white" />
+                </svg>
+              </button>
+
               <!-- Green Save Icon button -->
               <button
                 type="button"
@@ -341,6 +372,17 @@ import {
 import { captureHouseThumb, forgetHouseThumb, houseThumb, rememberHouseThumb } from '../services/houseThumb';
 import { hasMoodBoard, linkDraftMoodToHouse, publishAccountMood } from '../services/moodSave';
 import { showToast, triggerSessionAutosaveBadge } from '../services/feedback';
+import {
+  beginTrelloAuthorize,
+  clearTrelloPending,
+  createHouseTrelloBoard,
+  readTrelloPending,
+  rememberTrelloPending,
+  saveTrelloToken,
+  takeTrelloTokenFromHash,
+  trelloStatus,
+  type TrelloBoardLink
+} from '../services/trello';
 
 const props = defineProps<{ open: boolean }>();
 const emit = defineEmits<{
@@ -367,6 +409,14 @@ const notice = ref('');
 const error = ref('');
 const activeId = ref(readActiveHouseId());
 const autoSaveOn = computed(() => !!(session.user && activeId.value));
+const trelloBusyId = ref<string | null>(null);
+const trelloBoards = ref<Record<string, TrelloBoardLink>>({});
+const trelloConnected = ref(false);
+const trelloConfigured = ref(false);
+
+function trelloBoardFor(id: string) {
+  return trelloBoards.value[id] || null;
+}
 
 function syncActiveHouse() {
   const next = readActiveHouseId();
@@ -429,10 +479,30 @@ function attachThumb(id: string) {
   showThumb(id, thumb);
 }
 
+async function refreshTrelloLinks(list: SavedHouse[]) {
+  if (!session.user || !list.length) {
+    trelloBoards.value = {};
+    return;
+  }
+  const next: Record<string, TrelloBoardLink> = {};
+  const first = await trelloStatus(list[0].id);
+  trelloConfigured.value = first.configured;
+  trelloConnected.value = first.connected;
+  if (first.board) next[list[0].id] = first.board;
+  await Promise.all(
+    list.slice(1).map(async (house) => {
+      const status = await trelloStatus(house.id);
+      if (status.board) next[house.id] = status.board;
+    })
+  );
+  trelloBoards.value = next;
+}
+
 async function refresh() {
   syncActiveHouse();
   if (!session.user) {
     houses.value = [];
+    trelloBoards.value = {};
     return;
   }
   houses.value = (await listHouses()).map((house) => ({
@@ -447,6 +517,139 @@ async function refresh() {
   }
   activeId.value = active;
   if (active && !houseThumb(active)) attachThumb(active);
+  void refreshTrelloLinks(houses.value);
+}
+
+async function createTrelloForHouse(house: SavedHouse, force = false) {
+  error.value = '';
+  notice.value = t('trello.creating');
+  trelloBusyId.value = house.id;
+  try {
+    if (house.id !== activeId.value) {
+      await openHouse(house.id);
+    }
+    const exported = store.exportHouse() as Record<string, unknown>;
+    const result = await createHouseTrelloBoard({
+      houseId: house.id,
+      name: house.name,
+      locale: locale.value === 'en' ? 'en' : 'sv',
+      notes: store.notes,
+      config: exported,
+      force
+    });
+    trelloBoards.value = { ...trelloBoards.value, [house.id]: result.board };
+    trelloConnected.value = true;
+    if (result.existing) {
+      notice.value = t('trello.exists');
+      showToast(t('trello.exists'), 'info');
+      window.open(result.board.url, '_blank', 'noopener,noreferrer');
+    } else {
+      notice.value = t('trello.created', { count: result.cardsCreated });
+      showToast(t('trello.created', { count: result.cardsCreated }), 'success');
+      window.open(result.board.url, '_blank', 'noopener,noreferrer');
+    }
+  } catch (caught) {
+    const code = caught instanceof Error ? caught.message : 'board';
+    if (code === 'connect') {
+      rememberTrelloPending(house.id, house.name);
+      notice.value = t('trello.connect');
+      await beginTrelloAuthorize('/build');
+      return;
+    }
+    if (code === 'trello') {
+      error.value = t('trello.missing');
+      showToast(t('trello.missing'), 'error');
+      return;
+    }
+    error.value = t('trello.failed');
+    showToast(t('trello.failed'), 'error');
+  } finally {
+    trelloBusyId.value = null;
+  }
+}
+
+async function onTrello(house: SavedHouse) {
+  const linked = trelloBoardFor(house.id);
+  if (linked?.url) {
+    window.open(linked.url, '_blank', 'noopener,noreferrer');
+    return;
+  }
+  if (!session.user) {
+    error.value = t('header.houseNeedAccount');
+    emit('sign-in');
+    return;
+  }
+  if (!trelloConfigured.value && !trelloConnected.value) {
+    const status = await trelloStatus(house.id);
+    trelloConfigured.value = status.configured;
+    trelloConnected.value = status.connected;
+    if (status.board) {
+      trelloBoards.value = { ...trelloBoards.value, [house.id]: status.board };
+      window.open(status.board.url, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    if (!status.configured) {
+      error.value = t('trello.missing');
+      showToast(t('trello.missing'), 'error');
+      return;
+    }
+  }
+  if (!trelloConnected.value) {
+    rememberTrelloPending(house.id, house.name);
+    notice.value = t('trello.connect');
+    try {
+      await beginTrelloAuthorize('/build');
+    } catch (caught) {
+      const code = caught instanceof Error ? caught.message : 'trello';
+      error.value = code === 'trello' ? t('trello.missing') : t('trello.failed');
+      showToast(error.value, 'error');
+    }
+    return;
+  }
+  await createTrelloForHouse(house);
+}
+
+let trelloFinishing = false;
+
+async function finishTrelloReturn() {
+  if (trelloFinishing || !session.user) return;
+  const pendingBefore = readTrelloPending();
+  const landed = takeTrelloTokenFromHash();
+  if (!landed.token && !landed.error && !pendingBefore) return;
+  trelloFinishing = true;
+  try {
+    if (landed.error) {
+      error.value = t('trello.denied');
+      clearTrelloPending();
+      return;
+    }
+    if (landed.token) {
+      try {
+        await saveTrelloToken(landed.token);
+        trelloConnected.value = true;
+        trelloConfigured.value = true;
+      } catch {
+        error.value = t('trello.denied');
+        clearTrelloPending();
+        return;
+      }
+    }
+    const pending = readTrelloPending();
+    if (!pending) return;
+    clearTrelloPending();
+    if (!houses.value.length) {
+      try {
+        await refresh();
+      } catch {
+        // Create still runs with the pending house id.
+      }
+    }
+    const house = houses.value.find((row) => row.id === pending.houseId)
+      || { id: pending.houseId, name: pending.name, createdAt: '', createdBy: '' };
+    await createTrelloForHouse(house);
+  } finally {
+    trelloFinishing = false;
+  }
 }
 
 function applyAccountHouse(config: unknown, id?: string, locale?: string) {
@@ -838,6 +1041,7 @@ onMounted(() => {
         error.value = t('header.saveFailed');
       });
     }
+    void finishTrelloReturn();
   });
 });
 
@@ -857,6 +1061,7 @@ watch(() => props.open, async (isOpen) => {
 watch(() => session.user, () => {
   uploadPending();
   void adoptWorkingHouse();
+  if (session.user) void finishTrelloReturn();
 }, { immediate: true });
 
 document.addEventListener('keydown', onKey);
