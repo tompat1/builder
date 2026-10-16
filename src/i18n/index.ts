@@ -242,6 +242,18 @@ const sv = {
       edgeNetwork: 'Globalt edge-nätverk'
     }
   },
+  trello: {
+    create: 'Skapa Trello-tavla',
+    open: 'Öppna Trello-tavla',
+    badge: 'Trello',
+    connect: 'Anslut Trello för att skapa tavlan…',
+    creating: 'Skapar Trello-tavla…',
+    created: 'Trello-tavla skapad med {count} uppgifter.',
+    exists: 'Trello-tavlan finns redan för det här huset.',
+    missing: 'Trello saknar API-nyckel på workern.',
+    failed: 'Trello-tavlan kunde inte skapas.',
+    denied: 'Trello-anslutningen gick inte att slutföra.'
+  },
   cms: {
     edit: 'Redigera',
     done: 'Klar'
@@ -992,6 +1004,18 @@ const en = {
       designSynced: '3D design & configuration',
       edgeNetwork: 'Global Edge Network'
     }
+  },
+  trello: {
+    create: 'Create Trello board',
+    open: 'Open Trello board',
+    badge: 'Trello',
+    connect: 'Connect Trello to create the board…',
+    creating: 'Creating Trello board…',
+    created: 'Trello board created with {count} tasks.',
+    exists: 'A Trello board already exists for this house.',
+    missing: 'Trello still needs an API key on the worker.',
+    failed: 'The Trello board could not be created.',
+    denied: 'Trello could not be connected.'
   },
   cms: {
     edit: 'Edit',

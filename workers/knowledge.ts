@@ -13,6 +13,7 @@ import { handleRender } from './render.js';
 import { handleHouse } from './house.js';
 import { handleMood } from './mood.js';
 import { handleLinkPreview } from './linkPreview.js';
+import { handleTrello } from './trello.js';
 import { parseEntryId, readPayload } from './select.js';
 import { coversQuestion, indexCatalog, indexPendingResources, indexPendingSources, searchPassages } from './passages.js';
 import { lookupOnWeb } from './web.js';
@@ -28,6 +29,7 @@ interface Env {
   SESSION_SECRET?: string;
   GITHUB_CLIENT_ID?: string;
   GITHUB_CLIENT_SECRET?: string;
+  TRELLO_API_KEY?: string;
 }
 
 const PAGES = SELECTION_PAGES;
@@ -100,6 +102,10 @@ export default {
 
     if (url.pathname === '/api/mood' || url.pathname.startsWith('/api/mood/')) {
       return handleMood(request, env, headers, sessionUser);
+    }
+
+    if (url.pathname === '/api/trello' || url.pathname.startsWith('/api/trello/')) {
+      return handleTrello(request, env, headers, sessionUser);
     }
 
     if (url.pathname !== '/api/ask' || request.method !== 'POST') {

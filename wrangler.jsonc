@@ -15,5 +15,8 @@
   },
   "build": {
     "command": "npm run build:bundle"
-  }
+  },
+  // Required for `npx wrangler preview` (Workers Builds PR previews).
+  // Empty is fine when Previews can use the same top-level assets settings.
+  "previews": {}
 }
