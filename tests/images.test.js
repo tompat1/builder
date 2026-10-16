@@ -41,6 +41,16 @@ test('a concatenated path blocks the conversion', () => {
   assert.equal(leftovers(rewriteText(broken, targets), targets).length, 1);
 });
 
+test('a public-root image ignores the import accept list', () => {
+  const rootTargets = [{ url: '/favicon.png', webpUrl: '/favicon.webp', ext: '.png', dirUrl: '' }];
+  const accept = 'accept="application/pdf,.pdf,image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp"';
+  assert.deepEqual(leftovers(rewriteText(accept, rootTargets), rootTargets), []);
+  const linked = '<link rel="icon" href="/favicon.png" />';
+  assert.match(rewriteText(linked, rootTargets), /\/favicon\.webp/);
+  assert.deepEqual(leftovers(rewriteText(linked, rootTargets), rootTargets), []);
+  assert.equal(leftovers("'/' + name + '.png'", rootTargets).length, 1);
+});
+
 async function fixture() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'builder-images-'));
   fs.mkdirSync(path.join(root, 'public/merch/cta'), { recursive: true });

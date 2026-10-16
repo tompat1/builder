@@ -88,6 +88,13 @@ export function rewriteText(content, targets) {
   return next;
 }
 
+function linePointsAtRootFile(line, extension) {
+  const ext = escapeRegExp(extension);
+  const quotedPath = new RegExp(`['"\`]\\/(?:\\$\\{[^}]+\\}|[\\w.-]+)${ext}\\b`);
+  const concatenated = new RegExp(`['"\`]\\/['"\`][\\s\\S]*${ext}\\b`);
+  return quotedPath.test(line) || concatenated.test(line);
+}
+
 export function leftovers(content, targets) {
   const groups = new Map();
   for (const target of targets) groups.set(`${target.dirUrl}\0${target.ext}`, target);
@@ -95,7 +102,10 @@ export function leftovers(content, targets) {
   for (const target of groups.values()) {
     const extension = new RegExp(`${escapeRegExp(target.ext)}\\b`);
     for (const line of content.split('\n')) {
-      if (line.includes(`${target.dirUrl}/`) && extension.test(line)) found.add(line.trim());
+      const hit = target.dirUrl
+        ? line.includes(`${target.dirUrl}/`) && extension.test(line)
+        : linePointsAtRootFile(line, target.ext);
+      if (hit) found.add(line.trim());
     }
   }
   return [...found];

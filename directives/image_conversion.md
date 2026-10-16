@@ -20,4 +20,5 @@ Folders outside `public/` stay as they are. `builder-panel-assets-hires/`, `buil
 - A JPEG or PNG that sits next to a WebP, and that nothing links, is deleted. The existing WebP stays, including when the JPEG is newer.
 - A newer PNG or JPEG that the site still links replaces the older WebP.
 - A path built by concatenation (`'/merch/cta/' + id + '.png'`) is a failed rewrite. The run stops and the originals stay.
+- A PNG in `public/` itself, such as `favicon.png`, has no folder prefix. The leftover check must not treat every slash on a line as that file. The import dialog’s accept list stays untouched.
 - `npm run images` with a clean `public/` prints nothing and exits 0.
