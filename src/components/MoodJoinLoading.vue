@@ -1,13 +1,13 @@
 <template>
   <div
     id="mood-join-loading"
-    class="relative flex min-h-screen w-full items-center justify-center bg-[#F5F3EC] p-4 text-[#222925] selection:bg-[#173D35] selection:text-white sm:p-6 lg:p-8"
+    class="relative flex min-h-full w-full items-start justify-center bg-[#F5F3EC] p-4 pb-8 text-[#222925] selection:bg-[#173D35] selection:text-white sm:min-h-dvh sm:items-center sm:p-6 sm:pb-6 lg:p-8"
   >
     <!-- Background atmospheric decorative glows -->
     <div class="pointer-events-none absolute -left-20 -top-20 h-96 w-96 rounded-full bg-[#173D35]/10 blur-3xl"></div>
     <div class="pointer-events-none absolute -bottom-20 -right-20 h-96 w-96 rounded-full bg-[#c084fc]/10 blur-3xl"></div>
 
-    <main class="relative z-10 w-full max-w-2xl overflow-hidden rounded-3xl border border-[#d7d1c4]/80 bg-white/95 p-6 shadow-[0_24px_48px_-12px_rgba(23,61,53,0.18)] backdrop-blur-md sm:p-8 lg:p-10">
+    <main class="relative z-10 my-2 w-full max-w-2xl overflow-hidden rounded-3xl border border-[#d7d1c4]/80 bg-white/95 p-6 shadow-[0_24px_48px_-12px_rgba(23,61,53,0.18)] backdrop-blur-md sm:my-0 sm:p-8 lg:p-10">
       <!-- Header -->
       <header class="text-center">
         <div class="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#173D35] text-2xl text-[#F5F3EC] shadow-md shadow-[#173D35]/25">
