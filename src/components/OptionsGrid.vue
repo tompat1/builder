@@ -380,7 +380,7 @@
             :key="paint.id"
             type="button"
             :id="`saved-paint-${paint.id}`"
-            class="p-2.5 rounded-xl border text-left flex items-center gap-3 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+            class="group relative p-2.5 rounded-xl border text-left flex items-center gap-3 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
             :class="store.customPaint?.id === paint.id && !store.paintPreview
               ? 'border-slate-900 ring-1 ring-slate-900 bg-slate-50 shadow-sm'
               : 'border-slate-200 bg-white hover:border-slate-300'"
@@ -395,10 +395,22 @@
                 <polyline points="20 6 9 17 4 12" />
               </svg>
             </div>
-            <div class="min-w-0">
+            <div class="min-w-0 flex-1">
               <span class="block text-xs font-bold text-slate-900 truncate">{{ paintTitle(paint) }}</span>
               <p class="text-[10px] text-slate-600 truncate">{{ paint.hex.toUpperCase() }}</p>
             </div>
+            <span
+              v-if="store.savedPaints.length > 1"
+              role="button"
+              tabindex="0"
+              class="opacity-0 group-hover:opacity-100 focus:opacity-100 p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-all"
+              :aria-label="t('tools.remove') || 'Remove'"
+              @click.stop="store.removeSavedPaint(paint.id)"
+            >
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            </span>
           </button>
           <button
             type="button"
@@ -409,10 +421,10 @@
               : 'border-slate-200 bg-white hover:border-slate-300'"
             :aria-expanded="paintOpen"
             aria-controls="custom-paint"
-            @click="paintOpen = !paintOpen"
+            @click="openAddPaint"
           >
             <div
-              class="w-8 h-8 rounded-lg shrink-0 border border-slate-300 flex items-center justify-center"
+              class="w-8 h-8 rounded-lg shrink-0 border border-dashed border-slate-300 flex items-center justify-center bg-slate-50 text-slate-700"
               :style="store.paintPreview ? { backgroundColor: store.paintPreview, color: previewInk } : undefined"
             >
               <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -420,7 +432,9 @@
               </svg>
             </div>
             <div class="min-w-0">
-              <span class="block text-xs font-bold text-slate-900 truncate">{{ t('paint.add') }}</span>
+              <span class="block text-xs font-bold text-slate-900 truncate">
+                + {{ store.savedPaints.length > 0 ? t('paint.addMore') : t('paint.add') }}
+              </span>
               <p class="text-[10px] text-slate-600 truncate">{{ store.paintPreview ? store.paintPreview.toUpperCase() : t('paint.pick') }}</p>
             </div>
           </button>
@@ -741,28 +755,75 @@
             </button>
           </div>
 
-          <!-- Custom Corner Board Color Input -->
-          <div class="mt-2.5 flex items-center gap-2">
+          <!-- Custom Corner Board Color Input & Swatches -->
+          <div class="mt-2.5 flex flex-wrap items-center gap-2">
+            <!-- Saved custom corner colors -->
+            <div
+              v-for="color in customCornerColors"
+              :key="color"
+              class="relative inline-flex items-center"
+            >
+              <button
+                type="button"
+                :id="store.cornerColor === color ? 'corner-color-custom' : `corner-color-custom-${color.replace('#', '')}`"
+                @click="store.selectCornerColor(color)"
+                class="group relative flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+                :class="store.cornerColor === color
+                  ? 'border-slate-900 ring-1 ring-slate-900 bg-slate-50 shadow-sm text-slate-900'
+                  : 'border-slate-200 bg-white hover:border-slate-300 text-slate-700'"
+              >
+                <label
+                  class="relative w-5 h-5 rounded border border-slate-300 shrink-0 cursor-pointer flex items-center justify-center overflow-hidden"
+                  :style="{ backgroundColor: color }"
+                  title="Adjust color"
+                >
+                  <input
+                    type="color"
+                    class="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                    :value="color"
+                    @input="store.updateCornerColor(color, ($event.target as HTMLInputElement).value)"
+                    @click.stop
+                  />
+                  <svg v-if="store.cornerColor === color" class="w-3 h-3 drop-shadow-sm" :class="readableInk(color) === '#ffffff' ? 'text-white' : 'text-slate-900'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                </label>
+                <span><Cms k="category.cornerCustom" /></span>
+                <span class="text-[10px] font-mono text-slate-500">
+                  {{ color.toUpperCase() }}
+                </span>
+                <span
+                  v-if="customCornerColors.length > 1"
+                  role="button"
+                  tabindex="0"
+                  :aria-label="t('tools.remove') || 'Remove'"
+                  class="ml-0.5 -mr-1 p-0.5 rounded text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                  @click.stop="store.removeCornerColor(color)"
+                >
+                  <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                  </svg>
+                </span>
+              </button>
+            </div>
+
+            <!-- + Add new custom corner color -->
             <label
-              id="corner-color-custom"
-              class="relative flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-medium cursor-pointer transition-all"
-              :class="store.cornerColor.startsWith('#')
-                ? 'border-slate-900 ring-1 ring-slate-900 bg-slate-50 shadow-sm text-slate-900'
-                : 'border-slate-200 bg-white hover:border-slate-300 text-slate-700'"
+              :id="customCornerColors.length === 0 ? 'corner-color-custom' : 'btn-add-corner-color'"
+              class="relative flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-slate-300 bg-white hover:border-slate-400 hover:bg-slate-50 text-xs font-medium text-slate-700 cursor-pointer transition-all focus-within:ring-2 focus-within:ring-slate-900"
+              :title="t('category.cornerAddColor')"
             >
               <input
                 type="color"
                 class="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
-                :value="store.cornerColor.startsWith('#') ? store.cornerColor : '#ffffff'"
-                @input="store.selectCornerColor(($event.target as HTMLInputElement).value)"
+                value="#df9b9b"
+                @input="onAddCornerColor(($event.target as HTMLInputElement).value)"
               />
-              <div
-                class="w-5 h-5 rounded border border-slate-300 shrink-0"
-                :style="{ backgroundColor: store.cornerColor.startsWith('#') ? store.cornerColor : '#ffffff' }"
-              ></div>
-              <span><Cms k="category.cornerCustom" /></span>
-              <span v-if="store.cornerColor.startsWith('#')" class="text-[10px] font-mono text-slate-500">
-                {{ store.cornerColor.toUpperCase() }}
+              <svg class="w-3.5 h-3.5 text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              <span class="font-bold text-slate-800">
+                <Cms :k="customCornerColors.length === 0 ? 'category.cornerCustom' : 'category.cornerAddColor'" />
               </span>
             </label>
           </div>
@@ -2071,6 +2132,34 @@ const currentCornerColorName = computed(() => {
   if (store.cornerColor.startsWith('#')) return store.cornerColor.toUpperCase();
   return store.cornerColor;
 });
+
+const customCornerColors = computed(() => {
+  const list: string[] = [];
+  if (store.cornerColor.startsWith('#')) {
+    list.push(store.cornerColor.toLowerCase());
+  }
+  for (const c of store.savedCornerColors) {
+    const norm = c.toLowerCase();
+    if (!list.includes(norm)) {
+      list.push(norm);
+    }
+  }
+  return list;
+});
+
+function onAddCornerColor(value: string) {
+  if (!value) return;
+  store.addCornerColor(value);
+}
+
+function openAddPaint() {
+  if (paintOpen.value) {
+    paintOpen.value = false;
+  } else {
+    paintOpen.value = true;
+    store.setPaintPreview(null);
+  }
+}
 
 function chooseSaved(id: string) {
   paintOpen.value = false;

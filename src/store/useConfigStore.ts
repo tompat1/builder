@@ -625,6 +625,8 @@ export const useConfigStore = defineStore('config', () => {
   const claddingSizeId = ref<CladdingSizeId>('22x145');
   /** Exterior corner boards (knutbrädor) color: 'same' | 'white' | 'falurod' | 'grey' | 'black' | 'wood' | custom hex */
   const cornerColor = ref<string>('same');
+  /** Saved custom corner board colors */
+  const savedCornerColors = ref<string[]>([]);
   /** Exterior corner boards (knutbrädor) show/hide */
   const cornerBoards = ref<boolean>(true);
   const isFullscreen = ref<boolean>(false);
@@ -801,6 +803,7 @@ export const useConfigStore = defineStore('config', () => {
       verticalDoorBay: verticalDoorBay.value,
       claddingSizeId: claddingSizeId.value,
       cornerColor: cornerColor.value,
+      savedCornerColors: savedCornerColors.value,
       cornerBoards: cornerBoards.value,
       wallSlots: wallSlots.value,
       notes: notes.value,
@@ -901,6 +904,12 @@ export const useConfigStore = defineStore('config', () => {
         ? data.claddingSizeId
         : '22x145';
       cornerColor.value = typeof data.cornerColor === 'string' ? data.cornerColor : 'same';
+      savedCornerColors.value = Array.isArray(data.savedCornerColors)
+        ? data.savedCornerColors.filter((c: unknown): c is string => typeof c === 'string' && c.startsWith('#'))
+        : (cornerColor.value.startsWith('#') ? [cornerColor.value] : []);
+      if (cornerColor.value.startsWith('#') && !savedCornerColors.value.includes(cornerColor.value)) {
+        savedCornerColors.value.push(cornerColor.value);
+      }
       cornerBoards.value = data.cornerBoards !== false;
       wallSlots.value = mergeWallSlots(data.wallSlots);
       placedRooms.value = acceptPlacedRooms(data.placedRooms);
@@ -1531,8 +1540,45 @@ export const useConfigStore = defineStore('config', () => {
   }
 
   function selectCornerColor(color: string) {
-    if (cornerColor.value === color) return;
-    cornerColor.value = color;
+    if (color.startsWith('#')) {
+      const normalized = normalizeHex(color) ?? color.toLowerCase();
+      if (!savedCornerColors.value.includes(normalized)) {
+        savedCornerColors.value = [...savedCornerColors.value, normalized].slice(-12);
+      }
+      if (cornerColor.value === normalized) return;
+      cornerColor.value = normalized;
+    } else {
+      if (cornerColor.value === color) return;
+      cornerColor.value = color;
+    }
+    saveSnapshot();
+  }
+
+  function addCornerColor(color: string) {
+    const normalized = normalizeHex(color) ?? color.toLowerCase();
+    if (!savedCornerColors.value.includes(normalized)) {
+      savedCornerColors.value = [...savedCornerColors.value, normalized].slice(-12);
+    }
+    cornerColor.value = normalized;
+    saveSnapshot();
+  }
+
+  function removeCornerColor(color: string) {
+    const normalized = normalizeHex(color) ?? color.toLowerCase();
+    savedCornerColors.value = savedCornerColors.value.filter((c) => c !== normalized && c !== color);
+    if (cornerColor.value === normalized || cornerColor.value === color) {
+      cornerColor.value = savedCornerColors.value[savedCornerColors.value.length - 1] ?? 'same';
+    }
+    saveSnapshot();
+  }
+
+  function updateCornerColor(oldColor: string, newColor: string) {
+    const normOld = normalizeHex(oldColor) ?? oldColor.toLowerCase();
+    const normNew = normalizeHex(newColor) ?? newColor.toLowerCase();
+    savedCornerColors.value = savedCornerColors.value.map((c) => (c === normOld ? normNew : c));
+    if (cornerColor.value === normOld || cornerColor.value === oldColor) {
+      cornerColor.value = normNew;
+    }
     saveSnapshot();
   }
 
@@ -1578,6 +1624,20 @@ export const useConfigStore = defineStore('config', () => {
     }
     savedPaints.value = [...kept, { ...next, id }];
     activePaintId.value = id;
+    saveSnapshot();
+  }
+
+  function removeSavedPaint(id: string) {
+    savedPaints.value = savedPaints.value.filter((paint) => paint.id !== id);
+    if (activePaintId.value === id) {
+      const next = savedPaints.value[savedPaints.value.length - 1];
+      if (next) {
+        activePaintId.value = next.id;
+      } else {
+        activePaintId.value = null;
+        activeMaterial.value = 'falurod';
+      }
+    }
     saveSnapshot();
   }
 
@@ -1903,9 +1963,14 @@ export const useConfigStore = defineStore('config', () => {
     verticalDoorBay,
     claddingSizeId,
     cornerColor,
+    savedCornerColors,
     cornerBoards,
     effectiveCornerHex,
     selectCornerColor,
+    addCornerColor,
+    removeCornerColor,
+    updateCornerColor,
+    removeSavedPaint,
     toggleCornerBoards,
     setCornerBoards,
     selectedSlotId,

@@ -471,6 +471,7 @@ const sv = {
     cornerBlack: 'Arkitektsvart',
     cornerWood: 'Obehandlad gran',
     cornerCustom: 'Egen kulör',
+    cornerAddColor: 'Lägg till kulör',
     selected: 'Vald: {name}',
     addLoft: 'Lägg till Loft',
     addLoftBody:
@@ -554,6 +555,7 @@ const sv = {
   },
   paint: {
     add: 'Egen kulör',
+    addMore: 'Lägg till kulör',
     pick: 'Välj på paletten',
     palette: 'Kulörpalett',
     hue: 'Regnbågsskala',
@@ -1311,6 +1313,7 @@ const en = {
     cornerBlack: 'Architect black',
     cornerWood: 'Natural spruce',
     cornerCustom: 'Custom colour',
+    cornerAddColor: 'Add colour',
     selected: 'Selected: {name}',
     addLoft: 'Add a loft',
     addLoftBody:
@@ -1394,6 +1397,7 @@ const en = {
   },
   paint: {
     add: 'Custom colour',
+    addMore: 'Add colour',
     pick: 'Choose on the palette',
     palette: 'Colour palette',
     hue: 'Rainbow scale',

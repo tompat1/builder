@@ -142,19 +142,30 @@
         </label>
       </div>
 
-      <label v-else-if="system === 'hex'" class="block">
+      <div v-else-if="system === 'hex'" class="block">
         <span class="mb-1 block text-[11px] font-semibold text-slate-600">HEX</span>
-        <input
-          id="paint-hex"
-          class="field font-mono uppercase"
-          type="text"
-          maxlength="7"
-          spellcheck="false"
-          :aria-label="t('paint.hexHint')"
-          :value="hex.toUpperCase()"
-          @change="onHex"
-        />
-      </label>
+        <div class="flex items-center gap-2">
+          <label class="relative h-9 w-9 shrink-0 cursor-pointer overflow-hidden rounded-lg border border-slate-300 shadow-xs flex items-center justify-center">
+            <input
+              type="color"
+              class="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+              :value="hex"
+              @input="onNativeColor(($event.target as HTMLInputElement).value)"
+            />
+            <div class="h-full w-full" :style="{ backgroundColor: hex }" />
+          </label>
+          <input
+            id="paint-hex"
+            class="field font-mono uppercase flex-1"
+            type="text"
+            maxlength="7"
+            spellcheck="false"
+            :aria-label="t('paint.hexHint')"
+            :value="hex.toUpperCase()"
+            @change="onHex"
+          />
+        </div>
+      </div>
 
       <label v-else-if="system === 'ral'" class="block">
         <span class="mb-1 block text-[11px] font-semibold text-slate-600">RAL</span>
@@ -396,6 +407,14 @@ function onCmyk(key: 'c' | 'm' | 'y' | 'k', event: Event) {
 
 function onHex(event: Event) {
   const next = normalizeHex((event.target as HTMLInputElement).value);
+  if (!next) return;
+  hsv.value = rgbToHsv(hexToRgb(next));
+  ralText.value = '';
+  preview();
+}
+
+function onNativeColor(value: string) {
+  const next = normalizeHex(value);
   if (!next) return;
   hsv.value = rgbToHsv(hexToRgb(next));
   ralText.value = '';
