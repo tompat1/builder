@@ -12,7 +12,9 @@ import { ceilingStations, loftCeilingY, sliceStations, type CeilingStation, type
 import { OVERLIGHT, PORTRAIT_PANORAMA, fittedDoorOpening, openingClearOfRoof, overlightHeight, portraitPane } from './windowFit';
 import { fitRoom, innerHalf, roomFootprint, roomWallRuns, shellSides, type ShellSides } from './roomWalls';
 import { timberShellOnConcrete } from '../store/paabyggnad';
+import { MEASURE_CURSOR } from '../measure/length';
 const PULPET_PITCH_RAD = (PULPET_PITCH_DEG * Math.PI) / 180;
+export { MEASURE_CURSOR };
 
 function easeInOutCubic(t: number) {
   return t < 0.5 ? 4 * t * t * t : 1 - ((-2 * t + 2) ** 3) / 2;
@@ -134,6 +136,7 @@ export class HouseScene {
   private highlightBox: THREE.LineSegments | null = null;
   private contactShadow: THREE.Mesh | null = null;
   private hoverBox: THREE.Object3D | null = null;
+  private groundMesh: THREE.Mesh | null = null;
   private gridHelper: THREE.GridHelper | null = null;
   private sunLight!: THREE.DirectionalLight;
   private skyFill!: THREE.DirectionalLight;
@@ -1003,6 +1006,8 @@ export class HouseScene {
     ground.rotation.x = -Math.PI / 2;
     ground.position.y = -0.02;
     ground.receiveShadow = true;
+    ground.userData.isGround = true;
+    this.groundMesh = ground;
     this.scene.add(ground);
 
     const grid = new THREE.GridHelper(40, 40, '#cbd5e1', '#e2e8f0');
@@ -1210,7 +1215,10 @@ export class HouseScene {
 
     if (this.measuring) {
       this.onMeasureCursor?.(this.housePointAt(e.clientX, e.clientY));
-      this.container.style.cursor = 'crosshair';
+      this.container.style.cursor = MEASURE_CURSOR;
+      if (this.renderer?.domElement) {
+        this.renderer.domElement.style.cursor = MEASURE_CURSOR;
+      }
       this.updateHoverBox(null);
       this.onPanelHover?.(null, 0, 0);
       this.updateRoomPreview(null);
@@ -1629,8 +1637,12 @@ export class HouseScene {
     });
 
     this.container.addEventListener('pointerleave', () => {
+      if (this.measuring) return;
       if (!this.draggingSlot?.hasMoved && !this.draggingRoom) {
         this.container.style.cursor = 'default';
+        if (this.renderer?.domElement) {
+          this.renderer.domElement.style.cursor = 'default';
+        }
       }
       this.updateHoverBox(null);
       this.onPanelHover?.(null, 0, 0);
@@ -6431,9 +6443,17 @@ export class HouseScene {
     const placing = active && !allowOrbit;
     this.controls.mouseButtons.LEFT = placing ? null : THREE.MOUSE.ROTATE;
     this.controls.touches.ONE = placing ? null : THREE.TOUCH.ROTATE;
-    if (!active) {
+    if (active) {
+      this.container.style.cursor = MEASURE_CURSOR;
+      if (this.renderer?.domElement) {
+        this.renderer.domElement.style.cursor = MEASURE_CURSOR;
+      }
+    } else {
       this.measureDown = null;
       this.container.style.cursor = 'default';
+      if (this.renderer?.domElement) {
+        this.renderer.domElement.style.cursor = 'default';
+      }
     }
   }
 
@@ -6605,8 +6625,12 @@ export class HouseScene {
   }
 
   private pointFromHit(hit: THREE.Intersection, snapFacing: boolean) {
-    const point = hit.point;
-    const raw = this.facingOf(hit);
+    const point = hit.point.clone();
+    const isGround = hit.object === this.groundMesh || Boolean(hit.object.userData?.isGround);
+    if (isGround) {
+      point.y = 0;
+    }
+    const raw = isGround ? { x: 0, y: 1, z: 0 } : this.facingOf(hit);
     const facing = snapFacing ? stickFacing(raw) : raw;
     return {
       x: Math.round(point.x * 1000) / 1000,
@@ -6621,7 +6645,10 @@ export class HouseScene {
   /** The house surface under a screen point, or nothing when the point is on the empty canvas. */
   public housePointAt(clientX: number, clientY: number) {
     if (!this.rayFromScreen(clientX, clientY)) return null;
-    const hit = this.raycaster.intersectObjects([this.houseGroup], true).find((item) => this.hitIsVisible(item));
+    const targets: THREE.Object3D[] = [this.houseGroup];
+    if (this.concreteGroup) targets.push(this.concreteGroup);
+    if (this.groundMesh) targets.push(this.groundMesh);
+    const hit = this.raycaster.intersectObjects(targets, true).find((item) => this.hitIsVisible(item));
     if (!hit) return null;
     return this.pointFromHit(hit, false);
   }
@@ -7097,6 +7124,7 @@ export class HouseScene {
       this.dragTargetBox = null;
     }
     if (this.animFrameId) cancelAnimationFrame(this.animFrameId);
+    this.groundMesh = null;
     this.renderer.dispose();
   }
 }

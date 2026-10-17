@@ -44,7 +44,7 @@
     </div>
     <p
       v-if="hint"
-      class="absolute bottom-24 left-1/2 -translate-x-1/2 rounded-full border border-slate-200 bg-white/95 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-md"
+      class="pointer-events-none select-none absolute bottom-24 left-1/2 -translate-x-1/2 rounded-full border border-slate-200 bg-white/95 px-3 py-1.5 text-xs font-semibold text-slate-700 shadow-md"
       role="status"
     >
       {{ hint }}

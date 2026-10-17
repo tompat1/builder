@@ -332,7 +332,7 @@
               type="button"
               id="btn-tool-tape"
               @click="store.toggleMeasure()"
-              :class="toolButton(store.measuring)"
+              :class="[toolButton(store.measuring), store.measuring ? '!cursor-crosshair' : '']"
               :aria-label="t('tools.tape')"
               :aria-pressed="store.measuring"
             >
