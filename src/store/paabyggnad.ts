@@ -173,3 +173,49 @@ export function panelOnConcrete(
   if (Math.abs(Math.abs(px) - halfW) > onEdge) return false;
   return Math.abs(pz) + panelWidth * 0.25 <= halfD + 0.02;
 }
+
+export interface PaabyggnadSlot {
+  id: string;
+  wall: 'front' | 'back' | 'left' | 'right';
+  index: number;
+  type: 'empty' | 'door' | 'window' | 'gate';
+  itemId?: string;
+  canAcceptDoor?: boolean;
+  isUpper?: boolean;
+  coveredBy?: string;
+}
+
+const PANEL_COUNTS = { front: 4, back: 4, left: 3, right: 3 } as const;
+
+/**
+ * Wall slots for the concrete/timber combo:
+ * The front lower wall is removed to open up the whole house (empty, canAcceptDoor = false).
+ * Back, left, and right walls remain concrete and can accept doors and windows.
+ */
+export function paabyggnadWallSlots(): Record<string, PaabyggnadSlot> {
+  const slots: Record<string, PaabyggnadSlot> = {};
+  (Object.keys(PANEL_COUNTS) as (keyof typeof PANEL_COUNTS)[]).forEach((wall) => {
+    for (let index = 0; index < PANEL_COUNTS[wall]; index += 1) {
+      const id = `${wall}-${index}`;
+      const isFront = wall === 'front';
+      slots[id] = {
+        id,
+        wall,
+        index,
+        type: 'empty',
+        canAcceptDoor: !isFront
+      };
+      const upperId = `${id}u`;
+      slots[upperId] = {
+        id: upperId,
+        wall,
+        index,
+        type: isFront ? 'window' : 'empty',
+        itemId: isFront ? 'standard-single' : undefined,
+        canAcceptDoor: false,
+        isUpper: true
+      };
+    }
+  });
+  return slots;
+}

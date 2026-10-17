@@ -29,6 +29,7 @@ import {
   clampConcreteWall,
   clampPaabyggnadPlan,
   paabyggnadLoftAreas,
+  paabyggnadWallSlots,
   CONCRETE_WALL_LIMIT,
   type ConcreteWall
 } from './paabyggnad';
@@ -565,7 +566,9 @@ export function shedWallSlots(): Record<string, WallSlot> {
   return slots;
 }
 
-function mergeWallSlots(saved: Record<string, WallSlot> | undefined): Record<string, WallSlot> {
+export { paabyggnadWallSlots };
+
+function mergeWallSlots(saved: Record<string, WallSlot> | undefined, sizeId?: string): Record<string, WallSlot> {
   const slots = createWallSlots();
   if (!saved) return slots;
   for (const [id, slot] of Object.entries(saved)) {
@@ -603,6 +606,16 @@ function mergeWallSlots(saved: Record<string, WallSlot> | undefined): Record<str
     const lower = slots[slot.id.replace(/u$/, '')];
     const aboveDoor = lower?.type === 'door';
     slot.itemId = overlightItem(slot.itemId, aboveDoor, lower?.itemId);
+  }
+  if (sizeId === 'size-paabyggnad') {
+    for (let index = 0; index < PANEL_COUNTS.front; index += 1) {
+      const id = `front-${index}`;
+      if (slots[id]) {
+        slots[id].type = 'empty';
+        slots[id].itemId = undefined;
+        slots[id].canAcceptDoor = false;
+      }
+    }
   }
   return slots;
 }
@@ -911,7 +924,7 @@ export const useConfigStore = defineStore('config', () => {
         savedCornerColors.value.push(cornerColor.value);
       }
       cornerBoards.value = data.cornerBoards !== false;
-      wallSlots.value = mergeWallSlots(data.wallSlots);
+      wallSlots.value = mergeWallSlots(data.wallSlots, data.selectedSizeId ?? selectedSizeId.value);
       placedRooms.value = acceptPlacedRooms(data.placedRooms);
       floorPlanDone.value = data.floorPlanDone === true && Object.keys(placedRooms.value).length > 0;
       showInnerWalls.value = data.showInnerWalls !== false;
@@ -1257,8 +1270,8 @@ export const useConfigStore = defineStore('config', () => {
   }
 
   function selectSize(id: string) {
-    const shelled = id === 'size-cube' || id === 'size-sauna' || id === 'size-shed';
-    const leavingShell = !shelled && (selectedSizeId.value === 'size-cube' || selectedSizeId.value === 'size-sauna' || selectedSizeId.value === 'size-shed');
+    const shelled = id === 'size-cube' || id === 'size-sauna' || id === 'size-shed' || id === 'size-paabyggnad';
+    const leavingShell = !shelled && (selectedSizeId.value === 'size-cube' || selectedSizeId.value === 'size-sauna' || selectedSizeId.value === 'size-shed' || selectedSizeId.value === 'size-paabyggnad');
     selectedSizeId.value = id;
     applyPresetSize(id);
     if (id === 'size-cube') applyCubeShell();
@@ -1273,6 +1286,8 @@ export const useConfigStore = defineStore('config', () => {
       activeLoft.value = 'sleeping';
       const loftAreas = paabyggnadLoftAreas(buildingWidth.value, buildingDepth.value);
       selectedLoftSize.value = loftAreas[loftAreas.length - 1];
+      wallSlots.value = paabyggnadWallSlots();
+      selectedSlotId.value = null;
     }
     // Ensure selectedLoftSize is valid for this new size
     const available = availableLoftSizes.value;

@@ -2034,7 +2034,8 @@ export class HouseScene {
           i,
           slope,
           faceMat,
-          casingMat
+          casingMat,
+          concreteWallMat
         );
       }
     }
@@ -2143,17 +2144,19 @@ export class HouseScene {
   /** This timber face is the concrete outer facade, so the wood above continues it. */
   private concreteFacade(wallSide: 'front' | 'back' | 'left' | 'right') {
     if (!this.currentConfig.concreteBase) return false;
+    // Front wall of concrete house is removed to open up the whole house
+    if (wallSide === 'front') return false;
     const shell = this.timberShell();
     const cw = (this.currentConfig.concreteWidthMm ?? 5200) / 1000;
-    const cd = (this.currentConfig.concreteDepthMm ?? 5200) / 1000;
     if (wallSide === 'left' || wallSide === 'back') return true;
     if (wallSide === 'right') return shell.widthM - cw < 0.02;
-    return shell.depthM - cd < 0.02;
+    return true;
   }
 
   /**
-   * The old concrete house: four walls and an open top. No roof.
-   * The plan measure is the outside face, the same line as the timber cladding.
+   * The old concrete house interior walls.
+   * Outer walls are built modularly in buildModularWall to support door/window openings,
+   * casing, and slot selection. The front wall is omitted to open up the whole house.
    */
   private addConcreteWalls(material: THREE.Material) {
     if (!this.currentConfig.concreteBase) return;
@@ -2172,10 +2175,6 @@ export class HouseScene {
       mesh.userData.concrete = true;
       this.concreteGroup.add(mesh);
     };
-    add([cw, height, thick], [0, y, cd / 2 - thick / 2]);
-    add([cw, height, thick], [0, y, -(cd / 2 - thick / 2)]);
-    add([thick, height, cd], [-(cw / 2 - thick / 2), y, 0]);
-    add([thick, height, cd], [cw / 2 - thick / 2, y, 0]);
     for (const wall of this.currentConfig.concreteWalls ?? []) {
       const offset = wall.offsetMm / 1000;
       if (wall.axis === 'z') add([thick, height, Math.max(0.4, cd - thick * 2)], [offset, y, 0]);
@@ -2323,8 +2322,18 @@ export class HouseScene {
     index: number,
     slope: number,
     exteriorMat: THREE.Material,
-    casingMat: THREE.Material
+    casingMat: THREE.Material,
+    concreteWallMat?: THREE.Material
   ) {
+    const isConcreteBase = Boolean(this.currentConfig.concreteBase);
+    const isConcreteWall = Boolean(this.concreteFacade(wallSide));
+    const isConcreteLower = isConcreteWall && !band.upper;
+
+    // In concrete house/timber combo: remove the front wall to open up the whole house
+    if (isConcreteBase && wallSide === 'front' && !band.upper) {
+      return;
+    }
+
     const slot = this.currentConfig.wallSlots[band.slotId];
     const slotType = slot?.type ?? 'empty';
     const panelGroup = new THREE.Group();
@@ -2370,7 +2379,17 @@ export class HouseScene {
       ? (this.currentConfig.concreteHeightMm ?? 2500) / 1000
       : null;
     const facadeSpan = facadeTop == null ? null : this.concreteSpanLocal(wallSide, px, pz, panelWidth);
-    if (sloped) {
+    if (isConcreteLower && concreteWallMat) {
+      this.addConcreteBayWall(
+        panelGroup,
+        panelWidth,
+        band.height,
+        claddingThick,
+        concreteWallMat,
+        userData,
+        opening
+      );
+    } else if (sloped) {
       this.addSlopedCladding(panelGroup, panelWidth, band.height, slope, claddingThick, exteriorMat, userData, opening, facadeTop);
     } else if (opening) {
       this.addCladdingAroundOpening(panelGroup, panelWidth, band.height, claddingThick, exteriorMat, opening, userData, facadeTop, facadeSpan);
@@ -2397,22 +2416,84 @@ export class HouseScene {
       this.addGateFeature(panelGroup, panelWidth, band.height, wallThick, slot?.itemId, userData);
     }
 
-    this.buildDrywallBand(
-      band,
-      px,
-      pz,
-      rotY,
-      panelWidth,
-      slope,
-      opening,
-      ownsOpening && (Boolean(wide) || slotType === 'door'),
-      slotType === 'gate'
-    );
+    if (!isConcreteLower) {
+      this.buildDrywallBand(
+        band,
+        px,
+        pz,
+        rotY,
+        panelWidth,
+        slope,
+        opening,
+        ownsOpening && (Boolean(wide) || slotType === 'door'),
+        slotType === 'gate'
+      );
+    }
 
     this.wallsGroup.add(panelGroup);
     if (band.slotId === this.currentConfig.selectedSlotId) {
       this.updateHighlightBox(panelGroup);
     }
+  }
+
+  private addConcreteBayWall(
+    parent: THREE.Group,
+    panelWidth: number,
+    panelHeight: number,
+    claddingThick: number,
+    material: THREE.Material,
+    userData: Record<string, unknown>,
+    opening: { winW: number; winH: number; winY: number; x?: number } | null
+  ) {
+    const concreteThick = 0.16;
+    const concreteZ = claddingThick / 2 - concreteThick / 2;
+    const halfW = panelWidth / 2;
+    const halfH = panelHeight / 2;
+
+    const pieces: { x: number; y: number; w: number; h: number }[] = [];
+
+    if (opening) {
+      const { winW, winH, winY } = opening;
+      const cx = opening.x ?? 0;
+      const left = Math.max(-halfW, cx - winW / 2);
+      const right = Math.min(halfW, cx + winW / 2);
+      const bottom = winY - winH / 2;
+      const top = winY + winH / 2;
+
+      const leftW = left - (-halfW);
+      if (leftW > 0.005) {
+        pieces.push({ x: -halfW + leftW / 2, y: 0, w: leftW, h: panelHeight });
+      }
+      const rightW = halfW - right;
+      if (rightW > 0.005) {
+        pieces.push({ x: right + rightW / 2, y: 0, w: rightW, h: panelHeight });
+      }
+      const sillH = bottom - (-halfH);
+      const spanW = right - left;
+      if (sillH > 0.005 && spanW > 0.005) {
+        pieces.push({ x: (left + right) / 2, y: -halfH + sillH / 2, w: spanW, h: sillH });
+      }
+      const lintelH = halfH - top;
+      if (lintelH > 0.005 && spanW > 0.005) {
+        pieces.push({ x: (left + right) / 2, y: top + lintelH / 2, w: spanW, h: lintelH });
+      }
+    } else {
+      pieces.push({ x: 0, y: 0, w: panelWidth, h: panelHeight });
+    }
+
+    let first: THREE.Mesh | null = null;
+    for (const piece of pieces) {
+      const geo = new THREE.BoxGeometry(piece.w, piece.h, concreteThick);
+      const mesh = new THREE.Mesh(geo, material);
+      mesh.position.set(piece.x, piece.y, concreteZ);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.userData = { ...userData, concrete: true };
+      parent.add(mesh);
+      this.interactivePanels.push(mesh);
+      first ??= mesh;
+    }
+    return first;
   }
 
   private addOpeningFrame(
@@ -2461,35 +2542,45 @@ export class HouseScene {
       ? Math.max(h - Math.tan(PULPET_PITCH_RAD) * d, 2.4)
       : (isFlackt ? h - flacktDrop : h);
 
+    const isConcrete = Boolean(this.currentConfig.concreteBase);
+    const concreteH = isConcrete ? (this.currentConfig.concreteHeightMm ?? 2500) / 1000 : baseElevation;
+
     const framingFrontZ = d / 2 - 0.025 - studDepth / 2;
     const framingBackZ = -d / 2 + 0.025 + studDepth / 2;
     const framingLeftX = -w / 2 + 0.025 + studDepth / 2;
     const framingRightX = w / 2 - 0.025 - studDepth / 2;
 
     // 1. Bottom Sill Plates (Syll 45x145 mm)
-    // Front sill
+    // Front sill: omitted at ground for open front; placed at concrete crown for upper floor
     const frontSyllGeo = new THREE.BoxGeometry(w - 0.05, studThick, studDepth);
-    const frontSyll = new THREE.Mesh(frontSyllGeo, framingMat);
-    frontSyll.position.set(0, baseElevation + studThick / 2, framingFrontZ);
-    frontSyll.castShadow = true;
-    this.framingGroup.add(frontSyll);
+    if (!isConcrete) {
+      const frontSyll = new THREE.Mesh(frontSyllGeo, framingMat);
+      frontSyll.position.set(0, baseElevation + studThick / 2, framingFrontZ);
+      frontSyll.castShadow = true;
+      this.framingGroup.add(frontSyll);
+    } else {
+      const frontBeam = new THREE.Mesh(frontSyllGeo, framingMat);
+      frontBeam.position.set(0, concreteH + studThick / 2, framingFrontZ);
+      frontBeam.castShadow = true;
+      this.framingGroup.add(frontBeam);
+    }
 
     // Back sill
     const backSyll = new THREE.Mesh(frontSyllGeo, framingMat);
-    backSyll.position.set(0, baseElevation + studThick / 2, framingBackZ);
+    backSyll.position.set(0, concreteH + studThick / 2, framingBackZ);
     backSyll.castShadow = true;
     this.framingGroup.add(backSyll);
 
     // Left sill
     const sideSyllGeo = new THREE.BoxGeometry(studDepth, studThick, d - 0.05 - studDepth * 2);
     const leftSyll = new THREE.Mesh(sideSyllGeo, framingMat);
-    leftSyll.position.set(framingLeftX, baseElevation + studThick / 2, 0);
+    leftSyll.position.set(framingLeftX, concreteH + studThick / 2, 0);
     leftSyll.castShadow = true;
     this.framingGroup.add(leftSyll);
 
     // Right sill
     const rightSyll = new THREE.Mesh(sideSyllGeo, framingMat);
-    rightSyll.position.set(framingRightX, baseElevation + studThick / 2, 0);
+    rightSyll.position.set(framingRightX, concreteH + studThick / 2, 0);
     rightSyll.castShadow = true;
     this.framingGroup.add(rightSyll);
 
@@ -2533,57 +2624,76 @@ export class HouseScene {
       { x: framingRightX, z: framingBackZ, height: rearH }
     ];
     cornerPositions.forEach((cp) => {
-      const studH = cp.height - baseElevation - studThick * 2;
-      const cGeo = new THREE.BoxGeometry(studThick, studH, studDepth);
-      const cMesh = new THREE.Mesh(cGeo, framingMat);
-      cMesh.position.set(cp.x, baseElevation + studThick + studH / 2, cp.z);
-      cMesh.castShadow = true;
-      this.framingGroup.add(cMesh);
+      const studH = cp.height - concreteH - studThick * 2;
+      if (studH > 0.05) {
+        const cGeo = new THREE.BoxGeometry(studThick, studH, studDepth);
+        const cMesh = new THREE.Mesh(cGeo, framingMat);
+        cMesh.position.set(cp.x, concreteH + studThick + studH / 2, cp.z);
+        cMesh.castShadow = true;
+        this.framingGroup.add(cMesh);
+      }
     });
 
     // Front Wall Studs with framing around door and window openings
     const frontStudCount = Math.floor((w - 0.1) / 0.6);
     const frontSpacing = (w - 0.1) / frontStudCount;
-    const frontStudH = frontH - baseElevation - studThick * 2;
-    const frontOpenings = this.frontOpenings(w, frontH, baseElevation);
+    const frontStudH = frontH - concreteH - studThick * 2;
+    const allFrontOpenings = this.frontOpenings(w, frontH, baseElevation);
+    const frontOpenings = isConcrete
+      ? allFrontOpenings.filter((o) => o.sill >= concreteH - 0.1)
+      : allFrontOpenings;
 
-    for (let s = 1; s < frontStudCount; s++) {
-      const sx = -w / 2 + 0.05 + s * frontSpacing;
-      const blocked = frontOpenings.filter((opening) => Math.abs(sx - opening.x) < opening.winW / 2 - 0.02);
-      if (blocked.length > 0) {
-        this.fillStudGaps(sx, framingFrontZ, baseElevation, frontH, blocked, studThick, studDepth, framingMat);
-        continue;
+    if (frontStudH > 0.05) {
+      for (let s = 1; s < frontStudCount; s++) {
+        const sx = -w / 2 + 0.05 + s * frontSpacing;
+        const blocked = frontOpenings.filter((opening) => Math.abs(sx - opening.x) < opening.winW / 2 - 0.02);
+        if (blocked.length > 0) {
+          this.fillStudGaps(sx, framingFrontZ, concreteH, frontH, blocked, studThick, studDepth, framingMat);
+          continue;
+        }
+
+        const studMesh = new THREE.Mesh(new THREE.BoxGeometry(studThick, frontStudH, studDepth), framingMat);
+        studMesh.position.set(sx, concreteH + studThick + frontStudH / 2, framingFrontZ);
+        studMesh.castShadow = true;
+        this.framingGroup.add(studMesh);
       }
 
-      const studMesh = new THREE.Mesh(new THREE.BoxGeometry(studThick, frontStudH, studDepth), framingMat);
-      studMesh.position.set(sx, baseElevation + studThick + frontStudH / 2, framingFrontZ);
-      studMesh.castShadow = true;
-      this.framingGroup.add(studMesh);
-    }
-
-    for (const opening of frontOpenings) {
-      this.addOpeningFrame(opening.x, framingFrontZ, opening, studThick, studDepth, framingMat);
+      for (const opening of frontOpenings) {
+        this.addOpeningFrame(opening.x, framingFrontZ, opening, studThick, studDepth, framingMat);
+      }
     }
 
     // Rear, left, and right studs stop at doors and windows, the same way the front does.
-    const backOpenings = this.wallOpenings('back', w, d, h, baseElevation);
-    const leftOpenings = this.wallOpenings('left', w, d, h, baseElevation);
-    const rightOpenings = this.wallOpenings('right', w, d, h, baseElevation);
-    const rearStudH = rearH - baseElevation - studThick * 2;
-    for (let s = 1; s < frontStudCount; s++) {
-      const sx = -w / 2 + 0.05 + s * frontSpacing;
-      const blocked = backOpenings.filter((opening) => Math.abs(sx - opening.x) < opening.winW / 2 - 0.02);
-      if (blocked.length > 0) {
-        this.fillStudGaps(sx, framingBackZ, baseElevation, rearH, blocked, studThick, studDepth, framingMat);
-        continue;
+    const allBackOpenings = this.wallOpenings('back', w, d, h, baseElevation);
+    const allLeftOpenings = this.wallOpenings('left', w, d, h, baseElevation);
+    const allRightOpenings = this.wallOpenings('right', w, d, h, baseElevation);
+    const backOpenings = isConcrete
+      ? allBackOpenings.filter((o) => o.sill >= concreteH - 0.1)
+      : allBackOpenings;
+    const leftOpenings = isConcrete
+      ? allLeftOpenings.filter((o) => o.sill >= concreteH - 0.1)
+      : allLeftOpenings;
+    const rightOpenings = isConcrete
+      ? allRightOpenings.filter((o) => o.sill >= concreteH - 0.1)
+      : allRightOpenings;
+
+    const rearStudH = rearH - concreteH - studThick * 2;
+    if (rearStudH > 0.05) {
+      for (let s = 1; s < frontStudCount; s++) {
+        const sx = -w / 2 + 0.05 + s * frontSpacing;
+        const blocked = backOpenings.filter((opening) => Math.abs(sx - opening.x) < opening.winW / 2 - 0.02);
+        if (blocked.length > 0) {
+          this.fillStudGaps(sx, framingBackZ, concreteH, rearH, blocked, studThick, studDepth, framingMat);
+          continue;
+        }
+        const studMesh = new THREE.Mesh(new THREE.BoxGeometry(studThick, rearStudH, studDepth), framingMat);
+        studMesh.position.set(sx, concreteH + studThick + rearStudH / 2, framingBackZ);
+        studMesh.castShadow = true;
+        this.framingGroup.add(studMesh);
       }
-      const studMesh = new THREE.Mesh(new THREE.BoxGeometry(studThick, rearStudH, studDepth), framingMat);
-      studMesh.position.set(sx, baseElevation + studThick + rearStudH / 2, framingBackZ);
-      studMesh.castShadow = true;
-      this.framingGroup.add(studMesh);
-    }
-    for (const opening of backOpenings) {
-      this.addOpeningFrame(opening.x, framingBackZ, opening, studThick, studDepth, framingMat);
+      for (const opening of backOpenings) {
+        this.addOpeningFrame(opening.x, framingBackZ, opening, studThick, studDepth, framingMat);
+      }
     }
 
     // Left and Right Wall Studs (interpolating height along roof slope)
@@ -2594,22 +2704,23 @@ export class HouseScene {
       const sz = d / 2 - 0.025 - studDepth - s * sideSpacing;
       const progress = (d / 2 - sz) / d; // 0 at front, 1 at back
       const curH = frontH - progress * (frontH - rearH);
-      const curStudH = curH - baseElevation - studThick * 2;
+      const curStudH = curH - concreteH - studThick * 2;
+      if (curStudH <= 0.05) continue;
       const leftBlocked = leftOpenings.filter((opening) => Math.abs(sz - opening.x) < opening.winW / 2 - 0.02);
       if (leftBlocked.length > 0) {
-        this.fillStudGaps(sz, framingLeftX, baseElevation, curH, leftBlocked, studThick, studDepth, framingMat, 'z');
+        this.fillStudGaps(sz, framingLeftX, concreteH, curH, leftBlocked, studThick, studDepth, framingMat, 'z');
       } else {
         const leftStud = new THREE.Mesh(new THREE.BoxGeometry(studDepth, curStudH, studThick), framingMat);
-        leftStud.position.set(framingLeftX, baseElevation + studThick + curStudH / 2, sz);
+        leftStud.position.set(framingLeftX, concreteH + studThick + curStudH / 2, sz);
         leftStud.castShadow = true;
         this.framingGroup.add(leftStud);
       }
       const rightBlocked = rightOpenings.filter((opening) => Math.abs(sz - opening.x) < opening.winW / 2 - 0.02);
       if (rightBlocked.length > 0) {
-        this.fillStudGaps(sz, framingRightX, baseElevation, curH, rightBlocked, studThick, studDepth, framingMat, 'z');
+        this.fillStudGaps(sz, framingRightX, concreteH, curH, rightBlocked, studThick, studDepth, framingMat, 'z');
       } else {
         const rightStud = new THREE.Mesh(new THREE.BoxGeometry(studDepth, curStudH, studThick), framingMat);
-        rightStud.position.set(framingRightX, baseElevation + studThick + curStudH / 2, sz);
+        rightStud.position.set(framingRightX, concreteH + studThick + curStudH / 2, sz);
         rightStud.castShadow = true;
         this.framingGroup.add(rightStud);
       }
@@ -2644,10 +2755,10 @@ export class HouseScene {
       top: rearH - studThick
     });
 
-    this.addNoggings(this.gapsBetween(frontSolids), 'x', framingFrontZ, baseElevation, studThick, studDepth, framingMat, frontOpenings);
-    this.addNoggings(this.gapsBetween(backSolids), 'x', framingBackZ, baseElevation, studThick, studDepth, framingMat, backOpenings);
-    this.addNoggings(this.gapsBetween(sideSolids), 'z', framingLeftX, baseElevation, studThick, studDepth, framingMat, leftOpenings);
-    this.addNoggings(this.gapsBetween(sideSolids), 'z', framingRightX, baseElevation, studThick, studDepth, framingMat, rightOpenings);
+    this.addNoggings(this.gapsBetween(frontSolids), 'x', framingFrontZ, concreteH, studThick, studDepth, framingMat, frontOpenings);
+    this.addNoggings(this.gapsBetween(backSolids), 'x', framingBackZ, concreteH, studThick, studDepth, framingMat, backOpenings);
+    this.addNoggings(this.gapsBetween(sideSolids), 'z', framingLeftX, concreteH, studThick, studDepth, framingMat, leftOpenings);
+    this.addNoggings(this.gapsBetween(sideSolids), 'z', framingRightX, concreteH, studThick, studDepth, framingMat, rightOpenings);
   }
 
   /** Clear spans between stud faces, limited by the lower of the two studs. */
@@ -3644,7 +3755,7 @@ export class HouseScene {
     for (const corner of corners) {
       const along = corner.z > 0 ? 'front' : 'back';
       const side = corner.x < 0 ? 'left' : 'right';
-      const foot = this.concreteFacade(along) && this.concreteFacade(side)
+      const foot = this.currentConfig.concreteBase || (this.concreteFacade(along) && this.concreteFacade(side))
         ? Math.max(baseElev, (this.currentConfig.concreteHeightMm ?? 2500) / 1000)
         : baseElev;
       const top = corner.top;

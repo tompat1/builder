@@ -85,3 +85,37 @@ test('only panels on the 520 cm concrete faces count as the old house', () => {
   assert.equal(panelOnConcrete('left', -2.5875, 0, 1.72), true);
   assert.equal(panelOnConcrete('left', -2.5875, 2.79, 2.23), false);
 });
+
+test('concrete combo removes lower front wall and leaves back, left, right open to doors and windows', async () => {
+  const { paabyggnadWallSlots } = await import('../src/store/paabyggnad.ts');
+  const slots = paabyggnadWallSlots();
+
+  // Front lower bays are open: empty and cannot accept doors
+  for (let i = 0; i < 4; i++) {
+    const lowerId = `front-${i}`;
+    assert.equal(slots[lowerId].type, 'empty');
+    assert.equal(slots[lowerId].canAcceptDoor, false);
+    // Upper front bays remain for the timber floor
+    const upperId = `front-${i}u`;
+    assert.equal(slots[upperId].isUpper, true);
+    assert.equal(slots[upperId].canAcceptDoor, false);
+  }
+
+  // Back wall (4 bays): lower bays can accept doors or windows
+  for (let i = 0; i < 4; i++) {
+    const id = `back-${i}`;
+    assert.equal(slots[id].canAcceptDoor, true);
+  }
+
+  // Left wall (3 bays): lower bays can accept doors or windows
+  for (let i = 0; i < 3; i++) {
+    const id = `left-${i}`;
+    assert.equal(slots[id].canAcceptDoor, true);
+  }
+
+  // Right wall (3 bays): lower bays can accept doors or windows
+  for (let i = 0; i < 3; i++) {
+    const id = `right-${i}`;
+    assert.equal(slots[id].canAcceptDoor, true);
+  }
+});
