@@ -297,32 +297,8 @@ export function generateAiAvatar(options: {
     <polygon points="90,15 105,25 98,35" fill="#3b82f6" opacity="0.65"/>
     ` : ''}
 
-    <!-- Central Stylish Persona Bust / Monogram Silhouette -->
     <!-- Shoulders -->
     <path d="M26,116 C26,94 40,84 60,84 C80,84 94,94 94,116 Z" fill="#ffffff" fill-opacity="0.18"/>
-    <!-- Head circle -->
-    <circle cx="60" cy="58" r="22" fill="#ffffff" fill-opacity="0.22" stroke="${accent1}" stroke-width="1.8" stroke-opacity="0.75"/>
-
-    <!-- Theme Accents on Character -->
-    ${hasChill ? `
-    <!-- Cool glasses -->
-    <rect x="49" y="52" width="9" height="6" rx="2" fill="${accent1}" opacity="0.9"/>
-    <rect x="62" y="52" width="9" height="6" rx="2" fill="${accent1}" opacity="0.9"/>
-    <line x1="58" y1="55" x2="62" y2="55" stroke="${accent1}" stroke-width="1.5"/>
-    ` : ''}
-
-    ${hasMusically ? `
-    <!-- Headphones band -->
-    <path d="M42,56 C42,44 48,36 60,36 C72,36 78,44 78,56" fill="none" stroke="${accent2}" stroke-width="3" stroke-linecap="round"/>
-    <rect x="38" y="52" width="5" height="12" rx="2" fill="${accent1}"/>
-    <rect x="77" y="52" width="5" height="12" rx="2" fill="${accent1}"/>
-    ` : ''}
-
-    ${hasNoir ? `
-    <!-- Noir fedora slant shadow -->
-    <path d="M40,43 Q60,36 80,43 L76,33 Q60,30 44,33 Z" fill="#09090b" opacity="0.9"/>
-    <line x1="36" y1="44" x2="84" y2="44" stroke="#ffffff" stroke-width="1.2" opacity="0.75"/>
-    ` : ''}
 
   </g>
 </svg>`;

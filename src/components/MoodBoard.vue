@@ -9,6 +9,7 @@
     @dragleave="onDragLeave"
     @drop.prevent="onDrop"
   >
+    <img src="/brand/mood.webp" alt="" class="block h-28 w-full shrink-0 object-cover object-center sm:h-40 lg:h-48" />
     <header
       class="flex flex-col gap-2 px-3 pb-2 pt-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4 sm:px-6 sm:pt-4 md:px-8 md:pt-6"
       :class="isMobile ? 'pr-16' : ''"

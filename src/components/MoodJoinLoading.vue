@@ -1,18 +1,19 @@
 <template>
   <div
     id="mood-join-loading"
-    class="relative flex min-h-full w-full items-start justify-center bg-[#F5F3EC] p-4 pb-8 text-[#222925] selection:bg-[#173D35] selection:text-white sm:min-h-dvh sm:items-center sm:p-6 sm:pb-6 lg:p-8"
+    class="relative h-full w-full overflow-y-auto overscroll-y-contain bg-[#F5F3EC] text-[#222925] selection:bg-[#173D35] selection:text-white [-webkit-overflow-scrolling:touch]"
+    @focusin="keepFieldVisible"
   >
+    <div class="relative flex min-h-full w-full items-start justify-center p-4 pb-[max(7rem,env(safe-area-inset-bottom))] sm:p-6 sm:pb-8 lg:p-8">
     <!-- Background atmospheric decorative glows -->
     <div class="pointer-events-none absolute -left-20 -top-20 h-96 w-96 rounded-full bg-[#173D35]/10 blur-3xl"></div>
     <div class="pointer-events-none absolute -bottom-20 -right-20 h-96 w-96 rounded-full bg-[#c084fc]/10 blur-3xl"></div>
 
-    <main class="relative z-10 my-2 w-full max-w-2xl overflow-hidden rounded-3xl border border-[#d7d1c4]/80 bg-white/95 p-6 shadow-[0_24px_48px_-12px_rgba(23,61,53,0.18)] backdrop-blur-md sm:my-0 sm:p-8 lg:p-10">
+    <main class="relative z-10 my-2 w-full max-w-2xl overflow-clip rounded-3xl border border-[#d7d1c4]/80 bg-white shadow-[0_24px_48px_-12px_rgba(23,61,53,0.18)] sm:my-0">
+      <img src="/brand/mood.webp" alt="" class="block h-auto w-full" />
+      <div class="p-6 sm:p-8 lg:p-10">
       <!-- Header -->
       <header class="text-center">
-        <div class="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#173D35] text-2xl text-[#F5F3EC] shadow-md shadow-[#173D35]/25">
-          {{ isRestoringMode ? '🔑' : '🎨' }}
-        </div>
         <h1 class="text-2xl font-bold tracking-tight text-[#173D35] sm:text-3xl">
           {{ isRestoringMode ? (t('mood.restoreTitle') || 'Återanslut till moodboarden') : (t('mood.joinTitle') || 'Välkommen till moodboarden') }}
         </h1>
@@ -207,7 +208,7 @@
             type="email"
             autocomplete="email"
             :placeholder="t('mood.emailPlaceholder')"
-            class="w-full rounded-xl border border-[#d7d1c4] bg-[#FDFBF7] px-4 py-2.5 text-sm text-[#222925] transition placeholder:text-stone-400 focus:border-[#173D35] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#173D35]/20"
+            class="w-full rounded-xl border border-[#d7d1c4] bg-[#FDFBF7] px-4 py-3 text-base text-[#222925] transition placeholder:text-stone-400 focus:border-[#173D35] focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#173D35]/20"
           />
           <p class="text-xs text-stone-500">
             {{ t('mood.emailHint') || 'Få notiser när någon lägger till nya idéer, bilder eller post-its på moodboarden.' }}
@@ -244,7 +245,9 @@
           </button>
         </div>
       </form>
+      </div>
     </main>
+    </div>
   </div>
 </template>
 
@@ -438,5 +441,23 @@ function submitJoin() {
 
 function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function keepFieldVisible(event: FocusEvent) {
+  const field = event.target;
+  if (!(field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement)) return;
+  window.setTimeout(() => {
+    const view = window.visualViewport;
+    const rect = field.getBoundingClientRect();
+    const scroller = document.getElementById('mood-join-loading');
+    if (!view || !scroller) {
+      field.scrollIntoView({ block: 'center', inline: 'nearest' });
+      return;
+    }
+    const visibleBottom = view.offsetTop + view.height - 24;
+    if (rect.bottom > visibleBottom) scroller.scrollTop += rect.bottom - visibleBottom;
+    const next = field.getBoundingClientRect();
+    if (next.top < view.offsetTop + 16) scroller.scrollTop -= view.offsetTop + 16 - next.top;
+  }, 320);
 }
 </script>

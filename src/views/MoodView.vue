@@ -1,8 +1,5 @@
 <template>
-  <div
-    class="relative w-screen bg-[#F5F3EC]"
-    :class="showJoinScreen ? 'min-h-dvh overflow-y-auto overscroll-y-contain touch-pan-y' : 'h-dvh overflow-hidden'"
-  >
+  <div class="relative h-dvh w-full overflow-hidden bg-[#F5F3EC]">
     <!-- If participant has not joined yet, show loading & onboarding page -->
     <MoodJoinLoading
       v-if="gateReady && showJoinScreen"
