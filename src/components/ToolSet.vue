@@ -2,6 +2,11 @@
   <div
     id="tool-dock"
     class="pointer-events-auto z-20 flex w-full max-w-full touch-manipulation flex-col items-stretch gap-2 transition-all duration-300 min-[1180px]:absolute min-[1180px]:w-auto min-[1180px]:items-start"
+    @pointerover="onTipOver"
+    @pointerout="onTipOut"
+    @pointerdown="onTipDown"
+    @focusin="onTipFocus"
+    @focusout="onTipBlur"
     :class="store.isFullscreen ? 'absolute bottom-[max(1rem,env(safe-area-inset-bottom))] left-3 right-3 min-[1180px]:bottom-[max(1.5rem,env(safe-area-inset-bottom))] min-[1180px]:left-6 min-[1180px]:right-auto' : 'relative w-full min-[1180px]:bottom-[max(1.5rem,env(safe-area-inset-bottom))] min-[1180px]:left-6 min-[1180px]:w-auto'"
     :aria-label="t('tools.label')"
   >
@@ -290,7 +295,7 @@
 
       <div class="mx-0.5 h-7 w-px shrink-0 bg-slate-200/70 min-[1180px]:hidden"></div>
     <!-- Bottom Button Row: Ruler toolbox / Undo / Redo / Notes -->
-    <div class="flex shrink-0 items-end gap-1 min-[1180px]:items-center min-[1180px]:rounded-2xl min-[1180px]:border min-[1180px]:border-slate-200/80 min-[1180px]:bg-white/95 min-[1180px]:p-1.5 min-[1180px]:shadow-md min-[1180px]:backdrop-blur-md">
+    <div class="tool-row flex shrink-0 items-end gap-1 min-[1180px]:items-center min-[1180px]:rounded-2xl min-[1180px]:border min-[1180px]:border-slate-200/80 min-[1180px]:bg-white/95 min-[1180px]:p-1.5 min-[1180px]:shadow-md min-[1180px]:backdrop-blur-md">
       <div ref="rulerBox" class="relative">
         <div
           id="ruler-tools"
@@ -550,6 +555,7 @@ const viewTray = ref<HTMLElement | null>(null);
 const rulerTray = ref<HTMLElement | null>(null);
 const notesTray = ref<HTMLElement | null>(null);
 const toolScroll = ref<HTMLElement | null>(null);
+let tipFromPointer = false;
 const toolsOpen = ref(true);
 const narrow = ref(typeof window !== 'undefined' && window.matchMedia('(max-width: 1179px)').matches);
 let manualFullscreen = false;
@@ -566,6 +572,51 @@ const emit = defineEmits<{
   (e: 'toggle-ai'): void;
   (e: 'close-ai'): void;
 }>();
+
+function tipButton(target: EventTarget | null) {
+  if (!(target instanceof Element)) return null;
+  const host = target.closest('button');
+  if (!host?.classList.contains('group') || !host.querySelector(':scope > .tool-tip')) return null;
+  return host;
+}
+
+function onTipOver(event: PointerEvent) {
+  const host = tipButton(event.target);
+  if (!host) return;
+  if (host.getAttribute('aria-expanded') === 'true') {
+    host.classList.remove('tip-open');
+    return;
+  }
+  host.classList.add('tip-open');
+}
+
+function onTipOut(event: PointerEvent) {
+  const host = tipButton(event.target);
+  if (!host) return;
+  const next = event.relatedTarget;
+  if (next instanceof Node && host.contains(next)) return;
+  host.classList.remove('tip-open');
+}
+
+function onTipDown(event: PointerEvent) {
+  if (tipButton(event.target)) tipFromPointer = true;
+}
+
+function onTipFocus(event: FocusEvent) {
+  const host = tipButton(event.target);
+  const fromPointer = tipFromPointer;
+  tipFromPointer = false;
+  if (!host || fromPointer || host.getAttribute('aria-expanded') === 'true') return;
+  host.classList.add('tip-open');
+}
+
+function onTipBlur(event: FocusEvent) {
+  tipButton(event.target)?.classList.remove('tip-open');
+}
+
+function clearPointerTip() {
+  tipFromPointer = false;
+}
 
 function toolButton(active: boolean) {
   return [
@@ -873,6 +924,7 @@ onMounted(() => {
   document.addEventListener('pointerdown', onDocumentPointerDown);
   document.addEventListener('keydown', onKey);
   window.addEventListener('resize', onToolResize);
+  window.addEventListener('pointerup', clearPointerTip);
   window.addEventListener('builder:onboarding-tools', onTourTools);
   applySearchNavigation();
 });
@@ -888,6 +940,7 @@ onBeforeUnmount(() => {
   document.removeEventListener('keydown', onKey);
   window.removeEventListener('builder:onboarding-tools', onTourTools);
   window.removeEventListener('resize', onToolResize);
+  window.removeEventListener('pointerup', clearPointerTip);
 });
 
 </script>
@@ -915,9 +968,23 @@ button {
   opacity: 0;
   box-shadow: 0 8px 18px rgb(15 23 42 / 0.18);
 }
-.group:hover > .tool-tip,
-.group:focus-visible > .tool-tip {
+.group.tip-open > .tool-tip {
   opacity: 1;
+}
+.group[aria-expanded='true'] > .tool-tip {
+  opacity: 0;
+}
+@media (min-width: 1180px) {
+  .tool-row .tool-tip,
+  #sun-timebox .tool-tip,
+  #view-tools .tool-tip,
+  #ruler-tools .tool-tip,
+  #note-tools .tool-tip {
+    top: auto;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+  }
 }
 @media (max-width: 1179px) {
   .tool-tip {
