@@ -11,7 +11,7 @@ Trello does not use GitHub OAuth. Builder sign-in stays on GitHub/password. Trel
 Trello is not GitHub login. Builder sign-in stays on GitHub or a password. Trello is a second authorize step that stores one read/write token per account.
 
 1. Create an app at https://trello.com/apps/admin. Choose “My app doesn't use Power-Up capabilities”. Builder is not a board Power-Up.
-2. Open that app, go to the **Trello Auth** tab, and choose **Generate a new API Key**. Copy the API key. Leave the secret on that page. A secret stored as `TRELLO_API_KEY` makes `https://trello.com/1/authorize` show “App not found”.
+2. Open that app, go to the **Trello Auth** tab, not **OAuth 2.0**, and choose **Generate a new API Key**. Copy the API key. It is 32 characters and uses only `0-9` and `a-f`. The OAuth client id and the secret are a different shape, and either one stored as `TRELLO_API_KEY` makes `https://trello.com/1/authorize` show “App not found”. Leave the secret on that page.
 3. On the same tab, allow the site origins that may return from authorize: `https://builder.rynell.app`, `https://builder.rynell.org`, and `http://localhost:5173` while developing. With no allowed origin, Trello blocks the return even when the key is valid.
 4. Put the API key on the knowledge worker: `wrangler secret put TRELLO_API_KEY --config workers/wrangler.jsonc`.
 5. Apply D1 migration `workers/migrations/0009_trello.sql`. The worker also creates the tables on first use.
