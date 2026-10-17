@@ -63,3 +63,20 @@ test('terrace boards meet without gaps and finish flush at both edges', () => {
     }
   }
 });
+
+test('a terrace can include a sauna or shed as an additional building', () => {
+  const base = terracePrice({ side: 'front', depth: 1.8, span: 'door', roof: false });
+  const withSauna = terracePrice({ side: 'front', depth: 1.8, span: 'door', roof: false, building: 'sauna' });
+  const withShed = terracePrice({ side: 'front', depth: 1.8, span: 'door', roof: false, building: 'shed' });
+  assert.equal(withSauna, base + 48000);
+  assert.equal(withShed, base + 32000);
+
+  const terraces = acceptTerraces([
+    { side: 'front', depth: 1.8, span: 'door', roof: false, building: 'sauna' },
+    { side: 'left', depth: 2.4, span: 'full', roof: true, building: 'shed' },
+    { side: 'back', depth: 1.8, span: 'door', roof: false, building: 'invalid' }
+  ]);
+  assert.equal(terraces[0].building, 'sauna');
+  assert.equal(terraces[1].building, 'shed');
+  assert.equal(terraces[2].building, undefined);
+});

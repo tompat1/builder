@@ -498,7 +498,7 @@ watch(
 watch(
   [
     () => store.doorCanopy,
-    () => store.terraces.map((item) => `${item.side}:${item.depth}:${item.span}:${item.roof ? 1 : 0}`).join('|')
+    () => store.terraces.map((item) => `${item.side}:${item.depth}:${item.span}:${item.roof ? 1 : 0}:${item.building ?? 'none'}`).join('|')
   ],
   () => {
     engine?.updateConfig({

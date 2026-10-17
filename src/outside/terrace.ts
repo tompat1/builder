@@ -10,11 +10,15 @@ export type TerraceDepth = (typeof TERRACE_DEPTHS)[number];
 /** By the door, or along the whole wall. */
 export type TerraceSpan = 'door' | 'full';
 
+export type TerraceBuilding = 'none' | 'sauna' | 'shed';
+export const TERRACE_BUILDINGS = ['none', 'sauna', 'shed'] as const;
+
 export interface HouseTerrace {
   side: TerraceSide;
   depth: TerraceDepth;
   span: TerraceSpan;
   roof: boolean;
+  building?: TerraceBuilding;
 }
 
 export interface TerraceBoardLayout {
@@ -45,11 +49,21 @@ const ROOF = 14200;
 /** Full side at 2.4 m with a roof is the existing 72 600 kr package. */
 const FULL_DECK = 58400;
 
+export const SAUNA_BUILDING_PRICE = 48000;
+export const SHED_BUILDING_PRICE = 32000;
+
+export function terraceBuildingPrice(building?: TerraceBuilding): number {
+  if (building === 'sauna') return SAUNA_BUILDING_PRICE;
+  if (building === 'shed') return SHED_BUILDING_PRICE;
+  return 0;
+}
+
 export function terracePrice(terrace: HouseTerrace): number {
   const depthScale = terrace.span === 'full' ? terrace.depth / FULL_DEPTH : terrace.depth / DOOR_DEPTH;
   const deck = terrace.span === 'full' ? FULL_DECK : DOOR_DECK;
   const roof = terrace.roof ? ROOF : 0;
-  return Math.round(((deck + roof) * depthScale) / 100) * 100;
+  const building = terraceBuildingPrice(terrace.building);
+  return Math.round(((deck + roof) * depthScale) / 100) * 100 + building;
 }
 
 export function acceptTerraces(value: unknown): HouseTerrace[] {
@@ -61,11 +75,18 @@ export function acceptTerraces(value: unknown): HouseTerrace[] {
     const row = item as Partial<HouseTerrace>;
     if (!TERRACE_SIDES.includes(row.side as TerraceSide) || seen.has(row.side as string)) continue;
     seen.add(row.side as string);
+    const building: TerraceBuilding | undefined =
+      row.building === 'sauna' || row.building === 'shed'
+        ? row.building
+        : row.building === 'none'
+          ? 'none'
+          : undefined;
     terraces.push({
       side: row.side as TerraceSide,
       depth: TERRACE_DEPTHS.includes(row.depth as TerraceDepth) ? (row.depth as TerraceDepth) : 1.8,
       span: row.span === 'full' ? 'full' : 'door',
-      roof: row.roof === true
+      roof: row.roof === true,
+      ...(building ? { building } : {})
     });
     if (terraces.length >= TERRACE_SIDES.length) break;
   }

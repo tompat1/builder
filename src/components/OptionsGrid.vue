@@ -1920,6 +1920,42 @@
           >
             <Cms k="category.terraceRoof" />
           </button>
+          <div>
+            <p class="mb-1 text-[11px] font-bold text-slate-700">
+              <Cms k="category.terraceBuilding" />
+            </p>
+            <div class="grid grid-cols-3 gap-1.5">
+              <button
+                type="button"
+                :id="`terrace-${deck.side}-building-none`"
+                :aria-pressed="!deck.building || deck.building === 'none'"
+                :class="terraceChoiceClass(!deck.building || deck.building === 'none')"
+                @click="store.setTerraceBuilding(deck.side, 'none')"
+              >
+                <Cms k="category.terraceBuildingNone" />
+              </button>
+              <button
+                type="button"
+                :id="`terrace-${deck.side}-building-sauna`"
+                :aria-pressed="deck.building === 'sauna'"
+                :class="terraceChoiceClass(deck.building === 'sauna')"
+                @click="store.setTerraceBuilding(deck.side, 'sauna')"
+              >
+                <span class="block font-bold"><Cms k="category.terraceBuildingSauna" /></span>
+                <span class="block text-[10px] font-normal opacity-75">{{ delta(SAUNA_BUILDING_PRICE) }}</span>
+              </button>
+              <button
+                type="button"
+                :id="`terrace-${deck.side}-building-shed`"
+                :aria-pressed="deck.building === 'shed'"
+                :class="terraceChoiceClass(deck.building === 'shed')"
+                @click="store.setTerraceBuilding(deck.side, 'shed')"
+              >
+                <span class="block font-bold"><Cms k="category.terraceBuildingShed" /></span>
+                <span class="block text-[10px] font-normal opacity-75">{{ delta(SHED_BUILDING_PRICE) }}</span>
+              </button>
+            </div>
+          </div>
         </article>
       </section>
     </template>
@@ -2001,7 +2037,15 @@ import {
   GATES_OPTIONS,
   OUTSIDE_PRICES
 } from '../store/useConfigStore';
-import { TERRACE_DEPTHS, TERRACE_SIDES, terracePrice, type TerraceDepth } from '../outside/terrace';
+import {
+  TERRACE_DEPTHS,
+  TERRACE_SIDES,
+  terracePrice,
+  SAUNA_BUILDING_PRICE,
+  SHED_BUILDING_PRICE,
+  type TerraceDepth,
+  type TerraceBuilding
+} from '../outside/terrace';
 import { useLabels } from '../i18n';
 import CustomPaint from './CustomPaint.vue';
 import { paintTitle, readableInk } from '../color/paint';

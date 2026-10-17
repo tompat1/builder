@@ -3385,13 +3385,261 @@ export class HouseScene {
       group.add(rightRim);
     }
 
-    if (terrace.roof) {
-      this.addTerraceRoof(group, door, timber, roofMat, along, width, depth, deckTop, outward);
+    const hasBuilding = terrace.building === 'sauna' || terrace.building === 'shed';
+    const bW = hasBuilding ? Math.min(2.0, Math.max(1.3, width * 0.45)) : 0;
+    const bD = hasBuilding ? Math.min(Math.max(depth, 1.6), 2.2) : 0;
+    const bX = hasBuilding ? along + width / 2 - bW / 2 : 0;
+
+    const roofW = hasBuilding ? width - bW : width;
+    const roofAlong = hasBuilding ? along - bW / 2 : along;
+
+    if (terrace.roof && roofW >= 0.8) {
+      this.addTerraceRoof(group, door, timber, roofMat, roofAlong, roofW, depth, deckTop, outward);
+    }
+
+    if (hasBuilding && (terrace.building === 'sauna' || terrace.building === 'shed')) {
+      this.addTerraceBuilding(group, door, timber, roofMat, bX, bW, bD, deckTop, outward, terrace.building);
     }
 
     group.userData.skipNote = true;
     group.userData.outsideAddition = true;
     this.wallsGroup.add(group);
+  }
+
+  /** Authentic Scandinavian sauna or garden shed placed on the terrace deck. */
+  private addTerraceBuilding(
+    group: THREE.Group,
+    _door: OutsideAnchor,
+    _timber: THREE.Material,
+    roofMat: THREE.Material,
+    bX: number,
+    bW: number,
+    bD: number,
+    deckTop: number,
+    outward: number,
+    type: 'sauna' | 'shed'
+  ) {
+    const bH = 2.15;
+    const pitch = (5 * Math.PI) / 180;
+    const wallY = deckTop + bH;
+    const drop = Math.sin(pitch) * bD;
+    const midY = (wallY + (wallY - drop)) / 2;
+    const midZ = outward * (bD / 2);
+
+    const wallMat = type === 'sauna'
+      ? new THREE.MeshStandardMaterial({ color: '#c59b6d', roughness: 0.62, metalness: 0.02 })
+      : new THREE.MeshStandardMaterial({ color: '#887d6d', roughness: 0.72, metalness: 0.02 });
+    const trimMat = type === 'sauna'
+      ? new THREE.MeshStandardMaterial({ color: '#8c6538', roughness: 0.55, metalness: 0.04 })
+      : new THREE.MeshStandardMaterial({ color: '#4a4339', roughness: 0.60, metalness: 0.04 });
+    const hardwareMat = new THREE.MeshStandardMaterial({ color: '#1e293b', roughness: 0.35, metalness: 0.85 });
+
+    // 1. Cabin wall volume
+    const cabin = new THREE.Mesh(new THREE.BoxGeometry(bW, bH, bD), wallMat);
+    cabin.position.set(bX, deckTop + bH / 2, midZ);
+    cabin.castShadow = true;
+    cabin.receiveShadow = true;
+    group.add(cabin);
+
+    // 2. Corner trim posts (knutar)
+    const postThick = 0.055;
+    const postPositions: [number, number, number][] = [
+      [bX - bW / 2 + postThick / 2, deckTop + bH / 2, outward * postThick / 2],
+      [bX + bW / 2 - postThick / 2, deckTop + bH / 2, outward * postThick / 2],
+      [bX - bW / 2 + postThick / 2, deckTop + bH / 2, outward * (bD - postThick / 2)],
+      [bX + bW / 2 - postThick / 2, deckTop + bH / 2, outward * (bD - postThick / 2)]
+    ];
+    for (const [x, y, z] of postPositions) {
+      const post = new THREE.Mesh(new THREE.BoxGeometry(postThick, bH, postThick), trimMat);
+      post.position.set(x, y, z);
+      post.castShadow = true;
+      group.add(post);
+    }
+
+    // 3. Base sill apron (fotplåt / sockel)
+    const sillFront = new THREE.Mesh(new THREE.BoxGeometry(bW + 0.02, 0.07, 0.025), trimMat);
+    sillFront.position.set(bX, deckTop + 0.035, outward * (bD + 0.01));
+    sillFront.castShadow = true;
+    group.add(sillFront);
+
+    // 4. Roof with mono-pitch overhang and fascia boards
+    const overW = 0.10;
+    const overD = 0.12;
+    const rW = bW + overW * 2;
+    const rL = (bD + overD * 2) / Math.cos(pitch);
+
+    const roofMesh = new THREE.Mesh(new THREE.BoxGeometry(rW, 0.032, rL), roofMat);
+    roofMesh.position.set(bX, midY + 0.04, midZ);
+    roofMesh.rotation.x = outward * pitch;
+    roofMesh.castShadow = true;
+    roofMesh.receiveShadow = true;
+    group.add(roofMesh);
+
+    // Bargeboards (vindskivor)
+    const bargeLeft = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.11, rL), trimMat);
+    bargeLeft.position.set(bX - rW / 2 + 0.011, midY + 0.04, midZ);
+    bargeLeft.rotation.x = outward * pitch;
+    bargeLeft.castShadow = true;
+    group.add(bargeLeft);
+
+    const bargeRight = new THREE.Mesh(new THREE.BoxGeometry(0.022, 0.11, rL), trimMat);
+    bargeRight.position.set(bX + rW / 2 - 0.011, midY + 0.04, midZ);
+    bargeRight.rotation.x = outward * pitch;
+    bargeRight.castShadow = true;
+    group.add(bargeRight);
+
+    // Front eave fascia
+    const frontFascia = new THREE.Mesh(new THREE.BoxGeometry(rW + 0.01, 0.11, 0.022), trimMat);
+    frontFascia.position.set(bX, wallY - drop + 0.04, outward * (bD + overD));
+    frontFascia.castShadow = true;
+    group.add(frontFascia);
+
+    if (type === 'sauna') {
+      // 5. Sauna Door (on deck-facing side wall at bX - bW / 2)
+      const doorZ = outward * (bD * 0.48);
+      const doorFrame = new THREE.Mesh(new THREE.BoxGeometry(0.035, 1.86, 0.78), trimMat);
+      doorFrame.position.set(bX - bW / 2 - 0.01, deckTop + 1.86 / 2 + 0.02, doorZ);
+      doorFrame.castShadow = true;
+      group.add(doorFrame);
+
+      const glassMat = new THREE.MeshStandardMaterial({
+        color: '#2a1a0f',
+        roughness: 0.12,
+        metalness: 0.65,
+        transparent: true,
+        opacity: 0.72
+      });
+      const doorLeaf = new THREE.Mesh(new THREE.BoxGeometry(0.022, 1.78, 0.70), glassMat);
+      doorLeaf.position.set(bX - bW / 2 - 0.015, deckTop + 1.78 / 2 + 0.06, doorZ);
+      doorLeaf.castShadow = true;
+      group.add(doorLeaf);
+
+      // Wooden sauna vertical handle
+      const handleMat = new THREE.MeshStandardMaterial({ color: '#deb887', roughness: 0.5 });
+      const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.42, 12), handleMat);
+      handle.position.set(bX - bW / 2 - 0.035, deckTop + 0.98, doorZ + outward * 0.22);
+      handle.castShadow = true;
+      group.add(handle);
+
+      // 6. Panoramic view window on front wall facing yard
+      const winW = Math.min(bW - 0.45, 1.05);
+      const winH = 0.72;
+      const winY = deckTop + 1.25;
+      const winZ = outward * (bD + 0.012);
+
+      const winFrame = new THREE.Mesh(new THREE.BoxGeometry(winW, winH, 0.04), trimMat);
+      winFrame.position.set(bX, winY, winZ);
+      winFrame.castShadow = true;
+      group.add(winFrame);
+
+      const winGlass = new THREE.Mesh(new THREE.BoxGeometry(winW - 0.1, winH - 0.1, 0.02), glassMat);
+      winGlass.position.set(bX, winY, winZ);
+      group.add(winGlass);
+
+      // Amber interior glow behind panoramic window
+      const glowMat = new THREE.MeshStandardMaterial({
+        color: '#ffe49e',
+        roughness: 0.85,
+        emissive: '#d97706',
+        emissiveIntensity: 0.5
+      });
+      const glow = new THREE.Mesh(new THREE.BoxGeometry(winW - 0.12, winH - 0.12, 0.01), glowMat);
+      glow.position.set(bX, winY, winZ - outward * 0.03);
+      group.add(glow);
+
+      // 7. Interior sauna benches (visible through window and door)
+      const benchMat = new THREE.MeshStandardMaterial({ color: '#f3e5d0', roughness: 0.6 });
+      const upperBench = new THREE.Mesh(new THREE.BoxGeometry(bW - 0.2, 0.04, 0.45), benchMat);
+      upperBench.position.set(bX, deckTop + 0.82, outward * (bD * 0.3));
+      group.add(upperBench);
+
+      const lowerBench = new THREE.Mesh(new THREE.BoxGeometry(bW - 0.2, 0.04, 0.35), benchMat);
+      lowerBench.position.set(bX, deckTop + 0.42, outward * (bD * 0.45));
+      group.add(lowerBench);
+
+      // 8. Stainless steel sauna stove chimney pipe (skorsten)
+      const chimneyMat = new THREE.MeshStandardMaterial({ color: '#1e242b', roughness: 0.25, metalness: 0.88 });
+      const pipeH = 0.68;
+      const pipeX = bX + bW * 0.22;
+      const pipeZ = outward * (bD * 0.35);
+      const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, pipeH, 16), chimneyMat);
+      pipe.position.set(pipeX, midY + pipeH / 2 + 0.08, pipeZ);
+      pipe.castShadow = true;
+      group.add(pipe);
+
+      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.035, 0.06, 16), chimneyMat);
+      cap.position.set(pipeX, midY + pipeH + 0.09, pipeZ);
+      cap.castShadow = true;
+      group.add(cap);
+    } else {
+      // 5. Shed Door (on deck-facing side wall at bX - bW / 2)
+      const doorZ = outward * (bD * 0.48);
+      const doorFrame = new THREE.Mesh(new THREE.BoxGeometry(0.035, 1.86, 0.78), trimMat);
+      doorFrame.position.set(bX - bW / 2 - 0.01, deckTop + 1.86 / 2 + 0.02, doorZ);
+      doorFrame.castShadow = true;
+      group.add(doorFrame);
+
+      const doorLeaf = new THREE.Mesh(new THREE.BoxGeometry(0.025, 1.78, 0.70), wallMat);
+      doorLeaf.position.set(bX - bW / 2 - 0.015, deckTop + 1.78 / 2 + 0.06, doorZ);
+      doorLeaf.castShadow = true;
+      group.add(doorLeaf);
+
+      // Traditional diagonal Z-brace on shed door
+      const railTop = new THREE.Mesh(new THREE.BoxGeometry(0.016, 0.075, 0.62), trimMat);
+      railTop.position.set(bX - bW / 2 - 0.03, deckTop + 1.55, doorZ);
+      railTop.castShadow = true;
+      group.add(railTop);
+
+      const railBottom = new THREE.Mesh(new THREE.BoxGeometry(0.016, 0.075, 0.62), trimMat);
+      railBottom.position.set(bX - bW / 2 - 0.03, deckTop + 0.35, doorZ);
+      railBottom.castShadow = true;
+      group.add(railBottom);
+
+      const strut = new THREE.Mesh(new THREE.BoxGeometry(0.016, 0.075, 1.15), trimMat);
+      strut.position.set(bX - bW / 2 - 0.03, deckTop + 0.95, doorZ);
+      strut.rotation.x = 0.58;
+      strut.castShadow = true;
+      group.add(strut);
+
+      // Galvanized steel kickplate (sparkplåt) across bottom
+      const kickMat = new THREE.MeshStandardMaterial({ color: '#475569', roughness: 0.35, metalness: 0.75 });
+      const kick = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.20, 0.68), kickMat);
+      kick.position.set(bX - bW / 2 - 0.025, deckTop + 0.16, doorZ);
+      kick.castShadow = true;
+      group.add(kick);
+
+      // Sturdy black handle
+      const handle = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.12, 0.03), hardwareMat);
+      handle.position.set(bX - bW / 2 - 0.035, deckTop + 0.98, doorZ + outward * 0.24);
+      handle.castShadow = true;
+      group.add(handle);
+
+      // 6. High horizontal ventilation transom window on front wall
+      const ventW = Math.min(bW - 0.45, 0.85);
+      const ventH = 0.28;
+      const ventY = deckTop + bH - 0.28;
+      const ventZ = outward * (bD + 0.012);
+
+      const ventFrame = new THREE.Mesh(new THREE.BoxGeometry(ventW, ventH, 0.04), trimMat);
+      ventFrame.position.set(bX, ventY, ventZ);
+      ventFrame.castShadow = true;
+      group.add(ventFrame);
+
+      const ventGlassMat = new THREE.MeshStandardMaterial({
+        color: '#94a3b8',
+        roughness: 0.15,
+        metalness: 0.5,
+        transparent: true,
+        opacity: 0.65
+      });
+      const ventGlass = new THREE.Mesh(new THREE.BoxGeometry(ventW - 0.08, ventH - 0.08, 0.02), ventGlassMat);
+      ventGlass.position.set(bX, ventY, ventZ);
+      group.add(ventGlass);
+
+      const ventMullion = new THREE.Mesh(new THREE.BoxGeometry(0.025, ventH - 0.08, 0.025), trimMat);
+      ventMullion.position.set(bX, ventY, ventZ + 0.005);
+      group.add(ventMullion);
+    }
   }
 
   /** Fill the square outside a corner where two full-side decks meet. */
