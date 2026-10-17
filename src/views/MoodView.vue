@@ -2,14 +2,14 @@
   <div class="relative h-screen w-screen overflow-hidden bg-[#F5F3EC]">
     <!-- If participant has not joined yet, show loading & onboarding page -->
     <MoodJoinLoading
-      v-if="showJoinScreen"
+      v-if="gateReady && showJoinScreen"
       :house-key="houseKey"
       @joined="onJoined"
     />
 
     <!-- Once joined or if already a participant/user, show the dedicated Moodboard -->
     <MoodBoard
-      v-else
+      v-else-if="gateReady"
       :standalone="true"
       @reopen-profile="showJoinScreen = true"
     />
@@ -29,6 +29,7 @@ import type { MoodParticipant } from '../mood/board';
 const route = useRoute();
 const sessionStore = useSessionStore();
 
+const gateReady = ref(false);
 const showJoinScreen = ref(false);
 
 const houseKey = computed(() => {
@@ -54,6 +55,7 @@ onMounted(async () => {
   } else {
     showJoinScreen.value = false;
   }
+  gateReady.value = true;
 });
 
 function onJoined(_p: MoodParticipant) {
