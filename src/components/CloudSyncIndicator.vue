@@ -105,7 +105,7 @@
       <div
         v-if="popoverOpen"
         :id="compact ? 'cloud-sync-popover-mobile' : 'cloud-sync-popover'"
-        class="absolute top-full z-50 mt-2 w-72 rounded-2xl border border-slate-200/90 bg-white/98 p-4 text-xs text-slate-700 shadow-xl backdrop-blur-md animate-fadeIn sm:w-80"
+        class="absolute top-full z-50 mt-2 w-72 rounded-2xl border border-slate-200 bg-white p-4 text-xs text-slate-700 shadow-xl animate-fadeIn sm:w-80"
         :class="compact ? 'right-0' : 'left-0'"
         role="dialog"
         :aria-label="t('header.cloudSync.statusDetails')"
@@ -143,7 +143,7 @@
         <!-- Status Metrics Breakdown -->
         <div class="mt-3 space-y-2">
           <!-- Cloudflare Edge & Latency -->
-          <div class="flex items-center justify-between rounded-xl bg-slate-50/90 px-3 py-2 border border-slate-100">
+          <div class="flex items-center justify-between rounded-xl bg-slate-50 px-3 py-2 border border-slate-100">
             <div class="flex items-center gap-2">
               <span class="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_4px_#10B981]"></span>
               <span class="font-semibold text-slate-800 text-[11px]">{{ t('header.cloudSync.cloudflareEdge') }}</span>
@@ -155,9 +155,9 @@
           </div>
 
           <!-- Cloudflare Worker & D1 Database -->
-          <div class="flex items-center justify-between rounded-xl bg-slate-50/90 px-3 py-2 border border-slate-100">
-            <div class="flex items-center gap-2">
-              <span class="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_4px_#10B981]"></span>
+          <div class="flex items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2 border border-slate-100">
+            <div class="flex min-w-0 items-center gap-2">
+              <span class="h-2 w-2 shrink-0 rounded-full bg-emerald-500 shadow-[0_0_4px_#10B981]"></span>
               <span class="font-semibold text-slate-800 text-[11px]">{{ t('header.cloudSync.workerReady') }}</span>
             </div>
             <span class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60">
@@ -166,9 +166,9 @@
           </div>
 
           <!-- 3D Design & Local State Sync -->
-          <div class="flex items-center justify-between rounded-xl bg-slate-50/90 px-3 py-2 border border-slate-100">
-            <div class="flex items-center gap-2">
-              <span class="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_4px_#10B981]"></span>
+          <div class="flex items-center justify-between gap-2 rounded-xl bg-slate-50 px-3 py-2 border border-slate-100">
+            <div class="flex min-w-0 items-center gap-2">
+              <span class="h-2 w-2 shrink-0 rounded-full bg-emerald-500 shadow-[0_0_4px_#10B981]"></span>
               <span class="font-semibold text-slate-800 text-[11px]">{{ t('header.cloudSync.designSynced') }}</span>
             </div>
             <span class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60">
