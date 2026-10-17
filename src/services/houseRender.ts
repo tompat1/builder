@@ -1,10 +1,10 @@
 /** Ask the worker for a picture. The 3D house is left alone. */
 
 export async function requestHousePicture(
-  prompt: string,
+  parts: string[],
   images: string[],
   facts: string,
-  revision?: { original: string }
+  revision?: { originalParts: string[] }
 ): Promise<string> {
   const base = import.meta.env.VITE_CLOUDFLARE_WORKER_URL
     || 'https://builder-knowledge.thomasrynell.workers.dev';
@@ -15,11 +15,11 @@ export async function requestHousePicture(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        prompt,
+        parts,
         images,
         facts,
         revision: Boolean(revision),
-        original: revision?.original ?? ''
+        originalParts: revision?.originalParts ?? []
       }),
       signal: controller.signal
     });

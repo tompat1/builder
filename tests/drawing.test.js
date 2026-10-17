@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { deflateSync } from 'node:zlib';
 import { extractPdfImages, extractPdfText, hasMeasures, readDrawing } from '../src/import/drawing.js';
 import { fitImageSize } from '../src/import/imageSize.js';
-import { decodeImages, renderPrompt, revisePrompt } from '../workers/render.js';
+import { acceptPictureParts, decodeImages, partChange, renderPrompt, revisePrompt } from '../workers/render.js';
 
 test('a labelled drawing sets the rectangular house', () => {
   const reading = readDrawing('Bredd 6040 mm Djup 3500 mm Höjd 4200 mm pulpettak takpapp pardörr fönster');
@@ -142,11 +142,18 @@ test('a compressed PDF still yields the measurement text', async () => {
 });
 
 test('the picture prompt keeps the idea and a short knowledge note', () => {
-  const prompt = renderPrompt('  rött hus med stående panel  ', 'Luftspalten är minst 25 mm.', 1);
-  assert.match(prompt, /rött hus med stående panel/);
+  const prompt = renderPrompt(partChange(['wall']), 'Luftspalten är minst 25 mm.', 1);
+  assert.match(prompt, /Change the rendered wall/);
   assert.match(prompt, /Luftspalten är minst 25 mm/);
   assert.match(prompt, /Follow the uploaded photos/);
   assert.equal(renderPrompt('   ', 'fakta', 0), '');
+});
+
+test('a picture only changes a known house part', () => {
+  assert.deepEqual(acceptPictureParts(['Roof', 'kissing', 'door', 'door', 'porch']), ['roof', 'door']);
+  assert.equal(partChange(['colour', 'not-a-part']), 'Change the rendered colour to make the house look like the uploaded reference images.');
+  assert.equal(partChange(['women', 'kissing']), '');
+  assert.equal(partChange('door'), '');
 });
 
 test('a picture prompt keeps the house and drops people', () => {
@@ -165,15 +172,17 @@ test('a picture prompt keeps the house and drops people', () => {
 });
 
 test('a correction revises the previous picture', () => {
-  const prompt = revisePrompt('  Taket ska vara platt  ', 'Ett hus med papptak');
-  assert.match(prompt, /Taket ska vara platt/);
+  const prompt = revisePrompt(partChange(['roof']), partChange(['cladding']));
+  assert.match(prompt, /Change the rendered roof/);
   assert.match(prompt, /previous picture/);
   assert.match(prompt, /follow the change/);
-  assert.match(prompt, /Ett hus med papptak/);
+  assert.match(prompt, /Change the rendered cladding/);
   assert.match(prompt, /Show only the house/);
   assert.equal(revisePrompt('   ', 'hus'), '');
-  const cleaned = revisePrompt('add two women kissing', 'a red house with a woman on the steps');
+  assert.equal(revisePrompt(partChange(['women', 'kissing']), partChange(['door'])), '');
+  const cleaned = revisePrompt('add two women kissing', partChange(['door']));
   assert.match(cleaned, /Show only the house/);
+  assert.match(cleaned, /Change the rendered door/);
   assert.doesNotMatch(cleaned, /women|woman|kiss/i);
 });
 

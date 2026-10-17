@@ -25,19 +25,38 @@
           <img :src="thumb" alt="" class="h-full w-full object-cover" />
         </button>
       </div>
-      <label for="import-prompt" class="block text-[11px] font-semibold text-slate-700">{{ t('houseImport.prompt') }}</label>
-      <textarea
-        id="import-prompt"
-        v-model="prompt"
-        rows="3"
-        class="select-text w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white text-slate-900 placeholder:text-slate-400"
-        :placeholder="t('houseImport.promptHint')"
-      />
+      <p class="text-[11px] leading-relaxed text-slate-700">
+        {{ t('houseImport.partLead') }}
+        <select
+          id="import-part"
+          class="mx-1 rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-900"
+          :value="part"
+          :aria-label="t('houseImport.partChoose')"
+          @change="choosePart"
+        >
+          <option value="" disabled>{{ t('houseImport.partChoose') }}</option>
+          <option v-for="id in PARTS" :key="id" :value="id">{{ t(`houseImport.part.${id}`) }}</option>
+        </select>
+        {{ t('houseImport.partTail') }}
+      </p>
+      <div class="flex flex-wrap gap-1.5" role="group" :aria-label="t('houseImport.partChoose')">
+        <button
+          v-for="id in PARTS"
+          :key="id"
+          type="button"
+          class="rounded-full border px-3 py-1.5 text-[11px] font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+          :class="part === id ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-800 hover:bg-slate-100'"
+          :aria-pressed="part === id"
+          @click="part = id"
+        >
+          {{ t(`houseImport.part.${id}`) }}
+        </button>
+      </div>
       <button
         id="import-picture"
         type="button"
         class="bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white text-xs font-semibold px-3 py-2 rounded-xl"
-        :disabled="pictureBusy || !prompt.trim()"
+        :disabled="pictureBusy || !part"
         @click="showPicture"
       >
         {{ pictureBusy ? t('houseImport.working') : t('houseImport.show') }}
@@ -79,19 +98,11 @@
         </div>
         <figcaption class="text-[11px] text-slate-600 leading-relaxed">{{ t('houseImport.pictureNote') }}</figcaption>
         <p v-if="factTitle" class="text-[11px] font-semibold text-slate-700">{{ t('houseImport.steered') }} {{ factTitle }}</p>
-        <label for="import-revise" class="block text-[11px] font-semibold text-slate-700">{{ t('houseImport.revise') }}</label>
-        <textarea
-          id="import-revise"
-          v-model="revision"
-          rows="2"
-          class="select-text w-full text-xs px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-slate-900 focus:bg-white text-slate-900 placeholder:text-slate-400"
-          :placeholder="t('houseImport.reviseHint')"
-        />
         <button
           id="import-revise-submit"
           type="button"
           class="bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white text-xs font-semibold px-3 py-2 rounded-xl"
-          :disabled="pictureBusy || !revision.trim()"
+          :disabled="pictureBusy || !part"
           @click="revisePicture"
         >
           {{ pictureBusy ? t('houseImport.revising') : t('houseImport.reviseApply') }}
@@ -156,15 +167,16 @@ const { t, locale, catalog } = useLabels();
 
 const PHOTO_LIMIT = 5;
 const MODEL_IMAGES = 4;
+const PARTS = ['door', 'window', 'roof', 'stair', 'colour', 'wall', 'cladding', 'loft', 'terrace', 'gate', 'corner', 'canopy'] as const;
 
-const prompt = ref('');
+const part = ref('');
+const sentPart = ref('');
 const photos = ref<File[]>([]);
 const thumbs = ref<string[]>([]);
 const photoNote = ref('');
 const preview = ref('');
 const picture = ref('');
 const factTitle = ref('');
-const revision = ref('');
 const pictureBusy = ref(false);
 const pictureError = ref(false);
 
@@ -250,20 +262,24 @@ function onKey(event: KeyboardEvent) {
   if (event.key === 'Escape') preview.value = '';
 }
 
+function choosePart(event: Event) {
+  const value = (event.target as HTMLSelectElement).value;
+  part.value = (PARTS as readonly string[]).includes(value) ? value : '';
+}
+
 async function showPicture() {
-  const idea = prompt.value.trim();
-  if (!idea || pictureBusy.value) return;
+  if (!part.value || pictureBusy.value) return;
   pictureBusy.value = true;
   pictureError.value = false;
   try {
     const lang = locale.value === 'en' ? 'en' : 'sv';
-    const hit = askKnowledge(idea);
+    const hit = askKnowledge(t(`houseImport.part.${part.value}`));
     const facts = hit ? hit.entry.body[lang].slice(0, 360) : '';
     factTitle.value = hit ? hit.entry.title[lang] : '';
     const images: string[] = [];
     for (const file of photos.value.slice(0, MODEL_IMAGES)) images.push(await shrink(file));
-    picture.value = await requestHousePicture(idea, images, facts);
-    revision.value = '';
+    picture.value = await requestHousePicture([part.value], images, facts);
+    sentPart.value = part.value;
   } catch {
     pictureError.value = true;
   } finally {
@@ -272,8 +288,7 @@ async function showPicture() {
 }
 
 async function revisePicture() {
-  const change = revision.value.trim();
-  if (!change || pictureBusy.value || !picture.value) return;
+  if (!part.value || pictureBusy.value || !picture.value) return;
   pictureBusy.value = true;
   pictureError.value = false;
   try {
@@ -283,7 +298,8 @@ async function revisePicture() {
       images.push(await shrink(file));
     }
     if (photos.value.length + 1 > MODEL_IMAGES) photoNote.value = t('houseImport.modelFour');
-    picture.value = await requestHousePicture(change, images, '', { original: prompt.value.trim() });
+    picture.value = await requestHousePicture([part.value], images, '', { originalParts: sentPart.value ? [sentPart.value] : [] });
+    sentPart.value = part.value;
   } catch {
     pictureError.value = true;
   } finally {

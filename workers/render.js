@@ -5,6 +5,40 @@ const MODEL_IMAGES = 4;
 const DATA_URL = /^data:image\/(png|jpeg|jpg|webp);base64,([A-Za-z0-9+/=\s]+)$/;
 const FIGURE = /\b(?:women|woman|womans|girls?|boys?|lad(?:y|ies)|people|persons?|humans?|couples?|kids?|children|child|bab(?:y|ies)|guys?|bikinis?|swimsuits?|swimwear|lingerie|nudes?|naked|topless|kiss(?:ing|es|ed)?|portraits?|selfies?|sexy|erotic|kvinnor|kvinna|tjejer|tjej|flickor|flicka|pojkar|pojke|killar|kille|personer|människor|människa|barn|bebisar|bebis|männen|mannen|karlar|karl|män|bikini|kyssande|kyssas|kyssar|kysste|kyss|nakna|naken|badkläder|underkläder)\b/i;
 const HOUSE_ONLY = 'Show only the house. No people, faces, bodies, or animals.';
+const PICTURE_PARTS = ['door', 'window', 'roof', 'stair', 'colour', 'wall', 'cladding', 'loft', 'terrace', 'gate', 'corner', 'canopy'];
+const PART_WORD = {
+  door: 'door',
+  window: 'window',
+  roof: 'roof',
+  stair: 'stair',
+  colour: 'colour',
+  wall: 'wall',
+  cladding: 'cladding',
+  loft: 'loft',
+  terrace: 'terrace',
+  gate: 'gate',
+  corner: 'corner boards',
+  canopy: 'door canopy'
+};
+
+/** Keep only the house parts the picture is allowed to change. */
+export function acceptPictureParts(input) {
+  if (!Array.isArray(input)) return [];
+  const seen = [];
+  for (const item of input) {
+    const id = String(item ?? '').trim().toLowerCase();
+    if (!PICTURE_PARTS.includes(id) || seen.includes(id)) continue;
+    seen.push(id);
+  }
+  return seen;
+}
+
+export function partChange(input) {
+  const words = acceptPictureParts(input).map((id) => PART_WORD[id]);
+  if (!words.length) return '';
+  const list = words.length === 1 ? words[0] : `${words.slice(0, -1).join(', ')} and ${words.at(-1)}`;
+  return `Change the rendered ${list} to make the house look like the uploaded reference images.`;
+}
 
 /** Keep roof, colour, and material wording. Drop any clause that asks for a person. */
 export function houseWording(prompt) {
@@ -150,9 +184,10 @@ export async function handleRender(request, env, headers) {
   }
 
   const images = decodeImages(body?.images);
+  const change = partChange(body?.parts);
   const prompt = body?.revision
-    ? revisePrompt(body?.prompt, body?.original)
-    : renderPrompt(body?.prompt, body?.facts, images.length);
+    ? revisePrompt(change, partChange(body?.originalParts))
+    : renderPrompt(change, body?.facts, images.length);
   if (!prompt) return json({ error: 'render' }, 400, headers);
 
   const form = new FormData();
