@@ -158,3 +158,17 @@ test('concrete wall opening sill and lintel heights preserve solid concrete unde
   // Cutout height matches window height
   assert.ok(Math.abs((lintelBottom - sillTop) - 0.72) < 0.01);
 });
+
+test('mergeWallSlots restores lower wall slots with canAcceptDoor: true even if saved state had false', async () => {
+  const { mergeWallSlots } = await import('../src/store/wallSlots.ts');
+  const legacySaved = {
+    'front-2': { id: 'front-2', wall: 'front', index: 2, type: 'empty', canAcceptDoor: false },
+    'front-2u': { id: 'front-2u', wall: 'front', index: 2, type: 'window', itemId: 'standard-single', canAcceptDoor: false, isUpper: true }
+  };
+
+  const slots = mergeWallSlots(legacySaved, 'size-paabyggnad');
+  assert.equal(slots['front-2'].canAcceptDoor, true);
+  assert.equal(slots['front-2'].isUpper, false);
+  assert.equal(slots['front-2u'].canAcceptDoor, false);
+  assert.equal(slots['front-2u'].isUpper, true);
+});

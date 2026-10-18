@@ -35,7 +35,8 @@ export function moveWallSlot(wallSlots: Record<string, WallSlotLike>, fromId: st
   if (!from || !to || fromId === toId || from.type === 'empty') return false;
 
   // Doors and gates cannot be placed on upper bays
-  if ((from.type === 'door' || from.type === 'gate') && to.canAcceptDoor === false) {
+  const toUpper = to.isUpper === true || toId.endsWith('u') || to.canAcceptDoor === false;
+  if ((from.type === 'door' || from.type === 'gate') && toUpper) {
     return false;
   }
 
@@ -45,7 +46,8 @@ export function moveWallSlot(wallSlots: Record<string, WallSlotLike>, fromId: st
   const toItemId = to.itemId;
 
   // If target has an item, verify if it can move to source
-  if (toType !== 'empty' && (toType === 'door' || toType === 'gate') && from.canAcceptDoor === false) {
+  const fromUpper = from.isUpper === true || fromId.endsWith('u') || from.canAcceptDoor === false;
+  if (toType !== 'empty' && (toType === 'door' || toType === 'gate') && fromUpper) {
     return false;
   }
 
