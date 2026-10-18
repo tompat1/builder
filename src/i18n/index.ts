@@ -742,6 +742,9 @@ const sv = {
     noComments: 'Inga kommentarer än. Bli först med att tycka till!',
     closeComments: 'Stäng kommentarer',
     scrollDown: 'Scrolla nedåt för mer inspiration',
+    scrollToLatest: 'Gå till senaste inlägget',
+    fullscreenFeed: 'Visa endast flöde',
+    exitFullscreen: 'Avsluta flödesläge',
     moveUp: 'Flytta upp',
     moveDown: 'Flytta ner',
     endOfBoard: 'Du har nått slutet av moodboarden'
@@ -1591,6 +1594,9 @@ const en = {
     noComments: 'No comments yet. Be the first to share your thoughts!',
     closeComments: 'Close comments',
     scrollDown: 'Scroll down for more inspiration',
+    scrollToLatest: 'Go to latest post',
+    fullscreenFeed: 'Show feed only',
+    exitFullscreen: 'Exit feed view',
     moveUp: 'Move up',
     moveDown: 'Move down',
     endOfBoard: 'You have reached the end of the mood board'

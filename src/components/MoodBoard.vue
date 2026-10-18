@@ -9,12 +9,74 @@
     @dragleave="onDragLeave"
     @drop.prevent="onDrop"
   >
-    <img src="/brand/mood.webp" alt="" class="block h-28 w-full shrink-0 object-cover object-center sm:h-40 lg:h-48" />
-    <header
-      class="flex flex-col gap-2 px-3 pb-2 pt-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4 sm:px-6 sm:pt-4 md:px-8 md:pt-6"
-      :class="isMobile ? 'pr-16' : ''"
+    <!-- Header Banner Image & Mobile Overlay (hidden in feed-only fullscreen) -->
+    <div
+      v-if="!isFeedFullscreen"
+      class="relative w-full shrink-0 overflow-hidden"
     >
-      <div class="min-w-0 flex-1">
+      <img
+        src="/brand/mood.webp"
+        alt=""
+        class="block h-36 w-full object-cover object-center sm:h-40 lg:h-48"
+      />
+
+      <!-- In mobile view, overlay title, created date, and instruction on the image to save space -->
+      <div
+        v-if="isMobile"
+        class="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-black/85 via-black/45 to-transparent p-3 pr-14"
+      >
+        <div class="group flex items-center gap-1.5">
+          <input
+            id="mood-title-input"
+            v-model="title"
+            type="text"
+            maxlength="100"
+            class="w-full truncate rounded-lg border border-transparent bg-transparent px-1 py-0.5 text-base font-bold leading-tight tracking-[-0.02em] text-white placeholder:text-white/70 focus:border-white/40 focus:bg-black/30 focus:outline-none drop-shadow-md"
+            :placeholder="t('mood.title')"
+            :aria-label="t('mood.editTitle')"
+            @input="persist"
+            @blur="persist"
+          />
+        </div>
+
+        <div
+          v-if="formattedCreated"
+          class="mt-0.5 flex items-center gap-1.5 px-1 text-[11px] font-medium text-white/90 drop-shadow-md"
+        >
+          <svg class="h-3.5 w-3.5 text-white/80 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          <span>{{ t('mood.created') }}: {{ formattedCreated }}</span>
+        </div>
+
+        <p class="mt-0.5 px-1 text-[11px] leading-snug text-white/90 line-clamp-2 drop-shadow-md">
+          <Cms k="mood.lead" />
+        </p>
+      </div>
+
+      <!-- Close button on mobile sits at the top right of the hero banner -->
+      <button
+        v-if="(!standalone || !isInvited) && isMobile"
+        type="button"
+        id="btn-mood-close"
+        class="absolute right-3 top-3 z-30 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/90 text-[#173D35] shadow-[0_10px_22px_-12px_rgba(34,41,37,0.55)] backdrop-blur-xs hover:bg-[#173D35] hover:text-[#F5F3EC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#173D35] transition active:scale-95"
+        :style="{ top: 'max(0.75rem, env(safe-area-inset-top))', right: 'max(0.75rem, env(safe-area-inset-right))' }"
+        :aria-label="t('mood.close')"
+        @click="handleClose"
+      >
+        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M6 6 L18 18 M18 6 L6 18" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Header / Action bar (hidden in feed-only fullscreen) -->
+    <header
+      v-if="!isFeedFullscreen"
+      class="flex flex-col gap-2 px-3 pb-2 pt-2.5 sm:flex-row sm:items-start sm:justify-between sm:gap-4 sm:px-6 sm:pt-4 md:px-8 md:pt-6"
+    >
+      <!-- Title, created, and description for desktop view -->
+      <div v-if="!isMobile" class="min-w-0 flex-1">
         <div class="group flex items-center gap-2">
           <input
             id="mood-title-input"
@@ -46,79 +108,107 @@
         </p>
       </div>
 
-      <div class="flex items-center gap-1.5 sm:gap-2 self-end sm:self-auto shrink-0">
-        <button
-          type="button"
-          id="btn-mood-lang"
-          class="inline-flex h-11 items-center gap-[3px] rounded-xl border border-[#173D35]/15 bg-white px-3 text-[11px] tracking-[0.05em] shadow-[0_1px_2px_rgba(23,61,53,0.06)] hover:border-[#173D35] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#173D35]"
-          :aria-label="locale === 'sv' ? 'English' : 'Svenska'"
-          :title="locale === 'sv' ? 'English' : 'Svenska'"
-          @click="applyLocale(locale === 'en' ? 'sv' : 'en', true)"
-        >
-          <span :class="locale === 'sv' ? 'font-extrabold text-[#173D35]' : 'font-semibold text-[#173D35]/40'">SV</span>
-          <span class="font-semibold text-[#173D35]/30" aria-hidden="true">/</span>
-          <span :class="locale === 'en' ? 'font-extrabold text-[#173D35]' : 'font-semibold text-[#173D35]/40'">EN</span>
-        </button>
-        <button
-          type="button"
-          id="btn-mood-profile"
-          class="flex items-center gap-1.5 rounded-xl border border-[#d7d1c4] bg-white/80 p-1.5 sm:px-2.5 sm:py-1.5 text-xs font-semibold text-[#173D35] shadow-xs backdrop-blur-xs transition hover:border-[#173D35] hover:bg-white"
-          :title="t('mood.myProfile')"
-          @click="openProfileModal"
-        >
-          <img
-            v-if="currentAuthor.avatar"
-            :src="currentAuthor.avatar"
-            :alt="currentAuthor.name"
-            class="h-6 w-6 rounded-full object-cover ring-1 ring-[#173D35]/20"
-          />
-          <span class="hidden sm:inline max-w-[100px] truncate">{{ currentAuthor.name }}</span>
-        </button>
+      <!-- Action buttons -->
+      <div
+        class="flex items-center gap-1.5 sm:gap-2 shrink-0"
+        :class="isMobile ? 'w-full justify-between' : 'self-end sm:self-auto'"
+      >
+        <div class="flex items-center gap-1.5 sm:gap-2">
+          <button
+            type="button"
+            id="btn-mood-lang"
+            class="inline-flex h-9 sm:h-11 items-center gap-[3px] rounded-xl border border-[#173D35]/15 bg-white px-2.5 sm:px-3 text-[11px] tracking-[0.05em] shadow-[0_1px_2px_rgba(23,61,53,0.06)] hover:border-[#173D35] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#173D35]"
+            :aria-label="locale === 'sv' ? 'English' : 'Svenska'"
+            :title="locale === 'sv' ? 'English' : 'Svenska'"
+            @click="applyLocale(locale === 'en' ? 'sv' : 'en', true)"
+          >
+            <span :class="locale === 'sv' ? 'font-extrabold text-[#173D35]' : 'font-semibold text-[#173D35]/40'">SV</span>
+            <span class="font-semibold text-[#173D35]/30" aria-hidden="true">/</span>
+            <span :class="locale === 'en' ? 'font-extrabold text-[#173D35]' : 'font-semibold text-[#173D35]/40'">EN</span>
+          </button>
 
-        <button
-          type="button"
-          id="btn-mood-share"
-          class="flex items-center gap-1.5 rounded-xl bg-[#173D35] px-2.5 py-1.5 sm:px-3.5 sm:py-2 text-xs font-bold text-[#F5F3EC] shadow-sm transition hover:bg-[#0f2b25] active:scale-95"
-          @click="openShareModal"
-        >
-          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-          </svg>
-          <span>{{ t('mood.share') }}</span>
-        </button>
+          <button
+            type="button"
+            id="btn-mood-profile"
+            class="flex h-9 sm:h-11 items-center gap-1.5 rounded-xl border border-[#d7d1c4] bg-white/80 p-1.5 sm:px-2.5 sm:py-1.5 text-xs font-semibold text-[#173D35] shadow-xs backdrop-blur-xs transition hover:border-[#173D35] hover:bg-white"
+            :title="t('mood.myProfile')"
+            @click="openProfileModal"
+          >
+            <img
+              v-if="currentAuthor.avatar"
+              :src="currentAuthor.avatar"
+              :alt="currentAuthor.name"
+              class="h-6 w-6 rounded-full object-cover ring-1 ring-[#173D35]/20"
+            />
+            <span class="hidden sm:inline max-w-[100px] truncate">{{ currentAuthor.name }}</span>
+          </button>
+        </div>
 
-        <button
-          v-if="standalone && !isInvited"
-          type="button"
-          id="btn-mood-builder"
-          class="flex items-center gap-1.5 rounded-xl border border-[#173D35] bg-white px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs font-bold text-[#173D35] shadow-sm transition hover:bg-[#173D35] hover:text-white"
-          @click="router.push('/build')"
-        >
-          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-          </svg>
-          <span class="hidden sm:inline">{{ t('mood.backToBuilder') }}</span>
-        </button>
+        <div class="flex items-center gap-1.5 sm:gap-2">
+          <!-- Full-screen feed toggle control -->
+          <button
+            type="button"
+            id="btn-mood-fullscreen"
+            class="flex h-9 sm:h-11 items-center gap-1.5 rounded-xl border border-[#173D35]/15 bg-white px-2.5 sm:px-3 text-xs font-semibold text-[#173D35] shadow-xs transition hover:border-[#173D35] hover:bg-[#173D35]/5 active:scale-95"
+            :title="t('mood.fullscreenFeed')"
+            :aria-label="t('mood.fullscreenFeed')"
+            @click="isFeedFullscreen = true"
+          >
+            <svg class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+            </svg>
+            <span class="hidden md:inline">{{ t('mood.fullscreenFeed') }}</span>
+          </button>
 
-        <button
-          v-if="!standalone || !isInvited"
-          type="button"
-          id="btn-mood-close"
-          class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-[#173D35] hover:bg-[#173D35] hover:text-[#F5F3EC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#173D35]"
-          :class="isMobile ? 'absolute right-3 top-3 z-30 bg-[#F5F3EC] shadow-[0_10px_22px_-12px_rgba(34,41,37,0.55)]' : ''"
-          :style="isMobile ? { top: 'max(0.75rem, env(safe-area-inset-top))', right: 'max(0.75rem, env(safe-area-inset-right))' } : undefined"
-          :aria-label="t('mood.close')"
-          @click="handleClose"
-        >
-          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <path d="M6 6 L18 18 M18 6 L6 18" />
-          </svg>
-        </button>
+          <button
+            type="button"
+            id="btn-mood-share"
+            class="flex h-9 sm:h-11 items-center gap-1.5 rounded-xl bg-[#173D35] px-2.5 sm:px-3.5 text-xs font-bold text-[#F5F3EC] shadow-sm transition hover:bg-[#0f2b25] active:scale-95"
+            @click="openShareModal"
+          >
+            <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+            </svg>
+            <span class="max-w-[120px] sm:max-w-none truncate">{{ t('mood.share') }}</span>
+          </button>
+
+          <button
+            v-if="standalone && !isInvited"
+            type="button"
+            id="btn-mood-builder"
+            class="flex h-9 sm:h-11 items-center gap-1.5 rounded-xl border border-[#173D35] bg-white px-2.5 sm:px-3 text-xs font-bold text-[#173D35] shadow-sm transition hover:bg-[#173D35] hover:text-white"
+            @click="router.push('/build')"
+          >
+            <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+            </svg>
+            <span class="hidden sm:inline">{{ t('mood.backToBuilder') }}</span>
+          </button>
+
+          <!-- Desktop close button -->
+          <button
+            v-if="(!standalone || !isInvited) && !isMobile"
+            type="button"
+            id="btn-mood-close"
+            class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-[#173D35] hover:bg-[#173D35] hover:text-[#F5F3EC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#173D35]"
+            :aria-label="t('mood.close')"
+            @click="handleClose"
+          >
+            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M6 6 L18 18 M18 6 L6 18" />
+            </svg>
+          </button>
+        </div>
       </div>
     </header>
 
-    <form class="flex flex-col gap-2 px-3 pb-3 sm:flex-row sm:flex-wrap sm:items-center sm:px-6 md:px-8" @submit.prevent="submitLink">
-      <div class="flex items-center gap-2 flex-1">
+    <!-- Single line action bar: Paste link, Choose files, Post-it on the SAME LINE (hidden in feed-only fullscreen) -->
+    <form
+      v-if="!isFeedFullscreen"
+      class="flex items-center gap-1.5 px-3 pb-2.5 sm:gap-2 sm:px-6 md:px-8"
+      @submit.prevent="submitLink"
+    >
+      <div class="relative flex min-w-0 flex-1 items-center">
         <label class="sr-only" for="mood-link"><Cms k="mood.link" /></label>
         <input
           id="mood-link"
@@ -127,44 +217,52 @@
           inputmode="url"
           autocomplete="off"
           spellcheck="false"
-          class="mood-link min-w-0 flex-1 rounded-xl border border-[#d7d1c4] bg-white px-3 py-2 sm:py-2.5 text-xs sm:text-sm text-[#222925] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#173D35]"
+          class="mood-link w-full min-w-0 rounded-xl border border-[#d7d1c4] bg-white py-2 pl-2.5 pr-8 sm:pr-16 sm:py-2.5 sm:pl-3 text-xs sm:text-sm text-[#222925] placeholder:text-[#222925]/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#173D35]"
           :placeholder="t('mood.placeholder')"
         />
         <button
           type="submit"
           id="btn-mood-add"
-          class="h-9 sm:h-11 shrink-0 rounded-xl bg-[#173D35] px-3.5 sm:px-4 text-xs sm:text-sm font-semibold text-[#F5F3EC] hover:bg-[#102e28] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#173D35] focus-visible:ring-offset-2 focus-visible:ring-offset-[#F5F3EC]"
+          class="absolute right-1 sm:right-1.5 flex h-7 sm:h-8 items-center justify-center rounded-lg bg-[#173D35] px-1.5 sm:px-2.5 text-xs font-semibold text-[#F5F3EC] hover:bg-[#102e28] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#173D35] transition"
+          :aria-label="t('mood.add')"
+          :title="t('mood.add')"
         >
-          <Cms k="mood.add" />
+          <svg class="h-3.5 w-3.5 sm:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+          </svg>
+          <span class="hidden sm:inline"><Cms k="mood.add" /></span>
         </button>
       </div>
-      <div class="flex items-center gap-2 shrink-0">
-        <button
-          type="button"
-          id="btn-mood-files"
-          class="flex-1 sm:flex-initial h-9 sm:h-11 rounded-xl border border-[#173D35] px-3.5 sm:px-4 text-xs sm:text-sm font-semibold text-[#173D35] hover:bg-[#173D35] hover:text-[#F5F3EC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#173D35] flex items-center justify-center gap-1.5"
-          @click="fileInput?.click()"
-        >
-          <svg class="h-4 w-4 shrink-0 sm:hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-          <Cms k="mood.files" />
-        </button>
-        <button
-          type="button"
-          id="btn-mood-postit"
-          class="flex-1 sm:flex-initial flex h-9 sm:h-11 items-center justify-center gap-1.5 rounded-xl border border-[#e4d8a5] bg-[#FEF9C3] px-3 sm:px-3.5 text-xs sm:text-sm font-semibold text-[#854D0E] shadow-sm hover:bg-[#FEF08A] hover:border-[#d6c78e] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#854D0E]"
-          @click="addPostIt()"
-        >
-          <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-            <polyline points="14 2 14 8 20 8" />
-            <line x1="12" y1="18" x2="12" y2="12" />
-            <line x1="9" y1="15" x2="15" y2="15" />
-          </svg>
-          <span>{{ t('mood.postit') }}</span>
-        </button>
-      </div>
+
+      <button
+        type="button"
+        id="btn-mood-files"
+        class="flex h-9 sm:h-11 shrink-0 items-center justify-center gap-1 sm:gap-1.5 rounded-xl border border-[#173D35] bg-white px-2.5 sm:px-4 text-xs sm:text-sm font-semibold text-[#173D35] hover:bg-[#173D35] hover:text-[#F5F3EC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#173D35] transition"
+        :title="t('mood.files')"
+        @click="fileInput?.click()"
+      >
+        <svg class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+        <span class="hidden min-[360px]:inline"><Cms k="mood.files" /></span>
+      </button>
+
+      <button
+        type="button"
+        id="btn-mood-postit"
+        class="flex h-9 sm:h-11 shrink-0 items-center justify-center gap-1 sm:gap-1.5 rounded-xl border border-[#e4d8a5] bg-[#FEF9C3] px-2.5 sm:px-3.5 text-xs sm:text-sm font-semibold text-[#854D0E] shadow-xs hover:bg-[#FEF08A] hover:border-[#d6c78e] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#854D0E] transition"
+        :title="t('mood.postit')"
+        @click="addPostIt()"
+      >
+        <svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+          <line x1="12" y1="18" x2="12" y2="12" />
+          <line x1="9" y1="15" x2="15" y2="15" />
+        </svg>
+        <span class="hidden min-[340px]:inline">{{ t('mood.postit') }}</span>
+      </button>
+
       <input
         ref="fileInput"
         class="sr-only"
@@ -176,14 +274,46 @@
       />
     </form>
 
-    <p v-if="notice" class="px-4 pb-2 text-sm text-[#173D35] md:px-8" role="status">{{ t(notice) }}</p>
+    <p v-if="notice && !isFeedFullscreen" class="px-4 pb-2 text-sm text-[#173D35] md:px-8" role="status">{{ t(notice) }}</p>
+
+    <!-- Floating controls when in full-screen feed mode -->
+    <div
+      v-if="isFeedFullscreen"
+      class="pointer-events-none absolute top-3 inset-x-0 z-50 flex items-center justify-between px-3 sm:px-6"
+      :style="{ top: 'max(0.75rem, env(safe-area-inset-top))' }"
+    >
+      <button
+        type="button"
+        id="btn-mood-exit-fullscreen"
+        class="pointer-events-auto flex items-center gap-1.5 rounded-full border border-[#173D35]/20 bg-white/95 px-3.5 py-1.5 text-xs font-bold text-[#173D35] shadow-lg backdrop-blur-md transition hover:bg-[#173D35] hover:text-[#F5F3EC] active:scale-95"
+        @click="isFeedFullscreen = false"
+      >
+        <svg class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 4v5H4m11 0h5V4m-5 16v-5h5M4 15h5v5" />
+        </svg>
+        <span>{{ t('mood.exitFullscreen') }}</span>
+      </button>
+
+      <button
+        v-if="!standalone || !isInvited"
+        type="button"
+        class="pointer-events-auto flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl bg-white/95 text-[#173D35] shadow-lg backdrop-blur-md hover:bg-[#173D35] hover:text-[#F5F3EC] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#173D35]"
+        :aria-label="t('mood.close')"
+        @click="handleClose"
+      >
+        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M6 6 L18 18 M18 6 L6 18" />
+        </svg>
+      </button>
+    </div>
 
     <div
       ref="stage"
       class="relative min-h-0 flex-1 overflow-y-auto"
       :class="[
         over ? 'outline outline-2 -outline-offset-[12px] outline-[#173D35]' : '',
-        isMobile ? 'touch-pan-y overscroll-y-contain px-3 py-2' : ''
+        isMobile ? 'touch-pan-y overscroll-y-contain px-3 py-2' : '',
+        isFeedFullscreen ? 'pt-14' : ''
       ]"
       @scroll.passive="updateScrollState"
     >
@@ -650,8 +780,8 @@
       type="button"
       id="btn-mood-scroll-down"
       class="pointer-events-auto absolute bottom-6 left-1/2 -translate-x-1/2 z-30 flex h-11 w-11 items-center justify-center rounded-full bg-[#173D35]/90 text-[#F5F3EC] shadow-xl border border-white/20 backdrop-blur-md transition-transform duration-200 ease-out hover:bg-[#173D35] hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-[#173D35] focus:ring-offset-2"
-      :aria-label="t('mood.scrollDown')"
-      :title="t('mood.scrollDown')"
+      :aria-label="t('mood.scrollToLatest') || t('mood.scrollDown')"
+      :title="t('mood.scrollToLatest') || t('mood.scrollDown')"
       @click="scrollDownNext"
     >
       <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -1153,7 +1283,14 @@ const urls = ref<Record<string, string>>({});
 const stage = ref<HTMLElement | null>(null);
 const sheet = ref<HTMLElement | null>(null);
 const hasMoreBelow = ref(false);
+const isFeedFullscreen = ref(false);
 let stageResizeObserver: ResizeObserver | null = null;
+
+watch(isFeedFullscreen, () => {
+  nextTick(() => {
+    updateScrollState();
+  });
+});
 
 function updateScrollState() {
   if (!stage.value) {
@@ -1166,9 +1303,17 @@ function updateScrollState() {
 
 function scrollDownNext() {
   if (!stage.value) return;
-  const scrollAmount = Math.max(200, Math.round(stage.value.clientHeight * 0.85));
-  stage.value.scrollBy({
-    top: scrollAmount,
+  const list = displayPieces.value;
+  if (list.length > 0) {
+    const latestPiece = list[list.length - 1];
+    const el = document.getElementById(`mood-${latestPiece.id}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+  }
+  stage.value.scrollTo({
+    top: stage.value.scrollHeight,
     behavior: 'smooth'
   });
 }
@@ -1906,6 +2051,11 @@ function onKeyDown(event: KeyboardEvent) {
     return;
   }
   if (event.key === 'Escape') {
+    if (isFeedFullscreen.value) {
+      isFeedFullscreen.value = false;
+      event.preventDefault();
+      return;
+    }
     store.showMood = false;
   }
 }
