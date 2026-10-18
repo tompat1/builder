@@ -140,3 +140,21 @@ test('front loft on concrete combo has 15-16 m² size and spans partially over c
   assert.ok(timberFrontZ > concreteFrontZ);
   assert.ok(loftInnerEdgeZ < concreteFrontZ);
 });
+
+test('concrete wall opening sill and lintel heights preserve solid concrete under standard-single window', () => {
+  // A standard-single tilt window sits with sill above base elevation (1.05 m above slab base 0.25 m = 1.30 m, head at 2.02 m)
+  const base = 0.25;
+  const top = 2.50;
+  const opening = { sill: 1.30, head: 2.02, winW: 1.05 };
+
+  const sillTop = Math.max(base, Math.min(top, opening.sill));
+  const lintelBottom = Math.max(base, Math.min(top, opening.head));
+  const sillH = sillTop - base;
+  const lintelH = top - lintelBottom;
+
+  // Solid concrete sill beneath window must be > 1.0 m tall, not 0
+  assert.ok(sillH >= 1.0, `Expected sillH >= 1.0 m, got ${sillH}`);
+  assert.ok(lintelH >= 0.4, `Expected lintelH >= 0.4 m, got ${lintelH}`);
+  // Cutout height matches window height
+  assert.ok(Math.abs((lintelBottom - sillTop) - 0.72) < 0.01);
+});

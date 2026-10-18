@@ -2195,19 +2195,19 @@ export class HouseScene {
     // 1. Back wall (width cw, along X at z = -(cd / 2 - thick / 2))
     const backOps = allBackOpenings
       .filter(isLower)
-      .map((o) => ({ center: shell.x + o.x, winW: o.winW, winH: o.winH, winY: o.winY }));
+      .map((o) => ({ center: shell.x + o.x, winW: o.winW, winH: o.winH, sill: o.sill, head: o.head }));
     this.addConcreteBackWall(cw, height, thick, y, -(cd / 2 - thick / 2), base, top, material, backOps);
 
     // 2. Left wall (length cd, along Z at x = -(cw / 2 - thick / 2))
     const leftOps = allLeftOpenings
       .filter(isLower)
-      .map((o) => ({ center: shell.z + o.x, winW: o.winW, winH: o.winH, winY: o.winY }));
+      .map((o) => ({ center: shell.z + o.x, winW: o.winW, winH: o.winH, sill: o.sill, head: o.head }));
     this.addConcreteSideWall(-(cw / 2 - thick / 2), cd, height, thick, y, base, top, material, leftOps);
 
     // 3. Right wall (length cd, along Z at x = cw / 2 - thick / 2)
     const rightOps = allRightOpenings
       .filter(isLower)
-      .map((o) => ({ center: shell.z + o.x, winW: o.winW, winH: o.winH, winY: o.winY }));
+      .map((o) => ({ center: shell.z + o.x, winW: o.winW, winH: o.winH, sill: o.sill, head: o.head }));
     this.addConcreteSideWall(cw / 2 - thick / 2, cd, height, thick, y, base, top, material, rightOps);
 
     // 4. Interior concrete walls
@@ -2236,7 +2236,7 @@ export class HouseScene {
     base: number,
     top: number,
     material: THREE.Material,
-    openings: { center: number; winW: number; winH: number; winY: number }[]
+    openings: { center: number; winW: number; winH: number; sill: number; head: number }[]
   ) {
     const halfW = cw / 2;
     const add = (w: number, h: number, x: number, py: number) => {
@@ -2262,8 +2262,8 @@ export class HouseScene {
     for (const op of valid) {
       const left = Math.max(-halfW, op.center - op.winW / 2);
       const right = Math.min(halfW, op.center + op.winW / 2);
-      const sillTop = Math.max(base, op.winY - op.winH / 2);
-      const lintelBottom = Math.min(top, op.winY + op.winH / 2);
+      const sillTop = Math.max(base, Math.min(top, op.sill));
+      const lintelBottom = Math.max(base, Math.min(top, op.head));
 
       const leftW = left - cursor;
       if (leftW > 0.01) {
@@ -2299,7 +2299,7 @@ export class HouseScene {
     base: number,
     top: number,
     material: THREE.Material,
-    openings: { center: number; winW: number; winH: number; winY: number }[]
+    openings: { center: number; winW: number; winH: number; sill: number; head: number }[]
   ) {
     const halfD = cd / 2;
     const add = (d: number, h: number, py: number, z: number) => {
@@ -2325,8 +2325,8 @@ export class HouseScene {
     for (const op of valid) {
       const left = Math.max(-halfD, op.center - op.winW / 2);
       const right = Math.min(halfD, op.center + op.winW / 2);
-      const sillTop = Math.max(base, op.winY - op.winH / 2);
-      const lintelBottom = Math.min(top, op.winY + op.winH / 2);
+      const sillTop = Math.max(base, Math.min(top, op.sill));
+      const lintelBottom = Math.max(base, Math.min(top, op.head));
 
       const leftW = left - cursor;
       if (leftW > 0.01) {
