@@ -11,6 +11,7 @@ import {
   panelOnConcrete,
   timberShellOnConcrete
 } from '../src/store/paabyggnad.ts';
+import { fittedDoorOpening } from '../src/three-engine/windowFit.ts';
 
 test('the concrete house stops at 2.5 m so the timber loft starts above it', () => {
   assert.equal(CONCRETE_STOREY_TOP_M, 2.5);
@@ -171,4 +172,90 @@ test('mergeWallSlots restores lower wall slots with canAcceptDoor: true even if 
   assert.equal(slots['front-2'].isUpper, false);
   assert.equal(slots['front-2u'].canAcceptDoor, false);
   assert.equal(slots['front-2u'].isUpper, true);
+});
+
+test('door on back wall of concrete house aligns opening coordinate at bay position instead of local shift', () => {
+  const w = 5.2;
+  const count = 4;
+  const panelW = w / count; // 1.3 m
+  // For back-0 (right from inside / left from outside) and back-3 (right from outside)
+  for (const p of [0, 3]) {
+    const center = w / 2 - (p + 0.5) * panelW; // 1.95 for p=0, -1.95 for p=3
+    const cornerSide = p === 0 ? 'left' : 'right';
+    const fitted = fittedDoorOpening('STEHAG', panelW, cornerSide);
+    const ox = fitted.shift; // +0.0625 for left corner, -0.0625 for right corner
+    const worldX = center - ox; // 1.8875 for p=0, -1.8875 for p=3
+
+    // Spreading ...fit must not overwrite x: worldX with fit.x (the local ox shift)
+    const fit = { ...fitted, winW: fitted.width, winH: 2.1, sill: 0.25, head: 2.35, x: ox };
+    const opening = {
+      ...fit,
+      x: worldX
+    };
+
+    assert.equal(opening.x, worldX);
+    assert.notEqual(opening.x, ox);
+
+    // Concrete cutout spans [left, right]
+    const left = opening.x - opening.winW / 2;
+    const right = opening.x + opening.winW / 2;
+    if (p === 0) {
+      assert.ok(Math.abs(left - 1.3875) < 1e-4);
+      assert.ok(Math.abs(right - 2.3875) < 1e-4);
+    } else {
+      assert.ok(Math.abs(left - -2.3875) < 1e-4);
+      assert.ok(Math.abs(right - -1.3875) < 1e-4);
+    }
+  }
+});
+
+test('window on right wall of concrete house aligns opening coordinates without orphan hole in middle bay', () => {
+  const d = 6.731;
+  const cd = 5.2;
+  const shellZ = (d - cd) / 2; // 0.7655
+  const count = 3;
+  const endInset = 0.025 - 0.008; // 0.017
+  const length = d - endInset * 2;
+  const panelW = length / count; // 2.2323 m
+
+  // For right-0 (rear), right-1 (mid), right-2 (front)
+  for (let p = 0; p < count; p++) {
+    const center = -d / 2 + endInset + (p + 0.5) * panelW;
+    const fit = { winW: 1.8, winH: 1.2, sill: 1.0, head: 2.2, x: 0 };
+    const ox = fit.x ?? 0;
+    const worldX = center - ox;
+
+    const opening = {
+      winW: fit.winW,
+      winH: fit.winH,
+      sill: fit.sill,
+      head: fit.head,
+      x: worldX
+    };
+
+    assert.equal(opening.x, worldX);
+
+    // Op in concrete side wall space (centered along Z at 0, length cd = 5.2)
+    const opCenter = shellZ + opening.x;
+    const halfD = cd / 2;
+    const overlaps = Math.min(halfD, opCenter + opening.winW / 2) - Math.max(-halfD, opCenter - opening.winW / 2) > 0.05;
+
+    if (p === 0) {
+      // right-0 is in rear: opCenter is around -1.404, inside [-2.6, 2.6]
+      assert.ok(overlaps);
+      assert.ok(opCenter < -0.5);
+    } else if (p === 1) {
+      // right-1 is in middle: opCenter is around 0.7655, inside [-2.6, 2.6]
+      assert.ok(overlaps);
+      assert.ok(opCenter > 0 && opCenter < 1.5);
+    } else if (p === 2) {
+      // right-2 is in front: opCenter is around 2.935, partially overlaps concrete wall up to 2.6
+      assert.ok(overlaps);
+      assert.ok(opCenter > 2.5);
+      const concreteLeft = Math.max(-halfD, opCenter - opening.winW / 2);
+      const concreteRight = Math.min(halfD, opCenter + opening.winW / 2);
+      assert.ok(concreteLeft < 2.6);
+      assert.equal(concreteRight, halfD);
+    }
+  }
 });

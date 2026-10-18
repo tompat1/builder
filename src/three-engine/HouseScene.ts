@@ -2250,7 +2250,7 @@ export class HouseScene {
     };
 
     const valid = openings
-      .filter((o) => Math.abs(o.center) < halfW - 0.05)
+      .filter((o) => Math.min(halfW, o.center + o.winW / 2) - Math.max(-halfW, o.center - o.winW / 2) > 0.05)
       .sort((a, b) => a.center - b.center);
 
     if (valid.length === 0) {
@@ -2313,7 +2313,7 @@ export class HouseScene {
     };
 
     const valid = openings
-      .filter((o) => Math.abs(o.center) < halfD - 0.05)
+      .filter((o) => Math.min(halfD, o.center + o.winW / 2) - Math.max(-halfD, o.center - o.winW / 2) > 0.05)
       .sort((a, b) => a.center - b.center);
 
     if (valid.length === 0) {
@@ -4031,8 +4031,12 @@ export class HouseScene {
         const ox = fit.x ?? 0;
         const worldX = (wall === 'front' || wall === 'left') ? center + ox : center - ox;
         openings.push({
-          x: worldX,
-          ...fit
+          winW: fit.winW,
+          winH: fit.winH,
+          winY: fit.winY,
+          sill: fit.sill,
+          head: fit.head,
+          x: worldX
         });
       }
     }
