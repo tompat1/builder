@@ -72,11 +72,14 @@ test('a terrace can include a sauna or shed as an additional building', () => {
   assert.equal(withShed, base + 32000);
 
   const terraces = acceptTerraces([
-    { side: 'front', depth: 1.8, span: 'door', roof: false, building: 'sauna' },
-    { side: 'left', depth: 2.4, span: 'full', roof: true, building: 'shed' },
-    { side: 'back', depth: 1.8, span: 'door', roof: false, building: 'invalid' }
+    { side: 'front', depth: 1.8, span: 'door', roof: false, building: 'sauna', buildingPlacement: 'left' },
+    { side: 'left', depth: 2.4, span: 'full', roof: true, building: 'shed', buildingPlacement: 'right' },
+    { side: 'back', depth: 1.8, span: 'door', roof: false, building: 'invalid', buildingPlacement: 'middle' }
   ]);
   assert.equal(terraces[0].building, 'sauna');
+  assert.equal(terraces[0].buildingPlacement, 'left');
   assert.equal(terraces[1].building, 'shed');
+  assert.equal(terraces[1].buildingPlacement, 'right');
   assert.equal(terraces[2].building, undefined);
+  assert.equal(terraces[2].buildingPlacement, undefined);
 });

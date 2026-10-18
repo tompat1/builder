@@ -3386,19 +3386,28 @@ export class HouseScene {
     }
 
     const hasBuilding = terrace.building === 'sauna' || terrace.building === 'shed';
+    const isLeft = terrace.buildingPlacement === 'left';
     const bW = hasBuilding ? Math.min(2.0, Math.max(1.3, width * 0.45)) : 0;
     const bD = hasBuilding ? Math.min(Math.max(depth, 1.6), 2.2) : 0;
-    const bX = hasBuilding ? along + width / 2 - bW / 2 : 0;
+    const bX = hasBuilding
+      ? isLeft
+        ? along - width / 2 + bW / 2
+        : along + width / 2 - bW / 2
+      : 0;
 
     const roofW = hasBuilding ? width - bW : width;
-    const roofAlong = hasBuilding ? along - bW / 2 : along;
+    const roofAlong = hasBuilding
+      ? isLeft
+        ? along + bW / 2
+        : along - bW / 2
+      : along;
 
     if (terrace.roof && roofW >= 0.8) {
       this.addTerraceRoof(group, door, timber, roofMat, roofAlong, roofW, depth, deckTop, outward);
     }
 
     if (hasBuilding && (terrace.building === 'sauna' || terrace.building === 'shed')) {
-      this.addTerraceBuilding(group, door, timber, roofMat, bX, bW, bD, deckTop, outward, terrace.building);
+      this.addTerraceBuilding(group, door, timber, roofMat, bX, bW, bD, deckTop, outward, terrace.building, isLeft);
     }
 
     group.userData.skipNote = true;
@@ -3417,7 +3426,8 @@ export class HouseScene {
     bD: number,
     deckTop: number,
     outward: number,
-    type: 'sauna' | 'shed'
+    type: 'sauna' | 'shed',
+    isLeft = false
   ) {
     const bH = 2.15;
     const pitch = (5 * Math.PI) / 180;
@@ -3495,10 +3505,12 @@ export class HouseScene {
     group.add(frontFascia);
 
     if (type === 'sauna') {
-      // 5. Sauna Door (on deck-facing side wall at bX - bW / 2)
+      // 5. Sauna Door (on deck-facing side wall)
+      const doorDir = isLeft ? 1 : -1;
+      const doorSideX = isLeft ? bX + bW / 2 : bX - bW / 2;
       const doorZ = outward * (bD * 0.48);
       const doorFrame = new THREE.Mesh(new THREE.BoxGeometry(0.035, 1.86, 0.78), trimMat);
-      doorFrame.position.set(bX - bW / 2 - 0.01, deckTop + 1.86 / 2 + 0.02, doorZ);
+      doorFrame.position.set(doorSideX + doorDir * 0.01, deckTop + 1.86 / 2 + 0.02, doorZ);
       doorFrame.castShadow = true;
       group.add(doorFrame);
 
@@ -3510,14 +3522,14 @@ export class HouseScene {
         opacity: 0.72
       });
       const doorLeaf = new THREE.Mesh(new THREE.BoxGeometry(0.022, 1.78, 0.70), glassMat);
-      doorLeaf.position.set(bX - bW / 2 - 0.015, deckTop + 1.78 / 2 + 0.06, doorZ);
+      doorLeaf.position.set(doorSideX + doorDir * 0.015, deckTop + 1.78 / 2 + 0.06, doorZ);
       doorLeaf.castShadow = true;
       group.add(doorLeaf);
 
       // Wooden sauna vertical handle
       const handleMat = new THREE.MeshStandardMaterial({ color: '#deb887', roughness: 0.5 });
       const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.42, 12), handleMat);
-      handle.position.set(bX - bW / 2 - 0.035, deckTop + 0.98, doorZ + outward * 0.22);
+      handle.position.set(doorSideX + doorDir * 0.035, deckTop + 0.98, doorZ + outward * 0.22);
       handle.castShadow = true;
       group.add(handle);
 
@@ -3560,7 +3572,7 @@ export class HouseScene {
       // 8. Stainless steel sauna stove chimney pipe (skorsten)
       const chimneyMat = new THREE.MeshStandardMaterial({ color: '#1e242b', roughness: 0.25, metalness: 0.88 });
       const pipeH = 0.68;
-      const pipeX = bX + bW * 0.22;
+      const pipeX = isLeft ? bX - bW * 0.22 : bX + bW * 0.22;
       const pipeZ = outward * (bD * 0.35);
       const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, pipeH, 16), chimneyMat);
       pipe.position.set(pipeX, midY + pipeH / 2 + 0.08, pipeZ);
@@ -3572,31 +3584,33 @@ export class HouseScene {
       cap.castShadow = true;
       group.add(cap);
     } else {
-      // 5. Shed Door (on deck-facing side wall at bX - bW / 2)
+      // 5. Shed Door (on deck-facing side wall)
+      const doorDir = isLeft ? 1 : -1;
+      const doorSideX = isLeft ? bX + bW / 2 : bX - bW / 2;
       const doorZ = outward * (bD * 0.48);
       const doorFrame = new THREE.Mesh(new THREE.BoxGeometry(0.035, 1.86, 0.78), trimMat);
-      doorFrame.position.set(bX - bW / 2 - 0.01, deckTop + 1.86 / 2 + 0.02, doorZ);
+      doorFrame.position.set(doorSideX + doorDir * 0.01, deckTop + 1.86 / 2 + 0.02, doorZ);
       doorFrame.castShadow = true;
       group.add(doorFrame);
 
       const doorLeaf = new THREE.Mesh(new THREE.BoxGeometry(0.025, 1.78, 0.70), wallMat);
-      doorLeaf.position.set(bX - bW / 2 - 0.015, deckTop + 1.78 / 2 + 0.06, doorZ);
+      doorLeaf.position.set(doorSideX + doorDir * 0.015, deckTop + 1.78 / 2 + 0.06, doorZ);
       doorLeaf.castShadow = true;
       group.add(doorLeaf);
 
       // Traditional diagonal Z-brace on shed door
       const railTop = new THREE.Mesh(new THREE.BoxGeometry(0.016, 0.075, 0.62), trimMat);
-      railTop.position.set(bX - bW / 2 - 0.03, deckTop + 1.55, doorZ);
+      railTop.position.set(doorSideX + doorDir * 0.03, deckTop + 1.55, doorZ);
       railTop.castShadow = true;
       group.add(railTop);
 
       const railBottom = new THREE.Mesh(new THREE.BoxGeometry(0.016, 0.075, 0.62), trimMat);
-      railBottom.position.set(bX - bW / 2 - 0.03, deckTop + 0.35, doorZ);
+      railBottom.position.set(doorSideX + doorDir * 0.03, deckTop + 0.35, doorZ);
       railBottom.castShadow = true;
       group.add(railBottom);
 
       const strut = new THREE.Mesh(new THREE.BoxGeometry(0.016, 0.075, 1.15), trimMat);
-      strut.position.set(bX - bW / 2 - 0.03, deckTop + 0.95, doorZ);
+      strut.position.set(doorSideX + doorDir * 0.03, deckTop + 0.95, doorZ);
       strut.rotation.x = 0.58;
       strut.castShadow = true;
       group.add(strut);
@@ -3604,13 +3618,13 @@ export class HouseScene {
       // Galvanized steel kickplate (sparkplåt) across bottom
       const kickMat = new THREE.MeshStandardMaterial({ color: '#475569', roughness: 0.35, metalness: 0.75 });
       const kick = new THREE.Mesh(new THREE.BoxGeometry(0.018, 0.20, 0.68), kickMat);
-      kick.position.set(bX - bW / 2 - 0.025, deckTop + 0.16, doorZ);
+      kick.position.set(doorSideX + doorDir * 0.025, deckTop + 0.16, doorZ);
       kick.castShadow = true;
       group.add(kick);
 
       // Sturdy black handle
       const handle = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.12, 0.03), hardwareMat);
-      handle.position.set(bX - bW / 2 - 0.035, deckTop + 0.98, doorZ + outward * 0.24);
+      handle.position.set(doorSideX + doorDir * 0.035, deckTop + 0.98, doorZ + outward * 0.24);
       handle.castShadow = true;
       group.add(handle);
 

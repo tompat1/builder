@@ -47,6 +47,8 @@ import {
   type TerraceSpan,
   type TerraceBuilding,
   TERRACE_BUILDINGS,
+  type TerraceBuildingPlacement,
+  TERRACE_BUILDING_PLACEMENTS,
   SAUNA_BUILDING_PRICE,
   SHED_BUILDING_PRICE
 } from '../outside/terrace';
@@ -486,8 +488,8 @@ export const OUTSIDE_PRICES = {
   bigTerrace: 72600
 } as const;
 
-export type { HouseTerrace, TerraceDepth, TerraceSide, TerraceSpan, TerraceBuilding };
-export { TERRACE_BUILDINGS, SAUNA_BUILDING_PRICE, SHED_BUILDING_PRICE };
+export type { HouseTerrace, TerraceDepth, TerraceSide, TerraceSpan, TerraceBuilding, TerraceBuildingPlacement };
+export { TERRACE_BUILDINGS, TERRACE_BUILDING_PLACEMENTS, SAUNA_BUILDING_PRICE, SHED_BUILDING_PRICE };
 
 export interface WallSlot {
   id: string;
@@ -1530,6 +1532,10 @@ export const useConfigStore = defineStore('config', () => {
     replaceTerrace(side, { building });
   }
 
+  function setTerraceBuildingPlacement(side: TerraceSide, buildingPlacement: TerraceBuildingPlacement) {
+    replaceTerrace(side, { buildingPlacement });
+  }
+
   function setFacing(next: CompassFacing) {
     if (facing.value === next) return;
     facing.value = next;
@@ -2085,6 +2091,7 @@ export const useConfigStore = defineStore('config', () => {
     setTerraceSpan,
     setTerraceRoof,
     setTerraceBuilding,
+    setTerraceBuildingPlacement,
     setFacing,
     previewSunHour,
     commitSunHour,

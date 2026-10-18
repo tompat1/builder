@@ -13,12 +13,16 @@ export type TerraceSpan = 'door' | 'full';
 export type TerraceBuilding = 'none' | 'sauna' | 'shed';
 export const TERRACE_BUILDINGS = ['none', 'sauna', 'shed'] as const;
 
+export type TerraceBuildingPlacement = 'left' | 'right';
+export const TERRACE_BUILDING_PLACEMENTS = ['left', 'right'] as const;
+
 export interface HouseTerrace {
   side: TerraceSide;
   depth: TerraceDepth;
   span: TerraceSpan;
   roof: boolean;
   building?: TerraceBuilding;
+  buildingPlacement?: TerraceBuildingPlacement;
 }
 
 export interface TerraceBoardLayout {
@@ -81,12 +85,17 @@ export function acceptTerraces(value: unknown): HouseTerrace[] {
         : row.building === 'none'
           ? 'none'
           : undefined;
+    const buildingPlacement: TerraceBuildingPlacement | undefined =
+      row.buildingPlacement === 'left' || row.buildingPlacement === 'right'
+        ? row.buildingPlacement
+        : undefined;
     terraces.push({
       side: row.side as TerraceSide,
       depth: TERRACE_DEPTHS.includes(row.depth as TerraceDepth) ? (row.depth as TerraceDepth) : 1.8,
       span: row.span === 'full' ? 'full' : 'door',
       roof: row.roof === true,
-      ...(building ? { building } : {})
+      ...(building ? { building } : {}),
+      ...(buildingPlacement ? { buildingPlacement } : {})
     });
     if (terraces.length >= TERRACE_SIDES.length) break;
   }

@@ -1955,6 +1955,31 @@
                 <span class="block text-[10px] font-normal opacity-75">{{ delta(SHED_BUILDING_PRICE) }}</span>
               </button>
             </div>
+            <div v-if="deck.building && deck.building !== 'none'" class="mt-2 pt-2 border-t border-slate-100">
+              <p class="mb-1 text-[11px] font-bold text-slate-700">
+                <Cms k="category.terraceBuildingPlacement" />
+              </p>
+              <div class="grid grid-cols-2 gap-1.5">
+                <button
+                  type="button"
+                  :id="`terrace-${deck.side}-building-place-left`"
+                  :aria-pressed="deck.buildingPlacement === 'left'"
+                  :class="terraceChoiceClass(deck.buildingPlacement === 'left')"
+                  @click="store.setTerraceBuildingPlacement(deck.side, 'left')"
+                >
+                  <Cms k="category.terracePlacementLeft" />
+                </button>
+                <button
+                  type="button"
+                  :id="`terrace-${deck.side}-building-place-right`"
+                  :aria-pressed="!deck.buildingPlacement || deck.buildingPlacement === 'right'"
+                  :class="terraceChoiceClass(!deck.buildingPlacement || deck.buildingPlacement === 'right')"
+                  @click="store.setTerraceBuildingPlacement(deck.side, 'right')"
+                >
+                  <Cms k="category.terracePlacementRight" />
+                </button>
+              </div>
+            </div>
           </div>
         </article>
       </section>
@@ -2044,7 +2069,8 @@ import {
   SAUNA_BUILDING_PRICE,
   SHED_BUILDING_PRICE,
   type TerraceDepth,
-  type TerraceBuilding
+  type TerraceBuilding,
+  type TerraceBuildingPlacement
 } from '../outside/terrace';
 import { useLabels } from '../i18n';
 import CustomPaint from './CustomPaint.vue';
