@@ -189,8 +189,7 @@ const PANEL_COUNTS = { front: 4, back: 4, left: 3, right: 3 } as const;
 
 /**
  * Wall slots for the concrete/timber combo:
- * The front lower wall is removed to open up the whole house (empty, canAcceptDoor = false).
- * Back, left, and right walls remain concrete and can accept doors and windows.
+ * Lower walls can accept doors and windows.
  */
 export function paabyggnadWallSlots(): Record<string, PaabyggnadSlot> {
   const slots: Record<string, PaabyggnadSlot> = {};
@@ -203,7 +202,7 @@ export function paabyggnadWallSlots(): Record<string, PaabyggnadSlot> {
         wall,
         index,
         type: 'empty',
-        canAcceptDoor: !isFront
+        canAcceptDoor: true
       };
       const upperId = `${id}u`;
       slots[upperId] = {

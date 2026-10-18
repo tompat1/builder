@@ -2166,9 +2166,9 @@ export class HouseScene {
   }
 
   /**
-   * The old concrete house interior walls.
-   * Outer walls are built modularly in buildModularWall to support door/window openings,
-   * casing, and slot selection. The front wall is omitted to open up the whole house.
+   * The old concrete house: three walls (left, right, back) and an open front.
+   * Outer walls use concreteWidthMm, concreteDepthMm, concreteHeightMm.
+   * Openings for doors and windows in the concrete walls are cut out cleanly.
    */
   private addConcreteWalls(material: THREE.Material) {
     if (!this.currentConfig.concreteBase) return;
@@ -2179,18 +2179,177 @@ export class HouseScene {
     const height = Math.max(0.4, top - base);
     const thick = 0.16;
     const y = base + height / 2;
+
+    const shell = this.timberShell();
+    const w = shell.widthM;
+    const d = shell.depthM;
+    const h = this.wallTopM();
+    const baseElevation = 0.25;
+
+    const allBackOpenings = this.wallOpenings('back', w, d, h, baseElevation);
+    const allLeftOpenings = this.wallOpenings('left', w, d, h, baseElevation);
+    const allRightOpenings = this.wallOpenings('right', w, d, h, baseElevation);
+
+    const isLower = (o: { sill: number; head: number }) => o.sill < top - 0.05;
+
+    // 1. Back wall (width cw, along X at z = -(cd / 2 - thick / 2))
+    const backOps = allBackOpenings
+      .filter(isLower)
+      .map((o) => ({ center: shell.x + o.x, winW: o.winW, winH: o.winH, winY: o.winY }));
+    this.addConcreteBackWall(cw, height, thick, y, -(cd / 2 - thick / 2), base, top, material, backOps);
+
+    // 2. Left wall (length cd, along Z at x = -(cw / 2 - thick / 2))
+    const leftOps = allLeftOpenings
+      .filter(isLower)
+      .map((o) => ({ center: shell.z + o.x, winW: o.winW, winH: o.winH, winY: o.winY }));
+    this.addConcreteSideWall(-(cw / 2 - thick / 2), cd, height, thick, y, base, top, material, leftOps);
+
+    // 3. Right wall (length cd, along Z at x = cw / 2 - thick / 2)
+    const rightOps = allRightOpenings
+      .filter(isLower)
+      .map((o) => ({ center: shell.z + o.x, winW: o.winW, winH: o.winH, winY: o.winY }));
+    this.addConcreteSideWall(cw / 2 - thick / 2, cd, height, thick, y, base, top, material, rightOps);
+
+    // 4. Interior concrete walls
     const add = (size: [number, number, number], pos: [number, number, number]) => {
       const mesh = new THREE.Mesh(new THREE.BoxGeometry(...size), material);
       mesh.position.set(...pos);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       mesh.userData.concrete = true;
+      mesh.userData.outsideAddition = true;
       this.concreteGroup.add(mesh);
     };
     for (const wall of this.currentConfig.concreteWalls ?? []) {
       const offset = wall.offsetMm / 1000;
       if (wall.axis === 'z') add([thick, height, Math.max(0.4, cd - thick * 2)], [offset, y, 0]);
       else add([Math.max(0.4, cw - thick * 2), height, thick], [0, y, offset]);
+    }
+  }
+
+  private addConcreteBackWall(
+    cw: number,
+    height: number,
+    thick: number,
+    y: number,
+    zPos: number,
+    base: number,
+    top: number,
+    material: THREE.Material,
+    openings: { center: number; winW: number; winH: number; winY: number }[]
+  ) {
+    const halfW = cw / 2;
+    const add = (w: number, h: number, x: number, py: number) => {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, thick), material);
+      mesh.position.set(x, py, zPos);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.userData.concrete = true;
+      mesh.userData.outsideAddition = true;
+      this.concreteGroup.add(mesh);
+    };
+
+    const valid = openings
+      .filter((o) => Math.abs(o.center) < halfW - 0.05)
+      .sort((a, b) => a.center - b.center);
+
+    if (valid.length === 0) {
+      add(cw, height, 0, y);
+      return;
+    }
+
+    let cursor = -halfW;
+    for (const op of valid) {
+      const left = Math.max(-halfW, op.center - op.winW / 2);
+      const right = Math.min(halfW, op.center + op.winW / 2);
+      const sillTop = Math.max(base, op.winY - op.winH / 2);
+      const lintelBottom = Math.min(top, op.winY + op.winH / 2);
+
+      const leftW = left - cursor;
+      if (leftW > 0.01) {
+        add(leftW, height, cursor + leftW / 2, y);
+      }
+
+      const sillH = sillTop - base;
+      const spanW = right - left;
+      if (sillH > 0.01 && spanW > 0.01) {
+        add(spanW, sillH, (left + right) / 2, base + sillH / 2);
+      }
+
+      const lintelH = top - lintelBottom;
+      if (lintelH > 0.01 && spanW > 0.01) {
+        add(spanW, lintelH, (left + right) / 2, lintelBottom + lintelH / 2);
+      }
+
+      cursor = right;
+    }
+
+    const endW = halfW - cursor;
+    if (endW > 0.01) {
+      add(endW, height, cursor + endW / 2, y);
+    }
+  }
+
+  private addConcreteSideWall(
+    xPos: number,
+    cd: number,
+    height: number,
+    thick: number,
+    y: number,
+    base: number,
+    top: number,
+    material: THREE.Material,
+    openings: { center: number; winW: number; winH: number; winY: number }[]
+  ) {
+    const halfD = cd / 2;
+    const add = (d: number, h: number, py: number, z: number) => {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(thick, h, d), material);
+      mesh.position.set(xPos, py, z);
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.userData.concrete = true;
+      mesh.userData.outsideAddition = true;
+      this.concreteGroup.add(mesh);
+    };
+
+    const valid = openings
+      .filter((o) => Math.abs(o.center) < halfD - 0.05)
+      .sort((a, b) => a.center - b.center);
+
+    if (valid.length === 0) {
+      add(cd, height, y, 0);
+      return;
+    }
+
+    let cursor = -halfD;
+    for (const op of valid) {
+      const left = Math.max(-halfD, op.center - op.winW / 2);
+      const right = Math.min(halfD, op.center + op.winW / 2);
+      const sillTop = Math.max(base, op.winY - op.winH / 2);
+      const lintelBottom = Math.min(top, op.winY + op.winH / 2);
+
+      const leftW = left - cursor;
+      if (leftW > 0.01) {
+        add(leftW, height, y, cursor + leftW / 2);
+      }
+
+      const sillH = sillTop - base;
+      const spanW = right - left;
+      if (sillH > 0.01 && spanW > 0.01) {
+        add(spanW, sillH, base + sillH / 2, (left + right) / 2);
+      }
+
+      const lintelH = top - lintelBottom;
+      if (lintelH > 0.01 && spanW > 0.01) {
+        add(spanW, lintelH, lintelBottom + lintelH / 2, (left + right) / 2);
+      }
+
+      cursor = right;
+    }
+
+    const endW = halfD - cursor;
+    if (endW > 0.01) {
+      add(endW, height, y, cursor + endW / 2);
     }
   }
 
@@ -2337,15 +2496,6 @@ export class HouseScene {
     casingMat: THREE.Material,
     concreteWallMat?: THREE.Material
   ) {
-    const isConcreteBase = Boolean(this.currentConfig.concreteBase);
-    const isConcreteWall = Boolean(this.concreteFacade(wallSide));
-    const isConcreteLower = isConcreteWall && !band.upper;
-
-    // In concrete house/timber combo: remove the front wall to open up the whole house
-    if (isConcreteBase && wallSide === 'front' && !band.upper) {
-      return;
-    }
-
     const slot = this.currentConfig.wallSlots[band.slotId];
     const slotType = slot?.type ?? 'empty';
     const panelGroup = new THREE.Group();
@@ -2391,17 +2541,9 @@ export class HouseScene {
       ? (this.currentConfig.concreteHeightMm ?? 2500) / 1000
       : null;
     const facadeSpan = facadeTop == null ? null : this.concreteSpanLocal(wallSide, px, pz, panelWidth);
-    if (isConcreteLower && concreteWallMat) {
-      this.addConcreteBayWall(
-        panelGroup,
-        panelWidth,
-        band.height,
-        claddingThick,
-        concreteWallMat,
-        userData,
-        opening
-      );
-    } else if (sloped) {
+    const isConcreteLower = Boolean(facadeTop && facadeSpan && !band.upper);
+
+    if (sloped) {
       this.addSlopedCladding(panelGroup, panelWidth, band.height, slope, claddingThick, exteriorMat, userData, opening, facadeTop);
     } else if (opening) {
       this.addCladdingAroundOpening(panelGroup, panelWidth, band.height, claddingThick, exteriorMat, opening, userData, facadeTop, facadeSpan);
@@ -2446,66 +2588,6 @@ export class HouseScene {
     if (band.slotId === this.currentConfig.selectedSlotId) {
       this.updateHighlightBox(panelGroup);
     }
-  }
-
-  private addConcreteBayWall(
-    parent: THREE.Group,
-    panelWidth: number,
-    panelHeight: number,
-    claddingThick: number,
-    material: THREE.Material,
-    userData: Record<string, unknown>,
-    opening: { winW: number; winH: number; winY: number; x?: number } | null
-  ) {
-    const concreteThick = 0.16;
-    const concreteZ = claddingThick / 2 - concreteThick / 2;
-    const halfW = panelWidth / 2;
-    const halfH = panelHeight / 2;
-
-    const pieces: { x: number; y: number; w: number; h: number }[] = [];
-
-    if (opening) {
-      const { winW, winH, winY } = opening;
-      const cx = opening.x ?? 0;
-      const left = Math.max(-halfW, cx - winW / 2);
-      const right = Math.min(halfW, cx + winW / 2);
-      const bottom = winY - winH / 2;
-      const top = winY + winH / 2;
-
-      const leftW = left - (-halfW);
-      if (leftW > 0.005) {
-        pieces.push({ x: -halfW + leftW / 2, y: 0, w: leftW, h: panelHeight });
-      }
-      const rightW = halfW - right;
-      if (rightW > 0.005) {
-        pieces.push({ x: right + rightW / 2, y: 0, w: rightW, h: panelHeight });
-      }
-      const sillH = bottom - (-halfH);
-      const spanW = right - left;
-      if (sillH > 0.005 && spanW > 0.005) {
-        pieces.push({ x: (left + right) / 2, y: -halfH + sillH / 2, w: spanW, h: sillH });
-      }
-      const lintelH = halfH - top;
-      if (lintelH > 0.005 && spanW > 0.005) {
-        pieces.push({ x: (left + right) / 2, y: top + lintelH / 2, w: spanW, h: lintelH });
-      }
-    } else {
-      pieces.push({ x: 0, y: 0, w: panelWidth, h: panelHeight });
-    }
-
-    let first: THREE.Mesh | null = null;
-    for (const piece of pieces) {
-      const geo = new THREE.BoxGeometry(piece.w, piece.h, concreteThick);
-      const mesh = new THREE.Mesh(geo, material);
-      mesh.position.set(piece.x, piece.y, concreteZ);
-      mesh.castShadow = true;
-      mesh.receiveShadow = true;
-      mesh.userData = { ...userData, concrete: true };
-      parent.add(mesh);
-      this.interactivePanels.push(mesh);
-      first ??= mesh;
-    }
-    return first;
   }
 
   private addOpeningFrame(
@@ -2563,14 +2645,13 @@ export class HouseScene {
     const framingRightX = w / 2 - 0.025 - studDepth / 2;
 
     // 1. Bottom Sill Plates (Syll 45x145 mm)
-    // Front sill: omitted at ground for open front; placed at concrete crown for upper floor
+    // Front sill sits at baseElevation on ground; beam at concrete crown if concreteBase
     const frontSyllGeo = new THREE.BoxGeometry(w - 0.05, studThick, studDepth);
-    if (!isConcrete) {
-      const frontSyll = new THREE.Mesh(frontSyllGeo, framingMat);
-      frontSyll.position.set(0, baseElevation + studThick / 2, framingFrontZ);
-      frontSyll.castShadow = true;
-      this.framingGroup.add(frontSyll);
-    } else {
+    const frontSyll = new THREE.Mesh(frontSyllGeo, framingMat);
+    frontSyll.position.set(0, baseElevation + studThick / 2, framingFrontZ);
+    frontSyll.castShadow = true;
+    this.framingGroup.add(frontSyll);
+    if (isConcrete) {
       const frontBeam = new THREE.Mesh(frontSyllGeo, framingMat);
       frontBeam.position.set(0, concreteH + studThick / 2, framingFrontZ);
       frontBeam.castShadow = true;
@@ -2595,6 +2676,23 @@ export class HouseScene {
     rightSyll.position.set(framingRightX, concreteH + studThick / 2, 0);
     rightSyll.castShadow = true;
     this.framingGroup.add(rightSyll);
+
+    const shell = this.timberShell();
+    const cd = (this.currentConfig.concreteDepthMm ?? 5200) / 1000;
+    const extensionDepth = (shell.z + d / 2) - cd / 2;
+    if (isConcrete && extensionDepth > 0.05) {
+      const extSyllGeo = new THREE.BoxGeometry(studDepth, studThick, extensionDepth);
+      const extZ = d / 2 - extensionDepth / 2;
+      const leftExtSyll = new THREE.Mesh(extSyllGeo, framingMat);
+      leftExtSyll.position.set(framingLeftX, baseElevation + studThick / 2, extZ);
+      leftExtSyll.castShadow = true;
+      this.framingGroup.add(leftExtSyll);
+
+      const rightExtSyll = new THREE.Mesh(extSyllGeo, framingMat);
+      rightExtSyll.position.set(framingRightX, baseElevation + studThick / 2, extZ);
+      rightExtSyll.castShadow = true;
+      this.framingGroup.add(rightExtSyll);
+    }
 
     // 2. Top Header Plates (Hammarband / Toppsyll 45x145 mm)
     // Front header
@@ -2630,17 +2728,17 @@ export class HouseScene {
     // 3. Vertical Wall Studs (Väggreglar cc 600 mm)
     // Corner Studs (dubbla hörnreglar)
     const cornerPositions = [
-      { x: framingLeftX, z: framingFrontZ, height: frontH },
-      { x: framingRightX, z: framingFrontZ, height: frontH },
-      { x: framingLeftX, z: framingBackZ, height: rearH },
-      { x: framingRightX, z: framingBackZ, height: rearH }
+      { x: framingLeftX, z: framingFrontZ, height: frontH, base: baseElevation },
+      { x: framingRightX, z: framingFrontZ, height: frontH, base: baseElevation },
+      { x: framingLeftX, z: framingBackZ, height: rearH, base: isConcrete ? concreteH : baseElevation },
+      { x: framingRightX, z: framingBackZ, height: rearH, base: (isConcrete && this.concreteFacade('right')) ? concreteH : baseElevation }
     ];
     cornerPositions.forEach((cp) => {
-      const studH = cp.height - concreteH - studThick * 2;
+      const studH = cp.height - cp.base - studThick * 2;
       if (studH > 0.05) {
         const cGeo = new THREE.BoxGeometry(studThick, studH, studDepth);
         const cMesh = new THREE.Mesh(cGeo, framingMat);
-        cMesh.position.set(cp.x, concreteH + studThick + studH / 2, cp.z);
+        cMesh.position.set(cp.x, cp.base + studThick + studH / 2, cp.z);
         cMesh.castShadow = true;
         this.framingGroup.add(cMesh);
       }
@@ -2649,23 +2747,21 @@ export class HouseScene {
     // Front Wall Studs with framing around door and window openings
     const frontStudCount = Math.floor((w - 0.1) / 0.6);
     const frontSpacing = (w - 0.1) / frontStudCount;
-    const frontStudH = frontH - concreteH - studThick * 2;
-    const allFrontOpenings = this.frontOpenings(w, frontH, baseElevation);
-    const frontOpenings = isConcrete
-      ? allFrontOpenings.filter((o) => o.sill >= concreteH - 0.1)
-      : allFrontOpenings;
+    const frontStudBase = baseElevation;
+    const frontStudH = frontH - frontStudBase - studThick * 2;
+    const frontOpenings = this.frontOpenings(w, frontH, baseElevation);
 
     if (frontStudH > 0.05) {
       for (let s = 1; s < frontStudCount; s++) {
         const sx = -w / 2 + 0.05 + s * frontSpacing;
         const blocked = frontOpenings.filter((opening) => Math.abs(sx - opening.x) < opening.winW / 2 - 0.02);
         if (blocked.length > 0) {
-          this.fillStudGaps(sx, framingFrontZ, concreteH, frontH, blocked, studThick, studDepth, framingMat);
+          this.fillStudGaps(sx, framingFrontZ, frontStudBase, frontH, blocked, studThick, studDepth, framingMat);
           continue;
         }
 
         const studMesh = new THREE.Mesh(new THREE.BoxGeometry(studThick, frontStudH, studDepth), framingMat);
-        studMesh.position.set(sx, concreteH + studThick + frontStudH / 2, framingFrontZ);
+        studMesh.position.set(sx, frontStudBase + studThick + frontStudH / 2, framingFrontZ);
         studMesh.castShadow = true;
         this.framingGroup.add(studMesh);
       }
@@ -2683,10 +2779,18 @@ export class HouseScene {
       ? allBackOpenings.filter((o) => o.sill >= concreteH - 0.1)
       : allBackOpenings;
     const leftOpenings = isConcrete
-      ? allLeftOpenings.filter((o) => o.sill >= concreteH - 0.1)
+      ? allLeftOpenings.filter((o) => {
+          const wz = shell.z + o.x;
+          const overConcrete = wz >= -cd / 2 - 0.05 && wz <= cd / 2 + 0.05;
+          return !overConcrete || o.sill >= concreteH - 0.1;
+        })
       : allLeftOpenings;
     const rightOpenings = isConcrete
-      ? allRightOpenings.filter((o) => o.sill >= concreteH - 0.1)
+      ? allRightOpenings.filter((o) => {
+          const wz = shell.z + o.x;
+          const overConcrete = this.concreteFacade('right') && wz >= -cd / 2 - 0.05 && wz <= cd / 2 + 0.05;
+          return !overConcrete || o.sill >= concreteH - 0.1;
+        })
       : allRightOpenings;
 
     const rearStudH = rearH - concreteH - studThick * 2;
@@ -2716,25 +2820,35 @@ export class HouseScene {
       const sz = d / 2 - 0.025 - studDepth - s * sideSpacing;
       const progress = (d / 2 - sz) / d; // 0 at front, 1 at back
       const curH = frontH - progress * (frontH - rearH);
-      const curStudH = curH - concreteH - studThick * 2;
-      if (curStudH <= 0.05) continue;
-      const leftBlocked = leftOpenings.filter((opening) => Math.abs(sz - opening.x) < opening.winW / 2 - 0.02);
-      if (leftBlocked.length > 0) {
-        this.fillStudGaps(sz, framingLeftX, concreteH, curH, leftBlocked, studThick, studDepth, framingMat, 'z');
-      } else {
-        const leftStud = new THREE.Mesh(new THREE.BoxGeometry(studDepth, curStudH, studThick), framingMat);
-        leftStud.position.set(framingLeftX, concreteH + studThick + curStudH / 2, sz);
-        leftStud.castShadow = true;
-        this.framingGroup.add(leftStud);
+      const wz = shell.z + sz;
+      const overConcrete = isConcrete && wz >= -cd / 2 - 0.05 && wz <= cd / 2 + 0.05;
+
+      const leftBase = overConcrete ? concreteH : baseElevation;
+      const leftStudH = curH - leftBase - studThick * 2;
+      if (leftStudH > 0.05) {
+        const leftBlocked = leftOpenings.filter((opening) => Math.abs(sz - opening.x) < opening.winW / 2 - 0.02);
+        if (leftBlocked.length > 0) {
+          this.fillStudGaps(sz, framingLeftX, leftBase, curH, leftBlocked, studThick, studDepth, framingMat, 'z');
+        } else {
+          const leftStud = new THREE.Mesh(new THREE.BoxGeometry(studDepth, leftStudH, studThick), framingMat);
+          leftStud.position.set(framingLeftX, leftBase + studThick + leftStudH / 2, sz);
+          leftStud.castShadow = true;
+          this.framingGroup.add(leftStud);
+        }
       }
-      const rightBlocked = rightOpenings.filter((opening) => Math.abs(sz - opening.x) < opening.winW / 2 - 0.02);
-      if (rightBlocked.length > 0) {
-        this.fillStudGaps(sz, framingRightX, concreteH, curH, rightBlocked, studThick, studDepth, framingMat, 'z');
-      } else {
-        const rightStud = new THREE.Mesh(new THREE.BoxGeometry(studDepth, curStudH, studThick), framingMat);
-        rightStud.position.set(framingRightX, concreteH + studThick + curStudH / 2, sz);
-        rightStud.castShadow = true;
-        this.framingGroup.add(rightStud);
+
+      const rightBase = (overConcrete && this.concreteFacade('right')) ? concreteH : baseElevation;
+      const rightStudH = curH - rightBase - studThick * 2;
+      if (rightStudH > 0.05) {
+        const rightBlocked = rightOpenings.filter((opening) => Math.abs(sz - opening.x) < opening.winW / 2 - 0.02);
+        if (rightBlocked.length > 0) {
+          this.fillStudGaps(sz, framingRightX, rightBase, curH, rightBlocked, studThick, studDepth, framingMat, 'z');
+        } else {
+          const rightStud = new THREE.Mesh(new THREE.BoxGeometry(studDepth, rightStudH, studThick), framingMat);
+          rightStud.position.set(framingRightX, rightBase + studThick + rightStudH / 2, sz);
+          rightStud.castShadow = true;
+          this.framingGroup.add(rightStud);
+        }
       }
     }
     for (const opening of leftOpenings) {
@@ -2767,7 +2881,7 @@ export class HouseScene {
       top: rearH - studThick
     });
 
-    this.addNoggings(this.gapsBetween(frontSolids), 'x', framingFrontZ, concreteH, studThick, studDepth, framingMat, frontOpenings);
+    this.addNoggings(this.gapsBetween(frontSolids), 'x', framingFrontZ, baseElevation, studThick, studDepth, framingMat, frontOpenings);
     this.addNoggings(this.gapsBetween(backSolids), 'x', framingBackZ, concreteH, studThick, studDepth, framingMat, backOpenings);
     this.addNoggings(this.gapsBetween(sideSolids), 'z', framingLeftX, concreteH, studThick, studDepth, framingMat, leftOpenings);
     this.addNoggings(this.gapsBetween(sideSolids), 'z', framingRightX, concreteH, studThick, studDepth, framingMat, rightOpenings);
@@ -2797,10 +2911,21 @@ export class HouseScene {
     openings: { x: number; winW: number; sill: number; head: number }[] = []
   ) {
     const rowPitch = 1.2;
-    const floor = baseElevation + studThick;
+    const isConcrete = Boolean(this.currentConfig.concreteBase);
+    const concreteH = isConcrete ? (this.currentConfig.concreteHeightMm ?? 2500) / 1000 : baseElevation;
+    const cd = (this.currentConfig.concreteDepthMm ?? 5200) / 1000;
+    const shell = this.timberShell();
+
     gaps.forEach((gap, bay) => {
       const length = gap.to - gap.from - 0.004;
       if (length < 0.08) return;
+      let floor = baseElevation + studThick;
+      if (axis === 'z' && isConcrete) {
+        const midZ = (gap.from + gap.to) / 2;
+        const wz = shell.z + midZ;
+        const overConcrete = wz >= -cd / 2 - 0.05 && wz <= cd / 2 + 0.05;
+        floor = (overConcrete ? concreteH : baseElevation) + studThick;
+      }
       let row = 0;
       for (let y = floor + rowPitch; y + studThick / 2 < gap.top - 0.01; y += rowPitch, row += 1) {
         const stagger = (bay + row) % 2 === 1 ? studThick : 0;
@@ -4029,7 +4154,7 @@ export class HouseScene {
     for (const corner of corners) {
       const along = corner.z > 0 ? 'front' : 'back';
       const side = corner.x < 0 ? 'left' : 'right';
-      const foot = this.currentConfig.concreteBase || (this.concreteFacade(along) && this.concreteFacade(side))
+      const foot = this.concreteFacade(along) && this.concreteFacade(side)
         ? Math.max(baseElev, (this.currentConfig.concreteHeightMm ?? 2500) / 1000)
         : baseElev;
       const top = corner.top;
@@ -4117,6 +4242,16 @@ export class HouseScene {
     const cut = facadeTop == null || facadeSpan == null ? -halfH : facadeTop - parent.position.y;
     const pieces = this.facadeCladdingPieces(halfW, halfH, cut, facadeSpan);
     let first: THREE.Mesh | null = null;
+    if (pieces.length === 0) {
+      const hitGeo = new THREE.PlaneGeometry(panelWidth, panelHeight);
+      const hitMat = new THREE.MeshBasicMaterial({ visible: false });
+      const hitMesh = new THREE.Mesh(hitGeo, hitMat);
+      hitMesh.position.set(0, 0, claddingThick / 2);
+      hitMesh.userData = userData;
+      parent.add(hitMesh);
+      this.interactivePanels.push(hitMesh);
+      return hitMesh;
+    }
     for (const piece of pieces) {
       const panelGeo = new THREE.BoxGeometry(piece.w, piece.h, claddingThick);
       this.writeMetreUvs(panelGeo, parent.position.y + piece.y);
@@ -4217,6 +4352,16 @@ export class HouseScene {
     });
 
     let first: THREE.Mesh | null = null;
+    if (visible.length === 0) {
+      const hitGeo = new THREE.PlaneGeometry(panelWidth, panelHeight);
+      const hitMat = new THREE.MeshBasicMaterial({ visible: false });
+      const hitMesh = new THREE.Mesh(hitGeo, hitMat);
+      hitMesh.position.set(0, 0, claddingThick / 2);
+      hitMesh.userData = userData;
+      parent.add(hitMesh);
+      this.interactivePanels.push(hitMesh);
+      return hitMesh;
+    }
     for (const board of visible) {
       const piece = new THREE.BoxGeometry(board.w, board.h, claddingThick);
       this.writeMetreUvs(piece, parent.position.y + board.y);
@@ -5275,22 +5420,27 @@ export class HouseScene {
       this.loftBuildParent = host;
     }
 
-    // Total house footprint reference for size-30 is 27.38 m2
-    const houseAreaRef = this.currentConfig.widthMm === 4800 ? 13.7
-      : this.currentConfig.widthMm === 5800 ? 22.8
-      : this.currentConfig.widthMm === 8000 ? 36.5
-      : 27.38;
+    const isConcrete = Boolean(this.currentConfig.concreteBase);
+    const concreteH = (this.currentConfig.concreteHeightMm ?? 2500) / 1000;
+
+    // Total house footprint reference for size-30 is 27.38 m2; for concrete base use actual plan area
+    const houseAreaRef = isConcrete
+      ? (this.currentConfig.widthMm / 1000) * (this.currentConfig.depthMm / 1000)
+      : (this.currentConfig.widthMm === 4800 ? 13.7
+        : this.currentConfig.widthMm === 5800 ? 22.8
+        : this.currentConfig.widthMm === 8000 ? 36.5
+        : 27.38);
 
     const areaFraction = Math.min(1.0, Math.max(0.25, loftArea / houseAreaRef));
     const interiorW = w - wt * 2;
     const interiorD = d - wt * 2;
 
     const loftD = interiorD;
-    // Deck at least 2.5 m above the interior floor, with the joists above the door head.
-    const loftElev = loftJoistTop(h);
+    // Deck sits on concrete wall top (2.5m) when concreteBase, else standard loft height
     const joistH = 0.195; // 195 mm floor joists (45x195 mm bjälklag)
     const joistW = 0.045; // 45 mm joist thickness
     const floorboardThick = 0.028; // 28 mm massive granplank
+    const loftElev = isConcrete ? concreteH + joistH : loftJoistTop(h);
 
     const timberMat = new THREE.MeshStandardMaterial({
       color: '#dfcaa6',
@@ -5420,6 +5570,149 @@ export class HouseScene {
           const baluster = new THREE.Mesh(new THREE.BoxGeometry(0.025, railH, 0.025), timberMat);
           baluster.position.set(edgeX, loftElev + railH / 2, bz);
           sectionGroup.add(baluster);
+        }
+      }
+
+      // 4. Structural Support Framing for Concrete / Timber Combo:
+      // When loft is placed partially on concrete walls and partially over the open front extension
+      if (isConcrete && endOn) {
+        const shell = this.timberShell();
+        const cd = (this.currentConfig.concreteDepthMm ?? 5200) / 1000;
+        // In world coordinates, front of concrete house is at cd / 2.
+        // In houseGroup coordinates: z_hg = cd / 2 - shell.z.
+        // In host coordinates (rotated by +PI/2, where z_hg = -x_host):
+        const xConcreteFront = -(cd / 2 - shell.z);
+        const slabBase = 0.25;
+
+        // Post and stud dimensions
+        const postW = 0.115; // 115x115 mm limträpelare
+        const postD = 0.115;
+        const studW = 0.045; // 45x145 mm reglar
+        const studD = 0.145;
+
+        // A. Carrier beam (Bärlina 90x195 mm) at the concrete front line
+        // Spans the full width of the house from left to right concrete wall
+        const carrierH = joistH;
+        const carrierW = 0.09;
+        const frontCarrier = new THREE.Mesh(
+          new THREE.BoxGeometry(carrierW, carrierH, loftD),
+          timberMat
+        );
+        frontCarrier.position.set(xConcreteFront, concreteH - carrierH / 2, 0);
+        frontCarrier.castShadow = true;
+        sectionGroup.add(frontCarrier);
+
+        // B. Intermediate support columns under the front carrier beam (dividing into 3 bays)
+        const frontPostH = (concreteH - carrierH) - slabBase;
+        if (frontPostH > 0.1) {
+          const postY = slabBase + frontPostH / 2;
+          const leftCol = new THREE.Mesh(new THREE.BoxGeometry(postW, frontPostH, postD), timberMat);
+          leftCol.position.set(xConcreteFront, postY, -loftD / 4);
+          leftCol.castShadow = true;
+          sectionGroup.add(leftCol);
+
+          const rightCol = new THREE.Mesh(new THREE.BoxGeometry(postW, frontPostH, postD), timberMat);
+          rightCol.position.set(xConcreteFront, postY, loftD / 4);
+          rightCol.castShadow = true;
+          sectionGroup.add(rightCol);
+        }
+
+        // C. Columns on top of the concrete front corners
+        // Resting directly on the concrete wall ends at concreteH (2.5m)
+        const cornerStudH = (loftElev + 0.85) - concreteH;
+        const leftCornerPost = new THREE.Mesh(new THREE.BoxGeometry(studD, cornerStudH, studW * 2), timberMat);
+        leftCornerPost.position.set(xConcreteFront, concreteH + cornerStudH / 2, -loftD / 2 + studW);
+        leftCornerPost.castShadow = true;
+        sectionGroup.add(leftCornerPost);
+
+        const rightCornerPost = new THREE.Mesh(new THREE.BoxGeometry(studD, cornerStudH, studW * 2), timberMat);
+        rightCornerPost.position.set(xConcreteFront, concreteH + cornerStudH / 2, loftD / 2 - studW);
+        rightCornerPost.castShadow = true;
+        sectionGroup.add(rightCornerPost);
+
+        // D. Supports under the inner rim beam (edgeX) inside the concrete room
+        // Midpoint column down to the slab (pelare under carrier beam to prevent bounce/sag)
+        const midColH = concreteH - slabBase;
+        if (midColH > 0.1) {
+          const midCol = new THREE.Mesh(new THREE.BoxGeometry(postW, midColH, postD), timberMat);
+          midCol.position.set(edgeX, slabBase + midColH / 2, 0);
+          midCol.castShadow = true;
+          sectionGroup.add(midCol);
+        }
+
+        // Left and right bearing studs sitting on top of the concrete walls at edgeX
+        const bearingStudH = joistH + 0.85;
+        const leftBearingStud = new THREE.Mesh(new THREE.BoxGeometry(studD, bearingStudH, studW), timberMat);
+        leftBearingStud.position.set(edgeX, concreteH + bearingStudH / 2, -loftD / 2 + studW / 2);
+        leftBearingStud.castShadow = true;
+        sectionGroup.add(leftBearingStud);
+
+        const rightBearingStud = new THREE.Mesh(new THREE.BoxGeometry(studD, bearingStudH, studW), timberMat);
+        rightBearingStud.position.set(edgeX, concreteH + bearingStudH / 2, loftD / 2 - studW / 2);
+        rightBearingStud.castShadow = true;
+        sectionGroup.add(rightBearingStud);
+
+        // E. Wall studs along the side walls:
+        // 1) Over the concrete walls (between xConcreteFront and edgeX):
+        // Studs sit ON TOP OF the concrete walls at y = concreteH (2.5m)
+        const concSpan = edgeX - xConcreteFront;
+        if (concSpan > 0.2) {
+          const nConc = Math.max(1, Math.round(concSpan / 0.6));
+          const stepConc = concSpan / nConc;
+          const studH = 0.85 + joistH;
+          for (let i = 1; i < nConc; i++) {
+            const sx = xConcreteFront + i * stepConc;
+            const sGeo = new THREE.BoxGeometry(studW, studH, studD);
+            const leftStud = new THREE.Mesh(sGeo, timberMat);
+            leftStud.position.set(sx, concreteH + studH / 2, -loftD / 2 + studD / 2);
+            leftStud.castShadow = true;
+            sectionGroup.add(leftStud);
+
+            const rightStud = new THREE.Mesh(sGeo, timberMat);
+            rightStud.position.set(sx, concreteH + studH / 2, loftD / 2 - studD / 2);
+            rightStud.castShadow = true;
+            sectionGroup.add(rightStud);
+          }
+          // Horizontal sill plate on top of the concrete walls
+          const sillGeo = new THREE.BoxGeometry(concSpan, 0.045, studD);
+          const leftSill = new THREE.Mesh(sillGeo, timberMat);
+          leftSill.position.set(xConcreteFront + concSpan / 2, concreteH + 0.045 / 2, -loftD / 2 + studD / 2);
+          sectionGroup.add(leftSill);
+
+          const rightSill = new THREE.Mesh(sillGeo, timberMat);
+          rightSill.position.set(xConcreteFront + concSpan / 2, concreteH + 0.045 / 2, loftD / 2 - studD / 2);
+          sectionGroup.add(rightSill);
+        }
+
+        // 2) Over the front timber extension (between startX and xConcreteFront):
+        // Studs sit ON THE SLAB (y = 0.25m) and support the loft ledger beam
+        const extSpan = xConcreteFront - startX;
+        if (extSpan > 0.2) {
+          const nExt = Math.max(1, Math.round(extSpan / 0.6));
+          const stepExt = extSpan / nExt;
+          const extStudH = concreteH - slabBase;
+          for (let i = 0; i <= nExt; i++) {
+            const sx = startX + i * stepExt;
+            const sGeo = new THREE.BoxGeometry(studW, extStudH, studD);
+            const leftStud = new THREE.Mesh(sGeo, timberMat);
+            leftStud.position.set(sx, slabBase + extStudH / 2, -loftD / 2 + studD / 2);
+            leftStud.castShadow = true;
+            sectionGroup.add(leftStud);
+
+            const rightStud = new THREE.Mesh(sGeo, timberMat);
+            rightStud.position.set(sx, slabBase + extStudH / 2, loftD / 2 - studD / 2);
+            rightStud.castShadow = true;
+            sectionGroup.add(rightStud);
+          }
+          // Horizontal ledger beam carrying the joists in the extension
+          const ledgerGeo = new THREE.BoxGeometry(extSpan, 0.145, 0.045);
+          const leftLedger = new THREE.Mesh(ledgerGeo, timberMat);
+          leftLedger.position.set(startX + extSpan / 2, concreteH - 0.145 / 2, -loftD / 2 + 0.045 / 2);
+          sectionGroup.add(leftLedger);
+
+          const rightLedger = new THREE.Mesh(ledgerGeo, timberMat);
+          rightLedger.position.set(startX + extSpan / 2, concreteH - 0.145 / 2, loftD / 2 - 0.045 / 2);
+          sectionGroup.add(rightLedger);
         }
       }
 

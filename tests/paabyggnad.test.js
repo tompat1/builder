@@ -90,11 +90,11 @@ test('concrete combo removes lower front wall and leaves back, left, right open 
   const { paabyggnadWallSlots } = await import('../src/store/paabyggnad.ts');
   const slots = paabyggnadWallSlots();
 
-  // Front lower bays are open: empty and cannot accept doors
+  // Front lower bays can accept doors or windows
   for (let i = 0; i < 4; i++) {
     const lowerId = `front-${i}`;
     assert.equal(slots[lowerId].type, 'empty');
-    assert.equal(slots[lowerId].canAcceptDoor, false);
+    assert.equal(slots[lowerId].canAcceptDoor, true);
     // Upper front bays remain for the timber floor
     const upperId = `front-${i}u`;
     assert.equal(slots[upperId].isUpper, true);
@@ -118,4 +118,25 @@ test('concrete combo removes lower front wall and leaves back, left, right open 
     const id = `right-${i}`;
     assert.equal(slots[id].canAcceptDoor, true);
   }
+});
+
+test('front loft on concrete combo has 15-16 m² size and spans partially over concrete walls', () => {
+  // 5200 mm width x 6731 mm depth gives 35 m² plan
+  const areas = paabyggnadLoftAreas(5200, 6731);
+  const frontLoftArea = areas[0];
+  assert.equal(frontLoftArea, 15.8);
+  assert.ok(frontLoftArea >= 15 && frontLoftArea <= 16);
+
+  // Shell placement: timber shell depth 6.731 m on 5.2 m concrete box
+  const shell = timberShellOnConcrete(5.2, 6.731, 5.2, 5.2);
+  const concreteFrontZ = 5.2 / 2; // 2.6 m in world coordinates
+  const timberFrontZ = shell.z + 6.731 / 2; // 4.131 m in world coordinates
+
+  // Loft depth is ~45% of 6.731 m ≈ 2.88 m
+  const loftDepthM = (6.731 - 0.36) * (15.8 / 35.0);
+  const loftInnerEdgeZ = timberFrontZ - 0.18 - loftDepthM; // ~1.075 m in world coordinates
+
+  // Loft starts in the front extension (> 2.6 m) and reaches over the concrete walls (< 2.6 m)
+  assert.ok(timberFrontZ > concreteFrontZ);
+  assert.ok(loftInnerEdgeZ < concreteFrontZ);
 });

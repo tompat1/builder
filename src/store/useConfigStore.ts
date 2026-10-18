@@ -24,6 +24,7 @@ import { isLoftRoom } from '../three-engine/loftLevel';
 import {
   CONCRETE_DEFAULT_HEIGHT_MM,
   CONCRETE_PLAN_MM,
+  PAABYGGNAD_MAX_HEIGHT_MM,
   acceptConcreteWalls,
   clampConcretePlan,
   clampConcreteWall,
@@ -229,9 +230,9 @@ export const SIZE_OPTIONS: SizeOption[] = [
     name: 'Påbyggnad på betonghus',
     badge: 'Upp till 35 m²',
     width: 5200,
-    depth: 5200,
+    depth: 6731,
     height: 5000,
-    areaSqMeters: 27,
+    areaSqMeters: 35.0,
     basePrice: 98000,
     desc: '5200 × 5200 mm betonghus, 2,5 m högt. Gamla taket tas bort. Träloft och påbyggnad ovanför, höjd upp till 500 cm, yta upp till 35 m².'
   },
@@ -613,16 +614,6 @@ function mergeWallSlots(saved: Record<string, WallSlot> | undefined, sizeId?: st
     const lower = slots[slot.id.replace(/u$/, '')];
     const aboveDoor = lower?.type === 'door';
     slot.itemId = overlightItem(slot.itemId, aboveDoor, lower?.itemId);
-  }
-  if (sizeId === 'size-paabyggnad') {
-    for (let index = 0; index < PANEL_COUNTS.front; index += 1) {
-      const id = `front-${index}`;
-      if (slots[id]) {
-        slots[id].type = 'empty';
-        slots[id].itemId = undefined;
-        slots[id].canAcceptDoor = false;
-      }
-    }
   }
   return slots;
 }
@@ -1286,13 +1277,16 @@ export const useConfigStore = defineStore('config', () => {
     else if (id === 'size-shed') applyShedShell();
     else if (leavingShell) applyPlainShell();
     if (id === 'size-paabyggnad') {
+      activeRoof.value = 'pulpettak';
+      buildingHeight.value = PAABYGGNAD_MAX_HEIGHT_MM;
       concreteWidth.value = CONCRETE_PLAN_MM;
       concreteDepth.value = CONCRETE_PLAN_MM;
       concreteHeight.value = CONCRETE_DEFAULT_HEIGHT_MM;
       concreteWalls.value = [];
       activeLoft.value = 'sleeping';
+      loftPlacement.value = 'fram';
       const loftAreas = paabyggnadLoftAreas(buildingWidth.value, buildingDepth.value);
-      selectedLoftSize.value = loftAreas[loftAreas.length - 1];
+      selectedLoftSize.value = loftAreas[0] ?? 15.8;
       wallSlots.value = paabyggnadWallSlots();
       selectedSlotId.value = null;
     }
