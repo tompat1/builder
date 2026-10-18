@@ -9,7 +9,7 @@ import { inferNoteNormal, noteAxes, noteCameraTransform, noteSheetTransform, not
 import { paintBoards } from '../color/paint';
 import { INTERIOR_FLOOR_TOP, LOFT_FLOORBOARD, curvedLoftStair, loftEndRotation, loftIsGhosted, loftJoistTop, loftStairOpening, loftStairRun, loftStairTreads, straightLoftStair, isLoftRoom } from './loftLevel';
 import { ceilingStations, loftCeilingY, sliceStations, type CeilingStation, type RoofSlope } from './roofClearance';
-import { OVERLIGHT, PORTRAIT_PANORAMA, fittedDoorOpening, openingClearOfRoof, overlightHeight, portraitPane } from './windowFit';
+import { NARROW_TALL, OVERLIGHT, PORTRAIT_PANORAMA, fittedDoorOpening, narrowTallPane, openingClearOfRoof, overlightHeight, portraitPane } from './windowFit';
 import { fitRoom, innerHalf, roomFootprint, roomWallRuns, shellSides, type ShellSides } from './roomWalls';
 import { timberShellOnConcrete } from '../store/paabyggnad';
 import { MEASURE_CURSOR } from '../measure/length';
@@ -2519,9 +2519,15 @@ export class HouseScene {
       index,
       (wallSide === 'front' || wallSide === 'back') ? 4 : 3
     );
+    const facadeTop = this.concreteFacade(wallSide)
+      ? (this.currentConfig.concreteHeightMm ?? 2500) / 1000
+      : null;
+    const facadeSpan = facadeTop == null ? null : this.concreteSpanLocal(wallSide, px, pz, panelWidth);
+    const isConcreteLower = Boolean(facadeTop && facadeSpan && !band.upper);
+
     const fitted: { winW: number; winH: number; winY: number; x?: number; sill?: number; head?: number } | null = wide
       ?? ((slotType === 'window' || slotType === 'door')
-        ? this.fittedOpening(slotType, slot?.itemId, band.upper, panelWidth, band.height, band.base, aboveDoor, cornerSide)
+        ? this.fittedOpening(slotType, slot?.itemId, band.upper, panelWidth, band.height, band.base, aboveDoor, cornerSide, facadeSpan)
         : null);
     const opening = fitted && band.reachesRoof
       ? openingClearOfRoof(fitted, band.height, slope, {
@@ -2537,11 +2543,6 @@ export class HouseScene {
     };
 
     const sloped = band.reachesRoof && Math.abs(slope) > 0.0001;
-    const facadeTop = this.concreteFacade(wallSide)
-      ? (this.currentConfig.concreteHeightMm ?? 2500) / 1000
-      : null;
-    const facadeSpan = facadeTop == null ? null : this.concreteSpanLocal(wallSide, px, pz, panelWidth);
-    const isConcreteLower = Boolean(facadeTop && facadeSpan && !band.upper);
 
     if (sloped) {
       this.addSlopedCladding(panelGroup, panelWidth, band.height, slope, claddingThick, exteriorMat, userData, opening, facadeTop);
@@ -2559,7 +2560,8 @@ export class HouseScene {
         wide || slotType === 'door' ? 'door' : 'window',
         casingMat,
         cornerSide,
-        panelWidth
+        panelWidth,
+        facadeSpan
       );
     }
     if (ownsOpening && opening && (wide || slotType === 'door')) {
@@ -3098,20 +3100,44 @@ export class HouseScene {
     panelHeight: number,
     panelBase: number,
     aboveDoor = false,
-    cornerSide?: 'left' | 'right' | null
+    cornerSide?: 'left' | 'right' | null,
+    facadeSpan?: { from: number; to: number } | null
   ) {
     const side = 0.09;
     const headBoard = 0.085;
     const sillBoard = 0.065;
     const edge = 0.045;
     const sillEar = kind === 'window' ? 0.02 : 0;
+    const half = panelWidth / 2;
+
+    // Detect if this lower panel has a wooden extension overhang alongside a concrete facade
+    let woodSpan: { from: number; to: number } | null = null;
+    if (facadeSpan && !isUpper) {
+      if (facadeSpan.from > -half + 0.08) {
+        woodSpan = { from: -half, to: facadeSpan.from };
+      } else if (facadeSpan.to < half - 0.08) {
+        woodSpan = { from: facadeSpan.to, to: half };
+      }
+    }
 
     // When adjacent to a corner, reserve clearance for the 145mm corner board plus reveal (170mm total)
     const cornerClearance = 0.170;
     let winW: number;
     let shift = 0;
 
-    if (cornerSide) {
+    if (woodSpan) {
+      const isWoodOnLeft = woodSpan.from <= -half + 0.01;
+      const minX = (cornerSide === 'left' && isWoodOnLeft)
+        ? woodSpan.from + cornerClearance
+        : woodSpan.from + edge;
+      const maxX = (cornerSide === 'right' && !isWoodOnLeft)
+        ? woodSpan.to - cornerClearance
+        : woodSpan.to - edge;
+      const clearSpan = Math.max(0.35, maxX - minX);
+      shift = (minX + maxX) / 2;
+      const maxAllowedOpening = Math.max(0.32, clearSpan - (side + sillEar) * 2);
+      winW = Math.min(Math.max(0.32, panelWidth - side * 2 - edge * 2), maxAllowedOpening);
+    } else if (cornerSide) {
       const availableW = Math.max(0.46, panelWidth - cornerClearance - edge);
       const maxAllowedOpening = Math.max(0.46, availableW - (side + sillEar) * 2);
       const offset = (cornerClearance - edge) / 2;
@@ -3131,19 +3157,27 @@ export class HouseScene {
       return { winW: fitted.width, winH: doorH, winY: (sill + head) / 2 - centerY, sill, head, x: fitted.shift };
     }
 
+    if (itemId === NARROW_TALL) {
+      const pane = narrowTallPane(panelWidth, panelHeight, isUpper, woodSpan, cornerSide);
+      const sill = panelBase + pane.sill;
+      const head = sill + pane.height;
+      return { winW: pane.width, winH: pane.height, winY: (sill + head) / 2 - centerY, sill, head, x: pane.shift };
+    }
+
     if (itemId === 'standard-single' && !isUpper && panelWidth >= 1.8) {
       const width = Math.min(1.05, winW);
       const height = 0.72;
       const sill = panelBase + 1.05;
       const head = sill + height;
-      return { winW: width, winH: height, winY: (sill + head) / 2 - centerY, sill, head };
+      return { winW: width, winH: height, winY: (sill + head) / 2 - centerY, sill, head, x: shift };
     }
 
     if (itemId === PORTRAIT_PANORAMA) {
       const pane = portraitPane(panelWidth, panelHeight, isUpper);
       const sill = panelBase + pane.sill;
       const head = sill + pane.height;
-      return { winW: pane.width, winH: pane.height, winY: (sill + head) / 2 - centerY, sill, head };
+      const width = Math.min(pane.width, winW);
+      return { winW: width, winH: pane.height, winY: (sill + head) / 2 - centerY, sill, head, x: shift };
     }
 
     if (itemId === OVERLIGHT) {
@@ -4022,7 +4056,13 @@ export class HouseScene {
           && lower.itemId !== 'SKJUTDORR3'
         );
         const cornerSide = this.cornerSideForPanel(wall, p, count);
-        const fitted = this.fittedOpening(slot.type, slot.itemId, band.upper, panelW, band.panelH, band.panelBase, aboveDoor, cornerSide);
+        const facadeTop = this.concreteFacade(wall)
+          ? (this.currentConfig.concreteHeightMm ?? 2500) / 1000
+          : null;
+        const px = (wall === 'front' || wall === 'back') ? center : 0;
+        const pz = (wall === 'left' || wall === 'right') ? center : 0;
+        const facadeSpan = facadeTop == null ? null : this.concreteSpanLocal(wall, px, pz, panelW);
+        const fitted = this.fittedOpening(slot.type, slot.itemId, band.upper, panelW, band.panelH, band.panelBase, aboveDoor, cornerSide, facadeSpan);
         const slope = band.upper || !split ? this.alongWallSlope(wall) : 0;
         const fit = openingClearOfRoof(fitted, band.panelH, slope, {
           pinSill: slot.type === 'door',
@@ -4083,7 +4123,8 @@ export class HouseScene {
     kind: 'door' | 'window',
     material: THREE.Material,
     cornerSide?: 'left' | 'right' | null,
-    panelWidth?: number
+    panelWidth?: number,
+    facadeSpan?: { from: number; to: number } | null
   ) {
     const { winW, winH, winY } = opening;
     const shift = opening.x ?? 0;
@@ -4114,8 +4155,17 @@ export class HouseScene {
 
     const pw = panelWidth ?? (winW + side * 2 + 0.1);
     const cornerClearance = 0.165;
-    const minX = cornerSide === 'left' ? -pw / 2 + cornerClearance : -pw / 2 + 0.02;
-    const maxX = cornerSide === 'right' ? pw / 2 - cornerClearance : pw / 2 - 0.02;
+    let minX = cornerSide === 'left' ? -pw / 2 + cornerClearance : -pw / 2 + 0.02;
+    let maxX = cornerSide === 'right' ? pw / 2 - cornerClearance : pw / 2 - 0.02;
+
+    if (facadeSpan) {
+      const half = pw / 2;
+      if (facadeSpan.from > -half + 0.08) {
+        maxX = Math.min(maxX, facadeSpan.from - 0.01);
+      } else if (facadeSpan.to < half - 0.08) {
+        minX = Math.max(minX, facadeSpan.to + 0.01);
+      }
+    }
 
     for (const board of boards) {
       let bLeft = board.x - board.w / 2;
@@ -4156,11 +4206,7 @@ export class HouseScene {
       { x: 1, z: -1, top: rearH }
     ];
     for (const corner of corners) {
-      const along = corner.z > 0 ? 'front' : 'back';
-      const side = corner.x < 0 ? 'left' : 'right';
-      const foot = this.concreteFacade(along) && this.concreteFacade(side)
-        ? Math.max(baseElev, (this.currentConfig.concreteHeightMm ?? 2500) / 1000)
-        : baseElev;
+      const foot = baseElev;
       const top = corner.top;
       const height = top - foot;
       if (height < 0.05) continue;

@@ -1754,8 +1754,12 @@
           <CmsImage :k="`picture.window.${win.id}`" class="mb-2 h-20 w-full">
           <div class="w-full h-20 bg-slate-100/80 rounded-lg flex items-center justify-center p-2 relative overflow-hidden">
             <svg class="w-full h-full text-slate-700" viewBox="0 0 160 80" fill="none">
-              <rect x="55" y="16" width="50" height="48" rx="1" stroke="currentColor" stroke-width="2" />
-              <template v-if="win.id === 'panorama'">
+              <rect v-if="win.id !== 'overlight' && win.id !== 'narrow-tall' && win.id !== 'panorama-portrait'" x="55" y="16" width="50" height="48" rx="1" stroke="currentColor" stroke-width="2" />
+              <template v-if="win.id === 'narrow-tall'">
+                <rect x="68" y="8" width="24" height="64" rx="1" stroke="currentColor" stroke-width="2" />
+                <rect x="71" y="11" width="18" height="58" fill="currentColor" fill-opacity="0.18" />
+              </template>
+              <template v-else-if="win.id === 'panorama'">
                 <rect x="58" y="19" width="44" height="42" fill="currentColor" fill-opacity="0.18" />
               </template>
               <template v-else-if="win.id === 'panorama-portrait'">

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { fittedDoorOpening, openingClearOfRoof, overlightHeight, overlightItem, portraitPane } from '../src/three-engine/windowFit.ts';
+import { NARROW_TALL, fittedDoorOpening, narrowTallPane, openingClearOfRoof, overlightHeight, overlightItem, portraitPane } from '../src/three-engine/windowFit.ts';
 
 test('a portrait panorama in a tall panel stays portrait inside the smaller pane', () => {
   const pane = portraitPane(1.86, 2.3, true);
@@ -152,4 +152,44 @@ test('a door on a wider bay stays a 10×21, and a slider stays a 20×21', () => 
   assert.equal(fittedDoorOpening('LERVIK', 1.2, null).width, 1);
   assert.equal(fittedDoorOpening('SKJUTDORR', 2.4, null).width, 2);
   assert.equal(fittedDoorOpening('SVANSHALL', 2.2, null).width, 1.6);
+});
+
+test('a narrow-tall window stays narrow and tall with standard modular 6×18 proportions', () => {
+  assert.equal(NARROW_TALL, 'narrow-tall');
+  const pane = narrowTallPane(1.8, 2.3, false);
+
+  assert.equal(pane.width, 0.54);
+  assert.ok(pane.height >= 1.6);
+  assert.ok(pane.height > pane.width * 2.8);
+  assert.equal(pane.sill, 0.36);
+  assert.equal(pane.shift, 0);
+});
+
+test('a narrow-tall window in a wooden overhang bay stays fully inside the wooden portion and clear of the concrete facade', () => {
+  // Panel width 2.23m, concrete spans from 0.398m to 1.116m (wood is from -1.116m to 0.398m)
+  const panelW = 2.232;
+  const woodSpan = { from: -panelW / 2, to: 0.398 };
+  const pane = narrowTallPane(panelW, 2.3, false, woodSpan, 'left');
+
+  assert.ok(pane.width <= 0.54);
+  // Total window opening bounds: [pane.shift - pane.width / 2, pane.shift + pane.width / 2]
+  const leftEdge = pane.shift - pane.width / 2;
+  const rightEdge = pane.shift + pane.width / 2;
+  // Casing bounds (90mm on each side)
+  const casingLeft = leftEdge - 0.09;
+  const casingRight = rightEdge + 0.09;
+
+  // Casing must clear the left corner clearance (170mm from panel edge)
+  assert.ok(casingLeft >= -panelW / 2 + 0.165);
+  // Casing must clear the concrete seam (at 0.398m)
+  assert.ok(casingRight <= woodSpan.to);
+});
+
+test('readDrawing recognizes narrow-tall windows from swedish and english descriptions', async () => {
+  const { readDrawing } = await import('../src/import/drawing.js');
+  const swedish = readDrawing('Attefallshus 6x5m med smalt fonster och sadeltak');
+  assert.equal(swedish.window, 'narrow-tall');
+
+  const english = readDrawing('House with narrow window and flat roof');
+  assert.equal(english.window, 'narrow-tall');
 });

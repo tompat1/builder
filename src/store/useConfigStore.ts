@@ -415,6 +415,13 @@ export const WINDOWS_OPTIONS: OptionItem[] = [
     priceDelta: 0
   },
   {
+    id: 'narrow-tall',
+    name: 'Smalhögt fönster',
+    desc: 'Smalt och elegant fönster i stående format för smala väggpartier.',
+    spec: 'Mått 6×18, 3-glas energiglas',
+    priceDelta: 3200
+  },
+  {
     id: 'overlight',
     name: 'Fast överljus',
     desc: 'Lågt fönster ovanför dörren, i samma bredd som dörrfältet.',

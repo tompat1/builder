@@ -149,3 +149,57 @@ export function portraitPane(panelWidth: number, panelHeight: number, isUpper: b
   const width = Math.min(span, 0.9, height * 0.56);
   return { width, height, sill };
 }
+
+/** A narrow, tall window (modulmått 6×18) that fits tight bays and timber extension sections. */
+export const NARROW_TALL = 'narrow-tall';
+
+export interface NarrowTallPane {
+  width: number;
+  height: number;
+  sill: number;
+  shift: number;
+}
+
+export function narrowTallPane(
+  panelWidth: number,
+  panelHeight: number,
+  isUpper: boolean,
+  woodSpan?: { from: number; to: number } | null,
+  cornerSide?: 'left' | 'right' | null
+): NarrowTallPane {
+  const side = 0.09;
+  const headBoard = 0.085;
+  const edge = 0.045;
+  const sillEar = 0.02;
+  const cornerClearance = 0.170;
+  const half = panelWidth / 2;
+
+  let shift = 0;
+  let maxW: number;
+
+  if (woodSpan) {
+    const isWoodOnLeft = woodSpan.from <= -half + 0.01;
+    const minX = (cornerSide === 'left' && isWoodOnLeft)
+      ? woodSpan.from + cornerClearance
+      : woodSpan.from + edge;
+    const maxX = (cornerSide === 'right' && !isWoodOnLeft)
+      ? woodSpan.to - cornerClearance
+      : woodSpan.to - edge;
+    const clearSpan = Math.max(0.35, maxX - minX);
+    shift = (minX + maxX) / 2;
+    maxW = Math.max(0.32, clearSpan - (side + sillEar) * 2);
+  } else if (cornerSide) {
+    const availableW = Math.max(0.46, panelWidth - cornerClearance - edge);
+    maxW = Math.max(0.32, availableW - (side + sillEar) * 2);
+    const offset = (cornerClearance - edge) / 2;
+    shift = cornerSide === 'left' ? offset : -offset;
+  } else {
+    maxW = Math.max(0.32, panelWidth - (side + sillEar) * 2 - edge * 2);
+  }
+
+  const width = Math.min(0.54, maxW);
+  const sill = isUpper ? SILL_BOARD + 0.08 : 0.36;
+  const topGap = (isUpper ? 0.16 : 0.22) + headBoard;
+  const height = Math.min(1.80, Math.max(0.7, panelHeight - topGap - sill));
+  return { width, height, sill, shift };
+}

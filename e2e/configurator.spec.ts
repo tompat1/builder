@@ -204,4 +204,25 @@ test.describe("3D Modular House Configurator", () => {
     await page.locator("#btn-close-modal").click();
     await expect(page.locator("text=Exportera Byggsatshandlingar")).not.toBeVisible();
   });
+
+  test("displays and places narrow-tall window from window catalog", async ({ page, isMobile }) => {
+    const canvas = page.locator("canvas");
+    if (isMobile) {
+      const bounds = await canvas.boundingBox();
+      expect(bounds).not.toBeNull();
+      await page.touchscreen.tap(bounds!.x + 280, bounds!.y + 320);
+    } else {
+      await canvas.click({ position: { x: 280, y: 320 } });
+    }
+
+    const chooseWinBtn = page.locator("#btn-choose-window");
+    await chooseWinBtn.click();
+    await expect(page.locator("text=Fönsterpartier")).toBeVisible();
+
+    const narrowTallBtn = page.locator("#option-narrow-tall");
+    await expect(narrowTallBtn).toBeVisible();
+    await expect(narrowTallBtn).toContainText("Smalhögt fönster");
+    await expect(narrowTallBtn).toContainText("6×18");
+    await narrowTallBtn.click();
+  });
 });

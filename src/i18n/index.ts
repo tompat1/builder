@@ -1835,6 +1835,11 @@ const en = {
       desc: 'A practical tilt window, cleaned from inside, with a child lock.',
       spec: 'Size 10×12, U-value 1.0'
     },
+    'narrow-tall': {
+      name: 'Narrow tall window',
+      desc: 'A narrow and elegant portrait window, perfect for tight wall sections.',
+      spec: 'Size 6×18, triple energy glass'
+    },
     overlight: {
       name: 'Fixed transom window',
       desc: 'A low window above the door, as wide as the door bay.',
