@@ -24,11 +24,36 @@ export interface WallSlot {
 
 export const PANEL_COUNTS = { front: 4, back: 4, left: 3, right: 3 } as const;
 
+export function panelCountForWall(
+  wallSide: 'front' | 'back' | 'left' | 'right',
+  widthMm: number,
+  depthMm: number
+): number {
+  const span = (wallSide === 'front' || wallSide === 'back') ? widthMm : depthMm;
+  return span < 5300 ? 3 : 4;
+}
+
+export function panelCountsForDimensions(
+  widthMm: number,
+  depthMm: number
+): { front: number; back: number; left: number; right: number } {
+  return {
+    front: panelCountForWall('front', widthMm, depthMm),
+    back: panelCountForWall('back', widthMm, depthMm),
+    left: panelCountForWall('left', widthMm, depthMm),
+    right: panelCountForWall('right', widthMm, depthMm)
+  };
+}
+
 /** Lower bay plus a separate upper panel above the mid-rail. Upper panels take windows only. */
-export function createWallSlots(): Record<string, WallSlot> {
+export function createWallSlots(
+  widthMm = 6040,
+  depthMm = 4950
+): Record<string, WallSlot> {
+  const counts = panelCountsForDimensions(widthMm, depthMm);
   const slots: Record<string, WallSlot> = {};
-  (Object.keys(PANEL_COUNTS) as (keyof typeof PANEL_COUNTS)[]).forEach((wall) => {
-    for (let index = 0; index < PANEL_COUNTS[wall]; index += 1) {
+  (Object.keys(counts) as (keyof typeof counts)[]).forEach((wall) => {
+    for (let index = 0; index < counts[wall]; index += 1) {
       const id = `${wall}-${index}`;
       slots[id] = { id, wall, index, type: 'empty', canAcceptDoor: true };
       const upperId = `${id}u`;
@@ -43,7 +68,7 @@ export function createWallSlots(): Record<string, WallSlot> {
     }
   });
   slots['front-0'] = { ...slots['front-0'], type: 'door', itemId: 'STEHAG', canAcceptDoor: true };
-  for (let index = 0; index < PANEL_COUNTS.front; index += 1) {
+  for (let index = 0; index < counts.front; index += 1) {
     const upperId = `front-${index}u`;
     slots[upperId] = { ...slots[upperId], type: 'window', itemId: 'standard-single' };
   }
@@ -51,8 +76,11 @@ export function createWallSlots(): Record<string, WallSlot> {
   return slots;
 }
 
-export function clearedWallSlots(): Record<string, WallSlot> {
-  const slots = createWallSlots();
+export function clearedWallSlots(
+  widthMm = 6040,
+  depthMm = 4950
+): Record<string, WallSlot> {
+  const slots = createWallSlots(widthMm, depthMm);
   for (const slot of Object.values(slots)) {
     slot.type = 'empty';
     slot.itemId = undefined;
@@ -63,7 +91,7 @@ export function clearedWallSlots(): Record<string, WallSlot> {
 
 /** Empty bays, then the modern cube's openings. */
 export function cubeWallSlots(): Record<string, WallSlot> {
-  const slots = clearedWallSlots();
+  const slots = clearedWallSlots(6000, 6000);
   slots['front-0'] = { ...slots['front-0'], type: 'door', itemId: 'LERVIK' };
   slots['front-0u'] = { ...slots['front-0u'], type: 'window', itemId: 'overlight' };
   slots['front-3'] = { ...slots['front-3'], type: 'window', itemId: 'panorama' };
@@ -78,25 +106,64 @@ export function cubeWallSlots(): Record<string, WallSlot> {
 
 /** A low cabin: a door, a frosted window, and solid walls. */
 export function saunaWallSlots(): Record<string, WallSlot> {
-  const slots = clearedWallSlots();
-  slots['front-1'] = { ...slots['front-1'], type: 'door', itemId: 'LERVIK' };
-  slots['front-3'] = { ...slots['front-3'], type: 'window', itemId: 'frost' };
+  const slots = clearedWallSlots(5200, 2800);
+  slots['front-0'] = { ...slots['front-0'], type: 'door', itemId: 'LERVIK' };
+  slots['front-2'] = { ...slots['front-2'], type: 'window', itemId: 'frost' };
   return slots;
 }
 
 /** A small shed: one door and one window on the front. */
 export function shedWallSlots(): Record<string, WallSlot> {
-  const slots = clearedWallSlots();
-  slots['front-1'] = { ...slots['front-1'], type: 'door', itemId: 'STEHAG' };
-  slots['front-3'] = { ...slots['front-3'], type: 'window', itemId: 'standard-single' };
+  const slots = clearedWallSlots(4000, 2500);
+  slots['front-0'] = { ...slots['front-0'], type: 'door', itemId: 'STEHAG' };
+  slots['front-2'] = { ...slots['front-2'], type: 'window', itemId: 'standard-single' };
   return slots;
 }
 
-export function mergeWallSlots(saved: Record<string, WallSlot> | undefined, _sizeId?: string): Record<string, WallSlot> {
-  const slots = createWallSlots();
+export function defaultDimensionsForSize(sizeId?: string): { widthMm: number; depthMm: number } {
+  if (sizeId === 'size-paabyggnad') return { widthMm: 5200, depthMm: 6731 };
+  if (sizeId === 'size-sauna') return { widthMm: 5200, depthMm: 2800 };
+  if (sizeId === 'size-shed') return { widthMm: 4000, depthMm: 2500 };
+  if (sizeId === 'size-15') return { widthMm: 4800, depthMm: 3125 };
+  if (sizeId === 'size-25') return { widthMm: 5800, depthMm: 4310 };
+  if (sizeId === 'size-cube') return { widthMm: 6000, depthMm: 6000 };
+  return { widthMm: 6040, depthMm: 4950 };
+}
+
+export function mergeWallSlots(
+  saved: Record<string, WallSlot> | undefined,
+  sizeId?: string,
+  widthMm?: number,
+  depthMm?: number
+): Record<string, WallSlot> {
+  const dims = defaultDimensionsForSize(sizeId);
+  const w = widthMm ?? dims.widthMm;
+  const d = depthMm ?? dims.depthMm;
+  const isPaabyggnad = sizeId === 'size-paabyggnad';
+  const slots = createWallSlots(w, d);
+  if (isPaabyggnad) {
+    if (slots['front-0']) {
+      slots['front-0'] = {
+        ...slots['front-0'],
+        type: 'empty',
+        itemId: undefined,
+        canAcceptDoor: true
+      };
+    }
+    if (slots['front-0u']) {
+      slots['front-0u'] = {
+        ...slots['front-0u'],
+        type: 'window',
+        itemId: 'standard-single'
+      };
+    }
+  }
   if (!saved) return slots;
   for (const [id, slot] of Object.entries(saved)) {
     if (!slot || typeof slot !== 'object') continue;
+    const wall = slot.wall;
+    const maxCount = panelCountForWall(wall, w, d);
+    if (slot.index >= maxCount) continue;
     if (slot.isUpper && !id.endsWith('u')) {
       const upperId = `${id}u`;
       if (slots[upperId] && slot.type === 'window') {

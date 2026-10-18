@@ -502,6 +502,7 @@ export { TERRACE_BUILDINGS, TERRACE_BUILDING_PLACEMENTS, SAUNA_BUILDING_PRICE, S
 import {
   type WallSlot,
   PANEL_COUNTS,
+  panelCountForWall,
   createWallSlots,
   clearedWallSlots,
   cubeWallSlots,
@@ -513,6 +514,7 @@ import {
 export type { WallSlot } from './wallSlots';
 export {
   PANEL_COUNTS,
+  panelCountForWall,
   createWallSlots,
   clearedWallSlots,
   cubeWallSlots,
@@ -1165,7 +1167,7 @@ export const useConfigStore = defineStore('config', () => {
     terraces.value = [];
     activeRoof.value = 'pulpettak';
     roofCovering.value = 'felt';
-    wallSlots.value = createWallSlots();
+    wallSlots.value = createWallSlots(buildingWidth.value, buildingDepth.value);
     activeDoor.value = 'STEHAG';
     activeWindow.value = 'standard-single';
     selectedSlotId.value = null;
@@ -1191,7 +1193,7 @@ export const useConfigStore = defineStore('config', () => {
       loftPlacement.value = 'fram';
       const loftAreas = paabyggnadLoftAreas(buildingWidth.value, buildingDepth.value);
       selectedLoftSize.value = loftAreas[0] ?? 15.8;
-      wallSlots.value = paabyggnadWallSlots();
+      wallSlots.value = paabyggnadWallSlots(buildingWidth.value, buildingDepth.value);
       selectedSlotId.value = null;
     }
     // Ensure selectedLoftSize is valid for this new size
@@ -1200,6 +1202,58 @@ export const useConfigStore = defineStore('config', () => {
       selectedLoftSize.value = available[0].areaSqMeters;
     }
     saveSnapshot();
+  }
+
+  function reconcileWallSlots() {
+    const w = buildingWidth.value;
+    const d = buildingDepth.value;
+    const walls = ['front', 'back', 'left', 'right'] as const;
+    const updated = { ...wallSlots.value };
+    let changed = false;
+
+    walls.forEach((wall) => {
+      const count = panelCountForWall(wall, w, d);
+      for (const [id, slot] of Object.entries(updated)) {
+        if (slot.wall === wall && slot.index >= count) {
+          delete updated[id];
+          changed = true;
+          if (selectedSlotId.value === id) selectedSlotId.value = null;
+        }
+      }
+      for (let i = 0; i < count; i++) {
+        const lowerId = `${wall}-${i}`;
+        if (!updated[lowerId]) {
+          updated[lowerId] = {
+            id: lowerId,
+            wall,
+            index: i,
+            type: 'empty',
+            canAcceptDoor: true
+          };
+          changed = true;
+        }
+        const upperId = `${wall}-${i}u`;
+        if (!updated[upperId]) {
+          const isPaabyggnadFront = selectedSizeId.value === 'size-paabyggnad' && wall === 'front';
+          const isStandardFront = wall === 'front' && selectedSizeId.value !== 'size-sauna' && selectedSizeId.value !== 'size-shed';
+          const isWindow = isPaabyggnadFront || isStandardFront;
+          updated[upperId] = {
+            id: upperId,
+            wall,
+            index: i,
+            type: isWindow ? 'window' : 'empty',
+            itemId: isWindow ? 'standard-single' : undefined,
+            canAcceptDoor: false,
+            isUpper: true
+          };
+          changed = true;
+        }
+      }
+    });
+
+    if (changed) {
+      wallSlots.value = updated;
+    }
   }
 
   function setBuildingMeasure(axis: BuildingAxis, value: number) {
@@ -1217,12 +1271,14 @@ export const useConfigStore = defineStore('config', () => {
       const loftAreas = paabyggnadLoftAreas(plan.width, plan.depth);
       const whole = loftAreas[loftAreas.length - 1];
       if (selectedLoftSize.value > whole + 0.05) selectedLoftSize.value = whole;
+      reconcileWallSlots();
       saveSnapshot();
       return;
     }
     if (axis === 'width') buildingWidth.value = next;
     else if (axis === 'depth') buildingDepth.value = next;
     else buildingHeight.value = next;
+    reconcileWallSlots();
     saveSnapshot();
   }
 

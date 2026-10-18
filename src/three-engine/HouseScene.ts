@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { PULPET_PITCH_DEG, type CameraView, type MaterialKey, type WallSlot, type LoftPlacement, type LoftCount, type LoftStairPosition, type LoftStairType, type PanelOrientation, type RoofCovering } from '../store/useConfigStore';
+import { panelCountForWall } from '../store/wallSlots';
 import { terraceBoardLayout, type HouseTerrace, type TerraceSide } from '../outside/terrace';
 import { computeDoorCanopyLayout } from '../outside/canopy';
 import { compassDialDegrees, headingForFacing, sunPlacement, type CompassFacing } from './sunPosition';
@@ -1767,10 +1768,14 @@ export class HouseScene {
     this.wallsGroup.add(floor);
 
     // 3. Modular Exterior Walls Construction (outer wood siding, inside left open for beams)
-    this.buildModularWall('front', 4, w, d, h, wallThick, exteriorMat, doorBayMat, trimMat, casingMat, concreteWallMat);
-    this.buildModularWall('back', 4, w, d, h, wallThick, exteriorMat, doorBayMat, trimMat, casingMat, concreteWallMat);
-    this.buildModularWall('left', 3, w, d, h, wallThick, exteriorMat, doorBayMat, trimMat, casingMat, concreteWallMat);
-    this.buildModularWall('right', 3, w, d, h, wallThick, exteriorMat, doorBayMat, trimMat, casingMat, concreteWallMat);
+    const frontCount = this.panelCountForWall('front', w, d);
+    const backCount = this.panelCountForWall('back', w, d);
+    const leftCount = this.panelCountForWall('left', w, d);
+    const rightCount = this.panelCountForWall('right', w, d);
+    this.buildModularWall('front', frontCount, w, d, h, wallThick, exteriorMat, doorBayMat, trimMat, casingMat, concreteWallMat);
+    this.buildModularWall('back', backCount, w, d, h, wallThick, exteriorMat, doorBayMat, trimMat, casingMat, concreteWallMat);
+    this.buildModularWall('left', leftCount, w, d, h, wallThick, exteriorMat, doorBayMat, trimMat, casingMat, concreteWallMat);
+    this.buildModularWall('right', rightCount, w, d, h, wallThick, exteriorMat, doorBayMat, trimMat, casingMat, concreteWallMat);
     this.addConcreteWalls(concreteWallMat);
     this.buildOutsideAdditions(w, d, h);
     if (!this.interiorCut() && this.currentConfig.panelOrientation !== 'liggande') {
@@ -1946,6 +1951,14 @@ export class HouseScene {
     }
   }
 
+  private panelCountForWall(
+    wallSide: 'front' | 'back' | 'left' | 'right',
+    wM: number,
+    dM: number
+  ): number {
+    return panelCountForWall(wallSide, Math.round(wM * 1000), Math.round(dM * 1000));
+  }
+
   private buildModularWall(
     wallSide: 'front' | 'back' | 'left' | 'right',
     panelCount: number,
@@ -2044,6 +2057,7 @@ export class HouseScene {
           wallThick,
           wallSide,
           i,
+          panelCount,
           slope,
           faceMat,
           casingMat,
@@ -2491,6 +2505,7 @@ export class HouseScene {
     wallThick: number,
     wallSide: 'front' | 'back' | 'left' | 'right',
     index: number,
+    panelCount: number,
     slope: number,
     exteriorMat: THREE.Material,
     casingMat: THREE.Material,
@@ -2517,7 +2532,7 @@ export class HouseScene {
     const cornerSide = this.cornerSideForPanel(
       wallSide,
       index,
-      (wallSide === 'front' || wallSide === 'back') ? 4 : 3
+      panelCount
     );
     const facadeTop = this.concreteFacade(wallSide)
       ? (this.currentConfig.concreteHeightMm ?? 2500) / 1000
@@ -3014,7 +3029,11 @@ export class HouseScene {
     panelHeight: number,
     panelBase: number
   ) {
-    const count = wall === 'front' || wall === 'back' ? 4 : 3;
+    const count = this.panelCountForWall(
+      wall,
+      this.currentConfig.widthMm / 1000,
+      this.currentConfig.depthMm / 1000
+    );
     const slots = this.currentConfig.wallSlots;
     const slot = slots[`${wall}-${index}`];
     let host = index;
@@ -3241,7 +3260,7 @@ export class HouseScene {
     const anchors: OutsideAnchor[] = [];
     const walls = ['front', 'back', 'left', 'right'] as const;
     for (const wall of walls) {
-      const count = wall === 'front' || wall === 'back' ? 4 : 3;
+      const count = this.panelCountForWall(wall, w, d);
       const wallLength = wall === 'front' || wall === 'back' ? w : d - endInset * 2;
       const panelWidth = wallLength / count;
       const panelH = Math.max(1.8, h - base);
@@ -3994,7 +4013,7 @@ export class HouseScene {
     base: number
   ) {
     const isFrontBack = wall === 'front' || wall === 'back';
-    const count = isFrontBack ? 4 : 3;
+    const count = this.panelCountForWall(wall, w, d);
     const endInset = 0.025 - 0.008;
     const length = isFrontBack ? w : d - endInset * 2;
     const panelW = length / count;
@@ -6534,7 +6553,9 @@ export class HouseScene {
       const isXMajor = size.x > size.z;
       const wall = target.userData?.wall as 'front' | 'back' | 'left' | 'right' | undefined;
       const index = target.userData?.index as number | undefined;
-      const count = wall === 'front' || wall === 'back' ? 4 : 3;
+      const count = wall
+        ? this.panelCountForWall(wall, this.currentConfig.widthMm / 1000, this.currentConfig.depthMm / 1000)
+        : 3;
       const cornerSide = (wall && typeof index === 'number')
         ? this.cornerSideForPanel(wall, index, count)
         : null;

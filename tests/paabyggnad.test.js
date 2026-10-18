@@ -87,38 +87,53 @@ test('only panels on the 520 cm concrete faces count as the old house', () => {
   assert.equal(panelOnConcrete('left', -2.5875, 2.79, 2.23), false);
 });
 
-test('concrete combo removes lower front wall and leaves back, left, right open to doors and windows', async () => {
+test('concrete combo walls under 530 cm have 3 bays and 3 upper window panels, longer walls have 4 bays', async () => {
   const { paabyggnadWallSlots } = await import('../src/store/paabyggnad.ts');
+  // Default concrete combo: width 5200 mm (< 5300 mm), depth 6731 mm (>= 5300 mm)
   const slots = paabyggnadWallSlots();
 
-  // Front lower bays can accept doors or windows
-  for (let i = 0; i < 4; i++) {
+  // Front lower bays (3 bays) can accept doors or windows
+  for (let i = 0; i < 3; i++) {
     const lowerId = `front-${i}`;
     assert.equal(slots[lowerId].type, 'empty');
     assert.equal(slots[lowerId].canAcceptDoor, true);
-    // Upper front bays remain for the timber floor
+    // Upper front bays: exactly 3 window panels across the facade
     const upperId = `front-${i}u`;
+    assert.equal(slots[upperId].type, 'window');
+    assert.equal(slots[upperId].itemId, 'standard-single');
     assert.equal(slots[upperId].isUpper, true);
     assert.equal(slots[upperId].canAcceptDoor, false);
   }
+  assert.equal(slots['front-3'], undefined);
+  assert.equal(slots['front-3u'], undefined);
 
-  // Back wall (4 bays): lower bays can accept doors or windows
-  for (let i = 0; i < 4; i++) {
+  // Back wall under 5300 mm (3 bays): lower bays can accept doors or windows
+  for (let i = 0; i < 3; i++) {
     const id = `back-${i}`;
     assert.equal(slots[id].canAcceptDoor, true);
   }
+  assert.equal(slots['back-3'], undefined);
 
-  // Left wall (3 bays): lower bays can accept doors or windows
-  for (let i = 0; i < 3; i++) {
+  // Left wall >= 5300 mm (4 bays): lower bays can accept doors or windows
+  for (let i = 0; i < 4; i++) {
     const id = `left-${i}`;
     assert.equal(slots[id].canAcceptDoor, true);
   }
 
-  // Right wall (3 bays): lower bays can accept doors or windows
-  for (let i = 0; i < 3; i++) {
+  // Right wall >= 5300 mm (4 bays): lower bays can accept doors or windows
+  for (let i = 0; i < 4; i++) {
     const id = `right-${i}`;
     assert.equal(slots[id].canAcceptDoor, true);
   }
+
+  // When width is expanded to >= 5300 mm (e.g. 5400 mm), front wall gets 4 window panels in the upper
+  const wideSlots = paabyggnadWallSlots(5400, 6731);
+  for (let i = 0; i < 4; i++) {
+    const upperId = `front-${i}u`;
+    assert.equal(wideSlots[upperId].type, 'window');
+  }
+  assert.ok(wideSlots['front-3']);
+  assert.ok(wideSlots['front-3u']);
 });
 
 test('front loft on concrete combo has 15-16 m² size and spans partially over concrete walls', () => {

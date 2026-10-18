@@ -185,16 +185,33 @@ export interface PaabyggnadSlot {
   coveredBy?: string;
 }
 
-const PANEL_COUNTS = { front: 4, back: 4, left: 3, right: 3 } as const;
+export function panelCountForWall(
+  wallSide: 'front' | 'back' | 'left' | 'right',
+  widthMm: number,
+  depthMm: number
+): number {
+  const span = (wallSide === 'front' || wallSide === 'back') ? widthMm : depthMm;
+  return span < 5300 ? 3 : 4;
+}
 
 /**
  * Wall slots for the concrete/timber combo:
  * Lower walls can accept doors and windows.
+ * When a wall's width/depth is below 5300 mm (< 530 cm), it has 3 panels (bays).
  */
-export function paabyggnadWallSlots(): Record<string, PaabyggnadSlot> {
+export function paabyggnadWallSlots(
+  widthMm = CONCRETE_PLAN_MM,
+  depthMm = 6731
+): Record<string, PaabyggnadSlot> {
+  const counts = {
+    front: panelCountForWall('front', widthMm, depthMm),
+    back: panelCountForWall('back', widthMm, depthMm),
+    left: panelCountForWall('left', widthMm, depthMm),
+    right: panelCountForWall('right', widthMm, depthMm)
+  };
   const slots: Record<string, PaabyggnadSlot> = {};
-  (Object.keys(PANEL_COUNTS) as (keyof typeof PANEL_COUNTS)[]).forEach((wall) => {
-    for (let index = 0; index < PANEL_COUNTS[wall]; index += 1) {
+  (Object.keys(counts) as (keyof typeof counts)[]).forEach((wall) => {
+    for (let index = 0; index < counts[wall]; index += 1) {
       const id = `${wall}-${index}`;
       const isFront = wall === 'front';
       slots[id] = {
