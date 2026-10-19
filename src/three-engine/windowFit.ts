@@ -457,8 +457,7 @@ export function containWindowInPanel<T extends RoofOpening & { casingSide?: numb
   const casing = opening.casingSide ?? 0.09;
   const ear = spaceW < 0.65 ? 0.01 : 0.02;
   const margin = casing + ear;
-  let winW = opening.winW;
-  let x = opening.x ?? 0;
+  let { winW, x = 0 } = opening;
   const maxW = Math.max(0.18, spaceW - margin * 2);
   if (winW > maxW) winW = maxW;
   const minShift = minX + margin + winW / 2;

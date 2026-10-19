@@ -1100,9 +1100,8 @@ export class HouseScene {
     const geometries = new Set<THREE.BufferGeometry>();
     const materials = new Set<THREE.Material>();
     object.traverse((child) => {
-      const drawn = child as THREE.Mesh;
-      if (drawn.geometry) geometries.add(drawn.geometry);
-      const material = drawn.material;
+      const { geometry, material } = child as THREE.Mesh;
+      if (geometry) geometries.add(geometry);
       if (!material) return;
       if (Array.isArray(material)) material.forEach((entry) => materials.add(entry));
       else materials.add(material);
@@ -1142,7 +1141,7 @@ export class HouseScene {
       );
       group.traverse((child) => {
         if (!(child instanceof THREE.Mesh)) return;
-        const material = child.material;
+        const { material } = child;
         if (!(material instanceof THREE.MeshStandardMaterial)) return;
         material.color.set(0x3b82f6);
         material.transparent = true;
@@ -1284,19 +1283,17 @@ export class HouseScene {
 
     this.raycaster.setFromCamera(this.mouse, this.camera);
 
-    if (this.currentConfig.interactionMode === 'default' && !this.outsideShell()) {
-      if (this.interiorGroup.children.length > 0) {
-        const roomMeshes: THREE.Mesh[] = [];
-        this.interiorGroup.children.forEach(group => {
-          if (group.userData.type === 'room_zone') {
-            roomMeshes.push(...(group.children.filter(c => c instanceof THREE.Mesh) as THREE.Mesh[]));
-          }
-        });
-        const roomIntersects = this.raycaster.intersectObjects(roomMeshes, false);
-        if (roomIntersects.length > 0) {
-          this.container.style.cursor = 'move';
-          return;
+    if (this.currentConfig.interactionMode === 'default' && !this.outsideShell() && this.interiorGroup.children.length > 0) {
+      const roomMeshes: THREE.Mesh[] = [];
+      this.interiorGroup.children.forEach(group => {
+        if (group.userData.type === 'room_zone') {
+          roomMeshes.push(...(group.children.filter(c => c instanceof THREE.Mesh) as THREE.Mesh[]));
         }
+      });
+      const roomIntersects = this.raycaster.intersectObjects(roomMeshes, false);
+      if (roomIntersects.length > 0) {
+        this.container.style.cursor = 'move';
+        return;
       }
     }
 
@@ -1623,17 +1620,15 @@ export class HouseScene {
           this.attachGlobalDragListeners();
           e.stopPropagation();
           return;
+        } else if (e.pointerType === 'touch') {
+          this.panelTouchPress = {
+            pointerId: e.pointerId,
+            slotId,
+            x: e.clientX,
+            y: e.clientY
+          };
         } else {
-          if (e.pointerType === 'touch') {
-            this.panelTouchPress = {
-              pointerId: e.pointerId,
-              slotId,
-              x: e.clientX,
-              y: e.clientY
-            };
-          } else {
-            this.selectPanel(slotId, hit, e.clientX, e.clientY);
-          }
+          this.selectPanel(slotId, hit, e.clientX, e.clientY);
         }
       }
     }
@@ -3486,8 +3481,8 @@ export class HouseScene {
     openRight = true
   ) {
     const outward = this.outwardSign(door.wall);
-    const depth = terrace.depth;
-    const full = terrace.span === 'full';
+    const { depth, span } = terrace;
+    const full = span === 'full';
     const wallSpan = door.wall === 'front' || door.wall === 'back' ? w : d;
     const width = full
       ? wallSpan
@@ -3817,9 +3812,9 @@ export class HouseScene {
       for (const band of bands) {
         const slot = this.currentConfig.wallSlots[band.id];
         if (!slot || (slot.type !== 'door' && slot.type !== 'window')) continue;
-        const wide = !band.upper
-          ? this.wideOpeningForPanel(wall, p, panelW, band.panelH, band.panelBase)
-          : null;
+        const wide = band.upper
+          ? null
+          : this.wideOpeningForPanel(wall, p, panelW, band.panelH, band.panelBase);
         if (wide) {
           if (wide.drawDoor) {
             const slope = this.alongWallSlope(wall);
@@ -3992,15 +3987,15 @@ export class HouseScene {
       { x: 1, z: -1, top: rearH }
     ];
     for (const corner of corners) {
+      const { top, x, z } = corner;
       const foot = baseElev;
-      const top = corner.top;
       const height = top - foot;
       if (height < 0.05) continue;
       const y = foot + height / 2;
       const alongFront = new THREE.Mesh(new THREE.BoxGeometry(face, height, thick), material);
-      alongFront.position.set(corner.x * (w / 2 + thick - face / 2), y, corner.z * (d / 2 + thick / 2));
+      alongFront.position.set(x * (w / 2 + thick - face / 2), y, z * (d / 2 + thick / 2));
       const alongSide = new THREE.Mesh(new THREE.BoxGeometry(thick, height, sideFace), material);
-      alongSide.position.set(corner.x * (w / 2 + thick / 2), y, corner.z * (d / 2 - sideFace / 2));
+      alongSide.position.set(x * (w / 2 + thick / 2), y, z * (d / 2 - sideFace / 2));
       for (const board of [alongFront, alongSide]) {
         this.writeSingleBoardUvs(board.geometry, y);
         board.castShadow = true;
@@ -7182,7 +7177,7 @@ export class HouseScene {
       current = current.parent;
     }
     if (!porch) return true;
-    const geometry = (object as THREE.Mesh).geometry;
+    const { geometry } = object as THREE.Mesh;
     if (!geometry) return true;
     if (!geometry.boundingBox) geometry.computeBoundingBox();
     const box = geometry.boundingBox;
@@ -7487,8 +7482,8 @@ export class HouseScene {
   public prepareFacingCapture(facing: 'front' | 'back' | 'left' | 'right') {
     const position = this.camera.position.clone();
     const target = this.controls.target.clone();
-    const near = this.camera.near;
-    const minDistance = this.controls.minDistance;
+    const { near } = this.camera;
+    const { minDistance } = this.controls;
     const flight = this.cameraFlight;
     const roof = this.roofGroup.visible;
     const trusses = this.trussesGroup.visible;
