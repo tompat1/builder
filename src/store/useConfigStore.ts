@@ -20,7 +20,8 @@ import {
 } from '../color/paint';
 import { eaveLiftMm, gablePitchDegrees, wallPlateHeightM } from './roof';
 import { floorAreaSqMeters } from './area';
-import { loadDisplayPrefs, saveDisplayPrefs } from '../services/displayPrefs';
+import { loadDisplayPrefs, saveDisplayPrefs, type DisplayPrefs } from '../services/displayPrefs';
+import { saveAccountDisplay, sessionToken } from '../services/account';
 import { isLoftRoom } from '../three-engine/loftLevel';
 import {
   CONCRETE_DEFAULT_HEIGHT_MM,
@@ -668,13 +669,26 @@ export const useConfigStore = defineStore('config', () => {
   const showNotes = ref(displayPrefs.notes);
   const showMood = ref(displayPrefs.mood);
   watch([showDimensions, showNotes, showSun, showMood], () => {
-    saveDisplayPrefs({
+    const prefs: DisplayPrefs = {
       dimensions: showDimensions.value,
       notes: showNotes.value,
       sun: showSun.value,
       mood: showMood.value
-    });
+    };
+    saveDisplayPrefs(prefs);
+    if (sessionToken()) {
+      void saveAccountDisplay(prefs);
+    }
   });
+
+  function applyDisplayPrefs(prefs: DisplayPrefs) {
+    showDimensions.value = prefs.dimensions;
+    showNotes.value = prefs.notes;
+    showSun.value = prefs.sun;
+    showMood.value = prefs.mood;
+    saveDisplayPrefs(prefs);
+  }
+
   const activeNoteId = ref<string | null>(null);
   const noteAnchors = ref<Record<string, { x: number; y: number; visible: boolean }>>({});
   const noteCamera = ref('');
@@ -2198,6 +2212,7 @@ export const useConfigStore = defineStore('config', () => {
     moveSlotItem,
     toggleDimensions,
     setDisplay,
+    applyDisplayPrefs,
     toggleInnerWalls,
     setShowInnerWalls,
     toggleSunShown,

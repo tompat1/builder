@@ -1,8 +1,9 @@
 import { defineStore } from 'pinia';
 import { computed, ref } from 'vue';
-import { accountMe, saveSession, sessionToken, type AccountUser } from '../services/account';
+import { accountMe, loadAccountDisplay, saveSession, sessionToken, type AccountUser } from '../services/account';
 import { listHouses } from '../services/houseSave';
 import { syncUserWithLocalConsent, saveUserConsent, type SoundConsent, type CookieConsent } from '../services/consent';
+import { useConfigStore } from './useConfigStore';
 
 export const useSessionStore = defineStore('session', () => {
   const user = ref<AccountUser | null>(null);
@@ -56,8 +57,19 @@ export const useSessionStore = defineStore('session', () => {
       try {
         const next = await accountMe();
         setUser(next);
-        if (next) await refreshSavedHouseStatus();
-        else saveSession('');
+        if (next) {
+          await refreshSavedHouseStatus();
+          try {
+            const remoteDisplay = await loadAccountDisplay();
+            if (remoteDisplay) {
+              useConfigStore().applyDisplayPrefs(remoteDisplay);
+            }
+          } catch {
+            // ignore
+          }
+        } else {
+          saveSession('');
+        }
       } catch {
         setUser(null);
       } finally {
@@ -69,9 +81,17 @@ export const useSessionStore = defineStore('session', () => {
     return resolving;
   }
 
-  function finishAuthentication(next: AccountUser) {
+  async function finishAuthentication(next: AccountUser) {
     setUser(next);
     resolved.value = true;
+    try {
+      const remoteDisplay = await loadAccountDisplay();
+      if (remoteDisplay) {
+        useConfigStore().applyDisplayPrefs(remoteDisplay);
+      }
+    } catch {
+      // ignore
+    }
   }
 
   function clearAccount() {

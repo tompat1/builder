@@ -80,7 +80,7 @@ function displayFromAccount(value: unknown): DisplayPrefs | null {
     dimensions: raw.dimensions === true,
     notes: raw.notes === true,
     sun: raw.sun === true,
-    mood: raw.mood === true
+    mood: typeof raw.mood === 'boolean' ? raw.mood : true
   };
 }
 
