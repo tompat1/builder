@@ -2454,7 +2454,7 @@ function onAddCornerColor(value: string) {
   store.addCornerColor(value);
 }
 
-export const CONCRETE_COLOR_OPTIONS = [
+const CONCRETE_COLOR_OPTIONS = [
   { id: 'natural', label: 'category.concreteNatural', colorHex: '#b7b3ac' },
   { id: 'white', label: 'category.concreteWhite', colorHex: '#f4f1ea' },
   { id: 'grey', label: 'category.concreteGrey', colorHex: '#94a3b8' },
