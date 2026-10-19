@@ -82,4 +82,9 @@ test('a terrace can include a sauna or shed as an additional building', () => {
   assert.equal(terraces[1].buildingPlacement, 'right');
   assert.equal(terraces[2].building, undefined);
   assert.equal(terraces[2].buildingPlacement, undefined);
+
+  const resetTerraces = acceptTerraces([
+    { side: 'back', depth: 3, span: 'full', roof: false, building: 'none' }
+  ]);
+  assert.equal(resetTerraces[0].building, 'none');
 });

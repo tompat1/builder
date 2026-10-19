@@ -1445,7 +1445,18 @@ export const useConfigStore = defineStore('config', () => {
     if (!current) return;
     const [next] = acceptTerraces([{ ...current, ...patch, side: patch.side ?? current.side }]);
     if (!next) return;
-    if (next.side === current.side && next.depth === current.depth && next.span === current.span && next.roof === current.roof) return;
+    const buildingChanged = (next.building ?? 'none') !== (current.building ?? 'none');
+    const placementChanged = (next.buildingPlacement ?? 'right') !== (current.buildingPlacement ?? 'right');
+    if (
+      next.side === current.side &&
+      next.depth === current.depth &&
+      next.span === current.span &&
+      next.roof === current.roof &&
+      !buildingChanged &&
+      !placementChanged
+    ) {
+      return;
+    }
     if (next.side !== current.side && terraces.value.some((item) => item.side === next.side)) return;
     terraces.value = terraces.value.map((item) => (item.side === side ? next : item));
     saveSnapshot();
