@@ -178,6 +178,9 @@ onMounted(() => {
       concreteWalls: store.concreteWalls.map((wall) => ({ ...wall }))
     });
 
+    (window as any).__houseScene = engine;
+    (window as any).__configStore = store;
+
     // Wire raycast clicks & hover from 3D scene to store
     engine.onPanelClick = (slotId) => {
       store.selectSlot(slotId);
