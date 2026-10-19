@@ -5240,6 +5240,21 @@ export class HouseScene {
     (this.loftBuildParent ?? this.loftGroup).add(object);
   }
 
+  /** Uprights along the loft. They share the inner-wall switch. */
+  private loftStudGroup() {
+    const group = new THREE.Group();
+    group.userData.loftStuds = true;
+    group.visible = this.currentConfig.showInnerWalls !== false;
+    return group;
+  }
+
+  private syncLoftStuds() {
+    const show = this.currentConfig.showInnerWalls !== false;
+    this.loftGroup.traverse((object) => {
+      if (object.userData.loftStuds) object.visible = show;
+    });
+  }
+
   // --- Loft Construction with side or end placement, area sizes and a 3D stair ---
   private buildLoft(width: number, depth: number, h: number, wt: number) {
     const loftArea = this.currentConfig.loftAreaSqMeters ?? 10.95;
@@ -5389,26 +5404,27 @@ export class HouseScene {
         addFloorPanel(sectionW, loftD, startX + sectionW / 2, 0);
       }
 
-      // 3. Safety Railing (Skyddsräcke 850 mm) along the open inner edge
+      // 3. Safety Railing (Skyddsräcke 850 mm) along the open inner edge.
+      // The uprights follow the inner-wall switch: shown with the lining, hidden with it.
       if (sectionW < interiorW * 0.95) {
         const railH = 0.85;
         const stairGap = opening?.depth ?? 0;
         const railLength = loftD - stairGap;
-
-        // Top Handrail
-        const handrail = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.04, railLength), timberMat);
         const railCenterZ = -stairEndSign * stairGap / 2;
-        handrail.position.set(edgeX, loftElev + railH, railCenterZ);
-        sectionGroup.add(handrail);
+        const studs = this.loftStudGroup();
 
-        // Balusters (Spjälor cc 120 mm)
+        const handrail = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.04, railLength), timberMat);
+        handrail.position.set(edgeX, loftElev + railH, railCenterZ);
+        studs.add(handrail);
+
         const balusterCount = Math.max(1, Math.floor(railLength / 0.12));
         for (let b = 0; b <= balusterCount; b++) {
           const bz = railCenterZ - railLength / 2 + (railLength / balusterCount) * b;
           const baluster = new THREE.Mesh(new THREE.BoxGeometry(0.025, railH, 0.025), timberMat);
           baluster.position.set(edgeX, loftElev + railH / 2, bz);
-          sectionGroup.add(baluster);
+          studs.add(baluster);
         }
+        sectionGroup.add(studs);
       }
 
       // 4. Structural Support Framing for Concrete / Timber Combo:
@@ -5457,16 +5473,17 @@ export class HouseScene {
 
         // C. Columns on top of the concrete front corners
         // Resting directly on the concrete wall ends at concreteH (2.5m)
+        const wallStuds = this.loftStudGroup();
         const cornerStudH = (loftElev + 0.85) - concreteH;
         const leftCornerPost = new THREE.Mesh(new THREE.BoxGeometry(studD, cornerStudH, studW * 2), timberMat);
         leftCornerPost.position.set(xConcreteFront, concreteH + cornerStudH / 2, -loftD / 2 + studW);
         leftCornerPost.castShadow = true;
-        sectionGroup.add(leftCornerPost);
+        wallStuds.add(leftCornerPost);
 
         const rightCornerPost = new THREE.Mesh(new THREE.BoxGeometry(studD, cornerStudH, studW * 2), timberMat);
         rightCornerPost.position.set(xConcreteFront, concreteH + cornerStudH / 2, loftD / 2 - studW);
         rightCornerPost.castShadow = true;
-        sectionGroup.add(rightCornerPost);
+        wallStuds.add(rightCornerPost);
 
         // D. Supports under the inner rim beam (edgeX) inside the concrete room
         // Midpoint column down to the slab (pelare under carrier beam to prevent bounce/sag)
@@ -5483,12 +5500,12 @@ export class HouseScene {
         const leftBearingStud = new THREE.Mesh(new THREE.BoxGeometry(studD, bearingStudH, studW), timberMat);
         leftBearingStud.position.set(edgeX, concreteH + bearingStudH / 2, -loftD / 2 + studW / 2);
         leftBearingStud.castShadow = true;
-        sectionGroup.add(leftBearingStud);
+        wallStuds.add(leftBearingStud);
 
         const rightBearingStud = new THREE.Mesh(new THREE.BoxGeometry(studD, bearingStudH, studW), timberMat);
         rightBearingStud.position.set(edgeX, concreteH + bearingStudH / 2, loftD / 2 - studW / 2);
         rightBearingStud.castShadow = true;
-        sectionGroup.add(rightBearingStud);
+        wallStuds.add(rightBearingStud);
 
         // E. Wall studs along the side walls:
         // 1) Over the concrete walls (between xConcreteFront and edgeX):
@@ -5504,22 +5521,22 @@ export class HouseScene {
             const leftStud = new THREE.Mesh(sGeo, timberMat);
             leftStud.position.set(sx, concreteH + studH / 2, -loftD / 2 + studD / 2);
             leftStud.castShadow = true;
-            sectionGroup.add(leftStud);
+            wallStuds.add(leftStud);
 
             const rightStud = new THREE.Mesh(sGeo, timberMat);
             rightStud.position.set(sx, concreteH + studH / 2, loftD / 2 - studD / 2);
             rightStud.castShadow = true;
-            sectionGroup.add(rightStud);
+            wallStuds.add(rightStud);
           }
           // Horizontal sill plate on top of the concrete walls
           const sillGeo = new THREE.BoxGeometry(concSpan, 0.045, studD);
           const leftSill = new THREE.Mesh(sillGeo, timberMat);
           leftSill.position.set(xConcreteFront + concSpan / 2, concreteH + 0.045 / 2, -loftD / 2 + studD / 2);
-          sectionGroup.add(leftSill);
+          wallStuds.add(leftSill);
 
           const rightSill = new THREE.Mesh(sillGeo, timberMat);
           rightSill.position.set(xConcreteFront + concSpan / 2, concreteH + 0.045 / 2, loftD / 2 - studD / 2);
-          sectionGroup.add(rightSill);
+          wallStuds.add(rightSill);
         }
 
         // 2) Over the front timber extension (between startX and xConcreteFront):
@@ -5535,12 +5552,12 @@ export class HouseScene {
             const leftStud = new THREE.Mesh(sGeo, timberMat);
             leftStud.position.set(sx, slabBase + extStudH / 2, -loftD / 2 + studD / 2);
             leftStud.castShadow = true;
-            sectionGroup.add(leftStud);
+            wallStuds.add(leftStud);
 
             const rightStud = new THREE.Mesh(sGeo, timberMat);
             rightStud.position.set(sx, slabBase + extStudH / 2, loftD / 2 - studD / 2);
             rightStud.castShadow = true;
-            sectionGroup.add(rightStud);
+            wallStuds.add(rightStud);
           }
           // Horizontal ledger beam carrying the joists in the extension
           const ledgerGeo = new THREE.BoxGeometry(extSpan, 0.145, 0.045);
@@ -5552,6 +5569,7 @@ export class HouseScene {
           rightLedger.position.set(startX + extSpan / 2, concreteH - 0.145 / 2, loftD / 2 - 0.045 / 2);
           sectionGroup.add(rightLedger);
         }
+        sectionGroup.add(wallStuds);
       }
 
       this.addLoftPiece(sectionGroup);
@@ -5576,6 +5594,7 @@ export class HouseScene {
     if (this.currentConfig.hasLoftStair) {
       this.buildLoftStair(w, d, h, wt, loftElev, side, isTwoLofts, areaFraction);
     }
+    this.syncLoftStuds();
     this.loftBuildParent = null;
   }
 
@@ -6383,6 +6402,7 @@ export class HouseScene {
       } else {
         this.framingGroup.visible = false;
       }
+      this.syncLoftStuds();
       return;
     }
     Object.assign(this.currentConfig, config);
