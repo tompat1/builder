@@ -613,11 +613,11 @@ export const useConfigStore = defineStore('config', () => {
   const selectedRoomId = ref<string | null>(null);
   const floorPlanDone = ref(false);
 
-  function selectRoom(id: string | null) {
+  const selectRoom = (id: string | null) => {
     selectedRoomId.value = id && placedRooms.value[id] ? id : null;
   }
 
-  function removePlacedRoom(id: string) {
+  const removePlacedRoom = (id: string) => {
     if (!placedRooms.value[id]) return;
     const next = { ...placedRooms.value };
     delete next[id];
@@ -626,14 +626,14 @@ export const useConfigStore = defineStore('config', () => {
     if (Object.keys(next).length === 0) floorPlanDone.value = false;
   }
 
-  function setFloorPlanDone(done: boolean) {
+  const setFloorPlanDone = (done: boolean) => {
     if (done && Object.keys(placedRooms.value).length === 0) return;
     if (floorPlanDone.value === done) return;
     floorPlanDone.value = done;
     commitHouse();
   }
 
-  function toggleRoomWalls(id: string) {
+  const toggleRoomWalls = (id: string) => {
     const room = placedRooms.value[id];
     if (!room) return;
     placedRooms.value = {
@@ -643,11 +643,11 @@ export const useConfigStore = defineStore('config', () => {
     commitHouse();
   }
 
-  function commitRooms() {
+  const commitRooms = () => {
     commitHouse();
   }
 
-  function clearLoftRooms() {
+  const clearLoftRooms = () => {
     const next = { ...placedRooms.value };
     let changed = false;
     for (const [id, room] of Object.entries(next)) {
@@ -681,7 +681,7 @@ export const useConfigStore = defineStore('config', () => {
     }
   });
 
-  function applyDisplayPrefs(prefs: DisplayPrefs) {
+  const applyDisplayPrefs = (prefs: DisplayPrefs) => {
     showDimensions.value = prefs.dimensions;
     showNotes.value = prefs.notes;
     showSun.value = prefs.sun;
@@ -698,7 +698,7 @@ export const useConfigStore = defineStore('config', () => {
   const history = ref<string[]>([]);
   const historyIndex = ref<number>(-1);
 
-  function parseCameraView(value: unknown): CameraView | null {
+  const parseCameraView = (value: unknown): CameraView | null  => {
     if (!value || typeof value !== 'object') return null;
     const record = value as Record<string, unknown>;
     const numbers = [record.x, record.y, record.z, record.tx, record.ty, record.tz].map(Number);
@@ -713,11 +713,11 @@ export const useConfigStore = defineStore('config', () => {
     };
   }
 
-  function viewsMatch(a: CameraView, b: CameraView) {
+  const viewsMatch = (a: CameraView, b: CameraView) => {
     return (['x', 'y', 'z', 'tx', 'ty', 'tz'] as const).every((key) => Math.abs(a[key] - b[key]) < 0.01);
   }
 
-  function houseState() {
+  const houseState = () => {
     return {
       selectedSizeId: selectedSizeId.value,
       buildingWidth: buildingWidth.value,
@@ -766,7 +766,7 @@ export const useConfigStore = defineStore('config', () => {
     };
   }
 
-  function saveSnapshot() {
+  const saveSnapshot = () => {
     const snapshot = JSON.stringify(houseState());
     // Truncate forward history if we were in the middle
     history.value = history.value.slice(0, historyIndex.value + 1);
@@ -774,14 +774,14 @@ export const useConfigStore = defineStore('config', () => {
     historyIndex.value = history.value.length - 1;
   }
 
-  function undo() {
+  const undo = () => {
     if (historyIndex.value > 0) {
       historyIndex.value--;
       applySnapshot(history.value[historyIndex.value]);
     }
   }
 
-  function redo() {
+  const redo = () => {
     if (historyIndex.value < history.value.length - 1) {
       historyIndex.value++;
       applySnapshot(history.value[historyIndex.value]);
@@ -791,7 +791,7 @@ export const useConfigStore = defineStore('config', () => {
   const canUndo = computed(() => historyIndex.value > 0);
   const canRedo = computed(() => historyIndex.value < history.value.length - 1);
 
-  function applySnapshot(snapshotStr: string) {
+  const applySnapshot = (snapshotStr: string) => {
     try {
       const data = JSON.parse(snapshotStr);
       selectedSizeId.value = data.selectedSizeId;
@@ -881,11 +881,11 @@ export const useConfigStore = defineStore('config', () => {
     }
   }
 
-  function exportHouse() {
+  const exportHouse = () => {
     return houseState();
   }
 
-  function importHouse(data: unknown) {
+  const importHouse = (data: unknown) => {
     applySnapshot(JSON.stringify(data));
     const snapshot = JSON.stringify(houseState());
     history.value = [snapshot];
@@ -1070,25 +1070,25 @@ export const useConfigStore = defineStore('config', () => {
     return total;
   });
 
-  function toggleViewMode() {
+  const toggleViewMode = () => {
     viewMode.value = viewMode.value === 'utsida' ? 'insida' : 'utsida';
   }
 
-  function setViewMode(mode: ViewMode) {
+  const setViewMode = (mode: ViewMode) => {
     viewMode.value = mode;
   }
 
-  function setInteractionMode(mode: InteractionMode) {
+  const setInteractionMode = (mode: InteractionMode) => {
     interactionMode.value = mode;
   }
 
-  function triggerGenerateElectrical() {
+  const triggerGenerateElectrical = () => {
     generateElectricalSignal.value++;
   }
 
   let viewModeBeforeLoft: ViewMode | null = null;
 
-  function selectCategory(category: CategoryKey) {
+  const selectCategory = (category: CategoryKey) => {
     if (category === 'doors' || category === 'windows' || category === 'gates' || category === 'extras') {
       viewMode.value = 'utsida';
       viewModeBeforeLoft = null;
@@ -1114,7 +1114,7 @@ export const useConfigStore = defineStore('config', () => {
     categoryRequest.value += 1;
   }
 
-  function clampMeasure(axis: BuildingAxis, value: number) {
+  const clampMeasure = (axis: BuildingAxis, value: number) => {
     const limit = BUILDING_LIMITS[axis];
     if (!Number.isFinite(value)) {
       if (axis === 'width') return buildingWidth.value;
@@ -1124,7 +1124,7 @@ export const useConfigStore = defineStore('config', () => {
     return Math.round(Math.min(limit.max, Math.max(limit.min, value)));
   }
 
-  function applyPresetSize(id: string) {
+  const applyPresetSize = (id: string) => {
     const preset = SIZE_OPTIONS.find((size) => size.id === id);
     if (!preset) return;
     buildingWidth.value = preset.width;
@@ -1132,7 +1132,7 @@ export const useConfigStore = defineStore('config', () => {
     buildingHeight.value = preset.height;
   }
 
-  function applyCubeShell() {
+  const applyCubeShell = () => {
     panelOrientation.value = 'liggande';
     verticalDoorBay.value = true;
     doorCanopy.value = true;
@@ -1158,7 +1158,7 @@ export const useConfigStore = defineStore('config', () => {
     selectedSlotId.value = null;
   }
 
-  function applySaunaShell() {
+  const applySaunaShell = () => {
     panelOrientation.value = 'liggande';
     verticalDoorBay.value = true;
     doorCanopy.value = true;
@@ -1178,7 +1178,7 @@ export const useConfigStore = defineStore('config', () => {
     selectedSlotId.value = null;
   }
 
-  function applyShedShell() {
+  const applyShedShell = () => {
     panelOrientation.value = 'staende';
     verticalDoorBay.value = false;
     doorCanopy.value = false;
@@ -1198,7 +1198,7 @@ export const useConfigStore = defineStore('config', () => {
     selectedSlotId.value = null;
   }
 
-  function applyPlainShell() {
+  const applyPlainShell = () => {
     panelOrientation.value = 'staende';
     verticalDoorBay.value = false;
     doorCanopy.value = false;
@@ -1215,7 +1215,7 @@ export const useConfigStore = defineStore('config', () => {
     selectedSlotId.value = null;
   }
 
-  function selectSize(id: string) {
+  const selectSize = (id: string) => {
     const shelled = id === 'size-cube' || id === 'size-sauna' || id === 'size-shed' || id === 'size-paabyggnad';
     const leavingShell = !shelled && (selectedSizeId.value === 'size-cube' || selectedSizeId.value === 'size-sauna' || selectedSizeId.value === 'size-shed' || selectedSizeId.value === 'size-paabyggnad');
     selectedSizeId.value = id;
@@ -1246,7 +1246,7 @@ export const useConfigStore = defineStore('config', () => {
     saveSnapshot();
   }
 
-  function reconcileWallSlots() {
+  const reconcileWallSlots = () => {
     const w = buildingWidth.value;
     const d = buildingDepth.value;
     const walls = ['front', 'back', 'left', 'right'] as const;
@@ -1299,7 +1299,7 @@ export const useConfigStore = defineStore('config', () => {
     }
   }
 
-  function setBuildingMeasure(axis: BuildingAxis, value: number) {
+  const setBuildingMeasure = (axis: BuildingAxis, value: number) => {
     const next = clampMeasure(axis, value);
     if (selectedSizeId.value === 'size-paabyggnad') {
       const plan = clampPaabyggnadPlan(
@@ -1325,7 +1325,7 @@ export const useConfigStore = defineStore('config', () => {
     saveSnapshot();
   }
 
-  function setConcreteMeasure(axis: BuildingAxis, value: number) {
+  const setConcreteMeasure = (axis: BuildingAxis, value: number) => {
     if (selectedSizeId.value !== 'size-paabyggnad') return;
     const concrete = {
       width: axis === 'width' ? value : concreteWidth.value,
@@ -1340,7 +1340,7 @@ export const useConfigStore = defineStore('config', () => {
     saveSnapshot();
   }
 
-  function addConcreteWall() {
+  const addConcreteWall = () => {
     if (selectedSizeId.value !== 'size-paabyggnad') return;
     if (concreteWalls.value.length >= CONCRETE_WALL_LIMIT) return;
     const axis: ConcreteWall['axis'] = concreteWalls.value.length % 2 === 0 ? 'x' : 'z';
@@ -1354,7 +1354,7 @@ export const useConfigStore = defineStore('config', () => {
     saveSnapshot();
   }
 
-  function setConcreteWall(id: string, patch: Partial<Pick<ConcreteWall, 'axis' | 'offsetMm'>>) {
+  const setConcreteWall = (id: string, patch: Partial<Pick<ConcreteWall, 'axis' | 'offsetMm'>>) => {
     concreteWalls.value = concreteWalls.value.map((wall) => {
       if (wall.id !== id) return wall;
       return clampConcreteWall({
@@ -1366,13 +1366,13 @@ export const useConfigStore = defineStore('config', () => {
     saveSnapshot();
   }
 
-  function removeConcreteWall(id: string) {
+  const removeConcreteWall = (id: string) => {
     if (!concreteWalls.value.some((wall) => wall.id === id)) return;
     concreteWalls.value = concreteWalls.value.filter((wall) => wall.id !== id);
     saveSnapshot();
   }
 
-  function swapConcretePlan() {
+  const swapConcretePlan = () => {
     if (selectedSizeId.value !== 'size-paabyggnad') return;
     const width = concreteDepth.value;
     const depth = concreteWidth.value;
@@ -1388,7 +1388,7 @@ export const useConfigStore = defineStore('config', () => {
     saveSnapshot();
   }
 
-  function swapBuildingPlan() {
+  const swapBuildingPlan = () => {
     const nextWidth = clampMeasure('width', buildingDepth.value);
     const nextDepth = clampMeasure('depth', buildingWidth.value);
     if (nextWidth === buildingWidth.value && nextDepth === buildingDepth.value) return;
@@ -1397,93 +1397,93 @@ export const useConfigStore = defineStore('config', () => {
     saveSnapshot();
   }
 
-  function selectRoof(id: string) {
+  const selectRoof = (id: string) => {
     activeRoof.value = id;
     saveSnapshot();
   }
 
-  function setFlushRoof(flush: boolean) {
+  const setFlushRoof = (flush: boolean) => {
     if (flushRoof.value === flush) return;
     flushRoof.value = flush;
     saveSnapshot();
   }
 
-  function selectRoofCovering(id: RoofCovering) {
+  const selectRoofCovering = (id: RoofCovering) => {
     roofCovering.value = id;
     saveSnapshot();
   }
 
-  function selectLoft(id: string) {
+  const selectLoft = (id: string) => {
     activeLoft.value = id;
     if (id === 'none') clearLoftRooms();
     saveSnapshot();
   }
 
-  function toggleHasLoft(forceState?: boolean) {
+  const toggleHasLoft = (forceState?: boolean) => {
     const next = forceState !== undefined ? forceState : activeLoft.value === 'none';
     activeLoft.value = next ? 'sleeping' : 'none';
     if (!next) clearLoftRooms();
     saveSnapshot();
   }
 
-  function setLoftCount(count: LoftCount) {
+  const setLoftCount = (count: LoftCount) => {
     loftCount.value = count;
     saveSnapshot();
   }
 
-  function setLoftPlacement(placement: LoftPlacement) {
+  const setLoftPlacement = (placement: LoftPlacement) => {
     loftPlacement.value = placement;
     saveSnapshot();
   }
 
-  function setLoftSize(area: number) {
+  const setLoftSize = (area: number) => {
     selectedLoftSize.value = area;
     saveSnapshot();
   }
 
-  function toggleLoftStair() {
+  const toggleLoftStair = () => {
     hasLoftStair.value = !hasLoftStair.value;
     saveSnapshot();
   }
 
-  function setLoftStairType(type: LoftStairType) {
+  const setLoftStairType = (type: LoftStairType) => {
     loftStairType.value = type;
     hasLoftStair.value = true;
     saveSnapshot();
   }
 
-  function setLoftStairPosition(position: LoftStairPosition) {
+  const setLoftStairPosition = (position: LoftStairPosition) => {
     loftStairPosition.value = position;
     hasLoftStair.value = true;
     saveSnapshot();
   }
 
-  function setLoftTab(tab: LoftTab) {
+  const setLoftTab = (tab: LoftTab) => {
     loftTab.value = tab;
   }
 
-  function selectDoor(id: string) {
+  const selectDoor = (id: string) => {
     activeDoor.value = id;
     saveSnapshot();
   }
 
-  function selectWindow(id: string) {
+  const selectWindow = (id: string) => {
     activeWindow.value = id;
     saveSnapshot();
   }
 
-  function selectGate(id: string) {
+  const selectGate = (id: string) => {
     activeGate.value = id;
     saveSnapshot();
   }
 
-  function setDoorCanopy(on: boolean) {
+  const setDoorCanopy = (on: boolean) => {
     if (doorCanopy.value === on) return;
     doorCanopy.value = on;
     saveSnapshot();
   }
 
-  function replaceTerrace(side: TerraceSide, patch: Partial<HouseTerrace>) {
+  const replaceTerrace = (side: TerraceSide, patch: Partial<HouseTerrace>) => {
     const current = terraces.value.find((item) => item.side === side);
     if (!current) return;
     const [next] = acceptTerraces([{ ...current, ...patch, side: patch.side ?? current.side }]);
@@ -1509,7 +1509,7 @@ export const useConfigStore = defineStore('config', () => {
     saveSnapshot();
   }
 
-  function addTerrace() {
+  const addTerrace = () => {
     const used = new Set(terraces.value.map((item) => item.side));
     const side = TERRACE_SIDES.find((item) => !used.has(item));
     if (!side) return;
@@ -1517,58 +1517,58 @@ export const useConfigStore = defineStore('config', () => {
     saveSnapshot();
   }
 
-  function removeTerrace(side: TerraceSide) {
+  const removeTerrace = (side: TerraceSide) => {
     if (!terraces.value.some((item) => item.side === side)) return;
     terraces.value = terraces.value.filter((item) => item.side !== side);
     saveSnapshot();
   }
 
-  function setTerraceSide(side: TerraceSide, next: TerraceSide) {
+  const setTerraceSide = (side: TerraceSide, next: TerraceSide) => {
     replaceTerrace(side, { side: next });
   }
 
-  function setTerraceDepth(side: TerraceSide, depth: TerraceDepth) {
+  const setTerraceDepth = (side: TerraceSide, depth: TerraceDepth) => {
     if (!TERRACE_DEPTHS.includes(depth)) return;
     replaceTerrace(side, { depth });
   }
 
-  function setTerraceSpan(side: TerraceSide, span: TerraceSpan) {
+  const setTerraceSpan = (side: TerraceSide, span: TerraceSpan) => {
     replaceTerrace(side, { span });
   }
 
-  function setTerraceRoof(side: TerraceSide, roof: boolean) {
+  const setTerraceRoof = (side: TerraceSide, roof: boolean) => {
     replaceTerrace(side, { roof });
   }
 
-  function setTerraceBuilding(side: TerraceSide, building: TerraceBuilding) {
+  const setTerraceBuilding = (side: TerraceSide, building: TerraceBuilding) => {
     replaceTerrace(side, { building });
   }
 
-  function setTerraceBuildingPlacement(side: TerraceSide, buildingPlacement: TerraceBuildingPlacement) {
+  const setTerraceBuildingPlacement = (side: TerraceSide, buildingPlacement: TerraceBuildingPlacement) => {
     replaceTerrace(side, { buildingPlacement });
   }
 
-  function setTerraceBuildingRoof(side: TerraceSide, buildingRoof: TerraceBuildingRoof) {
+  const setTerraceBuildingRoof = (side: TerraceSide, buildingRoof: TerraceBuildingRoof) => {
     if (!TERRACE_BUILDING_ROOFS.includes(buildingRoof)) return;
     replaceTerrace(side, { buildingRoof });
   }
 
-  function setTerraceBuildingTurn(side: TerraceSide, buildingTurn: SaunaTurn) {
+  const setTerraceBuildingTurn = (side: TerraceSide, buildingTurn: SaunaTurn) => {
     if (!SAUNA_TURNS.includes(buildingTurn)) return;
     replaceTerrace(side, { buildingTurn: buildingTurn === 0 ? undefined : buildingTurn });
   }
 
-  function setFacing(next: CompassFacing) {
+  const setFacing = (next: CompassFacing) => {
     if (facing.value === next) return;
     facing.value = next;
     saveSnapshot();
   }
 
-  function previewSunHour(hour: number) {
+  const previewSunHour = (hour: number) => {
     sunHour.value = clampSunHour(hour);
   }
 
-  function commitSunHour(hour: number) {
+  const commitSunHour = (hour: number) => {
     const next = clampSunHour(hour);
     sunHour.value = next;
     if (next === sunHourAtSnapshot) return;
@@ -1576,7 +1576,7 @@ export const useConfigStore = defineStore('config', () => {
     saveSnapshot();
   }
 
-  function markDefaultView(view: CameraView) {
+  const markDefaultView = (view: CameraView) => {
     const next = parseCameraView(view);
     if (!next) return;
     if (defaultView.value && viewsMatch(defaultView.value, next)) return;
@@ -1584,14 +1584,14 @@ export const useConfigStore = defineStore('config', () => {
     saveSnapshot();
   }
 
-  function selectMaterial(id: MaterialKey) {
+  const selectMaterial = (id: MaterialKey) => {
     activeMaterial.value = id;
     activePaintId.value = null;
     paintPreview.value = null;
     saveSnapshot();
   }
 
-  function selectCornerColor(color: string) {
+  const selectCornerColor = (color: string) => {
     if (color.startsWith('#')) {
       const normalized = normalizeHex(color) ?? color.toLowerCase();
       if (!savedCornerColors.value.includes(normalized)) {
@@ -1606,7 +1606,7 @@ export const useConfigStore = defineStore('config', () => {
     saveSnapshot();
   }
 
-  function addCornerColor(color: string) {
+  const addCornerColor = (color: string) => {
     const normalized = normalizeHex(color) ?? color.toLowerCase();
     if (!savedCornerColors.value.includes(normalized)) {
       savedCornerColors.value = [...savedCornerColors.value, normalized].slice(-12);
@@ -1615,7 +1615,7 @@ export const useConfigStore = defineStore('config', () => {
     saveSnapshot();
   }
 
-  function removeCornerColor(color: string) {
+  const removeCornerColor = (color: string) => {
     const normalized = normalizeHex(color) ?? color.toLowerCase();
     savedCornerColors.value = savedCornerColors.value.filter((c) => c !== normalized && c !== color);
     if (cornerColor.value === normalized || cornerColor.value === color) {
@@ -1624,7 +1624,7 @@ export const useConfigStore = defineStore('config', () => {
     saveSnapshot();
   }
 
-  function updateCornerColor(oldColor: string, newColor: string) {
+  const updateCornerColor = (oldColor: string, newColor: string) => {
     const normOld = normalizeHex(oldColor) ?? oldColor.toLowerCase();
     const normNew = normalizeHex(newColor) ?? newColor.toLowerCase();
     savedCornerColors.value = savedCornerColors.value.map((c) => (c === normOld ? normNew : c));
@@ -1634,7 +1634,7 @@ export const useConfigStore = defineStore('config', () => {
     saveSnapshot();
   }
 
-  function selectConcreteColor(color: string) {
+  const selectConcreteColor = (color: string) => {
     if (color.startsWith('#')) {
       const normalized = normalizeHex(color) ?? color.toLowerCase();
       if (!savedConcreteColors.value.includes(normalized) && normalized !== '#b7b3ac') {
@@ -1649,7 +1649,7 @@ export const useConfigStore = defineStore('config', () => {
     saveSnapshot();
   }
 
-  function addConcreteColor(color: string) {
+  const addConcreteColor = (color: string) => {
     const normalized = normalizeHex(color) ?? color.toLowerCase();
     if (!savedConcreteColors.value.includes(normalized)) {
       savedConcreteColors.value = [...savedConcreteColors.value, normalized].slice(-12);
@@ -1658,7 +1658,7 @@ export const useConfigStore = defineStore('config', () => {
     saveSnapshot();
   }
 
-  function removeConcreteColor(color: string) {
+  const removeConcreteColor = (color: string) => {
     const normalized = normalizeHex(color) ?? color.toLowerCase();
     savedConcreteColors.value = savedConcreteColors.value.filter((c) => c !== normalized && c !== color);
     if (concreteColor.value === normalized || concreteColor.value === color) {
@@ -1667,7 +1667,7 @@ export const useConfigStore = defineStore('config', () => {
     saveSnapshot();
   }
 
-  function updateConcreteColor(oldColor: string, newColor: string) {
+  const updateConcreteColor = (oldColor: string, newColor: string) => {
     const normOld = normalizeHex(oldColor) ?? oldColor.toLowerCase();
     const normNew = normalizeHex(newColor) ?? newColor.toLowerCase();
     savedConcreteColors.value = savedConcreteColors.value.map((c) => (c === normOld ? normNew : c));
@@ -1677,18 +1677,18 @@ export const useConfigStore = defineStore('config', () => {
     saveSnapshot();
   }
 
-  function toggleCornerBoards() {
+  const toggleCornerBoards = () => {
     cornerBoards.value = !cornerBoards.value;
     saveSnapshot();
   }
 
-  function setCornerBoards(visible: boolean) {
+  const setCornerBoards = (visible: boolean) => {
     if (cornerBoards.value === visible) return;
     cornerBoards.value = visible;
     saveSnapshot();
   }
 
-  function selectSavedPaint(id: string) {
+  const selectSavedPaint = (id: string) => {
     if (!savedPaints.value.some((paint) => paint.id === id)) return;
     paintPreview.value = null;
     if (activePaintId.value === id) return;
@@ -1696,11 +1696,11 @@ export const useConfigStore = defineStore('config', () => {
     saveSnapshot();
   }
 
-  function setPaintPreview(hex: string | null) {
+  const setPaintPreview = (hex: string | null) => {
     paintPreview.value = hex ? normalizeHex(hex) : null;
   }
 
-  function setCustomPaint(paint: CustomPaint) {
+  const setCustomPaint = (paint: CustomPaint) => {
     const next = parseCustomPaint(paint);
     if (!next) return;
     paintPreview.value = null;
@@ -1722,7 +1722,7 @@ export const useConfigStore = defineStore('config', () => {
     saveSnapshot();
   }
 
-  function removeSavedPaint(id: string) {
+  const removeSavedPaint = (id: string) => {
     savedPaints.value = savedPaints.value.filter((paint) => paint.id !== id);
     if (activePaintId.value === id) {
       const next = savedPaints.value[savedPaints.value.length - 1];
@@ -1736,32 +1736,32 @@ export const useConfigStore = defineStore('config', () => {
     saveSnapshot();
   }
 
-  function selectPanelOrientation(orientation: PanelOrientation) {
+  const selectPanelOrientation = (orientation: PanelOrientation) => {
     panelOrientation.value = orientation;
     saveSnapshot();
   }
 
-  function selectCladdingSize(id: CladdingSizeId) {
+  const selectCladdingSize = (id: CladdingSizeId) => {
     if (!CLADDING_SIZES.some((size) => size.id === id)) return;
     claddingSizeId.value = id;
     saveSnapshot();
   }
 
-  function selectSlot(slotId: string | null) {
+  const selectSlot = (slotId: string | null) => {
     selectedSlotId.value = slotId;
   }
 
-  function commitHouse() {
+  const commitHouse = () => {
     const next = JSON.stringify(houseState());
     if (history.value[historyIndex.value] === next) return;
     saveSnapshot();
   }
 
-  function noteById(id: string) {
+  const noteById = (id: string) => {
     return notes.value.find((note) => note.id === id);
   }
 
-  function replaceNote(id: string, patch: Partial<HouseNote>) {
+  const replaceNote = (id: string, patch: Partial<HouseNote>) => {
     const current = noteById(id);
     if (!current) return;
     const [next] = acceptNotes([{ ...current, ...patch, id: current.id }]);
@@ -1769,7 +1769,7 @@ export const useConfigStore = defineStore('config', () => {
     notes.value = notes.value.map((note) => (note.id === id ? next : note));
   }
 
-  function addNote() {
+  const addNote = () => {
     if (notes.value.length >= NOTE_LIMIT) return null;
     const id = `note_${crypto.randomUUID().replaceAll('-', '').slice(0, 16)}`;
     notes.value = [...notes.value, freshNote(notes.value.length, id)];
@@ -1779,46 +1779,46 @@ export const useConfigStore = defineStore('config', () => {
     return id;
   }
 
-  function removeNote(id: string) {
+  const removeNote = (id: string) => {
     if (!noteById(id)) return;
     notes.value = notes.value.filter((note) => note.id !== id);
     if (activeNoteId.value === id) activeNoteId.value = null;
     commitHouse();
   }
 
-  function setNoteText(id: string, text: string) {
+  const setNoteText = (id: string, text: string) => {
     replaceNote(id, { text });
   }
 
-  function setNoteLink(id: string, value: string) {
+  const setNoteLink = (id: string, value: string) => {
     const link = linkFromValue(value);
     replaceNote(id, { link });
     activeNoteId.value = id;
     commitHouse();
   }
 
-  function moveNote(id: string, place: { x?: number; y?: number; offsetX?: number; offsetY?: number }) {
+  const moveNote = (id: string, place: { x?: number; y?: number; offsetX?: number; offsetY?: number }) => {
     replaceNote(id, place);
   }
 
-  function setNotePin(id: string, pin: { x: number; y: number; z: number; nx?: number; ny?: number; nz?: number; scope?: 'outside' | 'inside' } | null) {
+  const setNotePin = (id: string, pin: { x: number; y: number; z: number; nx?: number; ny?: number; nz?: number; scope?: 'outside' | 'inside' } | null) => {
     replaceNote(id, { pin: pin ? parseNotePin(pin) : null });
   }
 
-  function resizeNote(id: string, width: number, height: number) {
+  const resizeNote = (id: string, width: number, height: number) => {
     replaceNote(id, { width, height });
   }
 
-  function setNotePlanes(camera: string, planes: Record<string, { transform: string; visible: boolean }>) {
+  const setNotePlanes = (camera: string, planes: Record<string, { transform: string; visible: boolean }>) => {
     noteCamera.value = camera;
     notePlanes.value = planes;
   }
 
-  function commitNotes() {
+  const commitNotes = () => {
     commitHouse();
   }
 
-  function toggleNotes() {
+  const toggleNotes = () => {
     if (showNotes.value) {
       showNotes.value = false;
       return;
@@ -1827,7 +1827,7 @@ export const useConfigStore = defineStore('config', () => {
     if (!notes.value.length) addNote();
   }
 
-  function setNoteAnchors(next: Record<string, { x: number; y: number; visible: boolean }>) {
+  const setNoteAnchors = (next: Record<string, { x: number; y: number; visible: boolean }>) => {
     const current = noteAnchors.value;
     const keys = Object.keys(next);
     const sameKeys = keys.length === Object.keys(current).length && keys.every((key) => current[key]);
@@ -1844,7 +1844,7 @@ export const useConfigStore = defineStore('config', () => {
     noteAnchors.value = next;
   }
 
-  function releaseWideDoor(slotId: string) {
+  const releaseWideDoor = (slotId: string) => {
     const slot = wallSlots.value[slotId];
     if (!slot) return;
     if (slot.itemId === 'SKJUTDORR' || slot.itemId === 'SKJUTDORR3') {
@@ -1864,7 +1864,7 @@ export const useConfigStore = defineStore('config', () => {
     }
   }
 
-  function assignSlotItem(slotId: string, type: 'empty' | 'door' | 'window' | 'gate', itemId?: string) {
+  const assignSlotItem = (slotId: string, type: 'empty' | 'door' | 'window' | 'gate', itemId?: string) => {
     const slot = wallSlots.value[slotId];
     if (!slot) return;
     const isUpper = slot.isUpper === true || slotId.endsWith('u');
@@ -1888,11 +1888,11 @@ export const useConfigStore = defineStore('config', () => {
     saveSnapshot();
   }
 
-  function removeSlotItem(slotId: string) {
+  const removeSlotItem = (slotId: string) => {
     assignSlotItem(slotId, 'empty', undefined);
   }
 
-  function moveSlotItem(fromId: string, toId: string): boolean {
+  const moveSlotItem = (fromId: string, toId: string): boolean  => {
     const success = moveWallSlot(wallSlots.value, fromId, toId);
     if (success) {
       selectedSlotId.value = toId;
@@ -1901,26 +1901,26 @@ export const useConfigStore = defineStore('config', () => {
     return success;
   }
 
-  function toggleDimensions() {
+  const toggleDimensions = () => {
     showDimensions.value = !showDimensions.value;
   }
 
-  function setDisplay(key: 'dimensions' | 'notes' | 'sun' | 'mood', shown: boolean) {
+  const setDisplay = (key: 'dimensions' | 'notes' | 'sun' | 'mood', shown: boolean) => {
     if (key === 'dimensions') showDimensions.value = shown;
     else if (key === 'notes') showNotes.value = shown;
     else if (key === 'sun') showSun.value = shown;
     else showMood.value = shown;
   }
 
-  function toggleInnerWalls() {
+  const toggleInnerWalls = () => {
     showInnerWalls.value = !showInnerWalls.value;
   }
 
-  function setShowInnerWalls(val: boolean) {
+  const setShowInnerWalls = (val: boolean) => {
     showInnerWalls.value = val;
   }
 
-  function toggleSunShown() {
+  const toggleSunShown = () => {
     showSun.value = !showSun.value;
   }
 
@@ -1933,7 +1933,7 @@ export const useConfigStore = defineStore('config', () => {
     end: { x: 0, y: 0, visible: false }
   });
 
-  function clearMeasure() {
+  const clearMeasure = () => {
     measureStart.value = null;
     measureEnd.value = null;
     measureCursor.value = null;
@@ -1941,12 +1941,12 @@ export const useConfigStore = defineStore('config', () => {
     measureScreen.end.visible = false;
   }
 
-  function toggleMeasure() {
+  const toggleMeasure = () => {
     measuring.value = !measuring.value;
     clearMeasure();
   }
 
-  function placeMeasurePoint(point: MeasurePoint) {
+  const placeMeasurePoint = (point: MeasurePoint) => {
     if (!measuring.value) return;
     const next = nextMeasure(measureStart.value, measureEnd.value, point);
     measureStart.value = next.start;
@@ -1954,15 +1954,15 @@ export const useConfigStore = defineStore('config', () => {
     measureCursor.value = next.end ? null : point;
   }
 
-  function setMeasureCursor(point: MeasurePoint | null) {
+  const setMeasureCursor = (point: MeasurePoint | null) => {
     if (!measuring.value || measureEnd.value) return;
     measureCursor.value = point;
   }
 
-  function setMeasureScreen(next: {
+  const setMeasureScreen = (next: {
     start: { x: number; y: number; visible: boolean };
     end: { x: number; y: number; visible: boolean };
-  } | null) {
+  } | null) => {
     const start = next?.start ?? { x: 0, y: 0, visible: false };
     const end = next?.end ?? { x: 0, y: 0, visible: false };
     for (const [current, value] of [
@@ -1990,34 +1990,34 @@ export const useConfigStore = defineStore('config', () => {
     return !isUpper;
   });
 
-  function setHoveredSlot(slotId: string | null, pos?: { x: number; y: number } | null) {
+  const setHoveredSlot = (slotId: string | null, pos?: { x: number; y: number } | null) => {
     hoveredSlotId.value = slotId;
     hoveredSlotPos.value = pos ?? null;
   }
 
-  function setDragging(val: boolean) {
+  const setDragging = (val: boolean) => {
     isDragging.value = val;
   }
 
-  function setSlotScreenPosition(pos: { x: number; y: number; visible: boolean } | null) {
+  const setSlotScreenPosition = (pos: { x: number; y: number; visible: boolean } | null) => {
     slotScreenPosition.value = pos;
   }
 
-  function setWindowFitOffers(ids: string[]) {
+  const setWindowFitOffers = (ids: string[]) => {
     const next = [...ids].sort();
     const prev = windowFitOffers.value;
     if (prev.length === next.length && prev.every((id, index) => id === next[index])) return;
     windowFitOffers.value = next;
   }
 
-  function fitWindowToWall(slotId: string) {
+  const fitWindowToWall = (slotId: string) => {
     const slot = wallSlots.value[slotId];
     if (!slot || slot.type !== 'window') return;
     slot.fitToWall = true;
     saveSnapshot();
   }
 
-  function setDimensionLabels(next: Record<string, { x: number; y: number; visible: boolean }>) {
+  const setDimensionLabels = (next: Record<string, { x: number; y: number; visible: boolean }>) => {
     for (const key of Object.keys(next)) {
       const current = dimensionLabels[key];
       const value = next[key];
@@ -2035,7 +2035,7 @@ export const useConfigStore = defineStore('config', () => {
     }
   }
 
-  function cycleSlot(direction: 'prev' | 'next') {
+  const cycleSlot = (direction: 'prev' | 'next') => {
     const keys = Object.keys(wallSlots.value);
     if (!selectedSlotId.value) {
       selectedSlotId.value = keys[0];
@@ -2049,14 +2049,14 @@ export const useConfigStore = defineStore('config', () => {
     selectedSlotId.value = keys[nextIndex];
   }
 
-  function deselectSlot() {
+  const deselectSlot = () => {
     selectedSlotId.value = null;
     slotScreenPosition.value = null;
   }
 
   const factoryHouse = JSON.stringify(houseState());
 
-  function isFactoryHouse(data: unknown) {
+  const isFactoryHouse = (data: unknown) => {
     try {
       return JSON.stringify(data) === factoryHouse;
     } catch {

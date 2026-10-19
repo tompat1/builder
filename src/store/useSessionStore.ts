@@ -12,28 +12,28 @@ export const useSessionStore = defineStore('session', () => {
   const hasSavedHouse = computed(() => Boolean(user.value && savedHouseCount.value > 0));
   let resolving: Promise<void> | null = null;
 
-  function setUser(next: AccountUser | null) {
+  const setUser = (next: AccountUser | null) => {
     user.value = next;
     if (!next) {
       savedHouseCount.value = 0;
     } else {
       syncUserWithLocalConsent(next);
     }
-  }
+  };
 
-  function updateUserConsent(sound: SoundConsent, cookies: CookieConsent) {
+  const updateUserConsent = (sound: SoundConsent, cookies: CookieConsent) => {
     if (user.value) {
       user.value.soundConsent = sound;
       user.value.cookieConsent = cookies;
       saveUserConsent(user.value.id, sound, cookies);
     }
-  }
+  };
 
-  function setSavedHouseCount(count: number) {
+  const setSavedHouseCount = (count: number) => {
     savedHouseCount.value = Math.max(0, Math.floor(count));
-  }
+  };
 
-  async function refreshSavedHouseStatus() {
+  const refreshSavedHouseStatus = async () => {
     if (!user.value) {
       setSavedHouseCount(0);
       return;
@@ -43,9 +43,9 @@ export const useSessionStore = defineStore('session', () => {
     } catch {
       setSavedHouseCount(0);
     }
-  }
+  };
 
-  async function ensureAccountState(force = false) {
+  const ensureAccountState = async (force = false) => {
     if (resolving) return resolving;
     if (resolved.value && !force) return;
     resolving = (async () => {
@@ -79,9 +79,9 @@ export const useSessionStore = defineStore('session', () => {
       resolving = null;
     });
     return resolving;
-  }
+  };
 
-  async function finishAuthentication(next: AccountUser) {
+  const finishAuthentication = async (next: AccountUser) => {
     setUser(next);
     resolved.value = true;
     try {
@@ -92,12 +92,12 @@ export const useSessionStore = defineStore('session', () => {
     } catch {
       // ignore
     }
-  }
+  };
 
-  function clearAccount() {
+  const clearAccount = () => {
     setUser(null);
     resolved.value = true;
-  }
+  };
 
   return {
     user,
