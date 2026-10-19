@@ -25,6 +25,18 @@ export const SAUNA_TURNS = [0, 1, 2, 3] as const;
 export type SaunaTurn = (typeof SAUNA_TURNS)[number];
 export type CabinWall = 'house' | 'yard' | 'left' | 'right';
 
+export type SaunaColor = 'natural' | 'svart' | 'falurod' | 'gra' | 'vit' | 'match';
+export const SAUNA_COLORS = ['natural', 'svart', 'falurod', 'gra', 'vit', 'match'] as const;
+
+export type SaunaDoor = 'glass' | 'lervik' | 'stehag' | 'solid';
+export const SAUNA_DOORS = ['glass', 'lervik', 'stehag', 'solid'] as const;
+
+export type SaunaWindow = 'panorama' | 'standard' | 'sprojat' | 'frost' | 'none';
+export const SAUNA_WINDOWS = ['panorama', 'standard', 'sprojat', 'frost', 'none'] as const;
+
+export type SaunaWindowPlacement = 'yard' | 'side' | 'both' | 'none';
+export const SAUNA_WINDOW_PLACEMENTS = ['yard', 'side', 'both', 'none'] as const;
+
 const SAUNA_WALLS: CabinWall[] = ['house', 'left', 'yard', 'right'];
 
 /** Benches, window, and door stay one room and step clockwise together. */
@@ -47,6 +59,14 @@ export interface HouseTerrace {
   buildingRoof?: TerraceBuildingRoof;
   /** Quarter turns of a sauna interior. Missing means the benches face the yard. */
   buildingTurn?: SaunaTurn;
+  /** Exterior facade color/material of the sauna cabin */
+  buildingColor?: SaunaColor;
+  /** Door model choice for the sauna */
+  buildingDoor?: SaunaDoor;
+  /** Window style choice for the sauna */
+  buildingWindow?: SaunaWindow;
+  /** Which wall(s) have windows */
+  buildingWindowPlacement?: SaunaWindowPlacement;
 }
 
 const SAUNA_EAVE_M = 2.05;
@@ -147,6 +167,22 @@ export function acceptTerraces(value: unknown): HouseTerrace[] {
       row.buildingTurn === 1 || row.buildingTurn === 2 || row.buildingTurn === 3
         ? row.buildingTurn
         : undefined;
+    const buildingColor: SaunaColor | undefined =
+      row.buildingColor && SAUNA_COLORS.includes(row.buildingColor as SaunaColor)
+        ? (row.buildingColor as SaunaColor)
+        : undefined;
+    const buildingDoor: SaunaDoor | undefined =
+      row.buildingDoor && SAUNA_DOORS.includes(row.buildingDoor as SaunaDoor)
+        ? (row.buildingDoor as SaunaDoor)
+        : undefined;
+    const buildingWindow: SaunaWindow | undefined =
+      row.buildingWindow && SAUNA_WINDOWS.includes(row.buildingWindow as SaunaWindow)
+        ? (row.buildingWindow as SaunaWindow)
+        : undefined;
+    const buildingWindowPlacement: SaunaWindowPlacement | undefined =
+      row.buildingWindowPlacement && SAUNA_WINDOW_PLACEMENTS.includes(row.buildingWindowPlacement as SaunaWindowPlacement)
+        ? (row.buildingWindowPlacement as SaunaWindowPlacement)
+        : undefined;
     terraces.push({
       side: row.side as TerraceSide,
       depth: TERRACE_DEPTHS.includes(row.depth as TerraceDepth) ? (row.depth as TerraceDepth) : 1.8,
@@ -155,7 +191,11 @@ export function acceptTerraces(value: unknown): HouseTerrace[] {
       ...(building ? { building } : {}),
       ...(buildingPlacement ? { buildingPlacement } : {}),
       ...(buildingRoof ? { buildingRoof } : {}),
-      ...(buildingTurn ? { buildingTurn } : {})
+      ...(buildingTurn ? { buildingTurn } : {}),
+      ...(buildingColor ? { buildingColor } : {}),
+      ...(buildingDoor ? { buildingDoor } : {}),
+      ...(buildingWindow ? { buildingWindow } : {}),
+      ...(buildingWindowPlacement ? { buildingWindowPlacement } : {})
     });
     if (terraces.length >= TERRACE_SIDES.length) break;
   }

@@ -56,6 +56,14 @@ import {
   TERRACE_BUILDING_ROOFS,
   type SaunaTurn,
   SAUNA_TURNS,
+  type SaunaColor,
+  SAUNA_COLORS,
+  type SaunaDoor,
+  SAUNA_DOORS,
+  type SaunaWindow,
+  SAUNA_WINDOWS,
+  type SaunaWindowPlacement,
+  SAUNA_WINDOW_PLACEMENTS,
   SAUNA_BUILDING_PRICE,
   SHED_BUILDING_PRICE
 } from '../outside/terrace';
@@ -1609,6 +1617,26 @@ export const useConfigStore = defineStore('config', () => {
     replaceTerrace(side, { buildingTurn: buildingTurn === 0 ? undefined : buildingTurn });
   }
 
+  const setTerraceBuildingColor = (side: TerraceSide, buildingColor: SaunaColor) => {
+    if (!SAUNA_COLORS.includes(buildingColor)) return;
+    replaceTerrace(side, { buildingColor });
+  }
+
+  const setTerraceBuildingDoor = (side: TerraceSide, buildingDoor: SaunaDoor) => {
+    if (!SAUNA_DOORS.includes(buildingDoor)) return;
+    replaceTerrace(side, { buildingDoor });
+  }
+
+  const setTerraceBuildingWindow = (side: TerraceSide, buildingWindow: SaunaWindow) => {
+    if (!SAUNA_WINDOWS.includes(buildingWindow)) return;
+    replaceTerrace(side, { buildingWindow });
+  }
+
+  const setTerraceBuildingWindowPlacement = (side: TerraceSide, buildingWindowPlacement: SaunaWindowPlacement) => {
+    if (!SAUNA_WINDOW_PLACEMENTS.includes(buildingWindowPlacement)) return;
+    replaceTerrace(side, { buildingWindowPlacement });
+  }
+
   const setFacing = (next: CompassFacing) => {
     if (facing.value === next) return;
     facing.value = next;
@@ -2243,6 +2271,10 @@ export const useConfigStore = defineStore('config', () => {
     setTerraceBuildingPlacement,
     setTerraceBuildingRoof,
     setTerraceBuildingTurn,
+    setTerraceBuildingColor,
+    setTerraceBuildingDoor,
+    setTerraceBuildingWindow,
+    setTerraceBuildingWindowPlacement,
     setFacing,
     previewSunHour,
     commitSunHour,

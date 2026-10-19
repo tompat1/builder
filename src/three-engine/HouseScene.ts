@@ -2899,6 +2899,22 @@ export class HouseScene {
     }
   }
 
+  private houseExteriorHex(): string {
+    if (this.currentConfig.customHex) return this.currentConfig.customHex;
+    switch (this.currentConfig.material) {
+      case 'falurod':
+        return '#892622';
+      case 'grey':
+        return '#64748b';
+      case 'white':
+        return '#f8fafc';
+      case 'black':
+        return '#1a1c1b';
+      default:
+        return '#f6ead8';
+    }
+  }
+
   private addTerrace(
     door: OutsideAnchor,
     deckMat: THREE.Material,
@@ -3054,7 +3070,12 @@ export class HouseScene {
         roof: normalizeBuildingRoof(terrace.buildingRoof),
         roofMat,
         openFront: this.interiorCut(),
-        houseDoor: houseDoorSpec
+        houseDoor: houseDoorSpec,
+        doorId: terrace.buildingDoor,
+        windowId: terrace.buildingWindow,
+        windowPlacement: terrace.buildingWindowPlacement,
+        colorId: terrace.buildingColor,
+        houseColorHex: this.houseExteriorHex()
       });
     }
 

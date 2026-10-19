@@ -281,7 +281,22 @@ function houseFacts() {
   if (store.terraces.length > 0) {
     const t0 = store.terraces[0];
     if (t0.building === 'sauna') {
-      terraceParts.push('wooden terrace deck with an attached compact timber sauna box featuring a black flat roof and small chimney pipe');
+      const colorWord = t0.buildingColor === 'svart' ? 'charcoal black'
+        : t0.buildingColor === 'falurod' ? 'Falu red'
+        : t0.buildingColor === 'gra' ? 'slate grey'
+        : t0.buildingColor === 'vit' ? 'white'
+        : t0.buildingColor === 'match' ? 'matching color'
+        : 'natural timber';
+      const doorWord = t0.buildingDoor === 'solid' ? 'solid wood door'
+        : t0.buildingDoor === 'lervik' ? 'timber door with vertical glass slit'
+        : t0.buildingDoor === 'stehag' ? 'framed glass door'
+        : 'full-glass sauna door';
+      const winWord = t0.buildingWindow === 'none' ? 'windowless walls'
+        : t0.buildingWindow === 'panorama' ? 'large panoramic glass view window'
+        : t0.buildingWindow === 'sprojat' ? 'mullioned window'
+        : t0.buildingWindow === 'frost' ? 'frosted ribbon window'
+        : 'standard framed window';
+      terraceParts.push(`wooden terrace deck with an attached compact ${colorWord} sauna box featuring a ${doorWord}, ${winWord}, a flat black roof and small chimney pipe`);
     } else if (t0.building === 'shed') {
       terraceParts.push('wooden terrace deck with attached timber shed');
     } else {

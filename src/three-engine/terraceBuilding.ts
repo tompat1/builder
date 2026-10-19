@@ -1,5 +1,14 @@
 import * as THREE from 'three';
-import { buildingWallTop, saunaFacing, type CabinWall, type TerraceBuildingRoof } from '../outside/terrace';
+import {
+  buildingWallTop,
+  saunaFacing,
+  type CabinWall,
+  type TerraceBuildingRoof,
+  type SaunaColor,
+  type SaunaDoor,
+  type SaunaWindow,
+  type SaunaWindowPlacement
+} from '../outside/terrace';
 
 export interface TerraceCabinOptions {
   bX: number;
@@ -17,6 +26,16 @@ export interface TerraceCabinOptions {
   openFront: boolean;
   /** Door connects directly to a house door opening on the shared wall */
   houseDoor?: { along: number; width?: number; head?: number } | null;
+  /** Door model choice for the sauna */
+  doorId?: SaunaDoor;
+  /** Window model choice for the sauna */
+  windowId?: SaunaWindow;
+  /** Window placement wall */
+  windowPlacement?: SaunaWindowPlacement;
+  /** Exterior facade color/material for the sauna */
+  colorId?: SaunaColor;
+  /** Main house exterior color */
+  houseColorHex?: string;
 }
 
 /**
@@ -26,18 +45,34 @@ export interface TerraceCabinOptions {
 export function addTerraceCabin(group: THREE.Group, options: TerraceCabinOptions) {
   const { bX, bW, bD, deckTop, outward, type, isLeft, turn, roof, roofMat, openFront, houseDoor } = options;
   const sauna = type === 'sauna';
+  const colorId = options.colorId ?? 'natural';
+  const doorId: SaunaDoor = options.doorId ?? (sauna ? 'glass' : 'solid');
+  const windowId: SaunaWindow = options.windowId ?? 'standard';
+  const windowPlacement: SaunaWindowPlacement = options.windowPlacement ?? 'yard';
+
+  let baseColorHex = sauna ? '#c4a574' : '#8d8478';
+  if (sauna) {
+    if (colorId === 'svart') baseColorHex = '#27282b';
+    else if (colorId === 'falurod') baseColorHex = '#842621';
+    else if (colorId === 'gra') baseColorHex = '#5e656d';
+    else if (colorId === 'vit') baseColorHex = '#ede9df';
+    else if (colorId === 'match' && options.houseColorHex) baseColorHex = options.houseColorHex;
+    else if (colorId === 'natural') baseColorHex = '#c4a574';
+  }
+
+  const col = new THREE.Color(baseColorHex);
   const outerMat = new THREE.MeshStandardMaterial({
-    color: sauna ? '#c4a574' : '#8d8478',
+    color: col,
     roughness: 0.74,
     metalness: 0.02
   });
   const altMat = new THREE.MeshStandardMaterial({
-    color: sauna ? '#b08a5e' : '#7a7268',
+    color: col.clone().multiplyScalar(0.88),
     roughness: 0.76,
     metalness: 0.02
   });
   const recessMat = new THREE.MeshStandardMaterial({
-    color: sauna ? '#6e4e32' : '#3f3a34',
+    color: col.clone().multiplyScalar(0.55),
     roughness: 0.86
   });
   const innerMat = new THREE.MeshStandardMaterial({
@@ -45,7 +80,7 @@ export function addTerraceCabin(group: THREE.Group, options: TerraceCabinOptions
     roughness: 0.62
   });
   const trimMat = new THREE.MeshStandardMaterial({
-    color: sauna ? '#8c6538' : '#4a4339',
+    color: col.clone().multiplyScalar(0.72),
     roughness: 0.55,
     metalness: 0.04
   });
@@ -55,7 +90,7 @@ export function addTerraceCabin(group: THREE.Group, options: TerraceCabinOptions
     roughness: 0.06,
     metalness: 0.15,
     transparent: true,
-    opacity: sauna ? 0.12 : 0.55,
+    opacity: sauna ? 0.16 : 0.55,
     depthWrite: false,
     side: THREE.DoubleSide
   });
@@ -72,12 +107,30 @@ export function addTerraceCabin(group: THREE.Group, options: TerraceCabinOptions
     ? { bench: (isLeft ? 'right' : 'left') as CabinWall, window: 'yard' as CabinWall, door: 'house' as CabinWall }
     : (sauna && turn ? saunaFacing(turn, isLeft) : saunaFacing(0, isLeft));
   const walls = cabinWalls(x0, x1, houseZ, yardZ, outward, bD, topAt, yardTop);
-  const windowHole = openingOn(walls[facing.window], 'window', bD, deckTop, outward, openFront);
+
+  // Compute window holes for candidate walls
+  const windowHoles: Partial<Record<CabinWall, { from: number; to: number; sill: number; head: number } | null>> = {};
+  if (windowId !== 'none' && windowPlacement !== 'none') {
+    const candidateWalls: CabinWall[] = [];
+    if (windowPlacement === 'yard' || windowPlacement === 'both') {
+      candidateWalls.push(facing.window);
+    }
+    if (windowPlacement === 'side' || windowPlacement === 'both') {
+      const sideWall: CabinWall = isLeft ? 'right' : 'left';
+      if (!candidateWalls.includes(sideWall)) candidateWalls.push(sideWall);
+    }
+    for (const wId of candidateWalls) {
+      if (wId !== facing.door && wId !== 'house') {
+        windowHoles[wId] = openingOn(walls[wId], 'window', bD, deckTop, outward, openFront, undefined, undefined, windowId);
+      }
+    }
+  }
+
   const targetAlong = facing.door === 'house' && houseDoor ? houseDoor.along : undefined;
   const targetWidth = facing.door === 'house' && houseDoor ? houseDoor.width : undefined;
   const doorOpening = openingOn(walls[facing.door], 'door', bD, deckTop, outward, openFront, targetAlong, targetWidth);
   for (const wall of Object.values(walls)) {
-    const windowHere = wall.id === facing.window ? windowHole : null;
+    const windowHere = windowHoles[wall.id] ?? null;
     const doorHere = wall.id === facing.door ? doorOpening : null;
     addCladWall(group, {
       along: wall.along,
@@ -93,7 +146,8 @@ export function addTerraceCabin(group: THREE.Group, options: TerraceCabinOptions
       innerMat,
       trimMat,
       hole: windowHere ?? doorHere,
-      frameHole: windowHere != null
+      frameHole: windowHere != null,
+      windowId: windowHere != null ? windowId : undefined
     });
   }
 
@@ -131,6 +185,7 @@ export function addTerraceCabin(group: THREE.Group, options: TerraceCabinOptions
 
   if (doorOpening) {
     const doorWall = walls[facing.door];
+    const isGlass = doorId === 'glass';
     addDoor(group, {
       normal: doorWall.along === 'z' ? 'x' : 'z',
       face: doorWall.face,
@@ -139,10 +194,12 @@ export function addTerraceCabin(group: THREE.Group, options: TerraceCabinOptions
       sill: doorOpening.sill,
       head: doorOpening.head,
       width: Math.abs(doorOpening.to - doorOpening.from),
-      glass: sauna,
+      glass: isGlass,
+      doorType: doorId,
+      sauna,
       glassMat,
       trimMat,
-      leafMat: sauna ? glassMat : outerMat
+      leafMat: isGlass ? glassMat : outerMat
     });
   }
 }
@@ -186,10 +243,11 @@ function openingOn(
   outward: number,
   openFront: boolean,
   targetAlong?: number,
-  targetWidth?: number
+  targetWidth?: number,
+  windowId: SaunaWindow = 'standard'
 ) {
   if (openFront && wall.id === 'yard') return null;
-  if (kind === 'window') return windowOnWall(wall, deckTop);
+  if (kind === 'window') return windowOnWall(wall, deckTop, windowId);
   if (wall.along === 'z') {
     const door = doorHole(depth, deckTop, (along) => wall.top(outward * along));
     if (!door) return null;
@@ -198,16 +256,33 @@ function openingOn(
   return doorOnSpan(wall.from, wall.to, deckTop, wall.top((wall.from + wall.to) / 2), targetAlong, targetWidth);
 }
 
-function windowOnWall(wall: CabinWallSpec, deckTop: number) {
+function windowOnWall(wall: CabinWallSpec, deckTop: number, windowId: SaunaWindow = 'standard') {
+  if (windowId === 'none') return null;
   const lo = Math.min(wall.from, wall.to);
   const hi = Math.max(wall.from, wall.to);
-  const width = Math.min(1.05, hi - lo - 0.5);
-  const sill = deckTop + 0.72;
-  const head = deckTop + 1.68;
-  if (width < 0.4 || sill < deckTop + 0.4) return null;
+  const span = hi - lo;
+  if (span < 0.6) return null;
+
+  let width = Math.min(1.05, span - 0.5);
+  let sill = deckTop + 0.72;
+  let head = deckTop + 1.68;
+
+  if (windowId === 'panorama') {
+    width = Math.min(1.4, span - 0.28);
+    sill = deckTop + 0.42;
+    head = deckTop + 1.84;
+  } else if (windowId === 'frost') {
+    width = Math.min(1.2, span - 0.36);
+    sill = deckTop + 1.28;
+    head = deckTop + 1.70;
+  }
+
   const mid = (lo + hi) / 2;
   const clearance = Math.min(wall.top(mid - width / 2), wall.top(mid + width / 2));
-  if (head > clearance - 0.08) return null;
+  if (head > clearance - 0.06) {
+    head = clearance - 0.06;
+  }
+  if (head - sill < 0.3) return null;
   return { from: mid - width / 2, to: mid + width / 2, sill, head };
 }
 
@@ -268,6 +343,7 @@ interface CladWall {
   trimMat: THREE.Material;
   hole: { from: number; to: number; sill: number; head: number } | null;
   frameHole: boolean;
+  windowId?: SaunaWindow;
 }
 
 function addCladWall(group: THREE.Group, wall: CladWall) {
@@ -304,7 +380,7 @@ function addCladWall(group: THREE.Group, wall: CladWall) {
   }
   if (hole && wall.frameHole && !framedHole) {
     framedHole = true;
-    addOpeningFrame(group, wall, hole, wall.trimMat);
+    addOpeningFrame(group, wall, hole, wall.trimMat, wall.windowId);
   }
 }
 
@@ -411,7 +487,8 @@ function addOpeningFrame(
   group: THREE.Group,
   wall: CladWall,
   hole: { from: number; to: number; sill: number; head: number },
-  trim: THREE.Material
+  trim: THREE.Material,
+  windowId: SaunaWindow = 'standard'
 ) {
   const from = Math.min(hole.from, hole.to);
   const to = Math.max(hole.from, hole.to);
@@ -438,6 +515,8 @@ function addOpeningFrame(
     const [along, yy] = places[index];
     addBoard(group, wall, along, size[0], yy, size[1], face, depth, trim, true);
   });
+
+  const isFrost = windowId === 'frost';
   const glass = new THREE.Mesh(
     new THREE.BoxGeometry(
       wall.along === 'x' ? width - 0.04 : 0.012,
@@ -445,11 +524,11 @@ function addOpeningFrame(
       wall.along === 'x' ? 0.012 : width - 0.04
     ),
     new THREE.MeshStandardMaterial({
-      color: '#e7f2f4',
-      roughness: 0.06,
-      metalness: 0.12,
+      color: isFrost ? '#d6e4e8' : '#e7f2f4',
+      roughness: isFrost ? 0.45 : 0.06,
+      metalness: isFrost ? 0.05 : 0.12,
       transparent: true,
-      opacity: 0.22,
+      opacity: isFrost ? 0.85 : 0.22,
       depthWrite: false,
       side: THREE.DoubleSide
     })
@@ -457,6 +536,13 @@ function addOpeningFrame(
   if (wall.along === 'x') glass.position.set(mid, y, face);
   else glass.position.set(face, y, mid);
   group.add(glass);
+
+  if (windowId === 'sprojat') {
+    const barThick = 0.022;
+    const barDepth = 0.02;
+    addBoard(group, wall, mid, width - 0.04, y, barThick, face + wall.faceSign * 0.01, barDepth, trim, true);
+    addBoard(group, wall, mid, barThick, y, height - 0.04, face + wall.faceSign * 0.01, barDepth, trim, true);
+  }
 }
 
 function addCornerPosts(
@@ -693,6 +779,8 @@ function addDoor(
     head: number;
     width: number;
     glass: boolean;
+    doorType?: SaunaDoor;
+    sauna?: boolean;
     glassMat: THREE.Material;
     trimMat: THREE.Material;
     leafMat: THREE.Material;
@@ -719,7 +807,38 @@ function addDoor(
   leaf.castShadow = !spec.glass;
   group.add(frame);
   group.add(leaf);
-  if (spec.glass) {
+
+  if (spec.doorType === 'lervik') {
+    const slitSize: [number, number, number] = spec.normal === 'x'
+      ? [0.024, height * 0.65, 0.12]
+      : [0.12, height * 0.65, 0.024];
+    const slit = new THREE.Mesh(new THREE.BoxGeometry(...slitSize), spec.glassMat);
+    if (spec.normal === 'x') slit.position.set(spec.face + spec.sign * 0.036, y + 0.05, spec.along);
+    else slit.position.set(spec.along, y + 0.05, spec.face + spec.sign * 0.036);
+    group.add(slit);
+  } else if (spec.doorType === 'stehag') {
+    const barW = spec.width - 0.06;
+    const barH = height - 0.06;
+    const barThick = 0.02;
+    const vSize: [number, number, number] = spec.normal === 'x'
+      ? [0.024, barH, barThick]
+      : [barThick, barH, 0.024];
+    const vBar = new THREE.Mesh(new THREE.BoxGeometry(...vSize), spec.trimMat);
+    if (spec.normal === 'x') vBar.position.set(spec.face + spec.sign * 0.04, y + 0.01, spec.along);
+    else vBar.position.set(spec.along, y + 0.01, spec.face + spec.sign * 0.04);
+    group.add(vBar);
+    for (const dy of [-barH * 0.22, barH * 0.22]) {
+      const hSize: [number, number, number] = spec.normal === 'x'
+        ? [0.024, barThick, barW]
+        : [barW, barThick, 0.024];
+      const hBar = new THREE.Mesh(new THREE.BoxGeometry(...hSize), spec.trimMat);
+      if (spec.normal === 'x') hBar.position.set(spec.face + spec.sign * 0.04, y + dy + 0.01, spec.along);
+      else hBar.position.set(spec.along, y + dy + 0.01, spec.face + spec.sign * 0.04);
+      group.add(hBar);
+    }
+  }
+
+  if (spec.sauna || spec.glass) {
     const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.36, 10), spec.trimMat);
     if (spec.normal === 'x') handle.position.set(spec.face + spec.sign * 0.05, spec.sill + 0.95, spec.along + spec.width * 0.28);
     else handle.position.set(spec.along + spec.width * 0.28, spec.sill + 0.95, spec.face + spec.sign * 0.05);

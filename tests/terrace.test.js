@@ -143,3 +143,39 @@ test('sauna wall tops meet the chosen roof with no open joint', () => {
   const pulpetRise = buildingWallTop('pulpet', depth, 0) - buildingWallTop('pulpet', depth, 1);
   assert.ok(pulpetRise > lowRise);
 });
+
+test('a sauna accepts custom door, window, placement, and color, and drops unknown values', () => {
+  const terraces = acceptTerraces([
+    {
+      side: 'front',
+      depth: 1.8,
+      span: 'door',
+      roof: false,
+      building: 'sauna',
+      buildingColor: 'falurod',
+      buildingDoor: 'lervik',
+      buildingWindow: 'sprojat',
+      buildingWindowPlacement: 'both'
+    },
+    {
+      side: 'left',
+      depth: 2.4,
+      span: 'full',
+      roof: false,
+      building: 'sauna',
+      buildingColor: 'purple',
+      buildingDoor: 'revolving',
+      buildingWindow: 'stained_glass',
+      buildingWindowPlacement: 'roof'
+    }
+  ]);
+  assert.equal(terraces[0].buildingColor, 'falurod');
+  assert.equal(terraces[0].buildingDoor, 'lervik');
+  assert.equal(terraces[0].buildingWindow, 'sprojat');
+  assert.equal(terraces[0].buildingWindowPlacement, 'both');
+
+  assert.equal(terraces[1].buildingColor, undefined);
+  assert.equal(terraces[1].buildingDoor, undefined);
+  assert.equal(terraces[1].buildingWindow, undefined);
+  assert.equal(terraces[1].buildingWindowPlacement, undefined);
+});
