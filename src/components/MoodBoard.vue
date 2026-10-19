@@ -368,33 +368,9 @@
             <div class="pointer-events-none absolute -top-2.5 left-1/2 h-4 w-12 -translate-x-1/2 rounded-xs bg-white/55 shadow-xs backdrop-blur-xs" aria-hidden="true"></div>
 
             <div class="mb-2 flex items-center justify-between gap-1.5">
-              <!-- Reorder buttons on mobile, or drag handle on desktop -->
-              <div v-if="isMobile" class="flex items-center gap-1">
-                <button
-                  type="button"
-                  class="flex h-6 w-6 items-center justify-center rounded-md bg-black/5 text-stone-700 active:bg-black/15 disabled:opacity-25"
-                  :disabled="isFirstPiece(piece)"
-                  :aria-label="t('mood.moveUp') || 'Flytta upp'"
-                  @click.stop="movePieceOrder(piece, -1)"
-                >
-                  <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
-                  </svg>
-                </button>
-                <button
-                  type="button"
-                  class="flex h-6 w-6 items-center justify-center rounded-md bg-black/5 text-stone-700 active:bg-black/15 disabled:opacity-25"
-                  :disabled="isLastPiece(piece)"
-                  :aria-label="t('mood.moveDown') || 'Flytta ner'"
-                  @click.stop="movePieceOrder(piece, 1)"
-                >
-                  <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-              </div>
+              <!-- Drag handle on desktop -->
               <div
-                v-else
+                v-if="!isMobile"
                 class="flex h-7 items-center justify-center px-2.5 rounded-lg bg-black/8 hover:bg-black/15 text-stone-700 active:bg-black/20 transition-colors cursor-grab active:cursor-grabbing select-none"
                 :title="t('mood.move')"
                 :aria-label="t('mood.move')"
@@ -533,32 +509,6 @@
                   <circle cx="10" cy="6" r="1.5" />
                   <circle cx="17" cy="6" r="1.5" />
                 </svg>
-              </div>
-
-              <!-- Reorder buttons on mobile -->
-              <div v-if="isMobile" class="absolute left-2 top-2 z-10 flex items-center gap-1">
-                <button
-                  type="button"
-                  class="flex h-7 w-7 items-center justify-center rounded-lg bg-black/60 text-white shadow-md backdrop-blur-xs active:bg-black/80 disabled:opacity-30"
-                  :disabled="isFirstPiece(piece)"
-                  :aria-label="t('mood.moveUp') || 'Flytta upp'"
-                  @click.stop="movePieceOrder(piece, -1)"
-                >
-                  <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7" />
-                  </svg>
-                </button>
-                <button
-                  type="button"
-                  class="flex h-7 w-7 items-center justify-center rounded-lg bg-black/60 text-white shadow-md backdrop-blur-xs active:bg-black/80 disabled:opacity-30"
-                  :disabled="isLastPiece(piece)"
-                  :aria-label="t('mood.moveDown') || 'Flytta ner'"
-                  @click.stop="movePieceOrder(piece, 1)"
-                >
-                  <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
               </div>
 
               <a
@@ -1461,33 +1411,6 @@ const displayPieces = computed(() => {
   }
   return pieces.value;
 });
-
-function movePieceOrder(piece: MoodPiece, dir: -1 | 1) {
-  const currentList = displayPieces.value;
-  const idx = currentList.findIndex((p) => p.id === piece.id);
-  if (idx < 0) return;
-  const targetIdx = idx + dir;
-  if (targetIdx < 0 || targetIdx >= currentList.length) return;
-  const otherPiece = currentList[targetIdx];
-
-  const tempY = piece.y;
-  piece.y = otherPiece.y;
-  otherPiece.y = tempY;
-
-  if (piece.y === otherPiece.y) {
-    piece.y += dir * 5;
-  }
-
-  persist();
-}
-
-function isFirstPiece(piece: MoodPiece) {
-  return displayPieces.value.length > 0 && displayPieces.value[0].id === piece.id;
-}
-
-function isLastPiece(piece: MoodPiece) {
-  return displayPieces.value.length > 0 && displayPieces.value[displayPieces.value.length - 1].id === piece.id;
-}
 
 function handleClose() {
   if (isInvited.value) {
