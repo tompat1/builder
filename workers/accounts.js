@@ -5,6 +5,7 @@
  */
 import { adminRole, hashPassword, verifyPassword } from './password.js';
 import { openState, randomToken, signState, tokenHash } from './state.js';
+import { acceptDisplaySettings, readUserDisplay, writeUserDisplay } from './userSettings.js';
 
 const SESSION_MS = 14 * 24 * 60 * 60 * 1000;
 const AVATAR_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp']);
@@ -152,6 +153,9 @@ async function routeAccounts(request, env, headers) {
   }
   if (url.pathname === '/api/auth/me' && request.method === 'GET') {
     return me(request, env, headers);
+  }
+  if (url.pathname === '/api/auth/settings' && (request.method === 'GET' || request.method === 'PUT')) {
+    return displaySettings(request, env, headers);
   }
   if (url.pathname === '/api/auth/password' && request.method === 'POST') {
     return setPassword(request, env, headers);
@@ -314,6 +318,23 @@ async function me(request, env, headers) {
   const row = await userFromToken(env, readToken(request));
   if (!row) return json({ user: null }, 200, headers);
   return json({ user: publicUser(row, new URL(request.url).origin) }, 200, headers);
+}
+
+async function displaySettings(request, env, headers) {
+  const row = await userFromToken(env, readToken(request));
+  if (!row) return json({ error: 'sign_in' }, 401, headers);
+  if (request.method === 'GET') {
+    return json({ display: await readUserDisplay(env.DB, row.id) }, 200, headers);
+  }
+  let body = {};
+  try {
+    body = await request.json();
+  } catch {
+    return json({ error: 'Expected JSON' }, 400, headers);
+  }
+  const display = acceptDisplaySettings(body);
+  if (!display) return json({ error: 'bad_settings' }, 400, headers);
+  return json({ display: await writeUserDisplay(env.DB, row.id, display) }, 200, headers);
 }
 
 async function setPassword(request, env, headers) {

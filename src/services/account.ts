@@ -1,3 +1,5 @@
+import type { DisplayPrefs } from './displayPrefs';
+
 const TOKEN_KEY = 'builder.session';
 
 export interface AccountUser {
@@ -58,7 +60,56 @@ async function accountFetch(path: string, init: RequestInit = {}) {
   if (token) headers.set('Authorization', `Bearer ${token}`);
   const response = await fetch(`${workerBase()}${path}`, { ...init, headers });
   const data = await response.json().catch(() => ({}));
-  return { response, data: data as { error?: string; url?: string; token?: string; user?: AccountUser | null; ok?: boolean } };
+  return {
+    response,
+    data: data as {
+      error?: string;
+      url?: string;
+      token?: string;
+      user?: AccountUser | null;
+      ok?: boolean;
+      display?: DisplayPrefs | null;
+    }
+  };
+}
+
+function displayFromAccount(value: unknown): DisplayPrefs | null {
+  if (!value || typeof value !== 'object') return null;
+  const raw = value as Partial<DisplayPrefs>;
+  return {
+    dimensions: raw.dimensions === true,
+    notes: raw.notes === true,
+    sun: raw.sun === true,
+    mood: raw.mood === true
+  };
+}
+
+/** The account's display choices. Null when nobody is signed in, or nothing is stored yet. */
+export async function loadAccountDisplay(): Promise<DisplayPrefs | null> {
+  if (!sessionToken()) return null;
+  try {
+    const { response, data } = await accountFetch('/api/auth/settings');
+    if (!response.ok || data.display == null) return null;
+    return displayFromAccount(data.display);
+  } catch {
+    return null;
+  }
+}
+
+/** Write the display choices onto the signed-in account. */
+export async function saveAccountDisplay(prefs: DisplayPrefs): Promise<DisplayPrefs | null> {
+  if (!sessionToken()) return null;
+  try {
+    const { response, data } = await accountFetch('/api/auth/settings', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ display: prefs })
+    });
+    if (!response.ok || !data.display) return null;
+    return displayFromAccount(data.display);
+  } catch {
+    return null;
+  }
 }
 
 export async function accountMe() {
