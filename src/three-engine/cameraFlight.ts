@@ -44,10 +44,10 @@ export function calculateFacingPose(
   const width = Math.max((widthMm || 6000) / 1000, 4);
   const depth = Math.max((depthMm || 4000) / 1000, 3);
   const height = Math.max((heightMm || 4000) / 1000, 2.4);
-  const dist = Math.max(width, depth) * 1.15 + 6;
-  const skew = dist * 0.22;
-  const y = Math.max(2.2, height * 0.42);
-  const lookY = Math.max(1.15, height * 0.28);
+  const dist = Math.max(width, depth) * 1.05 + 3.5;
+  const skew = dist * 0.36;
+  const y = Math.max(3.8, height * 0.92);
+  const lookY = Math.max(1.6, height * 0.45);
   const poses: Record<'front' | 'back' | 'left' | 'right', [number, number, number]> = {
     front: [skew, y, dist],
     back: [-skew, y, -dist],

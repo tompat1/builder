@@ -105,11 +105,22 @@ export function sitePrompt(facts, imageCount, placement, facing) {
   const point = acceptPlacement(placement);
   const side = acceptFacing(facing);
   const facade = SITE_FACINGS[side];
-  const note = String(facts ?? '').replace(/\s+/g, ' ').trim().slice(0, 500);
+  const note = String(facts ?? '').replace(/\s+/g, ' ').trim().slice(0, 700);
+
+  let roofRule = 'Preserve the exact roof type and roofline from image 1.';
+  if (/\b(?:mono-pitch|single-slope|shed|pulpettak|lean-to)\b/i.test(note)) {
+    roofRule = 'The house has a single-slope mono-pitch shed roof (pulpettak). Strictly preserve this single-slope roof: do NOT generate a gable roof, do NOT generate an A-frame peaked roof, and do NOT add a center ridge.';
+  } else if (/\b(?:flat roof|flackt|parapet)\b/i.test(note)) {
+    roofRule = 'The house has a modern flat roof. Strictly preserve this flat roof: do NOT generate a sloped or gable roof.';
+  } else if (/\b(?:gable|sadeltak)\b/i.test(note)) {
+    roofRule = 'The house has a dual-pitch gable roof with a central ridge.';
+  }
+
   return [
     'Create a single photoreal architectural composite using image 0 as the base photograph.',
     `The photograph was taken from the ${side} of the real house, looking at its ${facade}.`,
     `Image 1 shows that same ${facade} of the exact configured 3D house. Preserve its architecture, proportions, roof, openings, cladding, colours, and details; do not redesign it or turn it to a different side.`,
+    roofRule,
     imageCount > 2 ? 'Images 2 and later are supporting views of the same site. Use them only to understand the property; keep image 0 as the output viewpoint.' : '',
     `Place the house with its ground contact around ${point.x}% from the left and ${point.y}% from the top of image 0.`,
     'Match the base photograph camera perspective, believable real-world scale, terrain, daylight, colour temperature, occlusion, and contact shadows.',

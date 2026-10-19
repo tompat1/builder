@@ -243,8 +243,54 @@ async function shrinkScene(file: File) {
 
 function houseFacts() {
   const dimensions = store.dimensions;
-  const terrace = store.terraces.length ? `, ${store.terraces.length} terrace` : '';
-  return `${store.currentSize.name}, ${dimensions.width} × ${dimensions.depth} × ${dimensions.height} mm, ${store.currentMaterial.name} cladding, ${store.activeRoof} roof${terrace}.`;
+
+  // Explicit roof shape & covering in English architectural terms
+  const roofType = store.activeRoof;
+  const covering = store.roofCovering || 'metal';
+  const coveringText = {
+    metal: 'standing-seam sheet metal (plåttak)',
+    felt: 'smooth dark roofing felt (takpapp)',
+    tiles: 'concrete roof tiles (takpannor)',
+    shingles: 'architectural roof shingles (shingeltak)'
+  }[covering] || `${covering} roofing`;
+
+  let roofDesc = '';
+  if (roofType === 'pulpettak') {
+    roofDesc = `single-slope mono-pitch shed roof (pulpettak, 12° slope) with ${coveringText}, strictly NOT a gable roof, NO center ridge, NO triangular peak`;
+  } else if (roofType === 'flackt') {
+    roofDesc = `modern flat roof (flackt tak) with clean horizontal parapet trim and ${coveringText}, strictly NOT a gable roof`;
+  } else if (roofType === 'sadeltak14') {
+    roofDesc = `low-pitch dual-pitch gable roof (sadeltak 14°) with raised eaves and ${coveringText}`;
+  } else {
+    roofDesc = `classic dual-pitch symmetrical gable roof (sadeltak 22°) with ${coveringText}`;
+  }
+
+  // Wall materials & finishes
+  let wallDesc = '';
+  if (store.selectedSizeId === 'size-paabyggnad') {
+    const concreteColor = store.concreteColor || '#b7b3ac';
+    const timberColor = store.customPaint?.hex || store.currentMaterial?.colorHex || '#1e293b';
+    wallDesc = `ground floor in concrete walls (${concreteColor}), upper level in vertical timber cladding (${timberColor})`;
+  } else {
+    const matName = store.customPaint ? `custom painted timber (${store.customPaint.hex})` : `${store.currentMaterial.name} timber cladding`;
+    wallDesc = `${matName}`;
+  }
+
+  // Terraces and outbuildings
+  const terraceParts: string[] = [];
+  if (store.terraces.length > 0) {
+    const t0 = store.terraces[0];
+    if (t0.building === 'sauna') {
+      terraceParts.push('wooden terrace deck with an attached compact timber sauna box featuring a black flat roof and small chimney pipe');
+    } else if (t0.building === 'shed') {
+      terraceParts.push('wooden terrace deck with attached timber shed');
+    } else {
+      terraceParts.push(`${store.terraces.length} terrace`);
+    }
+  }
+  const terraceText = terraceParts.length ? `, ${terraceParts.join(', ')}` : '';
+
+  return `${store.currentSize.name}, ${dimensions.width} × ${dimensions.depth} × ${dimensions.height} mm, ${wallDesc}, ${roofDesc}${terraceText}.`;
 }
 
 async function houseReference() {
