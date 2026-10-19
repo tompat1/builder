@@ -101,8 +101,8 @@
       >
         <img :src="result" :alt="t('houseImport.siteResultAlt')" class="w-full" />
       </button>
-      <div class="flex items-center justify-between gap-3">
-        <figcaption class="text-[11px] leading-relaxed text-slate-600">{{ t('houseImport.siteNote') }}</figcaption>
+      <figcaption class="flex items-center justify-between gap-3 text-[11px] leading-relaxed text-slate-600">
+        <span>{{ t('houseImport.siteNote') }}</span>
         <button
           id="site-picture-download"
           type="button"
@@ -111,7 +111,7 @@
         >
           {{ t('houseImport.download') }}
         </button>
-      </div>
+      </figcaption>
     </figure>
 
     <Teleport to="body">
