@@ -2964,17 +2964,56 @@ export class HouseScene {
     const isLeft = terrace.buildingPlacement === 'left';
     const bW = hasBuilding ? Math.min(2.0, Math.max(1.3, width * 0.45)) : 0;
     const bD = hasBuilding ? Math.min(Math.max(depth, 1.6), 2.2) : 0;
-    const bX = hasBuilding
+    const initialBX = hasBuilding
       ? isLeft
         ? along - width / 2 + bW / 2
         : along + width / 2 - bW / 2
       : 0;
 
-    const roofW = hasBuilding ? width - bW : width;
+    let bX = initialBX;
+    let houseDoorSpec: { along: number; width?: number; head?: number } | null = null;
+
+    if (hasBuilding && terrace.building === 'sauna') {
+      const h = this.wallTopM();
+      const wallDoors = this.outsideAnchors(w, d, h).filter((a) => a.wall === door.wall);
+      const cosR = Math.cos(-door.rotY);
+      const sinR = Math.sin(-door.rotY);
+      const doorsWithLocal = wallDoors.map((a) => {
+        const dx = a.px + (a.doorX ?? 0) - door.px;
+        const dz = a.pz - door.pz;
+        const localAlong = dx * cosR - dz * sinR;
+        return { anchor: a, localAlong };
+      });
+      if (doorsWithLocal.length > 0) {
+        const matchingDoor = doorsWithLocal.reduce((closest, item) => {
+          if (!closest) return item;
+          return Math.abs(item.localAlong - initialBX) < Math.abs(closest.localAlong - initialBX)
+            ? item
+            : closest;
+        }, null as { anchor: OutsideAnchor; localAlong: number } | null);
+
+        if (matchingDoor && Math.abs(matchingDoor.localAlong - initialBX) <= width * 0.6) {
+          const minBX = along - width / 2 + bW / 2;
+          const maxBX = along + width / 2 - bW / 2;
+          bX = Math.min(maxBX, Math.max(minBX, matchingDoor.localAlong));
+          houseDoorSpec = {
+            along: matchingDoor.localAlong,
+            width: matchingDoor.anchor.width,
+            head: matchingDoor.anchor.head
+          };
+        }
+      }
+    }
+
+    const roofW = hasBuilding
+      ? isLeft
+        ? Math.max(0, along + width / 2 - (bX + bW / 2))
+        : Math.max(0, bX - bW / 2 - (along - width / 2))
+      : width;
     const roofAlong = hasBuilding
       ? isLeft
-        ? along + bW / 2
-        : along - bW / 2
+        ? (along + width / 2 + (bX + bW / 2)) / 2
+        : (along - width / 2 + (bX - bW / 2)) / 2
       : along;
 
     if (terrace.roof && roofW >= 0.8) {
@@ -2993,7 +3032,8 @@ export class HouseScene {
         turn: terrace.building === 'sauna' ? terrace.buildingTurn ?? 0 : 0,
         roof: normalizeBuildingRoof(terrace.buildingRoof),
         roofMat,
-        openFront: this.interiorCut()
+        openFront: this.interiorCut(),
+        houseDoor: houseDoorSpec
       });
     }
 
@@ -6121,16 +6161,26 @@ export class HouseScene {
       return { h, y: bottom + h / 2 };
     };
     if (roomType === 'bathroom') {
-      const showerGeo = new THREE.BoxGeometry(0.9, 0.1, 0.9);
+      const hasBackDoor = this.currentConfig.wallSlots?.['back-2']?.type === 'door' ||
+        Object.values(this.currentConfig.wallSlots ?? {}).some((s) => s.wall === 'back' && s.type === 'door');
+      const showerW = hasBackDoor ? 0.8 : 0.9;
+      const showerD = hasBackDoor ? 0.85 : 0.9;
+      const showerGeo = new THREE.BoxGeometry(showerW, 0.1, showerD);
       const showerMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1 });
       const shower = new THREE.Mesh(showerGeo, showerMat);
-      shower.position.set(-w / 2 + 0.45 + edge(open.left), 0.05, -d / 2 + 0.45 + edge(open.back));
+      const showerX = -w / 2 + showerW / 2 + edge(open.left);
+      const showerZ = hasBackDoor ? 0 : -d / 2 + 0.45 + edge(open.back);
+      shower.position.set(showerX, 0.05, showerZ);
       group.add(shower);
       const glassFit = fitUp(2.0, 0.1, 1.0);
-      const glassGeo = new THREE.BoxGeometry(0.9, glassFit.h, 0.02);
+      const glassGeo = hasBackDoor
+        ? new THREE.BoxGeometry(0.02, glassFit.h, showerD)
+        : new THREE.BoxGeometry(0.9, glassFit.h, 0.02);
       const glassMat = new THREE.MeshStandardMaterial({ color: 0xbae6fd, transparent: true, opacity: 0.4 });
       const glass = new THREE.Mesh(glassGeo, glassMat);
-      glass.position.set(-w / 2 + 0.45 + edge(open.left), glassFit.y, -d / 2 + 0.9 + edge(open.back));
+      const glassX = hasBackDoor ? showerX + showerW / 2 : showerX;
+      const glassZ = hasBackDoor ? 0 : -d / 2 + 0.9 + edge(open.back);
+      glass.position.set(glassX, glassFit.y, glassZ);
       group.add(glass);
 
       const wcFit = fitUp(0.45, 0, 0.225);

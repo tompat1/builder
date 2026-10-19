@@ -274,3 +274,65 @@ test('window on right wall of concrete house aligns opening coordinates without 
     }
   }
 });
+
+test('door at back-2 in concrete wall is within bathroom footprint and cuts out opening', () => {
+  const w = 5.2;
+  const count = 3;
+  const panelW = w / count; // 1.7333 m
+  const p = 2; // back-2
+  const center = w / 2 - (p + 0.5) * panelW; // -1.7333 m
+  const cornerSide = 'right';
+  const fitted = fittedDoorOpening('STEHAG', panelW, cornerSide);
+  const worldX = center - (fitted.shift ?? 0);
+
+  // Bathroom in back-left is from x = -2.43 to x = -0.43
+  assert.ok(worldX > -2.43 && worldX < -0.43);
+
+  // Concrete cutout spans [left, right]
+  const left = worldX - fitted.width / 2;
+  const right = worldX + fitted.width / 2;
+  assert.ok(left > -2.6 && right < 0);
+});
+
+test('sauna on terrace facing house door aligns door opening to match house wall position', () => {
+  const w = 5.2;
+  const d = 6.731;
+  const cladding = 0.025;
+  // Terrace anchor on back wall
+  const door = { px: 0, pz: -d / 2 + cladding / 2, rotY: Math.PI, doorX: 0, width: w, head: 2.35, wall: 'back' };
+
+  // Door at back-2
+  const count = 3;
+  const panelW = w / count;
+  const p = 2;
+  const bayCenter = w / 2 - (p + 0.5) * panelW; // -1.7333 m
+  const fitted = fittedDoorOpening('STEHAG', panelW, 'right');
+  const anchor = { px: bayCenter, pz: -d / 2 + cladding / 2, doorX: fitted.shift ?? 0, width: fitted.width, head: 2.35, wall: 'back' };
+
+  // Transform anchor into terrace group local coordinates
+  const cosR = Math.cos(-door.rotY);
+  const sinR = Math.sin(-door.rotY);
+  const dx = anchor.px + (anchor.doorX ?? 0) - door.px;
+  const dz = anchor.pz - door.pz;
+  const localAlong = dx * cosR - dz * sinR;
+
+  // Verify localAlong is positive and matches the bay coordinate (within shift offset)
+  assert.ok(Math.abs(localAlong - 1.7333) < 0.1);
+
+  // Sauna on terrace has bW = 2.0, deck width = 5.2
+  const bW = 2.0;
+  const along = 0;
+  const minBX = along - w / 2 + bW / 2; // -1.6
+  const maxBX = along + w / 2 - bW / 2; // +1.6
+
+  // Clamped bX aligns as close as possible to the house door while staying flush with the house deck
+  const alignedBX = Math.min(maxBX, Math.max(minBX, localAlong));
+  assert.equal(alignedBX, 1.6);
+
+  // The door opening on the sauna wall facing the house is placed at localAlong
+  const saunaDoorFrom = localAlong - fitted.width / 2;
+  const saunaDoorTo = localAlong + fitted.width / 2;
+  // Sauna wall extends from alignedBX - bW / 2 = 0.6 to alignedBX + bW / 2 = 2.6
+  assert.ok(saunaDoorFrom > alignedBX - bW / 2);
+  assert.ok(saunaDoorTo < alignedBX + bW / 2);
+});

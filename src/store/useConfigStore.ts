@@ -872,6 +872,16 @@ export const useConfigStore = defineStore('config', () => {
       }
       cornerBoards.value = data.cornerBoards !== false;
       wallSlots.value = mergeWallSlots(data.wallSlots, data.selectedSizeId ?? selectedSizeId.value);
+      if (data.selectedSizeId === 'size-paabyggnad') {
+        if (!wallSlots.value['back-2'] || wallSlots.value['back-2'].type === 'empty') {
+          wallSlots.value['back-2'] = {
+            ...(wallSlots.value['back-2'] ?? { id: 'back-2', wall: 'back', index: 2 }),
+            type: 'door',
+            itemId: 'STEHAG',
+            canAcceptDoor: true
+          };
+        }
+      }
       placedRooms.value = acceptPlacedRooms(data.placedRooms);
       floorPlanDone.value = data.floorPlanDone === true && Object.keys(placedRooms.value).length > 0;
       showInnerWalls.value = data.showInnerWalls !== false;
@@ -1235,8 +1245,37 @@ export const useConfigStore = defineStore('config', () => {
       loftPlacement.value = 'fram';
       const loftAreas = paabyggnadLoftAreas(buildingWidth.value, buildingDepth.value);
       selectedLoftSize.value = loftAreas[0] ?? 15.8;
-      wallSlots.value = paabyggnadWallSlots(buildingWidth.value, buildingDepth.value);
+      const slots = paabyggnadWallSlots(buildingWidth.value, buildingDepth.value);
+      if (slots['front-0']) {
+        slots['front-0'] = { ...slots['front-0'], type: 'door', itemId: 'STEHAG', canAcceptDoor: true };
+      }
+      if (slots['back-2']) {
+        slots['back-2'] = { ...slots['back-2'], type: 'door', itemId: 'STEHAG', canAcceptDoor: true };
+      }
+      wallSlots.value = slots;
       selectedSlotId.value = null;
+      placedRooms.value = {
+        bathroom_1: {
+          type: 'bathroom',
+          w: 2,
+          d: 2,
+          x: -1.43,
+          y: 0.3,
+          z: -2.1955,
+          wallsVisible: true
+        }
+      };
+      terraces.value = [
+        {
+          side: 'back',
+          depth: 2.4,
+          span: 'full',
+          roof: false,
+          building: 'sauna',
+          buildingPlacement: 'right',
+          buildingRoof: 'pulpet'
+        }
+      ];
     }
     // Ensure selectedLoftSize is valid for this new size
     const available = availableLoftSizes.value;

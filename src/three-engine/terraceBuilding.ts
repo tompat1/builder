@@ -15,6 +15,8 @@ export interface TerraceCabinOptions {
   roofMat: THREE.Material;
   /** Drop the yard wall so the room can be seen from the interior view. */
   openFront: boolean;
+  /** Door connects directly to a house door opening on the shared wall */
+  houseDoor?: { along: number; width?: number; head?: number } | null;
 }
 
 /**
@@ -22,7 +24,7 @@ export interface TerraceCabinOptions {
  * that line so the joint does not open into a gap.
  */
 export function addTerraceCabin(group: THREE.Group, options: TerraceCabinOptions) {
-  const { bX, bW, bD, deckTop, outward, type, isLeft, turn, roof, roofMat, openFront } = options;
+  const { bX, bW, bD, deckTop, outward, type, isLeft, turn, roof, roofMat, openFront, houseDoor } = options;
   const sauna = type === 'sauna';
   const outerMat = new THREE.MeshStandardMaterial({
     color: sauna ? '#c4a574' : '#8d8478',
@@ -66,10 +68,14 @@ export function addTerraceCabin(group: THREE.Group, options: TerraceCabinOptions
   const houseZ = 0;
   const yardZ = outward * bD;
 
-  const facing = sauna && turn ? saunaFacing(turn, isLeft) : saunaFacing(0, isLeft);
+  const facing = sauna && houseDoor
+    ? { bench: (isLeft ? 'right' : 'left') as CabinWall, window: 'yard' as CabinWall, door: 'house' as CabinWall }
+    : (sauna && turn ? saunaFacing(turn, isLeft) : saunaFacing(0, isLeft));
   const walls = cabinWalls(x0, x1, houseZ, yardZ, outward, bD, topAt, yardTop);
   const windowHole = openingOn(walls[facing.window], 'window', bD, deckTop, outward, openFront);
-  const doorOpening = openingOn(walls[facing.door], 'door', bD, deckTop, outward, openFront);
+  const targetAlong = facing.door === 'house' && houseDoor ? houseDoor.along : undefined;
+  const targetWidth = facing.door === 'house' && houseDoor ? houseDoor.width : undefined;
+  const doorOpening = openingOn(walls[facing.door], 'door', bD, deckTop, outward, openFront, targetAlong, targetWidth);
   for (const wall of Object.values(walls)) {
     const windowHere = wall.id === facing.window ? windowHole : null;
     const doorHere = wall.id === facing.door ? doorOpening : null;
@@ -178,7 +184,9 @@ function openingOn(
   depth: number,
   deckTop: number,
   outward: number,
-  openFront: boolean
+  openFront: boolean,
+  targetAlong?: number,
+  targetWidth?: number
 ) {
   if (openFront && wall.id === 'yard') return null;
   if (kind === 'window') return windowOnWall(wall, deckTop);
@@ -187,7 +195,7 @@ function openingOn(
     if (!door) return null;
     return { from: outward * door.from, to: outward * door.to, sill: door.sill, head: door.head };
   }
-  return doorOnSpan(wall.from, wall.to, deckTop, wall.top((wall.from + wall.to) / 2));
+  return doorOnSpan(wall.from, wall.to, deckTop, wall.top((wall.from + wall.to) / 2), targetAlong, targetWidth);
 }
 
 function windowOnWall(wall: CabinWallSpec, deckTop: number) {
@@ -203,14 +211,27 @@ function windowOnWall(wall: CabinWallSpec, deckTop: number) {
   return { from: mid - width / 2, to: mid + width / 2, sill, head };
 }
 
-function doorOnSpan(from: number, to: number, deckTop: number, wallTop: number) {
+function doorOnSpan(
+  from: number,
+  to: number,
+  deckTop: number,
+  wallTop: number,
+  targetAlong?: number,
+  targetWidth?: number
+) {
   const lo = Math.min(from, to);
   const hi = Math.max(from, to);
-  const width = Math.min(0.74, hi - lo - 0.4);
-  if (width < 0.55) return null;
+  let width = targetWidth != null ? targetWidth : Math.min(0.74, hi - lo - 0.4);
+  if (width > hi - lo - 0.1) width = hi - lo - 0.1;
+  if (width < 0.4) return null;
   const head = deckTop + Math.min(1.92, wallTop - deckTop - 0.06);
   if (head - deckTop < 1.55) return null;
-  const mid = (lo + hi) / 2;
+  let mid = targetAlong != null ? targetAlong : (lo + hi) / 2;
+  const minMid = lo + width / 2 + 0.05;
+  const maxMid = hi - width / 2 - 0.05;
+  if (minMid <= maxMid) {
+    mid = Math.max(minMid, Math.min(maxMid, mid));
+  }
   return { from: mid - width / 2, to: mid + width / 2, sill: deckTop + 0.02, head };
 }
 
