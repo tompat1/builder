@@ -4,6 +4,7 @@ import { deflateSync } from 'node:zlib';
 import { extractPdfImages, extractPdfText, hasMeasures, readDrawing } from '../src/import/drawing.js';
 import { fitImageSize } from '../src/import/imageSize.js';
 import {
+  acceptFacing,
   acceptPictureParts,
   acceptPlacement,
   decodeImages,
@@ -214,12 +215,17 @@ test('reference photos stay inside the picture model size', () => {
 });
 
 test('a site preview preserves the first photo and installs the configured house', () => {
-  const prompt = sitePrompt('5800 × 4310 mm, red cladding.', 3, { x: 41.2, y: 72.8 });
+  const prompt = sitePrompt('5800 × 4310 mm, red cladding.', 3, { x: 41.2, y: 72.8 }, 'back');
   assert.match(prompt, /image 0 as the base photograph/i);
-  assert.match(prompt, /Image 1 shows the exact configured 3D house/);
+  assert.match(prompt, /rear facade/);
+  assert.match(prompt, /taken from the back/i);
   assert.match(prompt, /41% from the left and 73% from the top/);
   assert.match(prompt, /5800 × 4310 mm, red cladding/);
   assert.match(prompt, /replace only that structure/i);
+  assert.match(sitePrompt('house facts', 2, { x: 50, y: 50 }), /front facade/);
+  assert.match(sitePrompt('house facts', 2, { x: 50, y: 50 }, 'left'), /left-side facade/);
+  assert.equal(acceptFacing('right'), 'right');
+  assert.equal(acceptFacing('above'), 'front');
   assert.equal(sitePrompt('house', 1, { x: 50, y: 50 }), '');
 });
 

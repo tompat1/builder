@@ -77,6 +77,13 @@ export function renderPrompt(prompt, facts, imageCount) {
   return parts.join(' ');
 }
 
+const SITE_FACINGS = {
+  front: 'front facade',
+  back: 'rear facade',
+  left: 'left-side facade',
+  right: 'right-side facade'
+};
+
 export function acceptPlacement(input) {
   const record = input && typeof input === 'object' ? input : {};
   const clamp = (value, fallback) => {
@@ -86,14 +93,23 @@ export function acceptPlacement(input) {
   return { x: clamp(record.x, 50), y: clamp(record.y, 68) };
 }
 
+/** The side of the house the photograph was taken from. */
+export function acceptFacing(input) {
+  const value = String(input ?? '').trim().toLowerCase();
+  return Object.hasOwn(SITE_FACINGS, value) ? value : 'front';
+}
+
 /** Image 0 is the scene, image 1 is the configured house, and later images only add site context. */
-export function sitePrompt(facts, imageCount, placement) {
+export function sitePrompt(facts, imageCount, placement, facing) {
   if (imageCount < 2) return '';
   const point = acceptPlacement(placement);
+  const side = acceptFacing(facing);
+  const facade = SITE_FACINGS[side];
   const note = String(facts ?? '').replace(/\s+/g, ' ').trim().slice(0, 500);
   return [
     'Create a single photoreal architectural composite using image 0 as the base photograph.',
-    'Image 1 shows the exact configured 3D house to install. Preserve its architecture, proportions, roof, openings, cladding, colours, and details; do not redesign it.',
+    `The photograph was taken from the ${side} of the real house, looking at its ${facade}.`,
+    `Image 1 shows that same ${facade} of the exact configured 3D house. Preserve its architecture, proportions, roof, openings, cladding, colours, and details; do not redesign it or turn it to a different side.`,
     imageCount > 2 ? 'Images 2 and later are supporting views of the same site. Use them only to understand the property; keep image 0 as the output viewpoint.' : '',
     `Place the house with its ground contact around ${point.x}% from the left and ${point.y}% from the top of image 0.`,
     'Match the base photograph camera perspective, believable real-world scale, terrain, daylight, colour temperature, occlusion, and contact shadows.',
@@ -223,7 +239,7 @@ export async function handleRender(request, env, headers) {
   const change = partChange(body?.parts);
   const site = body?.scene?.mode === 'site';
   const prompt = site
-    ? sitePrompt(body?.facts, images.length, body?.scene?.placement)
+    ? sitePrompt(body?.facts, images.length, body?.scene?.placement, body?.scene?.facing)
     : body?.revision
       ? revisePrompt(change, partChange(body?.originalParts))
       : renderPrompt(change, body?.facts, images.length);

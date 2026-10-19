@@ -37,6 +37,24 @@
       </button>
       <p class="text-[11px] leading-relaxed text-slate-600">{{ t('houseImport.sitePlace') }}</p>
 
+      <div class="space-y-1.5">
+        <p id="site-facing-label" class="text-[11px] font-semibold text-slate-700">{{ t('houseImport.siteFacing') }}</p>
+        <div class="grid grid-cols-4 gap-1.5" role="group" aria-labelledby="site-facing-label">
+          <button
+            v-for="side in FACINGS"
+            :key="side"
+            type="button"
+            :id="`site-facing-${side}`"
+            class="min-h-11 rounded-lg border px-1 py-2 text-[11px] font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+            :class="facing === side ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-800 hover:bg-slate-100'"
+            :aria-pressed="facing === side"
+            @click="setFacing(side)"
+          >
+            {{ t(`houseImport.site${facingKey(side)}`) }}
+          </button>
+        </div>
+      </div>
+
       <div v-if="thumbs.length > 1" class="flex flex-wrap gap-2" role="list" :aria-label="t('houseImport.sitePhotos')">
         <button
           v-for="(thumb, index) in thumbs"
@@ -115,15 +133,17 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useConfigStore } from '../store/useConfigStore';
 import { useLabels } from '../i18n';
-import { captureHouseReference, requestSitePicture } from '../services/houseRender';
+import { captureHouseReference, requestSitePicture, type SiteFacing } from '../services/houseRender';
 
 const SITE_PHOTO_LIMIT = 3;
 const DATA_URL_LIMIT = 270_000;
+const FACINGS = ['front', 'back', 'left', 'right'] as const;
 const store = useConfigStore();
 const { t } = useLabels();
 
 const sitePhotos = ref<File[]>([]);
 const thumbs = ref<string[]>([]);
+const facings = ref<SiteFacing[]>([]);
 const primaryIndex = ref(0);
 const placement = ref({ x: 50, y: 68 });
 const photoNote = ref('');
@@ -133,6 +153,11 @@ const error = ref(false);
 const preview = ref(false);
 
 const primaryThumb = computed(() => thumbs.value[primaryIndex.value] ?? '');
+const facing = computed(() => facings.value[primaryIndex.value] ?? 'front');
+
+function facingKey(side: SiteFacing) {
+  return `${side.charAt(0).toUpperCase()}${side.slice(1)}` as 'Front' | 'Back' | 'Left' | 'Right';
+}
 
 function clearThumbs() {
   for (const thumb of thumbs.value) URL.revokeObjectURL(thumb);
@@ -143,6 +168,7 @@ function onPhotos(event: Event) {
   const input = event.target as HTMLInputElement;
   const files = [...(input.files ?? [])].filter((file) => /^image\/(png|jpeg|webp)$/.test(file.type));
   sitePhotos.value = files.slice(0, SITE_PHOTO_LIMIT);
+  facings.value = sitePhotos.value.map(() => 'front');
   photoNote.value = files.length > SITE_PHOTO_LIMIT ? t('houseImport.siteThree') : '';
   primaryIndex.value = 0;
   placement.value = { x: 50, y: 68 };
@@ -154,6 +180,12 @@ function onPhotos(event: Event) {
 
 function selectPrimary(index: number) {
   primaryIndex.value = index;
+  result.value = '';
+  error.value = false;
+}
+
+function setFacing(side: SiteFacing) {
+  facings.value[primaryIndex.value] = side;
   result.value = '';
   error.value = false;
 }
@@ -184,9 +216,10 @@ async function shrinkScene(file: File) {
   const bitmap = await createImageBitmap(file);
   const aspectRatio = bitmap.width / bitmap.height;
   const attempts = [
-    { maxSide: 768, quality: 0.74 },
-    { maxSide: 640, quality: 0.68 },
-    { maxSide: 480, quality: 0.65 }
+    { maxSide: 768, quality: 0.72 },
+    { maxSide: 640, quality: 0.64 },
+    { maxSide: 512, quality: 0.58 },
+    { maxSide: 384, quality: 0.52 }
   ];
   try {
     for (const attempt of attempts) {
@@ -222,7 +255,7 @@ async function houseReference() {
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
   }
   try {
-    const image = captureHouseReference();
+    const image = captureHouseReference(facing.value);
     if (!image || image.length > DATA_URL_LIMIT) throw new Error('house');
     return image;
   } finally {
@@ -245,7 +278,7 @@ async function renderSite() {
       if (images.length >= 4) break;
       images.push((await shrinkScene(file)).dataUrl);
     }
-    result.value = await requestSitePicture(images, houseFacts(), placement.value, primary.aspectRatio);
+    result.value = await requestSitePicture(images, houseFacts(), placement.value, primary.aspectRatio, facing.value);
   } catch {
     error.value = true;
   } finally {

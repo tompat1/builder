@@ -1,5 +1,5 @@
 import { defineStore, acceptHMRUpdate } from 'pinia';
-import { ref, computed, reactive } from 'vue';
+import { ref, computed, reactive, watch } from 'vue';
 import {
   acceptNotes,
   freshNote,
@@ -20,6 +20,7 @@ import {
 } from '../color/paint';
 import { eaveLiftMm, gablePitchDegrees, wallPlateHeightM } from './roof';
 import { floorAreaSqMeters } from './area';
+import { loadDisplayPrefs, saveDisplayPrefs } from '../services/displayPrefs';
 import { isLoftRoom } from '../three-engine/loftLevel';
 import {
   CONCRETE_DEFAULT_HEIGHT_MM,
@@ -527,6 +528,7 @@ export {
 };
 
 export const useConfigStore = defineStore('config', () => {
+  const displayPrefs = loadDisplayPrefs();
   const viewMode = ref<ViewMode>('utsida');
   const interactionMode = ref<InteractionMode>('default');
   const generateElectricalSignal = ref(0);
@@ -553,9 +555,9 @@ export const useConfigStore = defineStore('config', () => {
   /** Exterior corner boards (knutbrädor) show/hide */
   const cornerBoards = ref<boolean>(true);
   const isFullscreen = ref<boolean>(false);
-  const showDimensions = ref<boolean>(true);
+  const showDimensions = ref(displayPrefs.dimensions);
   const showInnerWalls = ref<boolean>(true);
-  const showSun = ref(false);
+  const showSun = ref(displayPrefs.sun);
   const isDragging = ref(false);
   const selectedSlotId = ref<string | null>(null);
   /** Window bays that still stick out of their wall, so the panel card can offer a fit. */
@@ -661,8 +663,16 @@ export const useConfigStore = defineStore('config', () => {
   const wallSlots = ref<Record<string, WallSlot>>(createWallSlots());
 
   const notes = ref<HouseNote[]>([]);
-  const showNotes = ref(false);
-  const showMood = ref(false);
+  const showNotes = ref(displayPrefs.notes);
+  const showMood = ref(displayPrefs.mood);
+  watch([showDimensions, showNotes, showSun, showMood], () => {
+    saveDisplayPrefs({
+      dimensions: showDimensions.value,
+      notes: showNotes.value,
+      sun: showSun.value,
+      mood: showMood.value
+    });
+  });
   const activeNoteId = ref<string | null>(null);
   const noteAnchors = ref<Record<string, { x: number; y: number; visible: boolean }>>({});
   const noteCamera = ref('');
@@ -850,7 +860,6 @@ export const useConfigStore = defineStore('config', () => {
       floorPlanDone.value = data.floorPlanDone === true && Object.keys(placedRooms.value).length > 0;
       showInnerWalls.value = data.showInnerWalls !== false;
       notes.value = acceptNotes(data.notes);
-      if (notes.value.length) showNotes.value = true;
     } catch {
       // ignore parse error
     }
@@ -1873,6 +1882,13 @@ export const useConfigStore = defineStore('config', () => {
     showDimensions.value = !showDimensions.value;
   }
 
+  function setDisplay(key: 'dimensions' | 'notes' | 'sun' | 'mood', shown: boolean) {
+    if (key === 'dimensions') showDimensions.value = shown;
+    else if (key === 'notes') showNotes.value = shown;
+    else if (key === 'sun') showSun.value = shown;
+    else showMood.value = shown;
+  }
+
   function toggleInnerWalls() {
     showInnerWalls.value = !showInnerWalls.value;
   }
@@ -2171,6 +2187,7 @@ export const useConfigStore = defineStore('config', () => {
     removeSlotItem,
     moveSlotItem,
     toggleDimensions,
+    setDisplay,
     toggleInnerWalls,
     setShowInnerWalls,
     toggleSunShown,

@@ -279,7 +279,7 @@ export class HouseScene {
       panelOrientation: initialConfig?.panelOrientation ?? 'staende',
       verticalDoorBay: initialConfig?.verticalDoorBay ?? false,
       panelWidthMm: initialConfig?.panelWidthMm ?? 145,
-      showDimensions: initialConfig?.showDimensions ?? true,
+      showDimensions: initialConfig?.showDimensions ?? false,
       showInnerWalls: initialConfig?.showInnerWalls ?? true,
       selectedSlotId: initialConfig?.selectedSlotId ?? null,
       wallSlots: initialConfig?.wallSlots ?? {},
@@ -7457,6 +7457,59 @@ export class HouseScene {
 
   public getCanvas(): HTMLCanvasElement {
     return this.renderer.domElement;
+  }
+
+  /**
+   * Point the camera at one exterior face and return a function that puts the
+   * user's view back. The capture reads the canvas before that restore runs.
+   */
+  public prepareFacingCapture(facing: 'front' | 'back' | 'left' | 'right') {
+    const position = this.camera.position.clone();
+    const target = this.controls.target.clone();
+    const near = this.camera.near;
+    const minDistance = this.controls.minDistance;
+    const flight = this.cameraFlight;
+    const roof = this.roofGroup.visible;
+    const trusses = this.trussesGroup.visible;
+    const framing = this.framingGroup.visible;
+    this.cameraFlight = null;
+    this.roofGroup.visible = true;
+    this.trussesGroup.visible = false;
+    this.framingGroup.visible = false;
+
+    const width = Math.max((this.currentConfig.widthMm || 6000) / 1000, 4);
+    const depth = Math.max((this.currentConfig.depthMm || 4000) / 1000, 3);
+    const height = Math.max((this.currentConfig.heightMm || 4000) / 1000, 2.4);
+    const dist = Math.max(width, depth) * 1.15 + 6;
+    const skew = dist * 0.22;
+    const y = Math.max(2.2, height * 0.42);
+    const lookY = Math.max(1.15, height * 0.28);
+    const pose = {
+      front: [skew, y, dist],
+      back: [-skew, y, -dist],
+      left: [-dist, y, skew],
+      right: [dist, y, -skew]
+    }[facing];
+    this.controls.minDistance = 0.1;
+    this.camera.near = 0.1;
+    this.camera.position.set(pose[0], pose[1], pose[2]);
+    this.controls.target.set(0, lookY, 0);
+    this.camera.lookAt(0, lookY, 0);
+    this.camera.updateProjectionMatrix();
+
+    return () => {
+      this.roofGroup.visible = roof;
+      this.trussesGroup.visible = trusses;
+      this.framingGroup.visible = framing;
+      this.camera.near = near;
+      this.controls.minDistance = minDistance;
+      this.camera.position.copy(position);
+      this.controls.target.copy(target);
+      this.camera.updateProjectionMatrix();
+      this.cameraFlight = flight;
+      this.controls.update();
+      this.renderer.render(this.scene, this.camera);
+    };
   }
 
   /** Draw the current frame before a thumbnail read. The animation loop may not have painted yet. */

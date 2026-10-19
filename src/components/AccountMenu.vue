@@ -3,6 +3,7 @@
     <button
       ref="buttonEl"
       type="button"
+      id="btn-account"
       class="flex items-center gap-1.5 rounded-lg border border-slate-200/80 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:text-slate-900 min-h-[32px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
       :aria-expanded="open"
       :aria-label="user ? user.name : t('account.login')"
@@ -30,13 +31,67 @@
         </button>
       </div>
 
-      <p v-if="user?.role === 'admin'" class="mb-2 inline-flex rounded-lg bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-700">
+      <div class="mb-3 flex gap-1 rounded-lg bg-slate-100 p-0.5" role="tablist" :aria-label="t('account.settings')">
+        <button
+          id="account-tab-account"
+          type="button"
+          role="tab"
+          class="flex-1 rounded-md px-2 py-1 font-semibold"
+          :class="panel === 'account' ? 'bg-white text-slate-900' : 'text-slate-600'"
+          :aria-selected="panel === 'account'"
+          @click="panel = 'account'"
+        >
+          {{ user ? t('account.accountTab') : t('account.login') }}
+        </button>
+        <button
+          id="account-tab-settings"
+          type="button"
+          role="tab"
+          class="flex-1 rounded-md px-2 py-1 font-semibold"
+          :class="panel === 'settings' ? 'bg-white text-slate-900' : 'text-slate-600'"
+          :aria-selected="panel === 'settings'"
+          @click="panel = 'settings'"
+        >
+          {{ t('account.settings') }}
+        </button>
+      </div>
+
+      <div v-if="panel === 'settings'" class="space-y-2">
+        <p class="text-[11px] leading-relaxed text-slate-500">{{ t('account.settingsBody') }}</p>
+        <div
+          v-for="item in displayItems"
+          :key="item.key"
+          class="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-2.5 py-2"
+        >
+          <span class="min-w-0">
+            <span class="block font-semibold text-slate-900">{{ t(item.label) }}</span>
+            <span class="block text-[11px] leading-snug text-slate-500">{{ t(item.hint) }}</span>
+          </span>
+          <button
+            type="button"
+            role="switch"
+            :id="`display-${item.key}`"
+            class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
+            :class="displayOn(item.key) ? 'bg-slate-900' : 'bg-slate-300'"
+            :aria-checked="displayOn(item.key)"
+            :aria-label="t(item.label)"
+            @click="config.setDisplay(item.key, !displayOn(item.key))"
+          >
+            <span
+              class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out"
+              :class="displayOn(item.key) ? 'translate-x-5' : 'translate-x-0'"
+            ></span>
+          </button>
+        </div>
+      </div>
+
+      <p v-if="panel === 'account' && user?.role === 'admin'" class="mb-2 inline-flex rounded-lg bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-700">
         {{ t('account.admin') }}
       </p>
-      <p v-if="notice" class="mb-2 text-[11px] text-emerald-800">{{ notice }}</p>
-      <p v-if="error" class="mb-2 text-[11px] text-red-800">{{ error }}</p>
+      <p v-if="panel === 'account' && notice" class="mb-2 text-[11px] text-emerald-800">{{ notice }}</p>
+      <p v-if="panel === 'account' && error" class="mb-2 text-[11px] text-red-800">{{ error }}</p>
 
-      <template v-if="!user">
+      <template v-if="panel === 'account' && !user">
         <GithubSignIn id="btn-github-account" compact class="mb-3" @click="github">
           {{ t('account.github') }}
         </GithubSignIn>
@@ -80,7 +135,7 @@
         </form>
       </template>
 
-      <template v-else>
+      <template v-else-if="panel === 'account' && user">
         <label class="mb-2 flex cursor-pointer items-center gap-2 font-semibold text-slate-700">
           <img v-if="user.avatarUrl" :src="user.avatarUrl" alt="" class="h-10 w-10 rounded-full object-cover" />
           <span v-else class="flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-sm font-bold text-white">{{ initial }}</span>
@@ -179,15 +234,29 @@ const session = useSessionStore();
 const resources = useResourceStore();
 const sources = useSourceStore();
 const open = ref(false);
+const panel = ref<'account' | 'settings'>('account');
+const displayItems = [
+  { key: 'dimensions', label: 'account.showMeasurements', hint: 'account.showMeasurementsHint' },
+  { key: 'notes', label: 'account.showNotes', hint: 'account.showNotesHint' },
+  { key: 'sun', label: 'account.showSun', hint: 'account.showSunHint' },
+  { key: 'mood', label: 'account.showMood', hint: 'account.showMoodHint' }
+] as const;
+
+function displayOn(key: (typeof displayItems)[number]['key']) {
+  if (key === 'dimensions') return config.showDimensions;
+  if (key === 'notes') return config.showNotes;
+  if (key === 'sun') return config.showSun;
+  return config.showMood;
+}
 const buttonEl = ref<HTMLButtonElement | null>(null);
 const panelStyle = ref({ top: '64px', left: '12px' });
 
-function placePanel() {
-  const rect = buttonEl.value?.getBoundingClientRect();
-  if (!rect) return;
+function placePanel(anchor?: HTMLElement | null) {
+  const rect = (anchor ?? buttonEl.value)?.getBoundingClientRect();
+  if (!rect || rect.width === 0) return;
   panelStyle.value = {
     top: `${rect.bottom + 8}px`,
-    left: `${Math.max(12, rect.right - 320)}px`
+    left: `${Math.max(12, Math.min(rect.right, window.innerWidth - 12) - 320)}px`
   };
 }
 
@@ -196,12 +265,19 @@ function toggle() {
   if (open.value) placePanel();
 }
 
-function openLogin() {
+function openAt(anchor?: HTMLElement | null) {
+  panel.value = 'settings';
   open.value = true;
-  placePanel();
+  nextTick(() => placePanel(anchor));
 }
 
-defineExpose({ openLogin });
+function openLogin() {
+  panel.value = 'account';
+  open.value = true;
+  nextTick(() => placePanel());
+}
+
+defineExpose({ openLogin, openAt });
 const user = ref<AccountUser | null>(null);
 watch(user, (value) => session.setUser(value), { immediate: true });
 const mode = ref<'login' | 'register'>('login');

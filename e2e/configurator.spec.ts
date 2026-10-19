@@ -107,7 +107,7 @@ test.describe("3D Modular House Configurator", () => {
     await page.reload();
 
     let requestBody: {
-      scene?: { mode?: string; placement?: { x?: number; y?: number } };
+      scene?: { mode?: string; placement?: { x?: number; y?: number }; facing?: string };
       images?: unknown[];
       facts?: string;
     } | null = null;
@@ -121,11 +121,12 @@ test.describe("3D Modular House Configurator", () => {
     await page.locator("#btn-tool-ai-concierge").evaluate((button: HTMLButtonElement) => button.click());
     await page.locator("#import-site-photos").setInputFiles("public/homes/home-29-9m2.webp");
     await expect(page.locator("#site-placement-photo")).toBeVisible();
+    await page.locator("#site-facing-back").click();
     await page.locator("#import-site-render").click();
 
     await expect(page.locator("#site-picture-result")).toBeVisible({ timeout: 30_000 });
     const body = requestBody as {
-      scene?: { mode?: string; placement?: { x?: number; y?: number } };
+      scene?: { mode?: string; placement?: { x?: number; y?: number }; facing?: string };
       images?: unknown[];
       facts?: string;
     } | null;
@@ -136,10 +137,12 @@ test.describe("3D Modular House Configurator", () => {
     expect(body?.facts).toContain("6040 × 4950 × 5000 mm");
     expect(body?.scene?.placement?.x).toBe(50);
     expect(body?.scene?.placement?.y).toBe(68);
+    expect(body?.scene?.facing).toBe("back");
   });
 
   test("displays 3D architectural dimension annotations", async ({ page }) => {
-    // Width annotation
+    await page.locator("#btn-tool-measure").click();
+    await page.locator("#btn-tool-dimensions").click();
     await expect(page.locator("#dim-width")).toHaveText(/6040 mm/);
     await expect(page.locator("#dim-area")).toHaveText(/21.2 m²/);
 

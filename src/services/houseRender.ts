@@ -1,5 +1,7 @@
 /** Ask the worker for a picture. The 3D house is left alone. */
 
+export type SiteFacing = 'front' | 'back' | 'left' | 'right';
+
 export async function requestHousePicture(
   parts: string[],
   images: string[],
@@ -9,6 +11,7 @@ export async function requestHousePicture(
     mode: 'site';
     placement: { x: number; y: number };
     aspectRatio: number;
+    facing: SiteFacing;
   }
 ): Promise<string> {
   const base = import.meta.env.VITE_CLOUDFLARE_WORKER_URL
@@ -42,27 +45,25 @@ export function requestSitePicture(
   images: string[],
   facts: string,
   placement: { x: number; y: number },
-  aspectRatio: number
+  aspectRatio: number,
+  facing: SiteFacing
 ) {
   return requestHousePicture([], images, facts, undefined, {
     mode: 'site',
     placement,
-    aspectRatio
+    aspectRatio,
+    facing
   });
 }
 
-/** Capture the configured 3D house from the camera the user is currently viewing. */
-export function captureHouseReference(): string {
-  const scene = (window as unknown as {
-    __houseScene?: { getCanvas?: () => HTMLCanvasElement; renderStill?: () => void };
-  }).__houseScene;
-  scene?.renderStill?.();
-  const source = scene?.getCanvas?.();
-  if (!source || source.width < 2 || source.height < 2) return '';
+const HOUSE_IMAGE_LIMIT = 270_000;
 
+function encodeCanvas(source: HTMLCanvasElement | undefined) {
+  if (!source || source.width < 2 || source.height < 2) return '';
   const attempts = [
     { maxSide: 640, quality: 0.78 },
-    { maxSide: 480, quality: 0.68 }
+    { maxSide: 480, quality: 0.68 },
+    { maxSide: 384, quality: 0.55 }
   ];
   let fallback = '';
   for (const attempt of attempts) {
@@ -74,7 +75,25 @@ export function captureHouseReference(): string {
     if (!context) return '';
     context.drawImage(source, 0, 0, canvas.width, canvas.height);
     fallback = canvas.toDataURL('image/jpeg', attempt.quality);
-    if (fallback.length <= 270_000) return fallback;
+    if (fallback.length <= HOUSE_IMAGE_LIMIT) return fallback;
   }
-  return fallback;
+  return fallback.length <= HOUSE_IMAGE_LIMIT ? fallback : '';
+}
+
+/** Capture the configured house from the side the site photo was taken. */
+export function captureHouseReference(facing: SiteFacing = 'front'): string {
+  const scene = (window as unknown as {
+    __houseScene?: {
+      getCanvas?: () => HTMLCanvasElement;
+      renderStill?: () => void;
+      prepareFacingCapture?: (facing: SiteFacing) => () => void;
+    };
+  }).__houseScene;
+  const restore = scene?.prepareFacingCapture?.(facing);
+  try {
+    scene?.renderStill?.();
+    return encodeCanvas(scene?.getCanvas?.());
+  } finally {
+    restore?.();
+  }
 }
