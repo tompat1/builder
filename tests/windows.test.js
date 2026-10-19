@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { NARROW_TALL, fittedDoorOpening, narrowTallPane, openingClearOfRoof, overlightHeight, overlightItem, portraitPane } from '../src/three-engine/windowFit.ts';
+import { NARROW_TALL, fittedDoorOpening, fittedWindowOpening, narrowTallPane, openingClearOfRoof, overlightHeight, overlightItem, portraitPane } from '../src/three-engine/windowFit.ts';
 
 test('a portrait panorama in a tall panel stays portrait inside the smaller pane', () => {
   const pane = portraitPane(1.86, 2.3, true);
@@ -192,4 +192,41 @@ test('readDrawing recognizes narrow-tall windows from swedish and english descri
 
   const english = readDrawing('House with narrow window and flat roof');
   assert.equal(english.window, 'narrow-tall');
+});
+
+test('a standard window placed in a narrow wooden overhang bay adapts to a custom-fitted window size that stays clear of concrete and corner', () => {
+  const panelW = 2.232;
+  const woodSpan = { from: -panelW / 2, to: 0.398 };
+  const fitted = fittedWindowOpening('standard-single', panelW, 2.3, 0.25, false, false, 'left', woodSpan);
+
+  // Standard window is normally 1.05m wide, but in a narrow space it adapts
+  assert.ok(fitted.winW <= 1.05);
+  assert.ok(fitted.winW >= 0.3);
+
+  const casingSide = fitted.casingSide ?? 0.09;
+  const leftCasing = fitted.x - fitted.winW / 2 - casingSide;
+  const rightCasing = fitted.x + fitted.winW / 2 + casingSide;
+
+  // Must stay clear of the left corner board (170mm clearance)
+  assert.ok(leftCasing >= -panelW / 2 + 0.165);
+  // Must stay clear of concrete facade
+  assert.ok(rightCasing <= woodSpan.to);
+});
+
+test('a panorama or mullioned window in a tight wooden overhang adapts to custom size with intact proportions', () => {
+  // A narrow 60cm overhang
+  const panelW = 1.68;
+  const woodSpan = { from: 0.24, to: panelW / 2 };
+  const fitted = fittedWindowOpening('sprojat', panelW, 2.3, 0.25, false, false, 'right', woodSpan);
+
+  assert.ok(fitted.winW <= 0.45);
+  assert.ok(fitted.winW >= 0.2);
+  assert.ok(fitted.winH > fitted.winW); // elegant proportioned height
+
+  const casingSide = fitted.casingSide ?? 0.08;
+  const leftCasing = fitted.x - fitted.winW / 2 - casingSide;
+  const rightCasing = fitted.x + fitted.winW / 2 + casingSide;
+
+  assert.ok(leftCasing >= woodSpan.from);
+  assert.ok(rightCasing <= panelW / 2 - 0.165);
 });

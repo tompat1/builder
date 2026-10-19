@@ -10,7 +10,7 @@ import { inferNoteNormal, noteAxes, noteCameraTransform, noteSheetTransform, not
 import { paintBoards } from '../color/paint';
 import { INTERIOR_FLOOR_TOP, LOFT_FLOORBOARD, curvedLoftStair, loftEndRotation, loftIsGhosted, loftJoistTop, loftStairOpening, loftStairRun, loftStairTreads, straightLoftStair, isLoftRoom } from './loftLevel';
 import { ceilingStations, loftCeilingY, sliceStations, type CeilingStation, type RoofSlope } from './roofClearance';
-import { NARROW_TALL, OVERLIGHT, PORTRAIT_PANORAMA, fittedDoorOpening, narrowTallPane, openingClearOfRoof, overlightHeight, portraitPane } from './windowFit';
+import { NARROW_TALL, OVERLIGHT, PORTRAIT_PANORAMA, fittedDoorOpening, fittedWindowOpening, narrowTallPane, openingClearOfRoof, overlightHeight, portraitPane } from './windowFit';
 import { fitRoom, innerHalf, roomFootprint, roomWallRuns, shellSides, type ShellSides } from './roomWalls';
 import { timberShellOnConcrete } from '../store/paabyggnad';
 import { MEASURE_CURSOR } from '../measure/length';
@@ -3142,11 +3142,6 @@ export class HouseScene {
     cornerSide?: 'left' | 'right' | null,
     facadeSpan?: { from: number; to: number } | null
   ) {
-    const side = 0.09;
-    const headBoard = 0.085;
-    const sillBoard = 0.065;
-    const edge = 0.045;
-    const sillEar = kind === 'window' ? 0.02 : 0;
     const half = panelWidth / 2;
 
     // Detect if this lower panel has a wooden extension overhang alongside a concrete facade
@@ -3159,106 +3154,26 @@ export class HouseScene {
       }
     }
 
-    // When adjacent to a corner, reserve clearance for the 145mm corner board plus reveal (170mm total)
-    const cornerClearance = 0.170;
-    let winW: number;
-    let shift = 0;
-
-    if (woodSpan) {
-      const isWoodOnLeft = woodSpan.from <= -half + 0.01;
-      const minX = (cornerSide === 'left' && isWoodOnLeft)
-        ? woodSpan.from + cornerClearance
-        : woodSpan.from + edge;
-      const maxX = (cornerSide === 'right' && !isWoodOnLeft)
-        ? woodSpan.to - cornerClearance
-        : woodSpan.to - edge;
-      const clearSpan = Math.max(0.35, maxX - minX);
-      shift = (minX + maxX) / 2;
-      const maxAllowedOpening = Math.max(0.32, clearSpan - (side + sillEar) * 2);
-      winW = Math.min(Math.max(0.32, panelWidth - side * 2 - edge * 2), maxAllowedOpening);
-    } else if (cornerSide) {
-      const availableW = Math.max(0.46, panelWidth - cornerClearance - edge);
-      const maxAllowedOpening = Math.max(0.46, availableW - (side + sillEar) * 2);
-      const offset = (cornerClearance - edge) / 2;
-      shift = cornerSide === 'left' ? offset : -offset;
-      winW = Math.min(Math.max(0.46, panelWidth - side * 2 - edge * 2), maxAllowedOpening);
-    } else {
-      winW = Math.max(0.46, panelWidth - side * 2 - edge * 2);
-    }
-
-    const centerY = panelBase + panelHeight / 2;
-
     if (kind === 'door') {
+      const headBoard = 0.085;
       const fitted = fittedDoorOpening(itemId, panelWidth, cornerSide);
       const doorH = Math.min(2.1, Math.max(1.7, panelHeight - headBoard - 0.06));
       const sill = panelBase;
       const head = sill + doorH;
+      const centerY = panelBase + panelHeight / 2;
       return { winW: fitted.width, winH: doorH, winY: (sill + head) / 2 - centerY, sill, head, x: fitted.shift };
     }
 
-    if (itemId === NARROW_TALL) {
-      const pane = narrowTallPane(panelWidth, panelHeight, isUpper, woodSpan, cornerSide);
-      const sill = panelBase + pane.sill;
-      const head = sill + pane.height;
-      return { winW: pane.width, winH: pane.height, winY: (sill + head) / 2 - centerY, sill, head, x: pane.shift };
-    }
-
-    if (itemId === 'standard-single' && !isUpper && panelWidth >= 1.8) {
-      const width = Math.min(1.05, winW);
-      const height = 0.72;
-      const sill = panelBase + 1.05;
-      const head = sill + height;
-      return { winW: width, winH: height, winY: (sill + head) / 2 - centerY, sill, head, x: shift };
-    }
-
-    if (itemId === PORTRAIT_PANORAMA) {
-      const pane = portraitPane(panelWidth, panelHeight, isUpper);
-      const sill = panelBase + pane.sill;
-      const head = sill + pane.height;
-      const width = Math.min(pane.width, winW);
-      return { winW: width, winH: pane.height, winY: (sill + head) / 2 - centerY, sill, head, x: shift };
-    }
-
-    if (itemId === OVERLIGHT) {
-      const height = overlightHeight(winW);
-      const sill = isUpper
-        ? panelBase + (aboveDoor ? 0.42 : 0.36)
-        : panelBase + Math.min(1.05, Math.max(0.7, panelHeight * 0.38));
-      const headLimit = panelBase + panelHeight - headBoard - 0.08;
-      const head = Math.max(sill + 0.28, Math.min(sill + height, headLimit));
-      const fittedH = head - sill;
-      return { winW, winH: fittedH, winY: (sill + head) / 2 - centerY, sill, head, x: shift };
-    }
-
-    let winH: number;
-    let sill: number;
-    if (itemId === 'standard-single' && isUpper && aboveDoor) {
-      const width = Math.min(1.0, winW);
-      const sillTop = panelBase + 0.42;
-      const headLimit = panelBase + panelHeight - 0.16 - headBoard;
-      const height = Math.min(1.2, Math.max(0.72, headLimit - sillTop));
-      const head = sillTop + height;
-      return { winW: width, winH: height, winY: (sillTop + head) / 2 - centerY, sill: sillTop, head, x: shift };
-    } else if (isUpper && itemId !== 'panorama') {
-      // Sit the head just under the fascia, the way the reference row does.
-      const gapAbove = 0.16;
-      const head = panelBase + panelHeight - gapAbove - headBoard;
-      const maxH = Math.max(0.28, head - (panelBase + sillBoard + 0.04));
-      winH = Math.min(maxH, winW * 0.42);
-      sill = head - winH;
-      const minSill = panelBase + sillBoard + 0.02;
-      if (sill < minSill) {
-        sill = minSill;
-        winH = Math.max(0.28, head - sill);
-      }
-    } else {
-      const sillFromBase = Math.min(0.85, panelHeight * 0.34);
-      const maxH = Math.max(0.4, panelHeight - headBoard - sillFromBase - 0.22);
-      winH = Math.min(maxH, Math.max(winW * 0.92, panelHeight * 0.42));
-      sill = panelBase + sillFromBase;
-    }
-    const head = sill + winH;
-    return { winW, winH, winY: (sill + head) / 2 - centerY, sill, head, x: shift };
+    return fittedWindowOpening(
+      itemId,
+      panelWidth,
+      panelHeight,
+      panelBase,
+      isUpper,
+      aboveDoor,
+      cornerSide,
+      woodSpan
+    );
   }
 
   /** Each wall group is rotated so its local +Z already points away from the house. */
@@ -4158,7 +4073,7 @@ export class HouseScene {
 
   private addOpeningCasing(
     parent: THREE.Group,
-    opening: { winW: number; winH: number; winY: number; x?: number },
+    opening: { winW: number; winH: number; winY: number; x?: number; casingSide?: number },
     kind: 'door' | 'window',
     material: THREE.Material,
     cornerSide?: 'left' | 'right' | null,
@@ -4167,9 +4082,11 @@ export class HouseScene {
   ) {
     const { winW, winH, winY } = opening;
     const shift = opening.x ?? 0;
-    const side = kind === 'door' ? 0.1 : 0.09;
+    const customSide = opening.casingSide;
+    const side = customSide ?? (kind === 'door' ? 0.1 : 0.09);
     const headH = kind === 'door' ? 0.1 : 0.085;
     const sillH = kind === 'door' ? 0 : 0.065;
+    const sillEar = customSide ? 0.01 : 0.02;
     const depth = 0.038;
     const z = 0.032;
     const sideTop = winY + winH / 2;
@@ -4185,7 +4102,7 @@ export class HouseScene {
       boards.push({
         x: shift,
         y: winY - winH / 2 - sillH / 2,
-        w: winW + side * 2 + 0.04,
+        w: winW + side * 2 + sillEar * 2,
         h: sillH,
         d: depth + 0.01,
         z: z + 0.004
@@ -4849,10 +4766,12 @@ export class HouseScene {
 
     if (windowId === 'sprojat') {
       const mullionMat = new THREE.MeshStandardMaterial({ color: '#f8fafc', roughness: 0.35 });
-      const vertMullion = new THREE.Mesh(new THREE.BoxGeometry(0.028, glassH, 0.03), mullionMat);
-      vertMullion.position.set(ox, winY, 0.02);
-      parent.add(vertMullion);
-      this.markSelectable(vertMullion, userData);
+      if (glassW >= 0.35) {
+        const vertMullion = new THREE.Mesh(new THREE.BoxGeometry(0.028, glassH, 0.03), mullionMat);
+        vertMullion.position.set(ox, winY, 0.02);
+        parent.add(vertMullion);
+        this.markSelectable(vertMullion, userData);
+      }
       const horizMullion = new THREE.Mesh(new THREE.BoxGeometry(glassW, 0.028, 0.03), mullionMat);
       horizMullion.position.set(ox, winY, 0.02);
       parent.add(horizMullion);

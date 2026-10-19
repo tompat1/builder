@@ -203,3 +203,207 @@ export function narrowTallPane(
   const height = Math.min(1.80, Math.max(0.7, panelHeight - topGap - sill));
   return { width, height, sill, shift };
 }
+
+export interface FittedWindowResult {
+  winW: number;
+  winH: number;
+  winY: number;
+  sill: number;
+  head: number;
+  x: number;
+  casingSide?: number;
+}
+
+/**
+ * Fits and adapts any window placed in a wall bay or narrow wooden overhang span.
+ * When the available wooden span is narrow, dimensions adapt gracefully into a
+ * custom-sized window that fits the space without clipping casing or encroaching
+ * on concrete walls and corner boards.
+ */
+export function fittedWindowOpening(
+  itemId: string | undefined,
+  panelWidth: number,
+  panelHeight: number,
+  panelBase: number,
+  isUpper: boolean,
+  aboveDoor = false,
+  cornerSide?: 'left' | 'right' | null,
+  woodSpan?: { from: number; to: number } | null
+): FittedWindowResult {
+  const half = panelWidth / 2;
+  const edge = 0.045;
+  const cornerClearance = 0.170;
+  const headBoard = 0.085;
+  const sillBoard = 0.065;
+  const centerY = panelBase + panelHeight / 2;
+
+  let minX: number;
+  let maxX: number;
+
+  if (woodSpan) {
+    const isWoodOnLeft = woodSpan.from <= -half + 0.01;
+    minX = (cornerSide === 'left' && isWoodOnLeft)
+      ? woodSpan.from + cornerClearance
+      : woodSpan.from + edge;
+    maxX = (cornerSide === 'right' && !isWoodOnLeft)
+      ? woodSpan.to - cornerClearance
+      : woodSpan.to - edge;
+  } else if (cornerSide) {
+    minX = cornerSide === 'left' ? -half + cornerClearance : -half + edge;
+    maxX = cornerSide === 'right' ? half - cornerClearance : half - edge;
+  } else {
+    minX = -half + edge;
+    maxX = half - edge;
+  }
+
+  const spaceW = Math.max(0.20, maxX - minX);
+  const isNarrow = Boolean(woodSpan) || spaceW < 1.05;
+
+  // Adaptive casing width in tight spaces so casing and window frame fit seamlessly
+  const casingSide = isNarrow
+    ? (spaceW < 0.65 ? Math.max(0.045, Math.min(0.08, spaceW * 0.11)) : 0.08)
+    : 0.09;
+  const sillEar = spaceW < 0.65 ? 0.01 : 0.02;
+  const casingMargin = (casingSide + sillEar) * 2;
+  const maxWinW = Math.max(0.18, spaceW - casingMargin);
+  const shift = (minX + maxX) / 2;
+
+  if (itemId === NARROW_TALL) {
+    const pane = narrowTallPane(panelWidth, panelHeight, isUpper, woodSpan, cornerSide);
+    const winW = Math.min(pane.width, maxWinW);
+    const sill = panelBase + pane.sill;
+    const head = sill + pane.height;
+    return {
+      winW,
+      winH: pane.height,
+      winY: (sill + head) / 2 - centerY,
+      sill,
+      head,
+      x: shift,
+      casingSide
+    };
+  }
+
+  if (itemId === OVERLIGHT) {
+    const defaultW = Math.max(0.46, panelWidth - 0.09 * 2 - edge * 2);
+    const winW = Math.min(defaultW, maxWinW);
+    const winH = overlightHeight(winW);
+    const sill = isUpper
+      ? panelBase + (aboveDoor ? 0.42 : 0.36)
+      : panelBase + Math.min(1.05, Math.max(0.7, panelHeight * 0.38));
+    const headLimit = panelBase + panelHeight - headBoard - 0.08;
+    const head = Math.max(sill + 0.28, Math.min(sill + winH, headLimit));
+    const fittedH = head - sill;
+    return {
+      winW,
+      winH: fittedH,
+      winY: (sill + head) / 2 - centerY,
+      sill,
+      head,
+      x: shift,
+      casingSide
+    };
+  }
+
+  if (itemId === PORTRAIT_PANORAMA) {
+    const pane = portraitPane(panelWidth, panelHeight, isUpper);
+    const winW = Math.min(pane.width, maxWinW);
+    const sill = panelBase + pane.sill;
+    const head = sill + pane.height;
+    return {
+      winW,
+      winH: pane.height,
+      winY: (sill + head) / 2 - centerY,
+      sill,
+      head,
+      x: shift,
+      casingSide
+    };
+  }
+
+  if (isUpper && itemId !== 'panorama') {
+    const gapAbove = 0.16;
+    const head = panelBase + panelHeight - gapAbove - headBoard;
+    const defaultW = Math.max(0.46, panelWidth - 0.09 * 2 - edge * 2);
+    const winW = Math.min(defaultW, maxWinW);
+    const maxH = Math.max(0.28, head - (panelBase + sillBoard + 0.04));
+    let winH = Math.min(maxH, winW * 0.42);
+    let sill = head - winH;
+    const minSill = panelBase + sillBoard + 0.02;
+    if (sill < minSill) {
+      sill = minSill;
+      winH = Math.max(0.28, head - sill);
+    }
+    return {
+      winW,
+      winH,
+      winY: (sill + head) / 2 - centerY,
+      sill,
+      head,
+      x: shift,
+      casingSide
+    };
+  }
+
+  // Lower wall window:
+  if (itemId === 'standard-single' || itemId === 'oppningsbart') {
+    const wantsW = 1.05;
+    if (!isNarrow && maxWinW >= wantsW && panelWidth >= 1.8) {
+      const winW = wantsW;
+      const winH = 0.72;
+      const sill = panelBase + 1.05;
+      const head = sill + winH;
+      return { winW, winH, winY: (sill + head) / 2 - centerY, sill, head, x: shift, casingSide };
+    }
+    // Narrow wooden space or overhang: adapt window dimensions to fit space cleanly
+    const winW = Math.min(wantsW, maxWinW);
+    const headLimit = panelBase + panelHeight - headBoard - 0.22;
+    const customH = winW < 0.75
+      ? Math.min(headLimit - (panelBase + 0.50), Math.max(0.65, winW * 1.7))
+      : Math.min(0.72, headLimit - (panelBase + 1.05));
+    const sill = winW < 0.75 ? headLimit - customH : panelBase + 1.05;
+    const actualHead = sill + customH;
+    return {
+      winW,
+      winH: customH,
+      winY: (sill + actualHead) / 2 - centerY,
+      sill,
+      head: actualHead,
+      x: shift,
+      casingSide
+    };
+  }
+
+  // Any other window (panorama, sprojat, frost, etc.)
+  const defaultW = Math.max(0.46, panelWidth - 0.09 * 2 - edge * 2);
+  const winW = Math.min(defaultW, maxWinW);
+  const headLimit = panelBase + panelHeight - headBoard - 0.22;
+  if (isNarrow && winW < 0.85) {
+    const customH = Math.min(headLimit - (panelBase + 0.45), Math.max(0.65, winW * 1.6));
+    const sill = headLimit - customH;
+    return {
+      winW,
+      winH: customH,
+      winY: (sill + headLimit) / 2 - centerY,
+      sill,
+      head: headLimit,
+      x: shift,
+      casingSide
+    };
+  } else {
+    const sillFromBase = Math.min(0.85, panelHeight * 0.34);
+    const maxH = Math.max(0.4, panelHeight - headBoard - sillFromBase - 0.22);
+    const winH = Math.min(maxH, Math.max(winW * 0.92, panelHeight * 0.42));
+    const sill = panelBase + sillFromBase;
+    const actualHead = sill + winH;
+    return {
+      winW,
+      winH,
+      winY: (sill + actualHead) / 2 - centerY,
+      sill,
+      head: actualHead,
+      x: shift,
+      casingSide
+    };
+  }
+}
