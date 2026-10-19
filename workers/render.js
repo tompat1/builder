@@ -5,6 +5,7 @@ const MODEL_IMAGES = 4;
 const DATA_URL = /^data:image\/(png|jpeg|jpg|webp);base64,([A-Za-z0-9+/=\s]+)$/;
 const FIGURE = /\b(?:women|woman|womans|girls?|boys?|lad(?:y|ies)|people|persons?|humans?|couples?|kids?|children|child|bab(?:y|ies)|guys?|bikinis?|swimsuits?|swimwear|lingerie|nudes?|naked|topless|kiss(?:ing|es|ed)?|portraits?|selfies?|sexy|erotic|kvinnor|kvinna|tjejer|tjej|flickor|flicka|pojkar|pojke|killar|kille|personer|människor|människa|barn|bebisar|bebis|männen|mannen|karlar|karl|män|bikini|kyssande|kyssas|kyssar|kysste|kyss|nakna|naken|badkläder|underkläder)\b/i;
 const HOUSE_ONLY = 'Show only the house. No people, faces, bodies, or animals.';
+const NO_FIGURES = 'Do not add people, faces, bodies, vehicles, or animals.';
 const PICTURE_PARTS = ['door', 'window', 'roof', 'stair', 'colour', 'wall', 'cladding', 'loft', 'terrace', 'gate', 'corner', 'canopy'];
 const PART_WORD = {
   door: 'door',
@@ -74,6 +75,41 @@ export function renderPrompt(prompt, facts, imageCount) {
   parts.push('If the sentence names a roof shape, a colour, or a material, follow the sentence.');
   parts.push(HOUSE_ONLY);
   return parts.join(' ');
+}
+
+export function acceptPlacement(input) {
+  const record = input && typeof input === 'object' ? input : {};
+  const clamp = (value, fallback) => {
+    const number = Number(value);
+    return Number.isFinite(number) ? Math.max(5, Math.min(95, Math.round(number))) : fallback;
+  };
+  return { x: clamp(record.x, 50), y: clamp(record.y, 68) };
+}
+
+/** Image 0 is the scene, image 1 is the configured house, and later images only add site context. */
+export function sitePrompt(facts, imageCount, placement) {
+  if (imageCount < 2) return '';
+  const point = acceptPlacement(placement);
+  const note = String(facts ?? '').replace(/\s+/g, ' ').trim().slice(0, 500);
+  return [
+    'Create a single photoreal architectural composite using image 0 as the base photograph.',
+    'Image 1 shows the exact configured 3D house to install. Preserve its architecture, proportions, roof, openings, cladding, colours, and details; do not redesign it.',
+    imageCount > 2 ? 'Images 2 and later are supporting views of the same site. Use them only to understand the property; keep image 0 as the output viewpoint.' : '',
+    `Place the house with its ground contact around ${point.x}% from the left and ${point.y}% from the top of image 0.`,
+    'Match the base photograph camera perspective, believable real-world scale, terrain, daylight, colour temperature, occlusion, and contact shadows.',
+    'Keep the garden, boundaries, mature plants, neighbouring buildings, sky, weather, and photographic texture from image 0 unchanged wherever the new house does not physically cover them.',
+    'If an existing shed or small structure overlaps the placement area, replace only that structure. Do not clear or redesign the rest of the garden.',
+    note ? `Configured house facts: ${note}` : '',
+    NO_FIGURES
+  ].filter(Boolean).join(' ');
+}
+
+export function renderSizeForAspect(input) {
+  const ratio = Number(input);
+  const aspect = Number.isFinite(ratio) ? Math.max(0.6, Math.min(2, ratio)) : 4 / 3;
+  const multiple = (value) => Math.max(512, Math.round(value / 32) * 32);
+  if (aspect >= 1) return { width: 1024, height: multiple(1024 / aspect) };
+  return { width: multiple(1024 * aspect), height: 1024 };
 }
 
 /** A follow-up instruction edits the previous picture. Image 0 is that picture. */
@@ -185,15 +221,20 @@ export async function handleRender(request, env, headers) {
 
   const images = decodeImages(body?.images);
   const change = partChange(body?.parts);
-  const prompt = body?.revision
-    ? revisePrompt(change, partChange(body?.originalParts))
-    : renderPrompt(change, body?.facts, images.length);
+  const site = body?.scene?.mode === 'site';
+  const prompt = site
+    ? sitePrompt(body?.facts, images.length, body?.scene?.placement)
+    : body?.revision
+      ? revisePrompt(change, partChange(body?.originalParts))
+      : renderPrompt(change, body?.facts, images.length);
   if (!prompt) return json({ error: 'render' }, 400, headers);
+
+  const size = site ? renderSizeForAspect(body?.scene?.aspectRatio) : { width: 1024, height: 768 };
 
   const form = new FormData();
   form.append('prompt', prompt);
-  form.append('width', '1024');
-  form.append('height', '768');
+  form.append('width', String(size.width));
+  form.append('height', String(size.height));
   images.forEach((blob, index) => {
     form.append(`input_image_${index}`, blob, `ref-${index}.jpg`);
   });

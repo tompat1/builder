@@ -3,7 +3,16 @@ import assert from 'node:assert/strict';
 import { deflateSync } from 'node:zlib';
 import { extractPdfImages, extractPdfText, hasMeasures, readDrawing } from '../src/import/drawing.js';
 import { fitImageSize } from '../src/import/imageSize.js';
-import { acceptPictureParts, decodeImages, partChange, renderPrompt, revisePrompt } from '../workers/render.js';
+import {
+  acceptPictureParts,
+  acceptPlacement,
+  decodeImages,
+  partChange,
+  renderPrompt,
+  renderSizeForAspect,
+  revisePrompt,
+  sitePrompt
+} from '../workers/render.js';
 
 test('a labelled drawing sets the rectangular house', () => {
   const reading = readDrawing('Bredd 6040 mm Djup 3500 mm Höjd 4200 mm pulpettak takpapp pardörr fönster');
@@ -202,4 +211,22 @@ test('reference photos stay inside the picture model size', () => {
   }
   assert.equal(photo.width, 480);
   assert.equal(small.height, 64);
+});
+
+test('a site preview preserves the first photo and installs the configured house', () => {
+  const prompt = sitePrompt('5800 × 4310 mm, red cladding.', 3, { x: 41.2, y: 72.8 });
+  assert.match(prompt, /image 0 as the base photograph/i);
+  assert.match(prompt, /Image 1 shows the exact configured 3D house/);
+  assert.match(prompt, /41% from the left and 73% from the top/);
+  assert.match(prompt, /5800 × 4310 mm, red cladding/);
+  assert.match(prompt, /replace only that structure/i);
+  assert.equal(sitePrompt('house', 1, { x: 50, y: 50 }), '');
+});
+
+test('site placement and output shape stay within render bounds', () => {
+  assert.deepEqual(acceptPlacement({ x: -40, y: 120 }), { x: 5, y: 95 });
+  assert.deepEqual(acceptPlacement({ x: 'bad', y: null }), { x: 50, y: 5 });
+  assert.deepEqual(renderSizeForAspect(16 / 9), { width: 1024, height: 576 });
+  assert.deepEqual(renderSizeForAspect(9 / 16), { width: 608, height: 1024 });
+  assert.deepEqual(renderSizeForAspect('bad'), { width: 1024, height: 768 });
 });

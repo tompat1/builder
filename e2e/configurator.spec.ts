@@ -98,6 +98,46 @@ test.describe("3D Modular House Configurator", () => {
     await expect(conciergePanel).toHaveCount(0);
   });
 
+  test("places the configured 3D house into an uploaded site photo", async ({ page }) => {
+    await page.evaluate(() => {
+      localStorage.setItem("builder.onboarding", "seen");
+      localStorage.setItem("builder.sound.consent", "denied");
+      localStorage.setItem("builder.cookies.consent", "essential");
+    });
+    await page.reload();
+
+    let requestBody: {
+      scene?: { mode?: string; placement?: { x?: number; y?: number } };
+      images?: unknown[];
+      facts?: string;
+    } | null = null;
+    await page.route("**/api/render", async (route) => {
+      requestBody = route.request().postDataJSON();
+      await route.fulfill({
+        json: { image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAF/gL+XxQYVwAAAABJRU5ErkJggg==" }
+      });
+    });
+
+    await page.locator("#btn-tool-ai-concierge").evaluate((button: HTMLButtonElement) => button.click());
+    await page.locator("#import-site-photos").setInputFiles("public/homes/home-29-9m2.webp");
+    await expect(page.locator("#site-placement-photo")).toBeVisible();
+    await page.locator("#import-site-render").click();
+
+    await expect(page.locator("#site-picture-result")).toBeVisible({ timeout: 30_000 });
+    const body = requestBody as {
+      scene?: { mode?: string; placement?: { x?: number; y?: number } };
+      images?: unknown[];
+      facts?: string;
+    } | null;
+    expect(body?.scene?.mode).toBe("site");
+    expect(body?.images).toHaveLength(2);
+    expect(body?.images?.[0]).toMatch(/^data:image\/jpeg;base64,/);
+    expect(body?.images?.[1]).toMatch(/^data:image\/jpeg;base64,/);
+    expect(body?.facts).toContain("6040 × 4950 × 5000 mm");
+    expect(body?.scene?.placement?.x).toBe(50);
+    expect(body?.scene?.placement?.y).toBe(68);
+  });
+
   test("displays 3D architectural dimension annotations", async ({ page }) => {
     // Width annotation
     await expect(page.locator("#dim-width")).toHaveText(/6040 mm/);
