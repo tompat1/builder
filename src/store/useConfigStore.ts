@@ -544,6 +544,10 @@ export const useConfigStore = defineStore('config', () => {
   const cornerColor = ref<string>('same');
   /** Saved custom corner board colors */
   const savedCornerColors = ref<string[]>([]);
+  /** Exterior color of the concrete walls (hex code) */
+  const concreteColor = ref<string>('#b7b3ac');
+  /** Saved custom concrete colors */
+  const savedConcreteColors = ref<string[]>([]);
   /** Exterior corner boards (knutbrädor) show/hide */
   const cornerBoards = ref<boolean>(true);
   const isFullscreen = ref<boolean>(false);
@@ -693,6 +697,8 @@ export const useConfigStore = defineStore('config', () => {
       concreteDepth: concreteDepth.value,
       concreteHeight: concreteHeight.value,
       concreteWalls: concreteWalls.value.map((wall) => ({ ...wall })),
+      concreteColor: concreteColor.value,
+      savedConcreteColors: savedConcreteColors.value,
       activeRoof: activeRoof.value,
       roofCovering: roofCovering.value,
       activeLoft: activeLoft.value,
@@ -820,12 +826,19 @@ export const useConfigStore = defineStore('config', () => {
       claddingSizeId.value = CLADDING_SIZES.some((size) => size.id === data.claddingSizeId)
         ? data.claddingSizeId
         : '22x145';
-      cornerColor.value = typeof data.cornerColor === 'string' ? data.cornerColor : 'same';
+       cornerColor.value = typeof data.cornerColor === 'string' ? data.cornerColor : 'same';
       savedCornerColors.value = Array.isArray(data.savedCornerColors)
         ? data.savedCornerColors.filter((c: unknown): c is string => typeof c === 'string' && c.startsWith('#'))
         : (cornerColor.value.startsWith('#') ? [cornerColor.value] : []);
       if (cornerColor.value.startsWith('#') && !savedCornerColors.value.includes(cornerColor.value)) {
         savedCornerColors.value.push(cornerColor.value);
+      }
+      concreteColor.value = typeof data.concreteColor === 'string' ? data.concreteColor : '#b7b3ac';
+      savedConcreteColors.value = Array.isArray(data.savedConcreteColors)
+        ? data.savedConcreteColors.filter((c: unknown): c is string => typeof c === 'string' && c.startsWith('#'))
+        : (concreteColor.value.startsWith('#') && concreteColor.value !== '#b7b3ac' ? [concreteColor.value] : []);
+      if (concreteColor.value.startsWith('#') && !savedConcreteColors.value.includes(concreteColor.value) && concreteColor.value !== '#b7b3ac') {
+        savedConcreteColors.value.push(concreteColor.value);
       }
       cornerBoards.value = data.cornerBoards !== false;
       wallSlots.value = mergeWallSlots(data.wallSlots, data.selectedSizeId ?? selectedSizeId.value);
@@ -1577,6 +1590,49 @@ export const useConfigStore = defineStore('config', () => {
     saveSnapshot();
   }
 
+  function selectConcreteColor(color: string) {
+    if (color.startsWith('#')) {
+      const normalized = normalizeHex(color) ?? color.toLowerCase();
+      if (!savedConcreteColors.value.includes(normalized) && normalized !== '#b7b3ac') {
+        savedConcreteColors.value = [...savedConcreteColors.value, normalized].slice(-12);
+      }
+      if (concreteColor.value === normalized) return;
+      concreteColor.value = normalized;
+    } else {
+      if (concreteColor.value === color) return;
+      concreteColor.value = color;
+    }
+    saveSnapshot();
+  }
+
+  function addConcreteColor(color: string) {
+    const normalized = normalizeHex(color) ?? color.toLowerCase();
+    if (!savedConcreteColors.value.includes(normalized)) {
+      savedConcreteColors.value = [...savedConcreteColors.value, normalized].slice(-12);
+    }
+    concreteColor.value = normalized;
+    saveSnapshot();
+  }
+
+  function removeConcreteColor(color: string) {
+    const normalized = normalizeHex(color) ?? color.toLowerCase();
+    savedConcreteColors.value = savedConcreteColors.value.filter((c) => c !== normalized && c !== color);
+    if (concreteColor.value === normalized || concreteColor.value === color) {
+      concreteColor.value = savedConcreteColors.value[savedConcreteColors.value.length - 1] ?? '#b7b3ac';
+    }
+    saveSnapshot();
+  }
+
+  function updateConcreteColor(oldColor: string, newColor: string) {
+    const normOld = normalizeHex(oldColor) ?? oldColor.toLowerCase();
+    const normNew = normalizeHex(newColor) ?? newColor.toLowerCase();
+    savedConcreteColors.value = savedConcreteColors.value.map((c) => (c === normOld ? normNew : c));
+    if (concreteColor.value === normOld || concreteColor.value === oldColor) {
+      concreteColor.value = normNew;
+    }
+    saveSnapshot();
+  }
+
   function toggleCornerBoards() {
     cornerBoards.value = !cornerBoards.value;
     saveSnapshot();
@@ -2030,11 +2086,17 @@ export const useConfigStore = defineStore('config', () => {
     concreteDepth,
     concreteHeight,
     concreteWalls,
+    concreteColor,
+    savedConcreteColors,
     setConcreteMeasure,
     swapConcretePlan,
     addConcreteWall,
     setConcreteWall,
     removeConcreteWall,
+    selectConcreteColor,
+    addConcreteColor,
+    removeConcreteColor,
+    updateConcreteColor,
     selectRoof,
     setFlushRoof,
     selectRoofCovering,

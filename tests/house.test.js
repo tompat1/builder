@@ -88,6 +88,15 @@ test('house config preserves the corner boards color and saved custom corner col
   assert.match(withMultipleCornerColors, /"savedCornerColors":\["#df9b9b","#336699"\]/);
 });
 
+test('house config preserves the concrete walls color and saved custom concrete colors', () => {
+  const withGraphite = acceptHouse({ config: { buildingWidth: 6040, concreteColor: '#334155' } });
+  assert.match(withGraphite, /"concreteColor":"#334155"/);
+  const withSaved = acceptHouse({
+    config: { buildingWidth: 6040, concreteColor: '#9a4936', savedConcreteColors: ['#9a4936', '#334155'] }
+  });
+  assert.match(withSaved, /"savedConcreteColors":\["#9a4936","#334155"\]/);
+});
+
 test('house config preserves the corner boards toggle', () => {
   const withCorners = acceptHouse({ config: { buildingWidth: 6040, cornerBoards: true } });
   assert.match(withCorners, /"cornerBoards":true/);

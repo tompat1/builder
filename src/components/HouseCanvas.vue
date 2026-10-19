@@ -175,7 +175,8 @@ onMounted(() => {
       concreteWidthMm: store.concreteWidth,
       concreteDepthMm: store.concreteDepth,
       concreteHeightMm: store.concreteHeight,
-      concreteWalls: store.concreteWalls.map((wall) => ({ ...wall }))
+      concreteWalls: store.concreteWalls.map((wall) => ({ ...wall })),
+      concreteColor: store.concreteColor
     });
 
     (window as any).__houseScene = engine;
@@ -410,7 +411,8 @@ watch(
     store.concreteWidth,
     store.concreteDepth,
     store.concreteHeight,
-    store.concreteWalls.map((wall) => `${wall.id}:${wall.axis}:${wall.offsetMm}`).join('|')
+    store.concreteWalls.map((wall) => `${wall.id}:${wall.axis}:${wall.offsetMm}`).join('|'),
+    store.concreteColor
   ] as const,
   ([id, width, depth, height]) => {
     engine?.updateConfig({
@@ -418,7 +420,8 @@ watch(
       concreteWidthMm: width,
       concreteDepthMm: depth,
       concreteHeightMm: height,
-      concreteWalls: store.concreteWalls.map((wall) => ({ ...wall }))
+      concreteWalls: store.concreteWalls.map((wall) => ({ ...wall })),
+      concreteColor: store.concreteColor
     });
   }
 );

@@ -87,6 +87,8 @@ export interface SceneConfig {
   concreteHeightMm?: number;
   /** Extra concrete walls inside the open shell. */
   concreteWalls?: { id: string; axis: 'x' | 'z'; offsetMm: number }[];
+  /** Exterior color of the concrete walls (hex code). */
+  concreteColor?: string | null;
 }
 
 interface OutsideAnchor {
@@ -286,7 +288,8 @@ export class HouseScene {
       concreteWidthMm: initialConfig?.concreteWidthMm ?? 5200,
       concreteDepthMm: initialConfig?.concreteDepthMm ?? 5200,
       concreteHeightMm: initialConfig?.concreteHeightMm ?? 2500,
-      concreteWalls: initialConfig?.concreteWalls ?? []
+      concreteWalls: initialConfig?.concreteWalls ?? [],
+      concreteColor: initialConfig?.concreteColor ?? '#b7b3ac'
     };
 
     this.scene = new THREE.Scene();
@@ -1746,10 +1749,16 @@ export class HouseScene {
       color: '#94a3b8',
       roughness: 0.95
     });
+    const concreteColor = this.currentConfig.concreteColor ?? '#b7b3ac';
     const concreteWallMat = new THREE.MeshStandardMaterial({
-      color: '#b7b3ac',
+      color: concreteColor,
       roughness: 0.94,
       metalness: 0
+    });
+    const whiteConcreteMat = new THREE.MeshStandardMaterial({
+      color: '#ffffff',
+      roughness: 0.88,
+      metalness: 0.02
     });
 
     // 1. Concrete slab foundation
@@ -1776,7 +1785,7 @@ export class HouseScene {
     this.buildModularWall('back', backCount, w, d, h, wallThick, exteriorMat, doorBayMat, trimMat, casingMat, concreteWallMat);
     this.buildModularWall('left', leftCount, w, d, h, wallThick, exteriorMat, doorBayMat, trimMat, casingMat, concreteWallMat);
     this.buildModularWall('right', rightCount, w, d, h, wallThick, exteriorMat, doorBayMat, trimMat, casingMat, concreteWallMat);
-    this.addConcreteWalls(concreteWallMat);
+    this.addConcreteWalls(concreteWallMat, whiteConcreteMat);
     this.buildOutsideAdditions(w, d, h);
     if (!this.interiorCut() && this.currentConfig.panelOrientation !== 'liggande') {
       this.addBeltFlashing(w, d, h);
@@ -1785,10 +1794,11 @@ export class HouseScene {
       const isPulpet = this.currentConfig.roofType === 'pulpettak';
       const isFlackt = this.currentConfig.roofType === 'flackt';
       const flacktDrop = isFlackt ? (d / 2) * Math.tan((2 * Math.PI) / 180) : 0;
-      const frontTop = isFlackt ? h + flacktDrop : h;
-      const rearTop = isPulpet
+      const roofTrimDrop = isPulpet ? 0.08 : (isFlackt ? 0.13 : 0.06);
+      const frontTop = (isFlackt ? h + flacktDrop : h) - roofTrimDrop;
+      const rearTop = (isPulpet
         ? Math.max(h - Math.tan(PULPET_PITCH_RAD) * d, 2.4)
-        : (isFlackt ? h - flacktDrop : h);
+        : (isFlackt ? h - flacktDrop : h)) - roofTrimDrop;
       const cornerColor = this.currentConfig.cornerColor ?? 'same';
       const cornerMat = new THREE.MeshStandardMaterial({
         roughness: 0.64,
@@ -2074,9 +2084,9 @@ export class HouseScene {
         const rise = Math.abs(pitch) * d;
         const slopeLen = Math.hypot(d + 0.08, rise);
         const slopeAngle = Math.atan2(rise, d);
-        const eavesTrim = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.1, slopeLen), trimMat);
+        const eavesTrim = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.12, slopeLen), trimMat);
         const trimX = wallSide === 'left' ? -w / 2 - 0.004 : w / 2 + 0.004;
-        eavesTrim.position.set(trimX, yMid + 0.01, 0);
+        eavesTrim.position.set(trimX, yMid - 0.02, 0);
         eavesTrim.rotation.x = -slopeAngle;
         eavesTrim.castShadow = true;
         this.wallsGroup.add(eavesTrim);
@@ -2085,14 +2095,14 @@ export class HouseScene {
       if (!this.interiorCut()) {
         const frontTrimGeo = new THREE.BoxGeometry(w + 0.06, 0.14, 0.035);
         const frontTrim = new THREE.Mesh(frontTrimGeo, trimMat);
-        frontTrim.position.set(0, frontH + 0.04, d / 2 + 0.012);
+        frontTrim.position.set(0, frontH - 0.01, d / 2 + 0.012);
         frontTrim.castShadow = true;
         this.wallsGroup.add(frontTrim);
       }
     } else if (!this.currentConfig.flushRoof && wallSide === 'back') {
       const backTrimGeo = new THREE.BoxGeometry(w + 0.05, 0.12, 0.03);
       const backTrim = new THREE.Mesh(backTrimGeo, trimMat);
-      backTrim.position.set(0, rearH - 0.06, -d / 2 - 0.01);
+      backTrim.position.set(0, rearH - 0.02, -d / 2 - 0.01);
       backTrim.castShadow = true;
       this.wallsGroup.add(backTrim);
     }
@@ -2184,7 +2194,7 @@ export class HouseScene {
    * Outer walls use concreteWidthMm, concreteDepthMm, concreteHeightMm.
    * Openings for doors and windows in the concrete walls are cut out cleanly.
    */
-  private addConcreteWalls(material: THREE.Material) {
+  private addConcreteWalls(material: THREE.Material, whiteInsideMat: THREE.Material) {
     if (!this.currentConfig.concreteBase) return;
     const cw = (this.currentConfig.concreteWidthMm ?? 5200) / 1000;
     const cd = (this.currentConfig.concreteDepthMm ?? 5200) / 1000;
@@ -2210,23 +2220,23 @@ export class HouseScene {
     const backOps = allBackOpenings
       .filter(isLower)
       .map((o) => ({ center: shell.x + o.x, winW: o.winW, winH: o.winH, sill: o.sill, head: o.head }));
-    this.addConcreteBackWall(cw, height, thick, y, -(cd / 2 - thick / 2), base, top, material, backOps);
+    this.addConcreteBackWall(cw, height, thick, y, -(cd / 2 - thick / 2), base, top, material, whiteInsideMat, backOps);
 
     // 2. Left wall (length cd, along Z at x = -(cw / 2 - thick / 2))
     const leftOps = allLeftOpenings
       .filter(isLower)
       .map((o) => ({ center: shell.z + o.x, winW: o.winW, winH: o.winH, sill: o.sill, head: o.head }));
-    this.addConcreteSideWall(-(cw / 2 - thick / 2), cd, height, thick, y, base, top, material, leftOps);
+    this.addConcreteSideWall(-(cw / 2 - thick / 2), cd, height, thick, y, base, top, material, whiteInsideMat, leftOps);
 
     // 3. Right wall (length cd, along Z at x = cw / 2 - thick / 2)
     const rightOps = allRightOpenings
       .filter(isLower)
       .map((o) => ({ center: shell.z + o.x, winW: o.winW, winH: o.winH, sill: o.sill, head: o.head }));
-    this.addConcreteSideWall(cw / 2 - thick / 2, cd, height, thick, y, base, top, material, rightOps);
+    this.addConcreteSideWall(cw / 2 - thick / 2, cd, height, thick, y, base, top, material, whiteInsideMat, rightOps);
 
-    // 4. Interior concrete walls
+    // 4. Interior concrete walls (white inside)
     const add = (size: [number, number, number], pos: [number, number, number]) => {
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(...size), material);
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(...size), whiteInsideMat);
       mesh.position.set(...pos);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
@@ -2250,11 +2260,14 @@ export class HouseScene {
     base: number,
     top: number,
     material: THREE.Material,
+    whiteInsideMat: THREE.Material,
     openings: { center: number; winW: number; winH: number; sill: number; head: number }[]
   ) {
     const halfW = cw / 2;
+    // BoxGeometry material array: [right(+X), left(-X), top(+Y), bottom(-Y), front(+Z, inside), back(-Z, outside)]
+    const backMaterials = [material, material, material, material, whiteInsideMat, material];
     const add = (w: number, h: number, x: number, py: number) => {
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, thick), material);
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, thick), backMaterials);
       mesh.position.set(x, py, zPos);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
@@ -2313,11 +2326,18 @@ export class HouseScene {
     base: number,
     top: number,
     material: THREE.Material,
+    whiteInsideMat: THREE.Material,
     openings: { center: number; winW: number; winH: number; sill: number; head: number }[]
   ) {
     const halfD = cd / 2;
+    const isLeft = xPos < 0;
+    // For left wall (xPos < 0): +X (inside) is whiteInsideMat, -X (outside) is material
+    // For right wall (xPos > 0): -X (inside) is whiteInsideMat, +X (outside) is material
+    const sideMaterials = isLeft
+      ? [whiteInsideMat, material, material, material, material, material]
+      : [material, whiteInsideMat, material, material, material, material];
     const add = (d: number, h: number, py: number, z: number) => {
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(thick, h, d), material);
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(thick, h, d), sideMaterials);
       mesh.position.set(xPos, py, z);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
