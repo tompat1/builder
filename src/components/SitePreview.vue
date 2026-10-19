@@ -279,7 +279,8 @@ async function renderSite() {
       images.push((await shrinkScene(file)).dataUrl);
     }
     result.value = await requestSitePicture(images, houseFacts(), placement.value, primary.aspectRatio, facing.value);
-  } catch {
+  } catch (err) {
+    console.error('Site render failed:', err);
     error.value = true;
   } finally {
     busy.value = false;
