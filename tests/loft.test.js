@@ -14,7 +14,8 @@ import {
   loftStairRun,
   loftStairTreads,
   straightLoftStair,
-  isLoftRoom
+  isLoftRoom,
+  loftWallStudsVisible
 } from '../src/three-engine/loftLevel.ts';
 import {
   ceilingStations,
@@ -186,4 +187,20 @@ test('front and back stair positions mirror along the loft edge', () => {
   assert.ok(front.centerZ + front.radius < frontZ);
   assert.ok(back.centerZ - back.radius > -frontZ);
   assert.ok(front.yTop - front.yBottom === 2.5);
+});
+
+test('loft studs in walls are hidden by default and only show when viewing studs', () => {
+  // With inner walls visible (default state), wall studs must stay hidden
+  assert.equal(loftWallStudsVisible(true, 'insida', false), false);
+  assert.equal(loftWallStudsVisible(true, 'insida', true), false);
+  assert.equal(loftWallStudsVisible(true, 'utsida', false), false);
+  assert.equal(loftWallStudsVisible(true, 'blueprint', false), false);
+
+  // When clicking the view studs control (showInnerWalls = false)
+  // Studs show in inside view and loft cutaway view, but not outside or blueprint
+  assert.equal(loftWallStudsVisible(false, 'insida', false), true);
+  assert.equal(loftWallStudsVisible(false, 'insida', true), true);
+  assert.equal(loftWallStudsVisible(false, 'utsida', true), true);
+  assert.equal(loftWallStudsVisible(false, 'utsida', false), false);
+  assert.equal(loftWallStudsVisible(false, 'blueprint', false), false);
 });

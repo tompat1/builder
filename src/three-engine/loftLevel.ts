@@ -20,6 +20,20 @@ export function loftIsGhosted(
   return viewMode === 'insida' && !loftView && !editingLoftRoom;
 }
 
+/**
+ * Loft wall studs are architectural framing inside the exterior walls.
+ * They are hidden by default behind wall finishes / drywall, and only show
+ * when the user explicitly clicks the view studs control (hiding inner walls).
+ */
+export function loftWallStudsVisible(
+  showInnerWalls: boolean,
+  viewMode: 'utsida' | 'insida' | 'blueprint',
+  loftCutaway = false
+): boolean {
+  if (showInnerWalls) return false;
+  return viewMode === 'insida' || loftCutaway;
+}
+
 /** Walking surface of the loft, measured up from the interior floor. */
 export const LOFT_MIN_ABOVE_FLOOR = 2.5;
 

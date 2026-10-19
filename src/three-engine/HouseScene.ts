@@ -10,7 +10,7 @@ import { calculateCompassHeading, createSceneLighting, updateSunPosition } from 
 import { eaveLiftMm, gablePitchDegrees, isGableRoof, wallPlateHeightM, type RoofId } from '../store/roof';
 import { inferNoteNormal, noteAxes, noteCameraTransform, noteSheetTransform, noteTiltRadians, stickFacing, NOTE_SURFACE_SCALE } from '../notes/surface';
 import { paintBoards } from '../color/paint';
-import { INTERIOR_FLOOR_TOP, LOFT_FLOORBOARD, curvedLoftStair, loftEndRotation, loftIsGhosted, loftJoistTop, loftStairOpening, loftStairRun, loftStairTreads, straightLoftStair, isLoftRoom } from './loftLevel';
+import { INTERIOR_FLOOR_TOP, LOFT_FLOORBOARD, curvedLoftStair, loftEndRotation, loftIsGhosted, loftJoistTop, loftStairOpening, loftStairRun, loftStairTreads, straightLoftStair, isLoftRoom, loftWallStudsVisible } from './loftLevel';
 import { ceilingStations, loftCeilingY, sliceStations, type CeilingStation, type RoofSlope } from './roofClearance';
 import { NARROW_TALL, OVERLIGHT, PORTRAIT_PANORAMA, containWindowInPanel, fittedDoorOpening, fittedWindowOpening, narrowTallPane, openingClearOfRoof, overlightHeight, portraitPane, windowOpeningChanged } from './windowFit';
 import { fitRoom, innerHalf, roomFootprint, roomWallRuns, shellSides, SHELL_TOUCH, type RoomBox, type ShellSides } from './roomWalls';
@@ -4727,7 +4727,16 @@ export class HouseScene {
     (this.loftBuildParent ?? this.loftGroup).add(object);
   }
 
-  /** Uprights along the loft. They share the inner-wall switch. */
+  /** Whether architectural wall framing / studs should be shown. */
+  private framingVisible(): boolean {
+    return loftWallStudsVisible(
+      this.currentConfig.showInnerWalls ?? true,
+      this.currentConfig.viewMode,
+      this.loftCutaway()
+    );
+  }
+
+  /** Uprights along the loft railing. They share the inner-wall switch. */
   private loftStudGroup() {
     const group = new THREE.Group();
     group.userData.loftStuds = true;
@@ -4735,10 +4744,20 @@ export class HouseScene {
     return group;
   }
 
+  /** Loft framing studs inside the exterior walls. Only shown when viewing studs. */
+  private loftWallStudGroup() {
+    const group = new THREE.Group();
+    group.userData.loftWallStuds = true;
+    group.visible = this.framingVisible();
+    return group;
+  }
+
   private syncLoftStuds() {
-    const show = this.currentConfig.showInnerWalls !== false;
+    const showRailing = this.currentConfig.showInnerWalls !== false;
+    const showWallStuds = this.framingVisible();
     this.loftGroup.traverse((object) => {
-      if (object.userData.loftStuds) object.visible = show;
+      if (object.userData.loftStuds) object.visible = showRailing;
+      if (object.userData.loftWallStuds) object.visible = showWallStuds;
     });
   }
 
@@ -4960,7 +4979,7 @@ export class HouseScene {
 
         // C. Columns on top of the concrete front corners
         // Resting directly on the concrete wall ends at concreteH (2.5m)
-        const wallStuds = this.loftStudGroup();
+        const wallStuds = this.loftWallStudGroup();
         const cornerStudH = (loftElev + 0.85) - concreteH;
         const leftCornerPost = new THREE.Mesh(new THREE.BoxGeometry(studD, cornerStudH, studW * 2), timberMat);
         leftCornerPost.position.set(xConcreteFront, concreteH + cornerStudH / 2, -loftD / 2 + studW);
@@ -5050,11 +5069,11 @@ export class HouseScene {
           const ledgerGeo = new THREE.BoxGeometry(extSpan, 0.145, 0.045);
           const leftLedger = new THREE.Mesh(ledgerGeo, timberMat);
           leftLedger.position.set(startX + extSpan / 2, concreteH - 0.145 / 2, -loftD / 2 + 0.045 / 2);
-          sectionGroup.add(leftLedger);
+          wallStuds.add(leftLedger);
 
           const rightLedger = new THREE.Mesh(ledgerGeo, timberMat);
           rightLedger.position.set(startX + extSpan / 2, concreteH - 0.145 / 2, loftD / 2 - 0.045 / 2);
-          sectionGroup.add(rightLedger);
+          wallStuds.add(rightLedger);
         }
         sectionGroup.add(wallStuds);
       }
@@ -5884,7 +5903,7 @@ export class HouseScene {
       this.innerWallsGroup.visible = this.currentConfig.viewMode === 'blueprint'
         ? false
         : Boolean(config.showInnerWalls);
-      if (this.currentConfig.viewMode === 'insida') {
+      if (this.currentConfig.viewMode === 'insida' || this.loftCutaway()) {
         this.framingGroup.visible = !config.showInnerWalls;
       } else {
         this.framingGroup.visible = false;
@@ -6775,6 +6794,7 @@ export class HouseScene {
     this.interiorGroup.visible = !this.outsideShell();
     this.syncOutsideAdditions();
     this.syncLoftPresentation(this.ghostInstant);
+    this.syncLoftStuds();
     if (this.outsideShell()) {
       this.finishRoomDrag(false);
       this.clearRoomPreview();
