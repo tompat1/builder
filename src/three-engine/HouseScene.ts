@@ -1865,11 +1865,12 @@ export class HouseScene {
     return this.currentConfig.viewMode === 'utsida';
   }
 
-  /** Terraces and door roofs stay outside the interior and loft views. */
+  /** Empty decks stay outside the interior view. A sauna or shed stays, with its yard wall opened. */
   private syncOutsideAdditions() {
-    const show = this.currentConfig.viewMode !== 'insida';
+    const inside = this.currentConfig.viewMode === 'insida';
     this.wallsGroup.traverse((object) => {
-      if (object.userData.outsideAddition) object.visible = show;
+      if (!object.userData.outsideAddition) return;
+      object.visible = !inside || object.userData.keepInInterior === true;
     });
   }
 
@@ -3592,6 +3593,7 @@ export class HouseScene {
 
     group.userData.skipNote = true;
     group.userData.outsideAddition = true;
+    group.userData.keepInInterior = hasBuilding;
     this.wallsGroup.add(group);
   }
 

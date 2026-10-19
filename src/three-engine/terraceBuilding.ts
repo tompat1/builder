@@ -51,7 +51,7 @@ export function addTerraceCabin(group: THREE.Group, options: TerraceCabinOptions
     roughness: 0.06,
     metalness: 0.15,
     transparent: true,
-    opacity: sauna ? 0.22 : 0.55,
+    opacity: sauna ? 0.12 : 0.55,
     depthWrite: false,
     side: THREE.DoubleSide
   });
@@ -167,8 +167,8 @@ export function addTerraceCabin(group: THREE.Group, options: TerraceCabinOptions
 
 function windowHole(bX: number, bW: number, deckTop: number, wallTop: number) {
   const width = Math.min(1.05, bW - 0.5);
-  const sill = deckTop + 1.12;
-  const head = deckTop + 1.78;
+  const sill = deckTop + 0.72;
+  const head = deckTop + 1.68;
   if (width < 0.4 || head > wallTop - 0.08 || sill < deckTop + 0.4) return null;
   return { from: bX - width / 2, to: bX + width / 2, sill, head };
 }
@@ -438,7 +438,7 @@ function addRoof(
       ]
     : [[0, topAt(0), yardZ, topAt(1), 0.04, 0.16]];
   for (const [z0, y0, z1, y1, extraHouse, extraYard] of planes) {
-    addRoofSlab(group, bX, bW - 0.02, z0, y0, z1, y1, extraHouse, extraYard, 0.018, 0.012, innerMat);
+    addRoofSlab(group, bX, bW - 0.1, z0, y0, z1, y1, 0.02, 0.02, 0.018, 0.012, innerMat);
     addRoofSlab(group, bX, bW + 0.18, z0, y0, z1, y1, extraHouse + 0.01, extraYard + 0.02, 0.026, -0.006, roofMat);
   }
   const barge = (z0: number, y0: number, z1: number, y1: number, extra0: number, extra1: number) => {
@@ -455,8 +455,8 @@ function addRoof(
   } else {
     barge(0, topAt(0), yardZ, topAt(1), 0.04, 0.16);
   }
-  const fascia = new THREE.Mesh(new THREE.BoxGeometry(bW + 0.18, 0.1, 0.024), trimMat);
-  fascia.position.set(bX, topAt(1) - 0.02, yardZ + outward * 0.02);
+  const fascia = new THREE.Mesh(new THREE.BoxGeometry(bW + 0.22, 0.16, 0.028), trimMat);
+  fascia.position.set(bX, topAt(1) + 0.02, yardZ + outward * 0.015);
   fascia.castShadow = true;
   group.add(fascia);
   const flashing = new THREE.Mesh(new THREE.BoxGeometry(bW + 0.08, 0.16, 0.012), trimMat);
