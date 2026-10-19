@@ -6,5 +6,20 @@
       "maxFindings": 5,
       "maxChars": 8000
     }
+  },
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "gray-on-color",
+        "value": "*",
+        "files": [
+          "src/components/OptionsGrid.vue"
+        ],
+        "createdAt": "2026-10-19T11:08:56.331Z",
+        "reason": "Pre-existing detector hits at the color-chip remove icons: text-slate-400 sits on white or slate-50 chips, and the colored fill is a sibling swatch, not the text background."
+      }
+    ]
   }
 }
