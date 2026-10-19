@@ -1733,13 +1733,13 @@
                 >
                   <Cms k="interior.roomWalls" fallback="Väggar" />
                   <span
-                    class="relative h-5 w-9 rounded-full transition-colors"
+                    class="relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out"
                     :class="room.wallsVisible ? 'bg-slate-900' : 'bg-slate-300'"
                     aria-hidden="true"
                   >
                     <span
-                      class="absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-transform"
-                      :class="room.wallsVisible ? 'translate-x-[18px]' : 'translate-x-0.5'"
+                      class="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out"
+                      :class="room.wallsVisible ? 'translate-x-5' : 'translate-x-0'"
                     ></span>
                   </span>
                 </button>
