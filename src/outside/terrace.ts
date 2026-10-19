@@ -20,6 +20,23 @@ export const TERRACE_BUILDING_PLACEMENTS = ['left', 'right'] as const;
 export type TerraceBuildingRoof = 'pulpet' | 'low' | 'gable';
 export const TERRACE_BUILDING_ROOFS = ['pulpet', 'low', 'gable'] as const;
 
+/** Quarter turns of the sauna room. 0 keeps the benches against the house. */
+export const SAUNA_TURNS = [0, 1, 2, 3] as const;
+export type SaunaTurn = (typeof SAUNA_TURNS)[number];
+export type CabinWall = 'house' | 'yard' | 'left' | 'right';
+
+const SAUNA_WALLS: CabinWall[] = ['house', 'left', 'yard', 'right'];
+
+/** Benches, window, and door stay one room and step clockwise together. */
+export function saunaFacing(turn: number, doorOnRight: boolean): { bench: CabinWall; window: CabinWall; door: CabinWall } {
+  const steps = ((Math.trunc(turn) % 4) + 4) % 4;
+  return {
+    bench: SAUNA_WALLS[steps],
+    window: SAUNA_WALLS[(steps + 2) % 4],
+    door: SAUNA_WALLS[(steps + (doorOnRight ? 3 : 1)) % 4]
+  };
+}
+
 export interface HouseTerrace {
   side: TerraceSide;
   depth: TerraceDepth;
@@ -28,6 +45,8 @@ export interface HouseTerrace {
   building?: TerraceBuilding;
   buildingPlacement?: TerraceBuildingPlacement;
   buildingRoof?: TerraceBuildingRoof;
+  /** Quarter turns of a sauna interior. Missing means the benches face the yard. */
+  buildingTurn?: SaunaTurn;
 }
 
 const SAUNA_EAVE_M = 2.05;
@@ -124,6 +143,10 @@ export function acceptTerraces(value: unknown): HouseTerrace[] {
       row.buildingRoof === 'pulpet' || row.buildingRoof === 'low' || row.buildingRoof === 'gable'
         ? row.buildingRoof
         : undefined;
+    const buildingTurn: SaunaTurn | undefined =
+      row.buildingTurn === 1 || row.buildingTurn === 2 || row.buildingTurn === 3
+        ? row.buildingTurn
+        : undefined;
     terraces.push({
       side: row.side as TerraceSide,
       depth: TERRACE_DEPTHS.includes(row.depth as TerraceDepth) ? (row.depth as TerraceDepth) : 1.8,
@@ -131,7 +154,8 @@ export function acceptTerraces(value: unknown): HouseTerrace[] {
       roof: row.roof === true,
       ...(building ? { building } : {}),
       ...(buildingPlacement ? { buildingPlacement } : {}),
-      ...(buildingRoof ? { buildingRoof } : {})
+      ...(buildingRoof ? { buildingRoof } : {}),
+      ...(buildingTurn ? { buildingTurn } : {})
     });
     if (terraces.length >= TERRACE_SIDES.length) break;
   }

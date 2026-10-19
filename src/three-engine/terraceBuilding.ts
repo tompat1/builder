@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { buildingWallTop, type TerraceBuildingRoof } from '../outside/terrace';
+import { buildingWallTop, saunaFacing, type CabinWall, type TerraceBuildingRoof } from '../outside/terrace';
 
 export interface TerraceCabinOptions {
   bX: number;
@@ -9,6 +9,8 @@ export interface TerraceCabinOptions {
   outward: number;
   type: 'sauna' | 'shed';
   isLeft: boolean;
+  /** Quarter turns of the sauna room. The shed ignores this. */
+  turn: number;
   roof: TerraceBuildingRoof;
   roofMat: THREE.Material;
   /** Drop the yard wall so the room can be seen from the interior view. */
