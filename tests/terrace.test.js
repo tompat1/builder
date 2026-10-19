@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   TERRACE_DEPTHS,
   acceptTerraces,
+  saunaFacing,
   buildingWallTop,
   terraceBoardLayout,
   terracePrice,
@@ -90,6 +91,30 @@ test('a terrace can include a sauna or shed as an additional building', () => {
     { side: 'back', depth: 3, span: 'full', roof: false, building: 'none' }
   ]);
   assert.equal(resetTerraces[0].building, 'none');
+});
+
+test('a sauna interior turns a quarter at a time and stays one room', () => {
+  const kept = acceptTerraces([
+    { side: 'front', depth: 1.8, span: 'door', roof: false, building: 'sauna', buildingTurn: 2 },
+    { side: 'left', depth: 1.8, span: 'door', roof: false, building: 'sauna', buildingTurn: 4 },
+    { side: 'back', depth: 1.8, span: 'door', roof: false, building: 'sauna', buildingTurn: 0 }
+  ]);
+  assert.equal(kept[0].buildingTurn, 2);
+  assert.equal(kept[1].buildingTurn, undefined);
+  assert.equal(kept[2].buildingTurn, undefined);
+
+  for (const doorOnRight of [true, false]) {
+    for (let turn = 0; turn < 4; turn += 1) {
+      const room = saunaFacing(turn, doorOnRight);
+      const again = saunaFacing(turn + 4, doorOnRight);
+      assert.deepEqual(again, room);
+      assert.notEqual(room.window, room.bench);
+      assert.notEqual(room.door, room.bench);
+      assert.notEqual(room.door, room.window);
+    }
+  }
+  assert.deepEqual(saunaFacing(0, true), { bench: 'house', window: 'yard', door: 'right' });
+  assert.deepEqual(saunaFacing(1, true), { bench: 'left', window: 'right', door: 'house' });
 });
 
 test('a sauna keeps its roof, and an unknown roof is dropped', () => {

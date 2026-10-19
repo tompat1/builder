@@ -2228,6 +2228,22 @@
                     <Cms :k="terraceRoofKey(roof)" />
                   </button>
                 </div>
+                <p class="mb-1 mt-2 text-[11px] font-bold text-slate-700">
+                  <Cms k="category.terraceBuildingTurn" />
+                </p>
+                <div class="grid grid-cols-4 gap-1.5">
+                  <button
+                    v-for="turn in SAUNA_TURNS"
+                    :key="turn"
+                    type="button"
+                    :id="`terrace-${deck.side}-building-turn-${turn}`"
+                    :aria-pressed="(deck.buildingTurn ?? 0) === turn"
+                    :class="terraceChoiceClass((deck.buildingTurn ?? 0) === turn)"
+                    @click="store.setTerraceBuildingTurn(deck.side, turn)"
+                  >
+                    {{ turn * 90 }}°
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -2319,6 +2335,7 @@ import {
   SAUNA_BUILDING_PRICE,
   SHED_BUILDING_PRICE,
   TERRACE_BUILDING_ROOFS,
+  SAUNA_TURNS,
   type TerraceDepth,
   type TerraceBuilding,
   type TerraceBuildingPlacement,

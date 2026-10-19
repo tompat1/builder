@@ -22,7 +22,7 @@ export interface TerraceCabinOptions {
  * that line so the joint does not open into a gap.
  */
 export function addTerraceCabin(group: THREE.Group, options: TerraceCabinOptions) {
-  const { bX, bW, bD, deckTop, outward, type, isLeft, roof, roofMat, openFront } = options;
+  const { bX, bW, bD, deckTop, outward, type, isLeft, turn, roof, roofMat, openFront } = options;
   const sauna = type === 'sauna';
   const outerMat = new THREE.MeshStandardMaterial({
     color: sauna ? '#c4a574' : '#8d8478',
@@ -59,65 +59,35 @@ export function addTerraceCabin(group: THREE.Group, options: TerraceCabinOptions
   });
 
   const topAt = (t: number) => deckTop + buildingWallTop(roof, bD, t);
-  const yardT = 1;
-  const houseT = 0;
-  const yardTop = openFront ? Math.min(topAt(yardT), deckTop + 1.02) : topAt(yardT);
+  const yardTop = openFront ? Math.min(topAt(1), deckTop + 1.02) : topAt(1);
 
   const x0 = bX - bW / 2;
   const x1 = bX + bW / 2;
   const houseZ = 0;
   const yardZ = outward * bD;
 
-  addCladWall(group, {
-    along: 'x',
-    from: x0,
-    to: x1,
-    face: yardZ,
-    faceSign: outward,
-    yBase: deckTop,
-    top: () => yardTop,
-    outerMat,
-    altMat,
-    recessMat,
-    innerMat,
-    trimMat,
-    hole: openFront ? null : windowHole(bX, bW, deckTop, yardTop)
-  });
-  addCladWall(group, {
-    along: 'x',
-    from: x0,
-    to: x1,
-    face: houseZ,
-    faceSign: -outward,
-    yBase: deckTop,
-    top: () => topAt(houseT),
-    outerMat,
-    altMat,
-    recessMat,
-    innerMat,
-    trimMat,
-    hole: null
-  });
-
-  const doorSide = isLeft ? 1 : -1;
-  const doorX = isLeft ? x1 : x0;
-  const door = doorHole(bD, deckTop, (along) => topAt(along / bD));
-  for (const side of [-1, 1] as const) {
-    const atDoor = side === doorSide;
+  const facing = sauna && turn ? saunaFacing(turn, isLeft) : saunaFacing(0, isLeft);
+  const walls = cabinWalls(x0, x1, houseZ, yardZ, outward, bD, topAt, yardTop);
+  const windowHole = openingOn(walls[facing.window], 'window', bD, deckTop, outward, openFront);
+  const doorOpening = openingOn(walls[facing.door], 'door', bD, deckTop, outward, openFront);
+  for (const wall of Object.values(walls)) {
+    const windowHere = wall.id === facing.window ? windowHole : null;
+    const doorHere = wall.id === facing.door ? doorOpening : null;
     addCladWall(group, {
-      along: 'z',
-      from: Math.min(houseZ, yardZ),
-      to: Math.max(houseZ, yardZ),
-      face: side < 0 ? x0 : x1,
-      faceSign: side,
+      along: wall.along,
+      from: wall.from,
+      to: wall.to,
+      face: wall.face,
+      faceSign: wall.faceSign,
       yBase: deckTop,
-      top: (z) => topAt((z * outward) / bD),
+      top: wall.top,
       outerMat,
       altMat,
       recessMat,
       innerMat,
       trimMat,
-      hole: atDoor && door ? { from: outward * door.from, to: outward * door.to, sill: door.sill, head: door.head } : null
+      hole: windowHere ?? doorHere,
+      frameHole: windowHere != null
     });
   }
 
@@ -141,9 +111,11 @@ export function addTerraceCabin(group: THREE.Group, options: TerraceCabinOptions
       bX,
       bW,
       bD,
+      x0,
       deckTop,
       outward,
-      isLeft,
+      bench: facing.bench,
+      doorOnRight: isLeft,
       topAt,
       innerMat,
       metalMat,
@@ -151,14 +123,16 @@ export function addTerraceCabin(group: THREE.Group, options: TerraceCabinOptions
     });
   }
 
-  if (door) {
+  if (doorOpening) {
+    const doorWall = walls[facing.door];
     addDoor(group, {
-      x: doorX,
-      sign: doorSide,
-      z: outward * ((door.from + door.to) / 2),
-      sill: door.sill,
-      head: door.head,
-      width: door.to - door.from,
+      normal: doorWall.along === 'z' ? 'x' : 'z',
+      face: doorWall.face,
+      sign: doorWall.faceSign,
+      along: (doorOpening.from + doorOpening.to) / 2,
+      sill: doorOpening.sill,
+      head: doorOpening.head,
+      width: Math.abs(doorOpening.to - doorOpening.from),
       glass: sauna,
       glassMat,
       trimMat,
@@ -167,12 +141,77 @@ export function addTerraceCabin(group: THREE.Group, options: TerraceCabinOptions
   }
 }
 
-function windowHole(bX: number, bW: number, deckTop: number, wallTop: number) {
-  const width = Math.min(1.05, bW - 0.5);
+interface CabinWallSpec {
+  id: CabinWall;
+  along: 'x' | 'z';
+  from: number;
+  to: number;
+  face: number;
+  faceSign: number;
+  top: (along: number) => number;
+}
+
+function cabinWalls(
+  x0: number,
+  x1: number,
+  houseZ: number,
+  yardZ: number,
+  outward: number,
+  bD: number,
+  topAt: (t: number) => number,
+  yardTop: number
+): Record<CabinWall, CabinWallSpec> {
+  const zFrom = Math.min(houseZ, yardZ);
+  const zTo = Math.max(houseZ, yardZ);
+  const sideTop = (z: number) => topAt((z * outward) / bD);
+  return {
+    house: { id: 'house', along: 'x', from: x0, to: x1, face: houseZ, faceSign: -outward, top: () => topAt(0) },
+    yard: { id: 'yard', along: 'x', from: x0, to: x1, face: yardZ, faceSign: outward, top: () => yardTop },
+    left: { id: 'left', along: 'z', from: zFrom, to: zTo, face: x0, faceSign: -1, top: sideTop },
+    right: { id: 'right', along: 'z', from: zFrom, to: zTo, face: x1, faceSign: 1, top: sideTop }
+  };
+}
+
+function openingOn(
+  wall: CabinWallSpec,
+  kind: 'door' | 'window',
+  depth: number,
+  deckTop: number,
+  outward: number,
+  openFront: boolean
+) {
+  if (openFront && wall.id === 'yard') return null;
+  if (kind === 'window') return windowOnWall(wall, deckTop);
+  if (wall.along === 'z') {
+    const door = doorHole(depth, deckTop, (along) => wall.top(outward * along));
+    if (!door) return null;
+    return { from: outward * door.from, to: outward * door.to, sill: door.sill, head: door.head };
+  }
+  return doorOnSpan(wall.from, wall.to, deckTop, wall.top((wall.from + wall.to) / 2));
+}
+
+function windowOnWall(wall: CabinWallSpec, deckTop: number) {
+  const lo = Math.min(wall.from, wall.to);
+  const hi = Math.max(wall.from, wall.to);
+  const width = Math.min(1.05, hi - lo - 0.5);
   const sill = deckTop + 0.72;
   const head = deckTop + 1.68;
-  if (width < 0.4 || head > wallTop - 0.08 || sill < deckTop + 0.4) return null;
-  return { from: bX - width / 2, to: bX + width / 2, sill, head };
+  if (width < 0.4 || sill < deckTop + 0.4) return null;
+  const mid = (lo + hi) / 2;
+  const clearance = Math.min(wall.top(mid - width / 2), wall.top(mid + width / 2));
+  if (head > clearance - 0.08) return null;
+  return { from: mid - width / 2, to: mid + width / 2, sill, head };
+}
+
+function doorOnSpan(from: number, to: number, deckTop: number, wallTop: number) {
+  const lo = Math.min(from, to);
+  const hi = Math.max(from, to);
+  const width = Math.min(0.74, hi - lo - 0.4);
+  if (width < 0.55) return null;
+  const head = deckTop + Math.min(1.92, wallTop - deckTop - 0.06);
+  if (head - deckTop < 1.55) return null;
+  const mid = (lo + hi) / 2;
+  return { from: mid - width / 2, to: mid + width / 2, sill: deckTop + 0.02, head };
 }
 
 function doorHole(depth: number, deckTop: number, topAtAlong: (along: number) => number) {
@@ -183,6 +222,14 @@ function doorHole(depth: number, deckTop: number, topAtAlong: (along: number) =>
   const head = deckTop + Math.min(1.92, clearance - 0.06);
   if (head - deckTop < 1.55) return null;
   return { from, to, sill: deckTop + 0.02, head };
+}
+
+/** Room coordinates: along is 0 away from the door and 1 at the door; into is 0 at the benches and 1 at the window. */
+function roomPoint(along: number, into: number, bench: CabinWall, doorOnRight: boolean) {
+  if (bench === 'house') return doorOnRight ? { u: along, v: into } : { u: 1 - along, v: into };
+  if (bench === 'yard') return doorOnRight ? { u: 1 - along, v: 1 - into } : { u: along, v: 1 - into };
+  if (bench === 'left') return doorOnRight ? { u: into, v: 1 - along } : { u: into, v: along };
+  return doorOnRight ? { u: 1 - into, v: along } : { u: 1 - into, v: 1 - along };
 }
 
 interface CladWall {
@@ -199,6 +246,7 @@ interface CladWall {
   innerMat: THREE.Material;
   trimMat: THREE.Material;
   hole: { from: number; to: number; sill: number; head: number } | null;
+  frameHole: boolean;
 }
 
 function addCladWall(group: THREE.Group, wall: CladWall) {
@@ -233,7 +281,7 @@ function addCladWall(group: THREE.Group, wall: CladWall) {
       addSlopedBoard(group, wall, insetSegment(segment, 0.005), wall.face - wall.faceSign * 0.07, 0.014, wall.innerMat, false);
     }
   }
-  if (hole && wall.along === 'x' && !framedHole) {
+  if (hole && wall.frameHole && !framedHole) {
     framedHole = true;
     addOpeningFrame(group, wall, hole, wall.trimMat);
   }
@@ -369,23 +417,25 @@ function addOpeningFrame(
     const [along, yy] = places[index];
     addBoard(group, wall, along, size[0], yy, size[1], face, depth, trim, true);
   });
-  if (wall.along === 'x') {
-    const glass = new THREE.Mesh(
-      new THREE.BoxGeometry(width - 0.04, height - 0.04, 0.012),
-      new THREE.MeshStandardMaterial({
-        color: '#e7f2f4',
-        roughness: 0.06,
-        metalness: 0.12,
-        transparent: true,
-        opacity: 0.22,
-        depthWrite: false,
-        side: THREE.DoubleSide
-      })
-    );
-    glass.material.side = THREE.DoubleSide;
-    glass.position.set(mid, y, face);
-    group.add(glass);
-  }
+  const glass = new THREE.Mesh(
+    new THREE.BoxGeometry(
+      wall.along === 'x' ? width - 0.04 : 0.012,
+      height - 0.04,
+      wall.along === 'x' ? 0.012 : width - 0.04
+    ),
+    new THREE.MeshStandardMaterial({
+      color: '#e7f2f4',
+      roughness: 0.06,
+      metalness: 0.12,
+      transparent: true,
+      opacity: 0.22,
+      depthWrite: false,
+      side: THREE.DoubleSide
+    })
+  );
+  if (wall.along === 'x') glass.position.set(mid, y, face);
+  else glass.position.set(face, y, mid);
+  group.add(glass);
 }
 
 function addCornerPosts(
@@ -544,63 +594,80 @@ function addSaunaInterior(
     bX: number;
     bW: number;
     bD: number;
+    x0: number;
     deckTop: number;
     outward: number;
-    isLeft: boolean;
+    bench: CabinWall;
+    doorOnRight: boolean;
     topAt: (t: number) => number;
     innerMat: THREE.Material;
     metalMat: THREE.Material;
     trimMat: THREE.Material;
   }
 ) {
-  const { bX, bW, bD, deckTop, outward, isLeft, topAt, innerMat, metalMat } = spec;
-  const upper = new THREE.Mesh(new THREE.BoxGeometry(bW - 0.28, 0.04, 0.46), innerMat);
-  upper.position.set(bX, deckTop + 0.86, outward * (bD * 0.24));
-  upper.castShadow = true;
-  group.add(upper);
-  const upperSlats = 4;
-  for (let index = 0; index < upperSlats; index += 1) {
-    const slat = new THREE.Mesh(new THREE.BoxGeometry(bW - 0.32, 0.012, 0.07), spec.trimMat);
-    slat.position.set(bX, deckTop + 0.89, outward * (bD * 0.16 + index * 0.09));
+  const { bW, bD, x0, deckTop, outward, bench, doorOnRight, topAt, innerMat, metalMat } = spec;
+  const alongWall = bench === 'house' || bench === 'yard';
+  const span = (alongWall ? bW : bD) - 0.28;
+  const intoLen = alongWall ? bD : bW;
+  const place = (along: number, into: number) => {
+    const point = roomPoint(along, into, bench, doorOnRight);
+    return { x: x0 + point.u * bW, z: outward * point.v * bD, v: point.v };
+  };
+  const benchBox = (into: number, thick: number, long: number, y: number, mat: THREE.Material) => {
+    const at = place(0.5, into);
+    const mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(alongWall ? long : thick, 0.04, alongWall ? thick : long),
+      mat
+    );
+    mesh.position.set(at.x, y, at.z);
+    mesh.castShadow = true;
+    group.add(mesh);
+  };
+  benchBox(0.24, 0.46, span, deckTop + 0.86, innerMat);
+  const slatLong = (alongWall ? bW : bD) - 0.32;
+  for (let index = 0; index < 4; index += 1) {
+    const into = 0.16 + (index * 0.09) / intoLen;
+    const at = place(0.5, into);
+    const slat = new THREE.Mesh(
+      new THREE.BoxGeometry(alongWall ? slatLong : 0.07, 0.012, alongWall ? 0.07 : slatLong),
+      spec.trimMat
+    );
+    slat.position.set(at.x, deckTop + 0.89, at.z);
     group.add(slat);
   }
-  const lower = new THREE.Mesh(new THREE.BoxGeometry(bW - 0.28, 0.04, 0.36), innerMat);
-  lower.position.set(bX, deckTop + 0.46, outward * (bD * 0.42));
-  lower.castShadow = true;
-  group.add(lower);
+  benchBox(0.42, 0.36, span, deckTop + 0.46, innerMat);
 
-  const stoveX = isLeft ? bX - bW * 0.28 : bX + bW * 0.28;
-  const stoveZ = outward * (bD * 0.62);
+  const stoveAt = place(0.22, 0.62);
   const stove = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.52, 0.42), metalMat);
-  stove.position.set(stoveX, deckTop + 0.3, stoveZ);
+  stove.position.set(stoveAt.x, deckTop + 0.3, stoveAt.z);
   stove.castShadow = true;
   group.add(stove);
   const stones = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.08, 0.28), spec.trimMat);
-  stones.position.set(stoveX, deckTop + 0.6, stoveZ);
+  stones.position.set(stoveAt.x, deckTop + 0.6, stoveAt.z);
   group.add(stones);
 
-  const t = 0.62;
-  const roofY = topAt(t);
+  const roofY = topAt(stoveAt.v);
   const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, roofY - deckTop + 0.35, 16), metalMat);
-  pipe.position.set(stoveX, (deckTop + 0.55 + roofY + 0.35) / 2, stoveZ);
+  pipe.position.set(stoveAt.x, (deckTop + 0.55 + roofY + 0.35) / 2, stoveAt.z);
   pipe.castShadow = true;
   group.add(pipe);
   const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.03, 0.05, 16), metalMat);
-  cap.position.set(stoveX, roofY + 0.4, stoveZ);
+  cap.position.set(stoveAt.x, roofY + 0.4, stoveAt.z);
   cap.castShadow = true;
   group.add(cap);
   const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.02, 16), metalMat);
-  collar.position.set(stoveX, roofY + 0.02, stoveZ);
-  collar.rotation.x = Math.atan2(topAt(t + 0.05) - topAt(t - 0.05), outward * bD * 0.1);
+  collar.position.set(stoveAt.x, roofY + 0.02, stoveAt.z);
+  collar.rotation.x = Math.atan2(topAt(stoveAt.v + 0.05) - topAt(stoveAt.v - 0.05), outward * bD * 0.1);
   group.add(collar);
 }
 
 function addDoor(
   group: THREE.Group,
   spec: {
-    x: number;
+    normal: 'x' | 'z';
+    face: number;
     sign: number;
-    z: number;
+    along: number;
     sill: number;
     head: number;
     width: number;
@@ -612,17 +679,29 @@ function addDoor(
 ) {
   const height = spec.head - spec.sill;
   const y = (spec.sill + spec.head) / 2;
-  const frame = new THREE.Mesh(new THREE.BoxGeometry(0.04, height + 0.06, spec.width + 0.08), spec.trimMat);
-  frame.position.set(spec.x + spec.sign * 0.02, y, spec.z);
+  const frameSize: [number, number, number] = spec.normal === 'x'
+    ? [0.04, height + 0.06, spec.width + 0.08]
+    : [spec.width + 0.08, height + 0.06, 0.04];
+  const leafSize: [number, number, number] = spec.normal === 'x'
+    ? [0.02, height - 0.04, spec.width - 0.04]
+    : [spec.width - 0.04, height - 0.04, 0.02];
+  const frame = new THREE.Mesh(new THREE.BoxGeometry(...frameSize), spec.trimMat);
+  const leaf = new THREE.Mesh(new THREE.BoxGeometry(...leafSize), spec.leafMat);
+  if (spec.normal === 'x') {
+    frame.position.set(spec.face + spec.sign * 0.02, y, spec.along);
+    leaf.position.set(spec.face + spec.sign * 0.035, y + 0.01, spec.along);
+  } else {
+    frame.position.set(spec.along, y, spec.face + spec.sign * 0.02);
+    leaf.position.set(spec.along, y + 0.01, spec.face + spec.sign * 0.035);
+  }
   frame.castShadow = true;
-  group.add(frame);
-  const leaf = new THREE.Mesh(new THREE.BoxGeometry(0.02, height - 0.04, spec.width - 0.04), spec.leafMat);
-  leaf.position.set(spec.x + spec.sign * 0.035, y + 0.01, spec.z);
   leaf.castShadow = !spec.glass;
+  group.add(frame);
   group.add(leaf);
   if (spec.glass) {
     const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.36, 10), spec.trimMat);
-    handle.position.set(spec.x + spec.sign * 0.05, spec.sill + 0.95, spec.z + spec.width * 0.28);
+    if (spec.normal === 'x') handle.position.set(spec.face + spec.sign * 0.05, spec.sill + 0.95, spec.along + spec.width * 0.28);
+    else handle.position.set(spec.along + spec.width * 0.28, spec.sill + 0.95, spec.face + spec.sign * 0.05);
     group.add(handle);
   }
 }

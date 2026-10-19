@@ -3585,6 +3585,7 @@ export class HouseScene {
         outward,
         type: terrace.building,
         isLeft,
+        turn: terrace.building === 'sauna' ? terrace.buildingTurn ?? 0 : 0,
         roof: normalizeBuildingRoof(terrace.buildingRoof),
         roofMat,
         openFront: this.interiorCut()

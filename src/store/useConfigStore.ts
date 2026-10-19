@@ -53,6 +53,8 @@ import {
   TERRACE_BUILDING_PLACEMENTS,
   type TerraceBuildingRoof,
   TERRACE_BUILDING_ROOFS,
+  type SaunaTurn,
+  SAUNA_TURNS,
   SAUNA_BUILDING_PRICE,
   SHED_BUILDING_PRICE
 } from '../outside/terrace';
@@ -499,7 +501,7 @@ export const OUTSIDE_PRICES = {
   bigTerrace: 72600
 } as const;
 
-export type { HouseTerrace, TerraceDepth, TerraceSide, TerraceSpan, TerraceBuilding, TerraceBuildingPlacement, TerraceBuildingRoof };
+export type { HouseTerrace, TerraceDepth, TerraceSide, TerraceSpan, TerraceBuilding, TerraceBuildingPlacement, TerraceBuildingRoof, SaunaTurn };
 export { TERRACE_BUILDINGS, TERRACE_BUILDING_PLACEMENTS, SAUNA_BUILDING_PRICE, SHED_BUILDING_PRICE };
 
 import {
@@ -1475,6 +1477,7 @@ export const useConfigStore = defineStore('config', () => {
     const buildingChanged = (next.building ?? 'none') !== (current.building ?? 'none');
     const placementChanged = (next.buildingPlacement ?? 'right') !== (current.buildingPlacement ?? 'right');
     const buildingRoofChanged = (next.buildingRoof ?? 'pulpet') !== (current.buildingRoof ?? 'pulpet');
+    const buildingTurnChanged = (next.buildingTurn ?? 0) !== (current.buildingTurn ?? 0);
     if (
       next.side === current.side &&
       next.depth === current.depth &&
@@ -1482,7 +1485,8 @@ export const useConfigStore = defineStore('config', () => {
       next.roof === current.roof &&
       !buildingChanged &&
       !placementChanged &&
-      !buildingRoofChanged
+      !buildingRoofChanged &&
+      !buildingTurnChanged
     ) {
       return;
     }
@@ -1533,6 +1537,11 @@ export const useConfigStore = defineStore('config', () => {
   function setTerraceBuildingRoof(side: TerraceSide, buildingRoof: TerraceBuildingRoof) {
     if (!TERRACE_BUILDING_ROOFS.includes(buildingRoof)) return;
     replaceTerrace(side, { buildingRoof });
+  }
+
+  function setTerraceBuildingTurn(side: TerraceSide, buildingTurn: SaunaTurn) {
+    if (!SAUNA_TURNS.includes(buildingTurn)) return;
+    replaceTerrace(side, { buildingTurn: buildingTurn === 0 ? undefined : buildingTurn });
   }
 
   function setFacing(next: CompassFacing) {
@@ -2168,6 +2177,7 @@ export const useConfigStore = defineStore('config', () => {
     setTerraceBuilding,
     setTerraceBuildingPlacement,
     setTerraceBuildingRoof,
+    setTerraceBuildingTurn,
     setFacing,
     previewSunHour,
     commitSunHour,
