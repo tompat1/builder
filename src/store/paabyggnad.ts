@@ -27,6 +27,10 @@ export const PAABYGGNAD_MIN_HEIGHT_MM = 4500;
 /** Top of the old concrete walls, metres above the ground. The timber loft starts here. */
 export const CONCRETE_STOREY_TOP_M = 2.5;
 
+/** Thickness of the solid concrete exterior walls (50 cm). */
+export const CONCRETE_WALL_THICK_M = 0.5;
+export const CONCRETE_WALL_THICK_MM = 500;
+
 export function clampPaabyggnadPlan(
   axis: 'width' | 'depth' | 'height',
   width: number,

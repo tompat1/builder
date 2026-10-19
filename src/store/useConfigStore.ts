@@ -883,6 +883,13 @@ export const useConfigStore = defineStore('config', () => {
         }
       }
       placedRooms.value = acceptPlacedRooms(data.placedRooms);
+      if (data.selectedSizeId === 'size-paabyggnad' && placedRooms.value.bathroom_1) {
+        const b = placedRooms.value.bathroom_1;
+        if (Math.abs(b.x - -1.43) < 0.05 && Math.abs(b.z - -2.1955) < 0.05) {
+          b.x = -1.10;
+          b.z = -1.8655;
+        }
+      }
       floorPlanDone.value = data.floorPlanDone === true && Object.keys(placedRooms.value).length > 0;
       showInnerWalls.value = data.showInnerWalls !== false;
       notes.value = acceptNotes(data.notes);
@@ -1259,9 +1266,9 @@ export const useConfigStore = defineStore('config', () => {
           type: 'bathroom',
           w: 2,
           d: 2,
-          x: -1.43,
+          x: -1.10,
           y: 0.3,
-          z: -2.1955,
+          z: -1.8655,
           wallsVisible: true
         }
       };

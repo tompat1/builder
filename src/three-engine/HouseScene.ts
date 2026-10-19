@@ -13,8 +13,8 @@ import { paintBoards } from '../color/paint';
 import { INTERIOR_FLOOR_TOP, LOFT_FLOORBOARD, curvedLoftStair, loftEndRotation, loftIsGhosted, loftJoistTop, loftStairOpening, loftStairRun, loftStairTreads, straightLoftStair, isLoftRoom } from './loftLevel';
 import { ceilingStations, loftCeilingY, sliceStations, type CeilingStation, type RoofSlope } from './roofClearance';
 import { NARROW_TALL, OVERLIGHT, PORTRAIT_PANORAMA, containWindowInPanel, fittedDoorOpening, fittedWindowOpening, narrowTallPane, openingClearOfRoof, overlightHeight, portraitPane, windowOpeningChanged } from './windowFit';
-import { fitRoom, innerHalf, roomFootprint, roomWallRuns, shellSides, type ShellSides } from './roomWalls';
-import { timberShellOnConcrete } from '../store/paabyggnad';
+import { fitRoom, innerHalf, roomFootprint, roomWallRuns, shellSides, SHELL_TOUCH, type RoomBox, type ShellSides } from './roomWalls';
+import { CONCRETE_WALL_THICK_M, timberShellOnConcrete } from '../store/paabyggnad';
 import { MEASURE_CURSOR } from '../measure/length';
 import {
   applyCladdingRepeat,
@@ -496,6 +496,23 @@ export class HouseScene {
     return innerHalf(this.currentConfig.widthMm / 1000, this.currentConfig.depthMm / 1000);
   }
 
+  private getRoomShellSides(box: RoomBox, hx: number, hz: number, y = 0.3): ShellSides {
+    const sides = shellSides(box, hx, hz);
+    if (this.currentConfig.concreteBase && !isLoftRoom(y)) {
+      const cw = (this.currentConfig.concreteWidthMm ?? 5200) / 1000;
+      const cd = (this.currentConfig.concreteDepthMm ?? 5200) / 1000;
+      const thick = CONCRETE_WALL_THICK_M;
+      const shell = this.timberShell();
+      const concreteLeft = -(cw / 2 - thick);
+      const concreteRight = cw / 2 - thick;
+      const concreteBack = -(cd / 2 - thick) - shell.z;
+      if (box.x - box.w / 2 <= concreteLeft + SHELL_TOUCH) sides.left = true;
+      if (box.x + box.w / 2 >= concreteRight - SHELL_TOUCH) sides.right = true;
+      if (box.z - box.d / 2 <= concreteBack + SHELL_TOUCH) sides.back = true;
+    }
+    return sides;
+  }
+
   /** Plan size stored on the room. The drag handles must not inflate it. */
   private roomPlan(group: THREE.Object3D) {
     const w = Number(group.userData.w);
@@ -546,7 +563,7 @@ export class HouseScene {
         roomType,
         fitted.w,
         fitted.d,
-        shellSides(fitted, hx, hz),
+        this.getRoomShellSides(fitted, hx, hz, pt.y),
         { y: pt.y, z: fitted.z }
       );
       group.traverse((child) => {
@@ -938,7 +955,7 @@ export class HouseScene {
           roomType,
           fitted.w,
           fitted.d,
-          shellSides(fitted, hx, hz),
+          this.getRoomShellSides(fitted, hx, hz, baseY),
           isLoftRoom(baseY) ? { y: baseY, z: fitted.z } : undefined
         );
         roomGroup.position.set(fitted.x, baseY, fitted.z);
@@ -1613,7 +1630,7 @@ export class HouseScene {
     const top = (this.currentConfig.concreteHeightMm ?? 2500) / 1000;
     const base = 0.25;
     const height = Math.max(0.4, top - base);
-    const thick = 0.16;
+    const thick = CONCRETE_WALL_THICK_M;
     const y = base + height / 2;
 
     const shell = this.timberShell();
@@ -1658,7 +1675,7 @@ export class HouseScene {
     };
     for (const wall of this.currentConfig.concreteWalls ?? []) {
       const offset = wall.offsetMm / 1000;
-      if (wall.axis === 'z') add([thick, height, Math.max(0.4, cd - thick * 2)], [offset, y, 0]);
+      if (wall.axis === 'z') add([thick, height, Math.max(0.4, cd - thick)], [offset, y, thick / 2]);
       else add([Math.max(0.4, cw - thick * 2), height, thick], [0, y, offset]);
     }
   }
@@ -1676,6 +1693,8 @@ export class HouseScene {
     openings: { center: number; winW: number; winH: number; sill: number; head: number }[]
   ) {
     const halfW = cw / 2;
+    const minLeft = -halfW + thick;
+    const maxRight = halfW - thick;
     // BoxGeometry material array: [right(+X), left(-X), top(+Y), bottom(-Y), front(+Z, inside), back(-Z, outside)]
     const backMaterials = [material, material, material, material, whiteInsideMat, material];
     const add = (w: number, h: number, x: number, py: number) => {
@@ -1689,7 +1708,7 @@ export class HouseScene {
     };
 
     const valid = openings
-      .filter((o) => Math.min(halfW, o.center + o.winW / 2) - Math.max(-halfW, o.center - o.winW / 2) > 0.05)
+      .filter((o) => Math.min(maxRight, o.center + o.winW / 2) - Math.max(minLeft, o.center - o.winW / 2) > 0.05)
       .sort((a, b) => a.center - b.center);
 
     if (valid.length === 0) {
@@ -1699,8 +1718,8 @@ export class HouseScene {
 
     let cursor = -halfW;
     for (const op of valid) {
-      const left = Math.max(-halfW, op.center - op.winW / 2);
-      const right = Math.min(halfW, op.center + op.winW / 2);
+      const left = Math.max(minLeft, op.center - op.winW / 2);
+      const right = Math.min(maxRight, op.center + op.winW / 2);
       const sillTop = Math.max(base, Math.min(top, op.sill));
       const lintelBottom = Math.max(base, Math.min(top, op.head));
 
@@ -1742,6 +1761,8 @@ export class HouseScene {
     openings: { center: number; winW: number; winH: number; sill: number; head: number }[]
   ) {
     const halfD = cd / 2;
+    const zStart = -halfD + thick;
+    const zEnd = halfD;
     const isLeft = xPos < 0;
     // For left wall (xPos < 0): +X (inside) is whiteInsideMat, -X (outside) is material
     // For right wall (xPos > 0): -X (inside) is whiteInsideMat, +X (outside) is material
@@ -1759,18 +1780,18 @@ export class HouseScene {
     };
 
     const valid = openings
-      .filter((o) => Math.min(halfD, o.center + o.winW / 2) - Math.max(-halfD, o.center - o.winW / 2) > 0.05)
+      .filter((o) => Math.min(zEnd, o.center + o.winW / 2) - Math.max(zStart, o.center - o.winW / 2) > 0.05)
       .sort((a, b) => a.center - b.center);
 
     if (valid.length === 0) {
-      add(cd, height, y, 0);
+      add(zEnd - zStart, height, y, (zStart + zEnd) / 2);
       return;
     }
 
-    let cursor = -halfD;
+    let cursor = zStart;
     for (const op of valid) {
-      const left = Math.max(-halfD, op.center - op.winW / 2);
-      const right = Math.min(halfD, op.center + op.winW / 2);
+      const left = Math.max(zStart, op.center - op.winW / 2);
+      const right = Math.min(zEnd, op.center + op.winW / 2);
       const sillTop = Math.max(base, Math.min(top, op.sill));
       const lintelBottom = Math.max(base, Math.min(top, op.head));
 
@@ -1793,7 +1814,7 @@ export class HouseScene {
       cursor = right;
     }
 
-    const endW = halfD - cursor;
+    const endW = zEnd - cursor;
     if (endW > 0.01) {
       add(endW, height, y, cursor + endW / 2);
     }
@@ -6239,7 +6260,7 @@ export class HouseScene {
       roomType,
       fitted.w,
       fitted.d,
-      shellSides(fitted, hx, hz),
+      this.getRoomShellSides(fitted, hx, hz, nextY),
       isLoftRoom(nextY) ? { y: nextY, z: fitted.z } : undefined,
       showWalls
     );

@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { floorAreaSqMeters } from '../src/store/area.ts';
 import {
   CONCRETE_STOREY_TOP_M,
+  CONCRETE_WALL_THICK_M,
+  CONCRETE_WALL_THICK_MM,
   acceptConcreteWalls,
   clampConcretePlan,
   clampConcreteWall,
@@ -285,13 +287,38 @@ test('door at back-2 in concrete wall is within bathroom footprint and cuts out 
   const fitted = fittedDoorOpening('STEHAG', panelW, cornerSide);
   const worldX = center - (fitted.shift ?? 0);
 
-  // Bathroom in back-left is from x = -2.43 to x = -0.43
-  assert.ok(worldX > -2.43 && worldX < -0.43);
+  // Bathroom in back-left is from x = -2.10 to x = -0.10 against 50cm concrete walls
+  assert.ok(worldX > -2.10 && worldX < -0.10);
 
   // Concrete cutout spans [left, right]
   const left = worldX - fitted.width / 2;
   const right = worldX + fitted.width / 2;
   assert.ok(left > -2.6 && right < 0);
+});
+
+test('concrete wall thickness is 50 cm (500 mm)', () => {
+  assert.equal(CONCRETE_WALL_THICK_M, 0.5);
+  assert.equal(CONCRETE_WALL_THICK_MM, 500);
+});
+
+test('bathroom on concrete house sits against inside face of 50 cm concrete walls', () => {
+  const cw = 5.2;
+  const cd = 5.2;
+  const thick = CONCRETE_WALL_THICK_M; // 0.5
+  const shell = timberShellOnConcrete(cw, 6.731, cw, cd); // shell.z = 0.7655
+
+  // Concrete inner faces
+  const innerLeftX = -cw / 2 + thick; // -2.10 m
+  const innerBackWorldZ = -cd / 2 + thick; // -2.10 m
+  const innerBackLocalZ = innerBackWorldZ - shell.z; // -2.8655 m
+
+  // 2x2m bathroom placed snug in back-left corner
+  const bathroom = { w: 2, d: 2, x: -1.10, z: -1.8655 };
+  const leftEdge = bathroom.x - bathroom.w / 2;
+  const backEdge = bathroom.z - bathroom.d / 2;
+
+  assert.equal(leftEdge, innerLeftX);
+  assert.ok(Math.abs(backEdge - innerBackLocalZ) < 1e-6);
 });
 
 test('sauna on terrace facing house door aligns door opening to match house wall position', () => {
