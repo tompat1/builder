@@ -19,8 +19,10 @@ test('a door deck and a full covered side keep their catalog prices', () => {
 test('a deeper deck costs more, and a shallower one costs less', () => {
   const shallow = terracePrice({ side: 'front', depth: 1.2, span: 'door', roof: false });
   const deep = terracePrice({ side: 'front', depth: 3, span: 'door', roof: false });
+  const widest = terracePrice({ side: 'front', depth: 5, span: 'door', roof: false });
   assert.ok(shallow < 28400);
   assert.ok(deep > 28400);
+  assert.ok(widest > deep);
 });
 
 test('old houses become one terrace, and a full side wins over a door deck', () => {

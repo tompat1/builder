@@ -4,7 +4,7 @@ export const TERRACE_SIDES = ['front', 'right', 'back', 'left'] as const;
 export type TerraceSide = (typeof TERRACE_SIDES)[number];
 
 /** How far the deck sticks out, in metres. */
-export const TERRACE_DEPTHS = [1.2, 1.8, 2.4, 3] as const;
+export const TERRACE_DEPTHS = [1.2, 1.8, 2.4, 3, 5] as const;
 export type TerraceDepth = (typeof TERRACE_DEPTHS)[number];
 
 /** By the door, or along the whole wall. */

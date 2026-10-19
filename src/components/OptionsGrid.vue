@@ -2106,7 +2106,7 @@
           </div>
           <div>
             <p class="mb-1 text-[11px] font-bold text-slate-700"><Cms k="category.terraceDepth" /></p>
-            <div class="grid grid-cols-4 gap-1.5">
+            <div class="grid grid-cols-5 gap-1.5">
               <button
                 v-for="depth in terraceDepths"
                 :key="depth"

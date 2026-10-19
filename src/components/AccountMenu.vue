@@ -266,7 +266,7 @@ function toggle() {
 }
 
 function openAt(anchor?: HTMLElement | null) {
-  panel.value = 'settings';
+  panel.value = 'account';
   open.value = true;
   nextTick(() => placePanel(anchor));
 }
