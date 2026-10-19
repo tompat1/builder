@@ -16,6 +16,10 @@ export const TERRACE_BUILDINGS = ['none', 'sauna', 'shed'] as const;
 export type TerraceBuildingPlacement = 'left' | 'right';
 export const TERRACE_BUILDING_PLACEMENTS = ['left', 'right'] as const;
 
+/** Mono-pitch, a 3° low roof, or a gable. */
+export type TerraceBuildingRoof = 'pulpet' | 'low' | 'gable';
+export const TERRACE_BUILDING_ROOFS = ['pulpet', 'low', 'gable'] as const;
+
 export interface HouseTerrace {
   side: TerraceSide;
   depth: TerraceDepth;
@@ -23,6 +27,33 @@ export interface HouseTerrace {
   roof: boolean;
   building?: TerraceBuilding;
   buildingPlacement?: TerraceBuildingPlacement;
+  buildingRoof?: TerraceBuildingRoof;
+}
+
+const SAUNA_EAVE_M = 2.05;
+
+export function normalizeBuildingRoof(value: unknown): TerraceBuildingRoof {
+  return value === 'low' || value === 'gable' ? value : 'pulpet';
+}
+
+export function buildingRoofDegrees(roof: TerraceBuildingRoof): number {
+  if (roof === 'low') return 3;
+  if (roof === 'gable') return 22;
+  return 12;
+}
+
+/**
+ * Wall-top height above the deck. `t` is 0 against the house and 1 at the yard face.
+ * The roof underside uses this same line, so the joint has no gap.
+ */
+export function buildingWallTop(roof: TerraceBuildingRoof, depth: number, t: number): number {
+  const clamped = Math.min(1, Math.max(0, t));
+  const pitch = (buildingRoofDegrees(roof) * Math.PI) / 180;
+  if (roof === 'gable') {
+    const rise = (depth / 2) * Math.tan(pitch);
+    return SAUNA_EAVE_M + rise * (1 - Math.abs(clamped * 2 - 1));
+  }
+  return SAUNA_EAVE_M + depth * Math.tan(pitch) * (1 - clamped);
 }
 
 export interface TerraceBoardLayout {
@@ -89,13 +120,18 @@ export function acceptTerraces(value: unknown): HouseTerrace[] {
       row.buildingPlacement === 'left' || row.buildingPlacement === 'right'
         ? row.buildingPlacement
         : undefined;
+    const buildingRoof: TerraceBuildingRoof | undefined =
+      row.buildingRoof === 'pulpet' || row.buildingRoof === 'low' || row.buildingRoof === 'gable'
+        ? row.buildingRoof
+        : undefined;
     terraces.push({
       side: row.side as TerraceSide,
       depth: TERRACE_DEPTHS.includes(row.depth as TerraceDepth) ? (row.depth as TerraceDepth) : 1.8,
       span: row.span === 'full' ? 'full' : 'door',
       roof: row.roof === true,
       ...(building ? { building } : {}),
-      ...(buildingPlacement ? { buildingPlacement } : {})
+      ...(buildingPlacement ? { buildingPlacement } : {}),
+      ...(buildingRoof ? { buildingRoof } : {})
     });
     if (terraces.length >= TERRACE_SIDES.length) break;
   }

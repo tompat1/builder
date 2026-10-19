@@ -50,6 +50,8 @@ import {
   TERRACE_BUILDINGS,
   type TerraceBuildingPlacement,
   TERRACE_BUILDING_PLACEMENTS,
+  type TerraceBuildingRoof,
+  TERRACE_BUILDING_ROOFS,
   SAUNA_BUILDING_PRICE,
   SHED_BUILDING_PRICE
 } from '../outside/terrace';
@@ -496,7 +498,7 @@ export const OUTSIDE_PRICES = {
   bigTerrace: 72600
 } as const;
 
-export type { HouseTerrace, TerraceDepth, TerraceSide, TerraceSpan, TerraceBuilding, TerraceBuildingPlacement };
+export type { HouseTerrace, TerraceDepth, TerraceSide, TerraceSpan, TerraceBuilding, TerraceBuildingPlacement, TerraceBuildingRoof };
 export { TERRACE_BUILDINGS, TERRACE_BUILDING_PLACEMENTS, SAUNA_BUILDING_PRICE, SHED_BUILDING_PRICE };
 
 import {
@@ -1463,13 +1465,15 @@ export const useConfigStore = defineStore('config', () => {
     if (!next) return;
     const buildingChanged = (next.building ?? 'none') !== (current.building ?? 'none');
     const placementChanged = (next.buildingPlacement ?? 'right') !== (current.buildingPlacement ?? 'right');
+    const buildingRoofChanged = (next.buildingRoof ?? 'pulpet') !== (current.buildingRoof ?? 'pulpet');
     if (
       next.side === current.side &&
       next.depth === current.depth &&
       next.span === current.span &&
       next.roof === current.roof &&
       !buildingChanged &&
-      !placementChanged
+      !placementChanged &&
+      !buildingRoofChanged
     ) {
       return;
     }
@@ -1515,6 +1519,11 @@ export const useConfigStore = defineStore('config', () => {
 
   function setTerraceBuildingPlacement(side: TerraceSide, buildingPlacement: TerraceBuildingPlacement) {
     replaceTerrace(side, { buildingPlacement });
+  }
+
+  function setTerraceBuildingRoof(side: TerraceSide, buildingRoof: TerraceBuildingRoof) {
+    if (!TERRACE_BUILDING_ROOFS.includes(buildingRoof)) return;
+    replaceTerrace(side, { buildingRoof });
   }
 
   function setFacing(next: CompassFacing) {
@@ -2142,6 +2151,7 @@ export const useConfigStore = defineStore('config', () => {
     setTerraceRoof,
     setTerraceBuilding,
     setTerraceBuildingPlacement,
+    setTerraceBuildingRoof,
     setFacing,
     previewSunHour,
     commitSunHour,

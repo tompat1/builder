@@ -2211,6 +2211,24 @@
                   <Cms k="category.terracePlacementRight" />
                 </button>
               </div>
+              <div v-if="deck.building === 'sauna'" class="mt-2">
+                <p class="mb-1 text-[11px] font-bold text-slate-700">
+                  <Cms k="category.terraceBuildingRoof" />
+                </p>
+                <div class="grid grid-cols-3 gap-1.5">
+                  <button
+                    v-for="roof in terraceBuildingRoofs"
+                    :key="roof"
+                    type="button"
+                    :id="`terrace-${deck.side}-building-roof-${roof}`"
+                    :aria-pressed="(deck.buildingRoof ?? 'pulpet') === roof"
+                    :class="terraceChoiceClass((deck.buildingRoof ?? 'pulpet') === roof)"
+                    @click="store.setTerraceBuildingRoof(deck.side, roof)"
+                  >
+                    <Cms :k="terraceRoofKey(roof)" />
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </article>
@@ -2300,9 +2318,11 @@ import {
   terracePrice,
   SAUNA_BUILDING_PRICE,
   SHED_BUILDING_PRICE,
+  TERRACE_BUILDING_ROOFS,
   type TerraceDepth,
   type TerraceBuilding,
-  type TerraceBuildingPlacement
+  type TerraceBuildingPlacement,
+  type TerraceBuildingRoof
 } from '../outside/terrace';
 import { useLabels } from '../i18n';
 import CustomPaint from './CustomPaint.vue';
@@ -2380,6 +2400,13 @@ function sizeTabClass(active: boolean) {
 }
 
 const terraceSides = TERRACE_SIDES;
+const terraceBuildingRoofs = TERRACE_BUILDING_ROOFS;
+
+function terraceRoofKey(roof: TerraceBuildingRoof) {
+  if (roof === 'low') return 'category.terraceRoofLow';
+  if (roof === 'gable') return 'category.terraceRoofGable';
+  return 'category.terraceRoofPulpet';
+}
 const terraceDepths = TERRACE_DEPTHS;
 
 function terraceChoiceClass(active: boolean) {

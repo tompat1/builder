@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   TERRACE_DEPTHS,
   acceptTerraces,
+  buildingWallTop,
   terraceBoardLayout,
   terracePrice,
   terracesFromLegacy
@@ -87,4 +88,31 @@ test('a terrace can include a sauna or shed as an additional building', () => {
     { side: 'back', depth: 3, span: 'full', roof: false, building: 'none' }
   ]);
   assert.equal(resetTerraces[0].building, 'none');
+});
+
+test('a sauna keeps its roof, and an unknown roof is dropped', () => {
+  const terraces = acceptTerraces([
+    { side: 'front', depth: 1.8, span: 'door', roof: false, building: 'sauna', buildingRoof: 'gable' },
+    { side: 'left', depth: 1.8, span: 'door', roof: false, building: 'sauna', buildingRoof: 'flat' }
+  ]);
+  assert.equal(terraces[0].buildingRoof, 'gable');
+  assert.equal(terraces[1].buildingRoof, undefined);
+});
+
+test('sauna wall tops meet the chosen roof with no open joint', () => {
+  const depth = 2.1;
+  for (const roof of ['pulpet', 'low', 'gable']) {
+    const samples = [0, 0.25, 0.5, 0.75, 1].map((t) => buildingWallTop(roof, depth, t));
+    for (const height of samples) assert.ok(height >= 2.05 - 1e-9);
+    if (roof === 'gable') {
+      assert.ok(samples[2] > samples[0]);
+      assert.equal(samples[0], samples[4]);
+    } else {
+      assert.ok(samples[0] > samples[4]);
+    }
+  }
+  const lowRise = buildingWallTop('low', depth, 0) - buildingWallTop('low', depth, 1);
+  assert.ok(Math.abs(lowRise - depth * Math.tan((3 * Math.PI) / 180)) < 1e-9);
+  const pulpetRise = buildingWallTop('pulpet', depth, 0) - buildingWallTop('pulpet', depth, 1);
+  assert.ok(pulpetRise > lowRise);
 });
