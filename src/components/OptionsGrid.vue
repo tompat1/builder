@@ -232,79 +232,6 @@
               />
             </label>
           </div>
-          <div class="mt-3 flex items-center justify-between gap-3">
-            <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider">
-              <Cms k="category.concreteWalls" />
-            </h4>
-            <button
-              type="button"
-              id="btn-add-concrete-wall"
-              class="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-800 hover:border-slate-400 hover:bg-slate-50 focus:outline-none focus-visible:ring-1 focus-visible:ring-slate-900 disabled:cursor-not-allowed disabled:opacity-40"
-              :disabled="store.concreteWalls.length >= 8"
-              @click="store.addConcreteWall()"
-            >
-              <Cms k="category.addConcreteWall" />
-            </button>
-          </div>
-          <div v-if="store.concreteWalls.length === 0" class="mt-1.5 text-[11px] leading-snug text-slate-500">
-            <Cms k="category.concreteWallsHint" />
-          </div>
-          <div
-            v-for="wall in store.concreteWalls"
-            :key="wall.id"
-            class="mt-2 grid grid-cols-[minmax(0,1fr)_minmax(0,0.7fr)_auto] items-end gap-2"
-          >
-            <div class="min-w-0">
-              <span class="mb-1 block text-[11px] font-semibold text-slate-600">
-                <Cms k="category.concreteWallRun" />
-              </span>
-              <div class="flex rounded-lg border border-slate-300 bg-white p-0.5">
-                <button
-                  type="button"
-                  class="min-h-7 flex-1 rounded-md px-1.5 text-[11px] font-bold focus:outline-none focus-visible:ring-1 focus-visible:ring-slate-900"
-                  :class="wall.axis === 'x' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-50'"
-                  :aria-pressed="wall.axis === 'x'"
-                  @click="store.setConcreteWall(wall.id, { axis: 'x' })"
-                >
-                  <Cms k="category.concreteWallAcross" />
-                </button>
-                <button
-                  type="button"
-                  class="min-h-7 flex-1 rounded-md px-1.5 text-[11px] font-bold focus:outline-none focus-visible:ring-1 focus-visible:ring-slate-900"
-                  :class="wall.axis === 'z' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-50'"
-                  :aria-pressed="wall.axis === 'z'"
-                  @click="store.setConcreteWall(wall.id, { axis: 'z' })"
-                >
-                  <Cms k="category.concreteWallAlong" />
-                </button>
-              </div>
-            </div>
-            <label class="block min-w-0">
-              <span class="mb-1 block text-[11px] font-semibold text-slate-600">
-                <Cms k="category.concreteWallPlace" />
-                <span class="font-medium text-slate-400"> ({{ t('category.unitCm') }})</span>
-              </span>
-              <input
-                type="number"
-                class="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-semibold tabular-nums focus:outline-none focus:ring-1 focus:ring-slate-900"
-                :min="concreteWallLimit(wall.axis, 'min')"
-                :max="concreteWallLimit(wall.axis, 'max')"
-                step="1"
-                :value="centimetres(wall.offsetMm)"
-                @change="commitConcreteWall(wall.id, $event)"
-              />
-            </label>
-            <button
-              type="button"
-              class="mb-px flex h-[30px] w-7 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-600 hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus-visible:ring-1 focus-visible:ring-slate-900"
-              :aria-label="t('category.removeConcreteWall')"
-              @click="store.removeConcreteWall(wall.id)"
-            >
-              <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
-                <path d="M6 6l12 12M18 6 6 18" />
-              </svg>
-            </button>
-          </div>
         </div>
       </div>
 
@@ -1450,6 +1377,86 @@
               :class="store.showInnerWalls ? 'translate-x-5' : 'translate-x-0'"
             ></span>
           </button>
+        </div>
+
+        <!-- Concrete house inner partition walls (Påbyggnad betong only) -->
+        <div
+          v-if="store.selectedSizeId === 'size-paabyggnad'"
+          class="rounded-xl border border-slate-200 bg-white p-3 shadow-xs"
+        >
+          <div class="flex items-center justify-between gap-3">
+            <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider">
+              <Cms k="category.concreteWalls" />
+            </h4>
+            <button
+              type="button"
+              id="btn-add-concrete-wall"
+              class="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-800 hover:border-slate-400 hover:bg-slate-50 focus:outline-none focus-visible:ring-1 focus-visible:ring-slate-900 disabled:cursor-not-allowed disabled:opacity-40"
+              :disabled="store.concreteWalls.length >= 8"
+              @click="store.addConcreteWall()"
+            >
+              <Cms k="category.addConcreteWall" />
+            </button>
+          </div>
+          <p class="mt-1.5 text-[11px] leading-snug text-slate-500">
+            <Cms k="category.concreteWallsHint" />
+          </p>
+          <div
+            v-for="wall in store.concreteWalls"
+            :key="wall.id"
+            class="mt-2.5 grid grid-cols-[minmax(0,1fr)_minmax(0,0.7fr)_auto] items-end gap-2 border-t border-slate-100 pt-2"
+          >
+            <div class="min-w-0">
+              <span class="mb-1 block text-[11px] font-semibold text-slate-600">
+                <Cms k="category.concreteWallRun" />
+              </span>
+              <div class="flex rounded-lg border border-slate-300 bg-white p-0.5">
+                <button
+                  type="button"
+                  class="min-h-7 flex-1 rounded-md px-1.5 text-[11px] font-bold focus:outline-none focus-visible:ring-1 focus-visible:ring-slate-900"
+                  :class="wall.axis === 'x' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-50'"
+                  :aria-pressed="wall.axis === 'x'"
+                  @click="store.setConcreteWall(wall.id, { axis: 'x' })"
+                >
+                  <Cms k="category.concreteWallAcross" />
+                </button>
+                <button
+                  type="button"
+                  class="min-h-7 flex-1 rounded-md px-1.5 text-[11px] font-bold focus:outline-none focus-visible:ring-1 focus-visible:ring-slate-900"
+                  :class="wall.axis === 'z' ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-50'"
+                  :aria-pressed="wall.axis === 'z'"
+                  @click="store.setConcreteWall(wall.id, { axis: 'z' })"
+                >
+                  <Cms k="category.concreteWallAlong" />
+                </button>
+              </div>
+            </div>
+            <label class="block min-w-0">
+              <span class="mb-1 block text-[11px] font-semibold text-slate-600">
+                <Cms k="category.concreteWallPlace" />
+                <span class="font-medium text-slate-400"> ({{ t('category.unitCm') }})</span>
+              </span>
+              <input
+                type="number"
+                class="w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-semibold tabular-nums focus:outline-none focus:ring-1 focus:ring-slate-900"
+                :min="concreteWallLimit(wall.axis, 'min')"
+                :max="concreteWallLimit(wall.axis, 'max')"
+                step="1"
+                :value="centimetres(wall.offsetMm)"
+                @change="commitConcreteWall(wall.id, $event)"
+              />
+            </label>
+            <button
+              type="button"
+              class="mb-px flex h-[30px] w-7 shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-600 hover:border-slate-400 hover:bg-slate-50 hover:text-slate-900 focus:outline-none focus-visible:ring-1 focus-visible:ring-slate-900"
+              :aria-label="t('category.removeConcreteWall')"
+              @click="store.removeConcreteWall(wall.id)"
+            >
+              <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+                <path d="M6 6l12 12M18 6 6 18" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         <!-- Interior Sub-tabs -->

@@ -808,8 +808,9 @@ export const useConfigStore = defineStore('config', () => {
       const loadedHeight = clampConcretePlan('height', loadedDepth);
       concreteWidth.value = loadedHeight.width;
       concreteDepth.value = loadedHeight.depth;
-      concreteHeight.value = loadedHeight.height;
-      concreteWalls.value = acceptConcreteWalls(data.concreteWalls, loadedHeight.width, loadedHeight.depth);
+      concreteWalls.value = data.selectedSizeId === 'size-paabyggnad'
+        ? acceptConcreteWalls(data.concreteWalls, loadedHeight.width, loadedHeight.depth)
+        : [];
       activeRoof.value = data.activeRoof;
       if (ROOF_COVERINGS.some((item) => item.id === data.roofCovering)) {
         roofCovering.value = data.roofCovering;
@@ -1283,6 +1284,8 @@ export const useConfigStore = defineStore('config', () => {
           buildingRoof: 'pulpet'
         }
       ];
+    } else {
+      concreteWalls.value = [];
     }
     // Ensure selectedLoftSize is valid for this new size
     const available = availableLoftSizes.value;
@@ -1401,6 +1404,7 @@ export const useConfigStore = defineStore('config', () => {
   }
 
   const setConcreteWall = (id: string, patch: Partial<Pick<ConcreteWall, 'axis' | 'offsetMm'>>) => {
+    if (selectedSizeId.value !== 'size-paabyggnad') return;
     concreteWalls.value = concreteWalls.value.map((wall) => {
       if (wall.id !== id) return wall;
       return clampConcreteWall({
@@ -1413,6 +1417,7 @@ export const useConfigStore = defineStore('config', () => {
   }
 
   const removeConcreteWall = (id: string) => {
+    if (selectedSizeId.value !== 'size-paabyggnad') return;
     if (!concreteWalls.value.some((wall) => wall.id === id)) return;
     concreteWalls.value = concreteWalls.value.filter((wall) => wall.id !== id);
     saveSnapshot();

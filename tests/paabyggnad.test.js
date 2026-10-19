@@ -363,3 +363,14 @@ test('sauna on terrace facing house door aligns door opening to match house wall
   assert.ok(saunaDoorFrom > alignedBX - bW / 2);
   assert.ok(saunaDoorTo < alignedBX + bW / 2);
 });
+
+test('extra concrete walls are only accepted for concrete house additions', () => {
+  const walls = acceptConcreteWalls([
+    { id: 'cw_1', axis: 'x', offsetMm: 200 }
+  ], 5200, 5200);
+  assert.equal(walls.length, 1);
+
+  // Non-array or invalid size drops concrete walls
+  const dropped = acceptConcreteWalls(null, 5200, 5200);
+  assert.equal(dropped.length, 0);
+});

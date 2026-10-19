@@ -239,14 +239,14 @@ const actions: SearchEntry[] = [
   }),
   entry({
     id: 'concrete-wall',
-    topic: 'size',
+    topic: 'inside',
     titleKey: 'category.addConcreteWall',
     title: 'Lägg till vägg',
     hintKey: 'search.concreteWallHint',
     hint: '',
     keywords: ['extra vägg', 'betongvägg', 'concrete wall', 'innervägg'],
     path: '/build',
-    category: 'size',
+    category: 'interior',
     sizeId: 'size-paabyggnad',
     focus: 'btn-add-concrete-wall'
   }),
