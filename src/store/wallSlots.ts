@@ -20,6 +20,8 @@ export interface WallSlot {
   isUpper?: boolean;
   /** Lower bay covered by a three-pane slider hosted on another slot. */
   coveredBy?: string;
+  /** Size and place the window inside the bay instead of letting it run past the wall. */
+  fitToWall?: boolean;
 }
 
 export const PANEL_COUNTS = { front: 4, back: 4, left: 3, right: 3 } as const;

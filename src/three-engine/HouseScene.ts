@@ -10,7 +10,7 @@ import { inferNoteNormal, noteAxes, noteCameraTransform, noteSheetTransform, not
 import { paintBoards } from '../color/paint';
 import { INTERIOR_FLOOR_TOP, LOFT_FLOORBOARD, curvedLoftStair, loftEndRotation, loftIsGhosted, loftJoistTop, loftStairOpening, loftStairRun, loftStairTreads, straightLoftStair, isLoftRoom } from './loftLevel';
 import { ceilingStations, loftCeilingY, sliceStations, type CeilingStation, type RoofSlope } from './roofClearance';
-import { NARROW_TALL, OVERLIGHT, PORTRAIT_PANORAMA, fittedDoorOpening, fittedWindowOpening, narrowTallPane, openingClearOfRoof, overlightHeight, portraitPane } from './windowFit';
+import { NARROW_TALL, OVERLIGHT, PORTRAIT_PANORAMA, containWindowInPanel, fittedDoorOpening, fittedWindowOpening, narrowTallPane, openingClearOfRoof, overlightHeight, portraitPane, windowOpeningChanged } from './windowFit';
 import { fitRoom, innerHalf, roomFootprint, roomWallRuns, shellSides, type ShellSides } from './roomWalls';
 import { timberShellOnConcrete } from '../store/paabyggnad';
 import { MEASURE_CURSOR } from '../measure/length';
@@ -207,6 +207,9 @@ export class HouseScene {
   public onSlotMove?: (fromSlotId: string, toSlotId: string) => boolean;
   public onDragStateChange?: (isDragging: boolean) => void;
   public onSlotScreenPositionUpdate?: (pos: { x: number; y: number; visible: boolean; slotId: string }) => void;
+  /** Bays whose window still sticks out of the wall until the user fits it. */
+  public onWindowFitOffers?: (slotIds: string[]) => void;
+  private windowFitOfferIds: string[] = [];
   public onDimensionLabels?: (labels: Record<string, { x: number; y: number; visible: boolean }>) => void;
   public onNoteAnchors?: (anchors: Record<string, { x: number; y: number; visible: boolean }>) => void;
   public onNotePlanes?: (camera: string, planes: Record<string, { transform: string; visible: boolean }>) => void;
@@ -1777,6 +1780,7 @@ export class HouseScene {
     this.wallsGroup.add(floor);
 
     // 3. Modular Exterior Walls Construction (outer wood siding, inside left open for beams)
+    this.windowFitOfferIds = [];
     const frontCount = this.panelCountForWall('front', w, d);
     const backCount = this.panelCountForWall('back', w, d);
     const leftCount = this.panelCountForWall('left', w, d);
@@ -1785,6 +1789,7 @@ export class HouseScene {
     this.buildModularWall('back', backCount, w, d, h, wallThick, exteriorMat, doorBayMat, trimMat, casingMat, concreteWallMat);
     this.buildModularWall('left', leftCount, w, d, h, wallThick, exteriorMat, doorBayMat, trimMat, casingMat, concreteWallMat);
     this.buildModularWall('right', rightCount, w, d, h, wallThick, exteriorMat, doorBayMat, trimMat, casingMat, concreteWallMat);
+    this.publishWindowFitOffers();
     this.addConcreteWalls(concreteWallMat, whiteConcreteMat);
     this.buildOutsideAdditions(w, d, h);
     if (!this.interiorCut() && this.currentConfig.panelOrientation !== 'liggande') {
@@ -2505,6 +2510,53 @@ export class HouseScene {
     place(d - face * 2, 'x', 1, w / 2, []);
   }
 
+  /** Timber left beside a concrete facade. Upper bays and full-timber panels have none. */
+  private woodSpanBeside(
+    panelWidth: number,
+    facadeSpan: { from: number; to: number } | null,
+    upper: boolean
+  ) {
+    if (!facadeSpan || upper) return null;
+    const half = panelWidth / 2;
+    if (facadeSpan.from > -half + 0.08) return { from: -half, to: facadeSpan.from };
+    if (facadeSpan.to < half - 0.08) return { from: facadeSpan.to, to: half };
+    return null;
+  }
+
+  /**
+   * A window marked to fit the wall is moved and resized into the bay.
+   * One that still sticks out is offered a fit button instead of being changed in place.
+   */
+  private resolveWindowOpening<T extends { winW: number; winH: number; winY: number; x?: number; sill?: number; head?: number; casingSide?: number }>(
+    opening: T,
+    slot: WallSlot | undefined,
+    panelWidth: number,
+    panelHeight: number,
+    cornerSide: 'left' | 'right' | null | undefined,
+    facadeSpan: { from: number; to: number } | null,
+    upper: boolean,
+    slope: number,
+    recordOffer: boolean
+  ): T {
+    if (slot?.type !== 'window') return opening;
+    const seated = containWindowInPanel(
+      opening,
+      panelWidth,
+      panelHeight,
+      cornerSide ?? null,
+      this.woodSpanBeside(panelWidth, facadeSpan, upper),
+      slope
+    );
+    if (recordOffer && !slot.fitToWall && windowOpeningChanged(opening, seated)) {
+      this.windowFitOfferIds.push(slot.id);
+    }
+    return slot.fitToWall ? seated : opening;
+  }
+
+  publishWindowFitOffers() {
+    this.onWindowFitOffers?.(this.windowFitOfferIds);
+  }
+
   /** Rise of the roof along a side wall, in metres of height per metre of local panel X. */
   private alongWallSlope(wallSide: 'front' | 'back' | 'left' | 'right') {
     if (this.interiorCut() || (wallSide !== 'left' && wallSide !== 'right')) return 0;
@@ -2560,16 +2612,19 @@ export class HouseScene {
     const facadeSpan = facadeTop == null ? null : this.concreteSpanLocal(wallSide, px, pz, panelWidth);
     const isConcreteLower = Boolean(facadeTop && facadeSpan && !band.upper);
 
-    const fitted: { winW: number; winH: number; winY: number; x?: number; sill?: number; head?: number } | null = wide
+    const fitted: { winW: number; winH: number; winY: number; x?: number; sill?: number; head?: number; casingSide?: number } | null = wide
       ?? ((slotType === 'window' || slotType === 'door')
         ? this.fittedOpening(slotType, slot?.itemId, band.upper, panelWidth, band.height, band.base, aboveDoor, cornerSide, facadeSpan)
         : null);
-    const opening = fitted && band.reachesRoof
+    const preferred = fitted && band.reachesRoof
       ? openingClearOfRoof(fitted, band.height, slope, {
           pinSill: Boolean(wide) || slotType === 'door',
           minHeight: wide || slotType === 'door' ? 0.9 : 0.28
         })
       : fitted;
+    const opening = preferred
+      ? this.resolveWindowOpening(preferred, slot, panelWidth, band.height, cornerSide, facadeSpan, band.upper, slope, true)
+      : preferred;
     const userData = {
       slotId: band.slotId,
       wall: wallSide,
@@ -4018,10 +4073,11 @@ export class HouseScene {
         const facadeSpan = facadeTop == null ? null : this.concreteSpanLocal(wall, px, pz, panelW);
         const fitted = this.fittedOpening(slot.type, slot.itemId, band.upper, panelW, band.panelH, band.panelBase, aboveDoor, cornerSide, facadeSpan);
         const slope = band.upper || !split ? this.alongWallSlope(wall) : 0;
-        const fit = openingClearOfRoof(fitted, band.panelH, slope, {
+        const cleared = openingClearOfRoof(fitted, band.panelH, slope, {
           pinSill: slot.type === 'door',
           minHeight: slot.type === 'door' ? 0.9 : 0.28
         });
+        const fit = this.resolveWindowOpening(cleared, slot, panelW, band.panelH, cornerSide, facadeSpan, band.upper, slope, false);
         const ox = fit.x ?? 0;
         const worldX = (wall === 'front' || wall === 'left') ? center + ox : center - ox;
         openings.push({

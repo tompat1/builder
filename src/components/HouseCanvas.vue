@@ -206,6 +206,10 @@ onMounted(() => {
     engine.onSlotScreenPositionUpdate = (pos) => {
       store.setSlotScreenPosition(pos);
     };
+    engine.onWindowFitOffers = (ids) => {
+      store.setWindowFitOffers(ids);
+    };
+    engine.publishWindowFitOffers();
 
     engine.onDimensionLabels = (labels) => {
       store.setDimensionLabels(labels);

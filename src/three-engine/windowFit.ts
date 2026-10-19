@@ -85,6 +85,12 @@ export function fittedDoorOpening(
 /** Opening head stays this far under the roof, including the head board. */
 export const ROOF_OPENING_CLEARANCE = 0.22 + 0.085;
 
+/**
+ * Top of the head board stays this far under the panel top.
+ * The fascia laps about 12 cm over the wall, so a smaller gap puts the casing into the trim.
+ */
+const FASCIA_HEAD_GAP = 0.16;
+
 export interface RoofOpening {
   winW: number;
   winH: number;
@@ -406,4 +412,90 @@ export function fittedWindowOpening(
       casingSide
     };
   }
+}
+
+/** True when a fitted window had to move or shrink to stay on the wall. */
+export function windowOpeningChanged(before: RoofOpening, after: RoofOpening) {
+  return Math.abs(before.winW - after.winW) > 0.005
+    || Math.abs(before.winH - after.winH) > 0.005
+    || Math.abs(before.winY - after.winY) > 0.005
+    || Math.abs((before.x ?? 0) - (after.x ?? 0)) > 0.005;
+}
+
+/**
+ * Shrink and shift a window so the glass and its boards stay inside the panel.
+ * A window that already fits is left where it is, including its sill height.
+ */
+export function containWindowInPanel<T extends RoofOpening & { casingSide?: number }>(
+  opening: T,
+  panelWidth: number,
+  panelHeight: number,
+  cornerSide?: 'left' | 'right' | null,
+  woodSpan?: { from: number; to: number } | null,
+  slope = 0
+): T {
+  const halfW = panelWidth / 2;
+  const halfH = panelHeight / 2;
+  const edge = 0.045;
+  const cornerClearance = 0.170;
+
+  let minX: number;
+  let maxX: number;
+  if (woodSpan) {
+    const woodOnLeft = woodSpan.from <= -halfW + 0.01;
+    minX = cornerSide === 'left' && woodOnLeft ? woodSpan.from + cornerClearance : woodSpan.from + edge;
+    maxX = cornerSide === 'right' && !woodOnLeft ? woodSpan.to - cornerClearance : woodSpan.to - edge;
+  } else if (cornerSide) {
+    minX = cornerSide === 'left' ? -halfW + cornerClearance : -halfW + edge;
+    maxX = cornerSide === 'right' ? halfW - cornerClearance : halfW - edge;
+  } else {
+    minX = -halfW + edge;
+    maxX = halfW - edge;
+  }
+
+  const spaceW = Math.max(0, maxX - minX);
+  const casing = opening.casingSide ?? 0.09;
+  const ear = spaceW < 0.65 ? 0.01 : 0.02;
+  const margin = casing + ear;
+  let winW = opening.winW;
+  let x = opening.x ?? 0;
+  const maxW = Math.max(0.18, spaceW - margin * 2);
+  if (winW > maxW) winW = maxW;
+  const minShift = minX + margin + winW / 2;
+  const maxShift = maxX - margin - winW / 2;
+  if (minShift <= maxShift) x = Math.min(maxShift, Math.max(minShift, x));
+
+  const boardLeft = x - winW / 2 - casing;
+  const boardRight = x + winW / 2 + casing;
+  const roof = halfH + (Math.abs(slope) < 1e-6 ? 0 : Math.min(boardLeft * slope, boardRight * slope));
+  const limitTop = roof - FASCIA_HEAD_GAP - HEAD_BOARD;
+  const limitBottom = -halfH + 0.02 + SILL_BOARD;
+
+  let top = opening.winY + opening.winH / 2;
+  let bottom = opening.winY - opening.winH / 2;
+  if (top > limitTop) {
+    const drop = top - limitTop;
+    top -= drop;
+    bottom -= drop;
+  }
+  if (bottom < limitBottom) bottom = limitBottom;
+  if (top > limitTop) top = limitTop;
+  let winH = top - bottom;
+  if (!(winH > 0.1) || limitTop - limitBottom < 0.1) {
+    const room = Math.max(0.1, limitTop - limitBottom);
+    winH = Math.min(Math.max(opening.winH, 0.1), room);
+    bottom = limitBottom;
+    top = Math.min(limitTop, bottom + winH);
+    winH = Math.max(0.1, top - bottom);
+  }
+
+  const winY = bottom + winH / 2;
+  if (!windowOpeningChanged(opening, { winW, winH, winY, x })) return opening;
+
+  const oldBottom = opening.winY - opening.winH / 2;
+  const oldTop = opening.winY + opening.winH / 2;
+  const next = { ...opening, winW, winH, winY, x };
+  if (opening.sill != null) next.sill = opening.sill + (bottom - oldBottom);
+  if (opening.head != null) next.head = opening.head + (top - oldTop);
+  return next;
 }

@@ -59,6 +59,16 @@
               <Cms k="slot.replace" />
             </button>
             <button
+              v-if="canFitWindow"
+              type="button"
+              id="btn-fit-window"
+              @click="store.fitWindowToWall(activeSlot.id)"
+              class="h-11 rounded-xl bg-slate-100 px-3 text-sm font-semibold text-slate-800 hover:bg-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
+              :title="t('slot.fitTitle')"
+            >
+              <Cms k="slot.fit" />
+            </button>
+            <button
               v-if="alternateCategory"
               type="button"
               id="btn-switch-slot-type"
@@ -149,6 +159,11 @@ const placeLabel = computed(() => {
 
 const placedLabel = computed(() => productName(activeSlot.value));
 
+const canFitWindow = computed(() => {
+  const slot = activeSlot.value;
+  return Boolean(slot && slot.type === 'window' && store.windowFitOffers.includes(slot.id));
+});
+
 const alternateCategory = computed((): CategoryKey | null => {
   const slot = activeSlot.value;
   if (!slot || slot.type === 'empty') return null;
@@ -169,7 +184,7 @@ const overlayStyle = computed(() => {
   if (store.slotScreenPosition && store.slotScreenPosition.visible) {
     return {
       left: `clamp(min(240px, 50%), ${store.slotScreenPosition.x}px, calc(100% - min(160px, 50%)))`,
-      top: `clamp(100px, ${store.slotScreenPosition.y + 18}px, calc(100% - 340px))`,
+      top: `clamp(100px, ${store.slotScreenPosition.y + 18}px, calc(100% - 400px))`,
       transform: 'translate(-50%, 0)'
     };
   }

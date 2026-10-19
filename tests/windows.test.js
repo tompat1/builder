@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { NARROW_TALL, fittedDoorOpening, fittedWindowOpening, narrowTallPane, openingClearOfRoof, overlightHeight, overlightItem, portraitPane } from '../src/three-engine/windowFit.ts';
+import { NARROW_TALL, containWindowInPanel, fittedDoorOpening, fittedWindowOpening, narrowTallPane, openingClearOfRoof, overlightHeight, overlightItem, portraitPane } from '../src/three-engine/windowFit.ts';
 
 test('a portrait panorama in a tall panel stays portrait inside the smaller pane', () => {
   const pane = portraitPane(1.86, 2.3, true);
@@ -211,6 +211,41 @@ test('a standard window placed in a narrow wooden overhang bay adapts to a custo
   assert.ok(leftCasing >= -panelW / 2 + 0.165);
   // Must stay clear of concrete facade
   assert.ok(rightCasing <= woodSpan.to);
+});
+
+test('a window that already fits its bay is not moved or resized', () => {
+  const fitted = fittedWindowOpening('standard-single', 2.2, 2.4, 0.25, false, false, null, null);
+  const again = containWindowInPanel(fitted, 2.2, 2.4, null, null, 0);
+  assert.equal(again, fitted);
+});
+
+test('a transom on a short upper wall is lowered and shortened so the head board stays under the fascia', () => {
+  const panelH = 0.58;
+  const raw = fittedWindowOpening('overlight', 1.9, panelH, 2.2, true, false, null, null);
+  const half = panelH / 2;
+  const rawHeadBoard = raw.winY + raw.winH / 2 + 0.085;
+  assert.ok(rawHeadBoard > half - 0.16, 'the unfitted transom should run past the wall');
+
+  const fitted = containWindowInPanel(raw, 1.9, panelH, null, null, 0);
+  const headBoard = fitted.winY + fitted.winH / 2 + 0.085;
+  const sillBoard = fitted.winY - fitted.winH / 2 - 0.065;
+  assert.ok(headBoard <= half - 0.16 + 1e-6);
+  assert.ok(sillBoard >= -half - 1e-6);
+  assert.ok(fitted.winH < raw.winH);
+  assert.ok(fitted.winH > 0.12);
+  assert.equal(containWindowInPanel(fitted, 1.9, panelH, null, null, 0), fitted);
+});
+
+test('moving a window onto another bay marks it to fit that wall', async () => {
+  const { moveWallSlot } = await import('../src/store/slotMove.ts');
+  const slots = {
+    'front-0': { id: 'front-0', wall: 'front', index: 0, type: 'window', itemId: 'panorama', canAcceptDoor: true },
+    'front-1': { id: 'front-1', wall: 'front', index: 1, type: 'empty', canAcceptDoor: true }
+  };
+
+  assert.equal(moveWallSlot(slots, 'front-0', 'front-1'), true);
+  assert.equal(slots['front-1'].fitToWall, true);
+  assert.equal(slots['front-0'].fitToWall, undefined);
 });
 
 test('a panorama or mullioned window in a tight wooden overhang adapts to custom size with intact proportions', () => {

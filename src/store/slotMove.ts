@@ -7,6 +7,7 @@ export interface WallSlotLike {
   canAcceptDoor?: boolean;
   isUpper?: boolean;
   coveredBy?: string;
+  fitToWall?: boolean;
 }
 
 export function releaseWideDoorSlots(wallSlots: Record<string, WallSlotLike>, slotId: string) {
@@ -61,6 +62,8 @@ export function moveWallSlot(wallSlots: Record<string, WallSlotLike>, fromId: st
   to.type = fromType;
   to.itemId = fromItemId;
   to.coveredBy = undefined;
+  to.fitToWall = to.type === 'window' ? true : undefined;
+  from.fitToWall = from.type === 'window' ? true : undefined;
 
   for (const [id, item] of [[toId, fromItemId], [fromId, toItemId]] as const) {
     const slot = wallSlots[id];

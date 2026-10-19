@@ -255,7 +255,9 @@ defineEmits<{
   .sheet-reveal {
     display: grid;
     grid-template-rows: 0px;
-    transition: grid-template-rows 320ms cubic-bezier(0.16, 1, 0.3, 1);
+    overflow: hidden;
+    /* min() inside calc() cannot move from 0px, so a transition stays stuck closed and clips the options. */
+    transition: none;
   }
 
   .sheet-reveal.is-open {

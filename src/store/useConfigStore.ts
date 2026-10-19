@@ -556,6 +556,8 @@ export const useConfigStore = defineStore('config', () => {
   const showSun = ref(false);
   const isDragging = ref(false);
   const selectedSlotId = ref<string | null>(null);
+  /** Window bays that still stick out of their wall, so the panel card can offer a fit. */
+  const windowFitOffers = ref<string[]>([]);
   const hoveredSlotId = ref<string | null>(null);
   const hoveredSlotPos = ref<{ x: number; y: number } | null>(null);
   const slotScreenPosition = ref<{ x: number; y: number; visible: boolean } | null>(null);
@@ -1257,7 +1259,8 @@ export const useConfigStore = defineStore('config', () => {
             type: isWindow ? 'window' : 'empty',
             itemId: isWindow ? 'standard-single' : undefined,
             canAcceptDoor: false,
-            isUpper: true
+            isUpper: true,
+            fitToWall: isWindow ? true : undefined
           };
           changed = true;
         }
@@ -1829,6 +1832,7 @@ export const useConfigStore = defineStore('config', () => {
     slot.type = type;
     slot.itemId = itemId;
     slot.coveredBy = undefined;
+    slot.fitToWall = type === 'window' ? true : undefined;
     if ((itemId === 'SKJUTDORR' || itemId === 'SKJUTDORR3') && !slot.isUpper) {
       const count = slot.wall === 'front' || slot.wall === 'back' ? 4 : 3;
       const partnerIndex = slot.index + 1 < count ? slot.index + 1 : slot.index - 1;
@@ -1951,6 +1955,20 @@ export const useConfigStore = defineStore('config', () => {
     slotScreenPosition.value = pos;
   }
 
+  function setWindowFitOffers(ids: string[]) {
+    const next = [...ids].sort();
+    const prev = windowFitOffers.value;
+    if (prev.length === next.length && prev.every((id, index) => id === next[index])) return;
+    windowFitOffers.value = next;
+  }
+
+  function fitWindowToWall(slotId: string) {
+    const slot = wallSlots.value[slotId];
+    if (!slot || slot.type !== 'window') return;
+    slot.fitToWall = true;
+    saveSnapshot();
+  }
+
   function setDimensionLabels(next: Record<string, { x: number; y: number; visible: boolean }>) {
     for (const key of Object.keys(next)) {
       const current = dimensionLabels[key];
@@ -2030,6 +2048,9 @@ export const useConfigStore = defineStore('config', () => {
     hoveredSlotId,
     hoveredSlotPos,
     slotScreenPosition,
+    windowFitOffers,
+    setWindowFitOffers,
+    fitWindowToWall,
     dimensionLabels,
     showDimensions,
     showInnerWalls,
