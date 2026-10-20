@@ -19,7 +19,7 @@
             </span>
           </div>
           <p class="text-xs text-stone-500">
-            {{ isEn ? 'Live project building costs and receipts' : 'Byggkostnader, utlägg och kvitton för projektet' }}
+            {{ isEn ? 'Project building costs in Polish Złoty (PLN) with live Revolut SEK comparison' : 'Projektets byggkostnader i Polska Złoty (zł) med Revolut-kurs mot SEK' }}
           </p>
         </div>
       </div>
@@ -76,13 +76,175 @@
 
     <!-- Main Content Area -->
     <main class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto w-full">
-      <!-- 1. Automatic Summary Dashboard -->
+      <!-- 0. Live Revolut Currency Checker & SEK Comparison Bar -->
+      <section class="rounded-2xl border border-[#d7d1c4] bg-[#FAF8F5] p-4 sm:p-5 shadow-sm transition hover:shadow-md">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <!-- Rate Header & Status -->
+          <div class="flex items-center gap-3.5">
+            <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#173D35]/10 text-xl border border-[#173D35]/20">
+              🇵🇱
+            </div>
+            <div>
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="text-xs font-bold uppercase tracking-wider text-stone-500">
+                  {{ isEn ? 'Main Currency: Polish Złoty (PLN / zł)' : 'Huvudvaluta: Polska złoty (PLN / zł)' }}
+                </span>
+                <span
+                  class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold border"
+                  :class="currencyRate.isCustom
+                    ? 'bg-amber-50 text-amber-800 border-amber-200'
+                    : 'bg-emerald-50 text-emerald-800 border-emerald-200'"
+                >
+                  <span class="w-1.5 h-1.5 rounded-full" :class="currencyRate.isCustom ? 'bg-amber-500' : 'bg-emerald-500 animate-pulse'"></span>
+                  {{ currencyRate.isCustom ? (isEn ? 'Custom Rate' : 'Egen kurs') : 'Revolut Kurs' }}
+                </span>
+              </div>
+
+              <!-- Main Exchange Rate Display -->
+              <div class="flex flex-wrap items-baseline gap-2 mt-0.5">
+                <h3 class="text-xl sm:text-2xl font-black text-[#173D35] tracking-tight">
+                  1 PLN (zł) = {{ currencyRate.ratePlnToSek.toFixed(2) }} SEK (kr)
+                </h3>
+                <span class="text-xs font-semibold text-stone-500">
+                  (1 SEK ≈ {{ currencyRate.rateSekToPln.toFixed(2) }} zł)
+                </span>
+              </div>
+
+              <p class="text-[11px] text-stone-500 mt-0.5">
+                {{ currencyRate.sourceLabel }} · {{ isEn ? 'Updated' : 'Uppdaterad' }} {{ formatRateTime(currencyRate.lastUpdated) }}
+              </p>
+            </div>
+          </div>
+
+          <!-- Quick Action Buttons -->
+          <div class="flex flex-wrap items-center gap-2">
+            <!-- Toggle Converter -->
+            <button
+              type="button"
+              id="btn-toggle-currency-converter"
+              class="inline-flex items-center gap-1.5 rounded-xl border border-[#173D35]/30 bg-white px-3.5 py-2 text-xs font-bold text-[#173D35] shadow-sm transition hover:bg-[#173D35]/10 active:scale-95"
+              @click="showCalculator = !showCalculator"
+            >
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+              </svg>
+              <span>{{ showCalculator ? (isEn ? 'Hide Converter' : 'Dölj omräknare') : (isEn ? 'PLN ⇄ SEK Converter' : 'Omräknare PLN ⇄ SEK') }}</span>
+            </button>
+
+            <!-- Refresh Live Rate -->
+            <button
+              type="button"
+              id="btn-refresh-exchange-rate"
+              class="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 shadow-sm transition hover:bg-stone-50 active:scale-95 disabled:opacity-50"
+              :disabled="isFetchingRate"
+              :title="isEn ? 'Fetch live Revolut market rate' : 'Hämta senaste Revolut-marknadskurs'"
+              @click="handleFetchRate"
+            >
+              <svg class="h-3.5 w-3.5 text-stone-500" :class="{ 'animate-spin': isFetchingRate }" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              <span class="hidden sm:inline">{{ isEn ? 'Live Rate' : 'Hämta kurs' }}</span>
+            </button>
+
+            <!-- Adjust Custom Rate -->
+            <button
+              type="button"
+              id="btn-adjust-exchange-rate"
+              class="inline-flex items-center gap-1 rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-600 shadow-sm transition hover:bg-stone-50 active:scale-95"
+              :title="isEn ? 'Adjust exchange rate' : 'Justera växelkurs'"
+              @click="openRateModal"
+            >
+              <span>⚙️</span>
+              <span class="hidden sm:inline">{{ isEn ? 'Adjust' : 'Justera' }}</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Interactive Two-Way Currency Converter Widget -->
+        <div v-if="showCalculator" class="mt-4 pt-4 border-t border-stone-200">
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 items-end">
+            <!-- PLN Input -->
+            <div class="md:col-span-2 space-y-1">
+              <label class="block text-[11px] font-bold uppercase tracking-wider text-stone-600">
+                {{ isEn ? 'Polish Złoty (PLN / zł)' : 'Polska Złoty (PLN / zł)' }}
+              </label>
+              <div class="relative">
+                <input
+                  v-model="checkerPln"
+                  type="number"
+                  min="0"
+                  step="any"
+                  class="w-full rounded-xl border border-[#d7d1c4] bg-white pl-3.5 pr-12 py-2 text-sm font-bold text-[#173D35] focus:border-[#173D35] focus:outline-none focus:ring-2 focus:ring-[#173D35]/20"
+                  placeholder="0 zł"
+                  @input="onCheckerPlnChange"
+                />
+                <span class="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-stone-400">
+                  zł
+                </span>
+              </div>
+            </div>
+
+            <!-- Conversion direction indicator -->
+            <div class="hidden md:flex justify-center items-center pb-2 text-stone-400 font-bold text-base">
+              ⇄
+            </div>
+
+            <!-- SEK Input -->
+            <div class="md:col-span-2 space-y-1">
+              <label class="block text-[11px] font-bold uppercase tracking-wider text-stone-600">
+                {{ isEn ? 'Swedish Kronor (SEK / kr)' : 'Svenska Kronor (SEK / kr)' }}
+              </label>
+              <div class="relative">
+                <input
+                  v-model="checkerSek"
+                  type="number"
+                  min="0"
+                  step="any"
+                  class="w-full rounded-xl border border-[#d7d1c4] bg-white pl-3.5 pr-12 py-2 text-sm font-bold text-[#173D35] focus:border-[#173D35] focus:outline-none focus:ring-2 focus:ring-[#173D35]/20"
+                  placeholder="0 kr"
+                  @input="onCheckerSekChange"
+                />
+                <span class="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-stone-400">
+                  kr
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick presets & helper note -->
+          <div class="mt-3 flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-stone-200/60">
+            <div class="flex flex-wrap items-center gap-1.5 text-xs">
+              <span class="text-stone-400 font-medium mr-1">{{ isEn ? 'Quick presets:' : 'Snabbjämförelse:' }}</span>
+              <button
+                v-for="preset in [50, 100, 500, 1000, 5000]"
+                :key="preset"
+                type="button"
+                class="rounded-lg border border-stone-200 bg-white hover:bg-stone-50 px-2 py-0.5 text-[11px] font-semibold text-stone-700 transition active:scale-95"
+                @click="selectPresetPln(preset)"
+              >
+                {{ preset }} zł = {{ convertPlnToSek(preset, currencyRate.ratePlnToSek) }} kr
+              </button>
+            </div>
+
+            <button
+              type="button"
+              class="inline-flex items-center gap-1 text-xs font-bold text-[#173D35] hover:underline"
+              @click="useCheckerAmountInNewExpense"
+            >
+              <span>+</span>
+              <span>{{ isEn ? 'Create expense with this amount' : 'Skapa utlägg med detta belopp' }}</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 1. Automatic Summary Dashboard in PLN with SEK Comparison -->
       <section class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <!-- Total Spent Card -->
         <div class="relative overflow-hidden rounded-2xl border border-[#d7d1c4] bg-white p-5 shadow-sm">
           <div class="flex items-center justify-between">
             <span class="text-xs font-bold uppercase tracking-wider text-stone-500">
-              {{ isEn ? 'Total Spending' : 'Totala Utlägg' }}
+              {{ isEn ? 'Total Spending (PLN)' : 'Totala Utlägg (PLN)' }}
             </span>
             <span class="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 font-bold text-sm">
               {{ summary.totalCount }}
@@ -90,10 +252,14 @@
           </div>
           <div class="mt-2 flex items-baseline gap-2">
             <h2 class="text-2xl sm:text-3xl font-extrabold text-[#173D35] tracking-tight">
-              {{ formatSEK(summary.totalAmount) }}
+              {{ formatPLN(summary.totalAmount) }}
             </h2>
           </div>
-          <p class="mt-1 text-xs text-stone-500">
+          <div class="mt-1 flex items-center gap-1.5 text-xs font-semibold text-amber-800">
+            <span>≈ {{ formatSEK(summary.totalAmountSek) }}</span>
+            <span class="text-[10px] text-stone-400 font-normal">({{ currencyRate.ratePlnToSek }} kr/zł)</span>
+          </div>
+          <p class="mt-0.5 text-xs text-stone-500">
             {{ isEn ? `Across ${summary.totalCount} logged expenses` : `Fördelt på ${summary.totalCount} registrerade utlägg` }}
           </p>
         </div>
@@ -101,14 +267,18 @@
         <!-- Average Expense Card -->
         <div class="relative overflow-hidden rounded-2xl border border-[#d7d1c4] bg-white p-5 shadow-sm">
           <span class="text-xs font-bold uppercase tracking-wider text-stone-500">
-            {{ isEn ? 'Average Expense' : 'Genomsnittligt Utlägg' }}
+            {{ isEn ? 'Average Expense (PLN)' : 'Genomsnittligt Utlägg (PLN)' }}
           </span>
           <div class="mt-2 flex items-baseline gap-2">
             <h3 class="text-2xl sm:text-3xl font-extrabold text-[#173D35] tracking-tight">
-              {{ formatSEK(summary.averageAmount) }}
+              {{ formatPLN(summary.averageAmount) }}
             </h3>
           </div>
-          <p class="mt-1 text-xs text-stone-500">
+          <div class="mt-1 flex items-center gap-1.5 text-xs font-semibold text-amber-800">
+            <span>≈ {{ formatSEK(summary.averageAmountSek) }}</span>
+            <span class="text-[10px] text-stone-400 font-normal">({{ isEn ? 'Revolut rate' : 'Revolut-kurs' }})</span>
+          </div>
+          <p class="mt-0.5 text-xs text-stone-500">
             {{ isEn ? 'Per transaction / receipt' : 'Per transaktion / inköp' }}
           </p>
         </div>
@@ -132,13 +302,18 @@
             <p class="mt-1 text-xs text-stone-600">
               {{ manualSelectionMode
                 ? (isEn ? `${selectedIds.size} expenses selected` : `${selectedIds.size} st utlägg markerade`)
-                : (isEn ? 'Pick specific expenses to summarize manually' : 'Välj specifika poster för manuell delsummering') }}
+                : (isEn ? 'Pick specific expenses to summarize manually' : 'Välj poster för manuell delsummering i PLN & SEK') }}
             </p>
           </div>
           <div v-if="manualSelectionMode" class="mt-3 flex items-center justify-between pt-2 border-t border-stone-100">
-            <span class="text-sm font-bold text-amber-700">
-              {{ formatSEK(selectedSubtotal) }}
-            </span>
+            <div>
+              <span class="text-sm font-bold text-amber-700">
+                {{ formatPLN(selectedSubtotal) }}
+              </span>
+              <span class="text-xs text-stone-500 ml-1.5 font-medium">
+                (≈ {{ formatSEK(convertPlnToSek(selectedSubtotal, currencyRate.ratePlnToSek)) }})
+              </span>
+            </div>
             <div class="flex items-center gap-1.5">
               <button
                 type="button"
@@ -163,7 +338,7 @@
       <!-- Category Breakdown Bar -->
       <section v-if="summary.categories.length > 0" class="rounded-2xl border border-[#d7d1c4] bg-white p-5 shadow-sm">
         <h4 class="text-xs font-bold uppercase tracking-wider text-stone-500 mb-3">
-          {{ isEn ? 'Cost Distribution by Category' : 'Kostnadsfördelning per kategori' }}
+          {{ isEn ? 'Cost Distribution by Category (PLN / SEK)' : 'Kostnadsfördelning per kategori (PLN / SEK)' }}
         </h4>
 
         <!-- Visual Multi-segment Progress Bar -->
@@ -173,7 +348,7 @@
             :key="cat.category"
             class="h-full transition-all duration-300"
             :style="{ width: `${cat.percentage}%`, backgroundColor: cat.color }"
-            :title="`${isEn ? cat.labelEn : cat.labelSv}: ${formatSEK(cat.total)} (${cat.percentage}%)`"
+            :title="`${isEn ? cat.labelEn : cat.labelSv}: ${formatPLN(cat.total)} (≈ ${formatSEK(cat.totalSek)}) (${cat.percentage}%)`"
           ></div>
         </div>
 
@@ -187,8 +362,8 @@
           >
             <span class="text-sm">{{ getCategoryMeta(cat.category).icon }}</span>
             <span class="font-semibold text-stone-800">{{ isEn ? cat.labelEn : cat.labelSv }}</span>
-            <span class="font-bold text-[#173D35]">{{ formatSEK(cat.total) }}</span>
-            <span class="text-[11px] font-medium text-stone-500">({{ cat.percentage }}%)</span>
+            <span class="font-bold text-[#173D35]">{{ formatPLN(cat.total) }}</span>
+            <span class="text-[11px] font-medium text-stone-500">(≈ {{ formatSEK(cat.totalSek) }} · {{ cat.percentage }}%)</span>
           </div>
         </div>
       </section>
@@ -287,7 +462,7 @@
         </button>
       </section>
 
-      <!-- 3. Expenses List -->
+      <!-- 3. Expenses List in PLN with SEK Comparison -->
       <section class="space-y-2.5">
         <!-- Empty state -->
         <div
@@ -391,9 +566,17 @@
 
           <!-- Amount and Action buttons -->
           <div class="flex items-center justify-between sm:justify-end gap-3 self-stretch sm:self-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-stone-100">
-            <span class="text-base sm:text-lg font-bold text-[#173D35] tabular-nums">
-              {{ formatSEK(item.amount) }}
-            </span>
+            <div class="text-right">
+              <span class="text-base sm:text-lg font-bold text-[#173D35] tabular-nums block">
+                {{ formatPLN(item.amount) }}
+              </span>
+              <span class="text-[11px] font-semibold text-amber-800 tabular-nums block">
+                ≈ {{ formatSEK(convertPlnToSek(item.amount, currencyRate.ratePlnToSek)) }}
+                <span v-if="item.currency === 'SEK' && item.originalAmount" class="text-stone-400 font-normal">
+                  · {{ isEn ? 'Paid' : 'Betalt' }} {{ formatSEK(item.originalAmount) }}
+                </span>
+              </span>
+            </div>
 
             <div class="flex items-center gap-1">
               <button
@@ -446,9 +629,14 @@
             <p class="text-xs text-stone-300">
               {{ isEn ? 'Selected Subtotal' : 'Delsumma för markerade' }}
             </p>
-            <p class="text-lg font-bold text-white tracking-tight">
-              {{ formatSEK(selectedSubtotal) }}
-            </p>
+            <div class="flex items-baseline gap-2">
+              <p class="text-lg font-bold text-white tracking-tight">
+                {{ formatPLN(selectedSubtotal) }}
+              </p>
+              <p class="text-xs font-semibold text-amber-300">
+                ≈ {{ formatSEK(convertPlnToSek(selectedSubtotal, currencyRate.ratePlnToSek)) }}
+              </p>
+            </div>
           </div>
         </div>
 
@@ -471,7 +659,7 @@
       </aside>
     </transition>
 
-    <!-- Modal: Add / Edit Expense -->
+    <!-- Modal: Add / Edit Expense with PLN as Primary and SEK Helper -->
     <div
       v-if="showExpenseModal"
       class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
@@ -479,9 +667,14 @@
     >
       <div class="relative w-full max-w-lg rounded-3xl border border-[#d7d1c4] bg-white p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between border-b border-stone-100 pb-4">
-          <h3 class="text-lg font-bold text-[#173D35]">
-            {{ editingExpenseId ? (isEn ? 'Edit Expense' : 'Redigera utlägg') : (isEn ? 'Add New Expense' : 'Nytt utlägg') }}
-          </h3>
+          <div>
+            <h3 class="text-lg font-bold text-[#173D35]">
+              {{ editingExpenseId ? (isEn ? 'Edit Expense' : 'Redigera utlägg') : (isEn ? 'Add New Expense' : 'Nytt utlägg') }}
+            </h3>
+            <p class="text-xs text-stone-500">
+              {{ isEn ? 'Main currency is Polish Złoty (PLN / zł)' : 'Huvudvaluta är Polska Złoty (zł / PLN)' }}
+            </p>
+          </div>
           <button
             type="button"
             class="text-stone-400 hover:text-stone-700 text-lg font-bold p-1"
@@ -507,24 +700,79 @@
             />
           </div>
 
-          <!-- Amount in SEK -->
+          <!-- Amount in Polish Złoty (PLN / zł) -->
           <div class="space-y-1">
-            <label class="block text-xs font-bold uppercase tracking-wider text-stone-600">
-              {{ isEn ? 'Amount (SEK)' : 'Belopp (SEK inkl. moms)' }} <span class="text-rose-600">*</span>
-            </label>
+            <div class="flex items-center justify-between">
+              <label class="block text-xs font-bold uppercase tracking-wider text-stone-600">
+                {{ isEn ? 'Amount (PLN / zł)' : 'Belopp i Polska Złoty (zł / PLN)' }} <span class="text-rose-600">*</span>
+              </label>
+              <button
+                type="button"
+                class="text-[11px] font-semibold text-[#173D35] hover:underline"
+                @click="showSekInputHelper = !showSekInputHelper"
+              >
+                {{ showSekInputHelper ? (isEn ? 'Hide SEK calculator' : 'Dölj SEK-omräknare') : (isEn ? 'Paid in SEK? Click here' : 'Betalade du i SEK? Klicka här') }}
+              </button>
+            </div>
             <div class="relative">
               <input
                 v-model="formAmount"
                 type="number"
                 min="0"
-                step="1"
+                step="any"
                 required
-                :placeholder="isEn ? '0 kr' : '0 kr'"
-                class="w-full rounded-xl border border-[#d7d1c4] bg-[#FDFBF7] pl-3.5 pr-12 py-2.5 text-base font-bold text-[#173D35] focus:border-[#173D35] focus:outline-none focus:ring-2 focus:ring-[#173D35]/20"
+                :placeholder="isEn ? '0 zł' : '0 zł'"
+                class="w-full rounded-xl border border-[#d7d1c4] bg-[#FDFBF7] pl-3.5 pr-14 py-2.5 text-base font-bold text-[#173D35] focus:border-[#173D35] focus:outline-none focus:ring-2 focus:ring-[#173D35]/20"
+                @input="formCurrency = 'PLN'"
               />
-              <span class="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-stone-400">
-                kr
+              <span class="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-stone-500">
+                zł (PLN)
               </span>
+            </div>
+
+            <!-- Live SEK comparison underneath amount input -->
+            <div class="flex items-center justify-between text-xs px-1 pt-0.5">
+              <span class="text-stone-600 font-medium">
+                {{ isEn ? 'Equivalent in SEK:' : 'Motsvarar i SEK:' }}
+                <strong class="text-amber-800 ml-1">
+                  ≈ {{ formatSEK(convertPlnToSek(Number(formAmount) || 0, currencyRate.ratePlnToSek)) }}
+                </strong>
+              </span>
+              <span class="text-[11px] text-stone-400">
+                1 zł = {{ currencyRate.ratePlnToSek }} kr
+              </span>
+            </div>
+
+            <!-- Expandable SEK Helper Box -->
+            <div v-if="showSekInputHelper" class="mt-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs space-y-2">
+              <div class="flex items-center justify-between">
+                <span class="font-bold text-stone-700">
+                  {{ isEn ? 'Calculate from SEK receipt amount:' : 'Räkna om från kvitto/betalning i SEK:' }}
+                </span>
+                <span class="text-[10px] text-stone-500 font-medium">
+                  Revolut-kurs: ÷ {{ currencyRate.ratePlnToSek }}
+                </span>
+              </div>
+              <div class="flex items-center gap-2">
+                <div class="relative flex-1">
+                  <input
+                    v-model="formSekHelperAmount"
+                    type="number"
+                    min="0"
+                    step="any"
+                    :placeholder="isEn ? 'Amount in SEK' : 'Belopp i SEK (kr)'"
+                    class="w-full rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-xs font-bold text-stone-800 focus:outline-none focus:ring-1 focus:ring-[#173D35]"
+                  />
+                  <span class="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-stone-400">kr</span>
+                </div>
+                <button
+                  type="button"
+                  class="rounded-lg bg-[#173D35] px-3 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-[#0f2b25]"
+                  @click="applySekHelperToPln"
+                >
+                  {{ isEn ? 'Apply to PLN' : 'Infoga i zł' }}
+                </button>
+              </div>
             </div>
           </div>
 
@@ -569,7 +817,7 @@
               v-model="formNotes"
               type="text"
               maxlength="120"
-              :placeholder="isEn ? 'E.g. Bauhaus, Beijer Bygg, invoice #1042' : 'T.ex. Beijer Bygg, Bauhaus, faktura 1042'"
+              :placeholder="isEn ? 'E.g. Castorama, Leroy Merlin, invoice #1042' : 'T.ex. Castorama, Leroy Merlin, Bauhaus, faktura 1042'"
               class="w-full rounded-xl border border-[#d7d1c4] bg-[#FDFBF7] px-3.5 py-2 text-sm text-[#222925] focus:border-[#173D35] focus:outline-none"
             />
           </div>
@@ -649,6 +897,83 @@
             >
               {{ editingExpenseId ? (isEn ? 'Save Changes' : 'Spara ändringar') : (isEn ? 'Add Expense' : 'Lägg till utlägg') }}
             </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Modal: Adjust Exchange Rate -->
+    <div
+      v-if="showRateModal"
+      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      @click.self="showRateModal = false"
+    >
+      <div class="relative w-full max-w-sm rounded-3xl border border-[#d7d1c4] bg-white p-6 shadow-2xl">
+        <div class="flex items-center justify-between border-b border-stone-100 pb-3">
+          <h3 class="text-base font-bold text-[#173D35] flex items-center gap-2">
+            <span>⚙️</span>
+            <span>{{ isEn ? 'Adjust Exchange Rate' : 'Justera växelkurs' }}</span>
+          </h3>
+          <button
+            type="button"
+            class="text-stone-400 hover:text-stone-700 text-lg font-bold p-1"
+            @click="showRateModal = false"
+          >
+            ✕
+          </button>
+        </div>
+
+        <form class="mt-4 space-y-4" @submit.prevent="saveCustomRate">
+          <p class="text-xs text-stone-600">
+            {{ isEn
+              ? 'Enter the exchange rate from your Revolut receipt or transaction (SEK per 1 PLN).'
+              : 'Ange växelkursen från ditt Revolut-kvitto eller transaktion (SEK per 1 PLN).' }}
+          </p>
+
+          <div class="space-y-1">
+            <label class="block text-xs font-bold uppercase tracking-wider text-stone-600">
+              {{ isEn ? '1 PLN equals (SEK):' : '1 PLN motsvarar (SEK):' }}
+            </label>
+            <div class="relative">
+              <input
+                v-model="customRateInput"
+                type="number"
+                step="0.0001"
+                min="0.1"
+                max="20"
+                required
+                class="w-full rounded-xl border border-[#d7d1c4] bg-[#FDFBF7] px-3.5 py-2.5 text-base font-bold text-[#173D35] focus:border-[#173D35] focus:outline-none"
+              />
+              <span class="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-stone-400">
+                kr/zł
+              </span>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between pt-2">
+            <button
+              type="button"
+              class="text-xs font-semibold text-stone-500 hover:underline"
+              @click="handleResetRate"
+            >
+              {{ isEn ? 'Reset to default' : 'Återställ standard' }}
+            </button>
+
+            <div class="flex items-center gap-2">
+              <button
+                type="button"
+                class="rounded-xl px-3 py-1.5 text-xs font-semibold text-stone-600 hover:bg-stone-100"
+                @click="showRateModal = false"
+              >
+                {{ isEn ? 'Cancel' : 'Avbryt' }}
+              </button>
+              <button
+                type="submit"
+                class="rounded-xl bg-[#173D35] px-4 py-1.5 text-xs font-bold text-white shadow-md hover:bg-[#0f2b25]"
+              >
+                {{ isEn ? 'Save Rate' : 'Spara kurs' }}
+              </button>
+            </div>
           </div>
         </form>
       </div>
@@ -772,6 +1097,7 @@ import {
   type ExpenseItem,
   type ExpenseCategory,
   type ExpenseReceipt,
+  type CurrencyRateInfo,
   EXPENSE_CATEGORIES,
   getCategoryMeta,
   loadExpenses,
@@ -779,12 +1105,19 @@ import {
   updateExpense,
   deleteExpense,
   calculateExpenseSummary,
+  formatPLN,
   formatSEK,
   formatExpenseDate,
   compressReceiptFile,
   generateSummaryText,
   generateCsv,
-  expenseHouseKey
+  expenseHouseKey,
+  getStoredCurrencyRate,
+  fetchLiveExchangeRate,
+  setCustomExchangeRate,
+  resetToDefaultExchangeRate,
+  convertPlnToSek,
+  convertSekToPln
 } from '../../services/expenseSave';
 import { getStoredParticipant } from '../../services/moodSave';
 import { generateQrSvg } from '../../mood/qr';
@@ -815,6 +1148,21 @@ const activeHouseKey = computed(() => props.houseKey || expenseHouseKey());
 
 const expenses = ref<ExpenseItem[]>([]);
 const inviteToken = ref('');
+
+// Currency rate & comparison state
+const currencyRate = ref<CurrencyRateInfo>(getStoredCurrencyRate());
+const isFetchingRate = ref(false);
+const showCalculator = ref(true);
+const checkerPln = ref<number | string>(100);
+const checkerSek = ref<number | string>(Math.round(100 * currencyRate.value.ratePlnToSek));
+const showRateModal = ref(false);
+const customRateInput = ref<number>(currencyRate.value.ratePlnToSek);
+
+// Add / Edit modal SEK conversion helper
+const showSekInputHelper = ref(false);
+const formSekHelperAmount = ref<number | string>('');
+const formCurrency = ref<'PLN' | 'SEK'>('PLN');
+const formOriginalAmount = ref<number | undefined>(undefined);
 
 const searchQuery = ref('');
 const selectedCategoryFilter = ref<string>('all');
@@ -847,6 +1195,19 @@ function showToast(msg: string) {
   }, 2500);
 }
 
+function formatRateTime(isoDate: string): string {
+  try {
+    const d = new Date(isoDate);
+    if (isNaN(d.getTime())) return isoDate;
+    return d.toLocaleTimeString(isEn.value ? 'en-GB' : 'sv-SE', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch {
+    return isoDate;
+  }
+}
+
 function refresh() {
   const state = loadExpenses(activeHouseKey.value);
   expenses.value = state.expenses;
@@ -856,6 +1217,18 @@ function refresh() {
 onMounted(() => {
   refresh();
   generateQr();
+  onCheckerPlnChange();
+
+  // Non-blocking background attempt to refresh latest Revolut interbank rate
+  void fetchLiveExchangeRate()
+    .then((updated) => {
+      currencyRate.value = updated;
+      customRateInput.value = updated.ratePlnToSek;
+      onCheckerPlnChange();
+    })
+    .catch(() => {
+      // Keep saved rate
+    });
 });
 
 watch(activeHouseKey, () => {
@@ -864,7 +1237,7 @@ watch(activeHouseKey, () => {
 });
 
 const summary = computed(() => {
-  return calculateExpenseSummary(expenses.value);
+  return calculateExpenseSummary(expenses.value, selectedIds.value, currencyRate.value.ratePlnToSek);
 });
 
 const selectedSubtotal = computed(() => {
@@ -898,7 +1271,8 @@ const filteredExpenses = computed(() => {
     const matchCategory = getCategoryMeta(item.category).labelSv.toLowerCase().includes(query)
       || getCategoryMeta(item.category).labelEn.toLowerCase().includes(query);
     const matchAmount = String(item.amount).includes(query);
-    return matchTitle || matchNotes || matchPaidBy || matchCategory || matchAmount;
+    const matchSek = String(convertPlnToSek(item.amount, currencyRate.value.ratePlnToSek)).includes(query);
+    return matchTitle || matchNotes || matchPaidBy || matchCategory || matchAmount || matchSek;
   });
 
   return result.sort((a, b) => {
@@ -917,6 +1291,89 @@ const filteredExpenses = computed(() => {
     return 0;
   });
 });
+
+// Currency checker / converter methods
+function onCheckerPlnChange() {
+  const pln = Number(checkerPln.value);
+  if (isNaN(pln) || checkerPln.value === '') {
+    checkerSek.value = '';
+    return;
+  }
+  checkerSek.value = convertPlnToSek(pln, currencyRate.value.ratePlnToSek);
+}
+
+function onCheckerSekChange() {
+  const sek = Number(checkerSek.value);
+  if (isNaN(sek) || checkerSek.value === '') {
+    checkerPln.value = '';
+    return;
+  }
+  checkerPln.value = convertSekToPln(sek, currencyRate.value.ratePlnToSek);
+}
+
+function selectPresetPln(amount: number) {
+  checkerPln.value = amount;
+  checkerSek.value = convertPlnToSek(amount, currencyRate.value.ratePlnToSek);
+}
+
+function useCheckerAmountInNewExpense() {
+  openNewExpenseModal();
+  const pln = Number(checkerPln.value);
+  if (pln > 0) {
+    formAmount.value = pln;
+  }
+}
+
+async function handleFetchRate() {
+  isFetchingRate.value = true;
+  try {
+    const updated = await fetchLiveExchangeRate();
+    currencyRate.value = updated;
+    customRateInput.value = updated.ratePlnToSek;
+    onCheckerPlnChange();
+    showToast(isEn.value ? `Revolut rate updated: 1 PLN = ${updated.ratePlnToSek} SEK` : `Revolut-kurs uppdaterad: 1 PLN = ${updated.ratePlnToSek} SEK`);
+  } catch {
+    showToast(isEn.value ? 'Using saved Revolut exchange rate' : 'Använder sparad Revolut-växelkurs');
+  } finally {
+    isFetchingRate.value = false;
+  }
+}
+
+function openRateModal() {
+  customRateInput.value = currencyRate.value.ratePlnToSek;
+  showRateModal.value = true;
+}
+
+function saveCustomRate() {
+  const rate = Number(customRateInput.value);
+  if (rate > 0) {
+    const updated = setCustomExchangeRate(rate);
+    currencyRate.value = updated;
+    onCheckerPlnChange();
+    showRateModal.value = false;
+    showToast(isEn.value ? `Exchange rate set to 1 PLN = ${rate} SEK` : `Växelkurs sparad: 1 PLN = ${rate} SEK`);
+  }
+}
+
+function handleResetRate() {
+  const reset = resetToDefaultExchangeRate();
+  currencyRate.value = reset;
+  customRateInput.value = reset.ratePlnToSek;
+  onCheckerPlnChange();
+  showRateModal.value = false;
+  showToast(isEn.value ? 'Reset to default Revolut rate' : 'Återställt till standard Revolut-kurs');
+}
+
+function applySekHelperToPln() {
+  const sek = Number(formSekHelperAmount.value);
+  if (sek > 0) {
+    const pln = convertSekToPln(sek, currencyRate.value.ratePlnToSek);
+    formAmount.value = pln;
+    formCurrency.value = 'SEK';
+    formOriginalAmount.value = sek;
+    showToast(isEn.value ? `${sek} SEK converted to ${pln} zł` : `${sek} kr omräknat till ${pln} zł`);
+  }
+}
 
 function toggleSelect(id: string) {
   const next = new Set(selectedIds.value);
@@ -945,6 +1402,10 @@ function openNewExpenseModal() {
   formDate.value = new Date().toISOString().slice(0, 10);
   formNotes.value = '';
   formReceipt.value = undefined;
+  formCurrency.value = 'PLN';
+  formOriginalAmount.value = undefined;
+  showSekInputHelper.value = false;
+  formSekHelperAmount.value = '';
   showExpenseModal.value = true;
 }
 
@@ -956,6 +1417,10 @@ function openEditExpenseModal(item: ExpenseItem) {
   formDate.value = item.date || item.createdAt.slice(0, 10);
   formNotes.value = item.notes || '';
   formReceipt.value = item.receipt;
+  formCurrency.value = item.currency || 'PLN';
+  formOriginalAmount.value = item.originalAmount;
+  showSekInputHelper.value = false;
+  formSekHelperAmount.value = item.originalAmount ? String(item.originalAmount) : '';
   showExpenseModal.value = true;
 }
 
@@ -982,16 +1447,21 @@ function saveExpenseForm() {
     email: sessionStore.user?.email || currentParticipant?.email
   };
 
+  const amountVal = Number(formAmount.value) || 0;
+
   if (editingExpenseId.value) {
     updateExpense(
       editingExpenseId.value,
       {
         title: formTitle.value.trim(),
-        amount: Number(formAmount.value) || 0,
+        amount: amountVal,
         category: formCategory.value,
         date: formDate.value,
         notes: formNotes.value.trim() || undefined,
-        receipt: formReceipt.value
+        receipt: formReceipt.value,
+        currency: formCurrency.value,
+        originalAmount: formOriginalAmount.value,
+        exchangeRate: currencyRate.value.ratePlnToSek
       },
       activeHouseKey.value
     );
@@ -1000,12 +1470,15 @@ function saveExpenseForm() {
     addExpense(
       {
         title: formTitle.value.trim(),
-        amount: Number(formAmount.value) || 0,
+        amount: amountVal,
         category: formCategory.value,
         date: formDate.value,
         paidBy: author,
         notes: formNotes.value.trim() || undefined,
-        receipt: formReceipt.value
+        receipt: formReceipt.value,
+        currency: formCurrency.value,
+        originalAmount: formOriginalAmount.value,
+        exchangeRate: currencyRate.value.ratePlnToSek
       },
       activeHouseKey.value
     );
@@ -1017,9 +1490,10 @@ function saveExpenseForm() {
 }
 
 function confirmDelete(item: ExpenseItem) {
+  const sekEquiv = convertPlnToSek(item.amount, currencyRate.value.ratePlnToSek);
   const confirmMsg = isEn.value
-    ? `Delete "${item.title}" (${formatSEK(item.amount)})?`
-    : `Vill du ta bort "${item.title}" (${formatSEK(item.amount)})?`;
+    ? `Delete "${item.title}" (${formatPLN(item.amount)} / ≈ ${formatSEK(sekEquiv)})?`
+    : `Vill du ta bort "${item.title}" (${formatPLN(item.amount)} / ≈ ${formatSEK(sekEquiv)})?`;
   if (confirm(confirmMsg)) {
     deleteExpense(item.id, activeHouseKey.value);
     showToast(isEn.value ? 'Expense deleted' : 'Utlägg borttaget');

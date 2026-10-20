@@ -124,9 +124,165 @@ export interface ExpenseReceipt {
   sizeBytes?: number;
 }
 
+export interface CurrencyRateInfo {
+  ratePlnToSek: number;
+  rateSekToPln: number;
+  lastUpdated: string;
+  source: 'revolut_market' | 'ecb' | 'manual' | 'default';
+  sourceLabel: string;
+  isCustom?: boolean;
+}
+
+export const RATE_STORAGE_KEY = 'builder.currency.rate_pln_sek';
+export const DEFAULT_RATE_PLN_TO_SEK = 2.54;
+export const DEFAULT_RATE_SEK_TO_PLN = 0.3937;
+
+export function getDefaultCurrencyRate(): CurrencyRateInfo {
+  return {
+    ratePlnToSek: DEFAULT_RATE_PLN_TO_SEK,
+    rateSekToPln: DEFAULT_RATE_SEK_TO_PLN,
+    lastUpdated: new Date().toISOString(),
+    source: 'default',
+    sourceLabel: 'Revolut / Marknadskurs (2,54 SEK)'
+  };
+}
+
+export function getStoredCurrencyRate(): CurrencyRateInfo {
+  try {
+    if (typeof localStorage === 'undefined') return getDefaultCurrencyRate();
+    const raw = localStorage.getItem(RATE_STORAGE_KEY);
+    if (!raw) return getDefaultCurrencyRate();
+    const data = JSON.parse(raw);
+    if (data && typeof data.ratePlnToSek === 'number' && data.ratePlnToSek > 0) {
+      return {
+        ratePlnToSek: Math.round(data.ratePlnToSek * 10000) / 10000,
+        rateSekToPln: Math.round((data.rateSekToPln || (1 / data.ratePlnToSek)) * 10000) / 10000,
+        lastUpdated: data.lastUpdated || new Date().toISOString(),
+        source: data.source || 'revolut_market',
+        sourceLabel: data.sourceLabel || 'Revolut / Marknadskurs',
+        isCustom: Boolean(data.isCustom)
+      };
+    }
+    return getDefaultCurrencyRate();
+  } catch {
+    return getDefaultCurrencyRate();
+  }
+}
+
+export function saveCurrencyRate(info: CurrencyRateInfo): void {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    localStorage.setItem(RATE_STORAGE_KEY, JSON.stringify(info));
+  } catch {
+    // ignore
+  }
+}
+
+export function setCustomExchangeRate(ratePlnToSek: number): CurrencyRateInfo {
+  const cleanRate = Math.max(0.1, Math.min(20, Number(ratePlnToSek) || DEFAULT_RATE_PLN_TO_SEK));
+  const rounded = Math.round(cleanRate * 10000) / 10000;
+  const info: CurrencyRateInfo = {
+    ratePlnToSek: rounded,
+    rateSekToPln: Math.round((1 / rounded) * 10000) / 10000,
+    lastUpdated: new Date().toISOString(),
+    source: 'manual',
+    sourceLabel: 'Egen kurs / Revolut-kvitto',
+    isCustom: true
+  };
+  saveCurrencyRate(info);
+  return info;
+}
+
+export function resetToDefaultExchangeRate(): CurrencyRateInfo {
+  const def = getDefaultCurrencyRate();
+  saveCurrencyRate(def);
+  return def;
+}
+
+export async function fetchLiveExchangeRate(): Promise<CurrencyRateInfo> {
+  const current = getStoredCurrencyRate();
+  if (current.isCustom) return current;
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4000);
+    const res = await fetch('https://open.er-api.com/v6/latest/PLN', {
+      signal: controller.signal
+    });
+    clearTimeout(timeout);
+    if (res.ok) {
+      const data = await res.json();
+      const sekRate = data?.rates?.SEK;
+      if (typeof sekRate === 'number' && sekRate > 0) {
+        const rounded = Math.round(sekRate * 10000) / 10000;
+        const info: CurrencyRateInfo = {
+          ratePlnToSek: rounded,
+          rateSekToPln: Math.round((1 / rounded) * 10000) / 10000,
+          lastUpdated: new Date().toISOString(),
+          source: 'revolut_market',
+          sourceLabel: `Revolut / Marknad (${rounded.toFixed(2)} SEK)`
+        };
+        saveCurrencyRate(info);
+        return info;
+      }
+    }
+  } catch {
+    // fallback
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3500);
+    const res = await fetch('https://api.frankfurter.app/latest?from=PLN&to=SEK', {
+      signal: controller.signal
+    });
+    clearTimeout(timeout);
+    if (res.ok) {
+      const data = await res.json();
+      const sekRate = data?.rates?.SEK;
+      if (typeof sekRate === 'number' && sekRate > 0) {
+        const rounded = Math.round(sekRate * 10000) / 10000;
+        const info: CurrencyRateInfo = {
+          ratePlnToSek: rounded,
+          rateSekToPln: Math.round((1 / rounded) * 10000) / 10000,
+          lastUpdated: new Date().toISOString(),
+          source: 'ecb',
+          sourceLabel: `ECB / Revolut-referens (${rounded.toFixed(2)} SEK)`
+        };
+        saveCurrencyRate(info);
+        return info;
+      }
+    }
+  } catch {
+    // fallback
+  }
+
+  return current;
+}
+
+export function convertPlnToSek(amountPln: number, rate = getStoredCurrencyRate().ratePlnToSek): number {
+  return Math.round((amountPln || 0) * rate);
+}
+
+export function convertSekToPln(amountSek: number, rate = getStoredCurrencyRate().ratePlnToSek): number {
+  if (!rate || rate <= 0) return amountSek;
+  return Math.round(((amountSek || 0) / rate) * 100) / 100;
+}
+
+export function formatPLN(amount: number): string {
+  const num = Number(amount || 0);
+  const isInt = Number.isInteger(num);
+  const str = isInt ? Math.round(num).toString() : (Math.round(num * 100) / 100).toString();
+  const parts = str.split('.');
+  parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  const formatted = parts.length > 1 ? `${parts[0]},${parts[1]}` : parts[0];
+  return `${formatted} zł`;
+}
+
 export interface ExpenseItem {
   id: string;
   title: string;
+  /** Amount in main currency Polish Złoty (PLN / zł) */
   amount: number;
   category: ExpenseCategory;
   /** Automatically assigned ISO timestamp when the expense is logged */
@@ -136,6 +292,12 @@ export interface ExpenseItem {
   paidBy: ExpenseAuthor;
   receipt?: ExpenseReceipt;
   notes?: string;
+  /** Currency of entry: 'PLN' (main) or 'SEK' */
+  currency?: 'PLN' | 'SEK';
+  /** Original amount if entered in SEK */
+  originalAmount?: number;
+  /** Exchange rate at time of record */
+  exchangeRate?: number;
 }
 
 export interface ExpenseState {
@@ -151,17 +313,22 @@ export interface CategorySummary {
   labelEn: string;
   color: string;
   total: number;
+  totalSek: number;
   count: number;
   percentage: number;
 }
 
 export interface ExpenseSummary {
   totalAmount: number;
+  totalAmountSek: number;
   totalCount: number;
   averageAmount: number;
+  averageAmountSek: number;
   categories: CategorySummary[];
   selectedCount?: number;
   selectedAmount?: number;
+  selectedAmountSek?: number;
+  exchangeRate: number;
 }
 
 const ACTIVE_HOUSE_KEY = 'builder.house.active';
@@ -334,13 +501,27 @@ export function addExpense(
   const now = new Date();
   const createdAt = now.toISOString();
   const dateStr = data.date || now.toISOString().slice(0, 10);
+  const currentRate = getStoredCurrencyRate().ratePlnToSek;
+
+  let amount = Math.max(0, Math.round(Number(data.amount) || 0));
+  let originalAmount = data.originalAmount;
+  const currency: 'PLN' | 'SEK' = data.currency || 'PLN';
+
+  // If user entered explicitly in SEK, convert to PLN as primary storage
+  if (data.currency === 'SEK' && data.originalAmount !== undefined) {
+    originalAmount = Number(data.originalAmount);
+    amount = Math.max(0, Math.round(convertSekToPln(originalAmount, currentRate)));
+  }
 
   const item: ExpenseItem = {
     ...data,
     id: expenseId(),
     createdAt,
     date: dateStr,
-    amount: Math.max(0, Math.round(Number(data.amount) || 0))
+    amount,
+    currency,
+    originalAmount,
+    exchangeRate: data.exchangeRate || currentRate
   };
 
   state.expenses = [item, ...state.expenses];
@@ -384,8 +565,11 @@ export function deleteExpense(id: string, houseKey = expenseHouseKey()): boolean
 
 export function calculateExpenseSummary(
   expenses: ExpenseItem[],
-  selectedIds?: Set<string>
+  selectedIds?: Set<string>,
+  customRate?: number
 ): ExpenseSummary {
+  const rateInfo = getStoredCurrencyRate();
+  const exchangeRate = customRate ?? rateInfo.ratePlnToSek;
   const totalCount = expenses.length;
   let totalAmount = 0;
 
@@ -419,6 +603,8 @@ export function calculateExpenseSummary(
   }
 
   const averageAmount = totalCount > 0 ? Math.round(totalAmount / totalCount) : 0;
+  const totalAmountSek = convertPlnToSek(totalAmount, exchangeRate);
+  const averageAmountSek = convertPlnToSek(averageAmount, exchangeRate);
 
   const categories = EXPENSE_CATEGORIES.map((cat) => {
     const data = categoryTotals[cat.id] || { total: 0, count: 0 };
@@ -429,6 +615,7 @@ export function calculateExpenseSummary(
       labelEn: cat.labelEn,
       color: cat.color,
       total: data.total,
+      totalSek: convertPlnToSek(data.total, exchangeRate),
       count: data.count,
       percentage
     };
@@ -436,10 +623,33 @@ export function calculateExpenseSummary(
 
   return {
     totalAmount,
+    totalAmountSek,
     totalCount,
     averageAmount,
+    averageAmountSek,
     categories,
-    ...(selectedIds ? { selectedCount, selectedAmount } : {})
+    exchangeRate,
+    ...(selectedIds
+      ? {
+          selectedCount,
+          selectedAmount,
+          selectedAmountSek: convertPlnToSek(selectedAmount, exchangeRate)
+        }
+      : {})
+  };
+}
+
+export function formatDualCurrency(amountPln: number, rate = getStoredCurrencyRate().ratePlnToSek): {
+  pln: string;
+  sek: string;
+  combined: string;
+} {
+  const plnStr = formatPLN(amountPln);
+  const sekStr = formatSEK(convertPlnToSek(amountPln, rate));
+  return {
+    pln: plnStr,
+    sek: sekStr,
+    combined: `${plnStr} (≈ ${sekStr})`
   };
 }
 
@@ -569,12 +779,14 @@ export function generateSummaryText(expenses: ExpenseItem[], title = 'Kostnadssa
   const summary = calculateExpenseSummary(expenses);
   const lines: string[] = [];
   lines.push(`=== ${title} ===`);
-  lines.push(`Totalt: ${formatSEK(summary.totalAmount)} (${summary.totalCount} st utlägg)`);
-  lines.push(`Snittkostnad: ${formatSEK(summary.averageAmount)} / utlägg`);
+  lines.push(`Huvudvaluta: Polska złoty (PLN / zł)`);
+  lines.push(`Revolut-kurs: 1 PLN = ${summary.exchangeRate} SEK`);
+  lines.push(`Totalt: ${formatPLN(summary.totalAmount)} (≈ ${formatSEK(summary.totalAmountSek)}) · ${summary.totalCount} st utlägg`);
+  lines.push(`Snittkostnad: ${formatPLN(summary.averageAmount)} (≈ ${formatSEK(summary.averageAmountSek)}) / utlägg`);
   lines.push('');
   lines.push('--- KATEGORIER ---');
   for (const cat of summary.categories) {
-    lines.push(`• ${cat.labelSv}: ${formatSEK(cat.total)} (${cat.count} st, ${cat.percentage}%)`);
+    lines.push(`• ${cat.labelSv}: ${formatPLN(cat.total)} (≈ ${formatSEK(cat.totalSek)}) (${cat.count} st, ${cat.percentage}%)`);
   }
   lines.push('');
   lines.push('--- SPECIFIKATION ---');
@@ -583,22 +795,27 @@ export function generateSummaryText(expenses: ExpenseItem[], title = 'Kostnadssa
     const dateStr = item.date || item.createdAt.slice(0, 10);
     const paidByStr = item.paidBy?.name ? ` [${item.paidBy.name}]` : '';
     const noteStr = item.notes ? ` (${item.notes})` : '';
-    lines.push(`${dateStr} | ${item.title} | ${meta.labelSv} | ${formatSEK(item.amount)}${paidByStr}${noteStr}`);
+    const sekAmt = convertPlnToSek(item.amount, summary.exchangeRate);
+    lines.push(`${dateStr} | ${item.title} | ${meta.labelSv} | ${formatPLN(item.amount)} (≈ ${formatSEK(sekAmt)})${paidByStr}${noteStr}`);
   }
   lines.push('');
-  lines.push(`Skapad: ${new Date().toLocaleDateString('sv-SE')} via Builder`);
+  lines.push(`Skapad: ${new Date().toLocaleDateString('sv-SE')} via Builder (Revolut FX)`);
   return lines.join('\n');
 }
 
 export function generateCsv(expenses: ExpenseItem[]): string {
-  const header = ['Datum', 'Titel', 'Kategori', 'Belopp (SEK)', 'Betald av', 'Anteckningar', 'Har kvitto'];
+  const rate = getStoredCurrencyRate().ratePlnToSek;
+  const header = ['Datum', 'Titel', 'Kategori', 'Belopp (PLN)', 'Motsvarande (SEK)', 'Växelkurs', 'Betald av', 'Anteckningar', 'Har kvitto'];
   const rows = expenses.map((item) => {
     const meta = getCategoryMeta(item.category);
+    const sekAmt = convertPlnToSek(item.amount, rate);
     return [
       item.date || item.createdAt.slice(0, 10),
       `"${(item.title || '').replace(/"/g, '""')}"`,
       `"${meta.labelSv}"`,
       String(item.amount || 0),
+      String(sekAmt),
+      String(rate),
       `"${(item.paidBy?.name || '').replace(/"/g, '""')}"`,
       `"${(item.notes || '').replace(/"/g, '""')}"`,
       item.receipt?.dataUrl ? 'Ja' : 'Nej'

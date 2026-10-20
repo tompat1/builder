@@ -11,13 +11,20 @@ import {
   updateExpense,
   deleteExpense,
   calculateExpenseSummary,
+  formatPLN,
   formatSEK,
+  formatDualCurrency,
   formatExpenseDate,
   generateSummaryText,
   generateCsv,
   hasExpenseAccess,
   grantExpenseAccess,
-  generateExpenseToken
+  generateExpenseToken,
+  convertPlnToSek,
+  convertSekToPln,
+  getStoredCurrencyRate,
+  setCustomExchangeRate,
+  resetToDefaultExchangeRate
 } from '../src/services/expenseSave.ts';
 
 // Mock localStorage for test environment
@@ -204,14 +211,15 @@ test('receipt attachment data is correctly saved and formatted in summary and cs
   // Summary text
   const text = generateSummaryText(items);
   assert.ok(text.includes('Skjutdörr 20x21'));
-  assert.ok(text.includes('22 000 kr'));
+  assert.ok(text.includes('22 000 zł'));
   assert.ok(text.includes('Skånska Byggvaror'));
   assert.ok(text.includes('Erik'));
+  assert.ok(text.includes('Revolut'));
 
   // CSV export
   const csv = generateCsv(items);
-  assert.ok(csv.includes('Datum;Titel;Kategori;Belopp (SEK);Betald av;Anteckningar;Har kvitto'));
-  assert.ok(csv.includes('2026-10-20;"Skjutdörr 20x21";"Fönster & Dörrar";22000;"Erik";"Skånska Byggvaror";Ja'));
+  assert.ok(csv.includes('Datum;Titel;Kategori;Belopp (PLN);Motsvarande (SEK);Växelkurs;Betald av;Anteckningar;Har kvitto'));
+  assert.ok(csv.includes('2026-10-20;"Skjutdörr 20x21";"Fönster & Dörrar";22000;55880;2.54;"Erik";"Skånska Byggvaror";Ja'));
 });
 
 test('expense access control enforces invitation requirement while granting mood board access to expense users', () => {
@@ -288,4 +296,58 @@ test('saveExpenses and format helpers work accurately', () => {
   const fixedDate = '2025-05-15T14:30:00.000Z';
   const formattedSv = formatExpenseDate(fixedDate, 'sv');
   assert.ok(formattedSv.includes('15') || formattedSv.includes('maj'));
+});
+
+test('polish złoty (PLN) is main currency with Revolut exchange rate conversion to SEK', () => {
+  globalThis.localStorage.clear();
+
+  // 1. Formatting PLN
+  assert.equal(formatPLN(0), '0 zł');
+  assert.equal(formatPLN(1500), '1 500 zł');
+  assert.equal(formatPLN(24900.5), '24 900,5 zł');
+
+  // 2. Dual currency formatting
+  const dual = formatDualCurrency(1000, 2.54);
+  assert.equal(dual.pln, '1 000 zł');
+  assert.equal(dual.sek, '2 540 kr');
+  assert.equal(dual.combined, '1 000 zł (≈ 2 540 kr)');
+
+  // 3. Conversion helpers
+  assert.equal(convertPlnToSek(1000, 2.54), 2540);
+  assert.equal(convertSekToPln(2540, 2.54), 1000);
+
+  // 4. Rate storage and manual override
+  const initial = getStoredCurrencyRate();
+  assert.equal(initial.ratePlnToSek, 2.54);
+  assert.ok(initial.sourceLabel.includes('Revolut'));
+
+  // Setting custom Revolut rate from receipt
+  const updated = setCustomExchangeRate(2.62);
+  assert.equal(updated.ratePlnToSek, 2.62);
+  assert.equal(getStoredCurrencyRate().ratePlnToSek, 2.62);
+  assert.equal(convertPlnToSek(1000), 2620);
+
+  // Resetting to default
+  const reset = resetToDefaultExchangeRate();
+  assert.equal(reset.ratePlnToSek, 2.54);
+
+  // 5. Adding expense entered in SEK converts to PLN main currency
+  const itemInSek = addExpense({
+    title: 'Bauhaus skruv',
+    amount: 0,
+    currency: 'SEK',
+    originalAmount: 2540,
+    category: 'materials',
+    paidBy: { name: 'Tomasz', avatar: '' }
+  }, 'house_currency_test');
+
+  assert.equal(itemInSek.currency, 'SEK');
+  assert.equal(itemInSek.originalAmount, 2540);
+  assert.equal(itemInSek.amount, 1000); // 2540 SEK / 2.54 = 1000 PLN
+
+  // Summary includes both PLN and SEK
+  const summary = calculateExpenseSummary([itemInSek]);
+  assert.equal(summary.totalAmount, 1000); // 1000 PLN
+  assert.equal(summary.totalAmountSek, 2540); // 2540 SEK
+  assert.equal(summary.exchangeRate, 2.54);
 });
