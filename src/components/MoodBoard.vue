@@ -147,6 +147,19 @@
             <span class="hidden md:inline">{{ t('mood.fullscreenFeed') }}</span>
           </button>
 
+          <!-- Expense Tracker (Accessible for users with expense access) -->
+          <button
+            v-if="canAccessExpenses"
+            type="button"
+            id="btn-mood-expenses"
+            class="flex h-9 sm:h-10 items-center gap-1.5 rounded-xl border border-amber-600/30 bg-amber-500/10 px-2.5 sm:px-3 text-xs font-bold text-amber-900 shadow-sm transition hover:bg-amber-500/20 active:scale-95"
+            :title="locale === 'en' ? 'Open Expense Tracker' : 'Öppna kostnadsuppföljning'"
+            @click="openExpenses"
+          >
+            <span>🧾</span>
+            <span class="hidden sm:inline">{{ locale === 'en' ? 'Expenses' : 'Kostnader' }}</span>
+          </button>
+
           <button
             type="button"
             id="btn-mood-share"
@@ -1191,6 +1204,7 @@ import {
   togglePieceLikeCloudflare,
   addPieceCommentCloudflare
 } from '../services/moodSave';
+import { hasExpenseAccess } from '../services/expenseSave';
 import { watchActiveHouseId } from '../services/houseSave';
 import { fetchLinkPreview } from '../services/linkPreview';
 
@@ -1283,6 +1297,17 @@ const profileEmail = ref('');
 const profileEmailSavedNotice = ref(false);
 
 let houseKey = (typeof route?.query?.board === 'string' && route.query.board) ? route.query.board : moodHouseKey();
+
+const canAccessExpenses = computed(() => {
+  return hasExpenseAccess(houseKey);
+});
+
+function openExpenses() {
+  void router.push({
+    path: '/expenses',
+    query: { board: houseKey }
+  });
+}
 const previewAsked = new Set<string>();
 let cloudSettled = false;
 let dragDepth = 0;

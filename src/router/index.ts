@@ -7,6 +7,7 @@ import MerchView from '../views/MerchView.vue';
 import LoginView from '../views/LoginView.vue';
 import BuilderView from '../views/BuilderView.vue';
 import MoodView from '../views/MoodView.vue';
+import ExpensesView from '../views/ExpensesView.vue';
 
 import { i18n } from '../i18n';
 import { startFeedback } from '../services/feedback';
@@ -22,7 +23,8 @@ const router = createRouter({
     { path: '/merch', name: 'merch', component: MerchView },
     { path: '/login', name: 'login', component: LoginView },
     { path: '/build', name: 'build', component: BuilderView },
-    { path: '/mood', name: 'mood', component: MoodView }
+    { path: '/mood', name: 'mood', component: MoodView },
+    { path: '/expenses', name: 'expenses', component: ExpensesView }
   ],
   scrollBehavior(to) {
     if (to.hash) return { el: to.hash, behavior: 'smooth' };

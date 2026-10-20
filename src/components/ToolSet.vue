@@ -484,6 +484,19 @@
               </svg>
               <span class="tool-tip"><Cms k="mood.tool" /></span>
             </button>
+            <div class="w-px h-7 bg-slate-200/60"></div>
+            <button
+              type="button"
+              id="btn-tool-expenses"
+              @click="openExpensesView"
+              class="relative flex items-center justify-center w-11 h-11 rounded-2xl transition-all duration-200 text-slate-700 hover:text-slate-900 hover:bg-slate-100/80 active:scale-95"
+              :aria-label="locale === 'en' ? 'Expense Tracker' : 'Kostnadsuppföljning'"
+            >
+              <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+              </svg>
+              <span class="tool-tip">{{ locale === 'en' ? 'Expenses' : 'Kostnader' }}</span>
+            </button>
           </div>
         </div>
         <button
@@ -535,6 +548,7 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
 import { useConfigStore } from '../store/useConfigStore';
 import { NOTE_LIMIT } from '../notes/board';
 import { formatSunHour } from '../three-engine/sunPosition';
@@ -558,6 +572,7 @@ function onSunInput(event: Event) {
 function onSunCommit(event: Event) {
   store.commitSunHour(Number((event.target as HTMLInputElement).value));
 }
+const router = useRouter();
 const { t, locale } = useLabels();
 const rulerOpen = ref(false);
 const sunOpen = ref(false);
@@ -783,6 +798,11 @@ function toggleNotesTray() {
 function toggleMood() {
   emit('close-ai');
   store.showMood = !store.showMood;
+}
+
+function openExpensesView() {
+  emit('close-ai');
+  void router.push('/expenses');
 }
 
 function toggleAi() {
