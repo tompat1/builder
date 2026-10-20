@@ -145,7 +145,7 @@
       </div>
 
       <!-- Category icons. On a phone this row is the whole bar until a step is chosen. -->
-      <div class="w-full min-w-0 shrink-0 border-t border-slate-100/80 bg-white/50 px-3 py-2.5 max-[1179px]:order-2 max-[1179px]:pb-[max(0.625rem,env(safe-area-inset-bottom))] min-[1180px]:border-b min-[1180px]:border-t-0 min-[1180px]:px-5 min-[1180px]:py-3">
+      <div class="w-full min-w-0 shrink-0 border-t border-slate-100/80 bg-white/50 px-3 py-2.5 max-[1179px]:order-2 max-[1179px]:pb-[max(0.625rem,env(safe-area-inset-bottom))] min-[1180px]:border-b min-[1180px]:border-t-0 min-[1180px]:px-3.5 min-[1180px]:py-2.5">
         <CategoryNav :expanded="narrow ? sheetOpen : true" @pick="onPickCategory" />
       </div>
 

@@ -253,39 +253,6 @@
           </button>
         </div>
 
-        <div v-if="store.activeMaterial === 'wood' && !store.customPaint && !store.paintPreview" class="flex justify-end">
-          <span class="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60">
-            {{ t('category.selected', { name: catalog(woodMaterial.id, 'name', woodMaterial.name) }) }}
-          </span>
-        </div>
-        <button
-          type="button"
-          id="material-wood"
-          class="p-2.5 rounded-xl border text-left flex items-center gap-3 transition-all w-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
-          :class="store.activeMaterial === 'wood' && !store.customPaint && !store.paintPreview
-            ? 'border-slate-900 ring-1 ring-slate-900 bg-slate-50 shadow-sm'
-            : 'border-slate-200 bg-white hover:border-slate-300'"
-          :aria-pressed="store.activeMaterial === 'wood' && !store.customPaint && !store.paintPreview"
-          @click="store.selectMaterial('wood')"
-        >
-          <div
-            class="w-8 h-8 rounded-lg shrink-0 border border-slate-300 shadow-xs flex items-center justify-center relative overflow-hidden"
-            :style="{ backgroundColor: woodMaterial.colorHex }"
-          >
-            <div class="absolute inset-0 bg-gradient-to-tr from-black/10 to-transparent"></div>
-            <svg v-if="store.activeMaterial === 'wood' && !store.customPaint && !store.paintPreview" class="w-4 h-4 text-white drop-shadow-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-          </div>
-          <div class="min-w-0 flex-1">
-            <div class="flex items-center justify-between">
-              <span class="text-xs font-bold text-slate-900 truncate"><Cms k="catalog.wood.name" :fallback="woodMaterial.name" /></span>
-              <span class="text-[11px] font-semibold text-slate-500 tabular-nums">{{ delta(woodMaterial.priceDelta) }}</span>
-            </div>
-            <p class="text-[10px] text-slate-500 truncate"><Cms k="catalog.wood.desc" :fallback="woodMaterial.desc" /></p>
-          </div>
-        </button>
-
         <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider"><Cms k="category.cladding" /></h4>
         <div class="grid grid-cols-2 gap-2">
           <button
@@ -374,264 +341,6 @@
           </button>
         </div>
         <p class="text-[11px] text-slate-500 mt-1.5"><Cms k="category.claddingHint" /></p>
-
-        <!-- Knutbrädor (Corner Boards) in Size -->
-        <div class="mt-4 pt-3.5 border-t border-slate-200/80">
-          <div class="flex items-center justify-between mb-2">
-            <div>
-              <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                <Cms k="category.cornerBoards" />
-              </h4>
-              <p class="text-[11px] text-slate-500">
-                <Cms k="category.cornerBoardsHint" />
-              </p>
-            </div>
-            <div class="flex items-center gap-2">
-              <span
-                v-if="store.cornerBoards"
-                class="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60"
-              >
-                {{ currentCornerColorName }}
-              </span>
-              <button
-                type="button"
-                id="toggle-corner-boards"
-                role="switch"
-                :aria-checked="store.cornerBoards"
-                :aria-label="t('category.toggleCornerBoards')"
-                @click="store.toggleCornerBoards()"
-                :class="[
-                  'relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-700 focus:ring-offset-2',
-                  store.cornerBoards ? 'bg-emerald-800' : 'bg-slate-200'
-                ]"
-              >
-                <span class="sr-only"><Cms k="category.toggleCornerBoards" /></span>
-                <span
-                  :class="[
-                    'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out',
-                    store.cornerBoards ? 'translate-x-5' : 'translate-x-0'
-                  ]"
-                />
-              </button>
-            </div>
-          </div>
-
-          <template v-if="store.cornerBoards">
-            <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              <button
-                type="button"
-                id="corner-color-same"
-                @click="store.selectCornerColor('same')"
-                :class="[
-                  'p-2 rounded-xl border text-left flex items-center gap-2.5 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
-                  store.cornerColor === 'same'
-                    ? 'border-slate-900 ring-1 ring-slate-900 bg-slate-50 shadow-sm'
-                    : 'border-slate-200 bg-white hover:border-slate-300'
-                ]"
-              >
-                <div
-                  class="w-7 h-7 rounded-lg shrink-0 border border-slate-300 shadow-xs flex items-center justify-center relative overflow-hidden"
-                  :style="{ backgroundColor: currentFacadeColorHex }"
-                >
-                  <div class="absolute inset-0 bg-gradient-to-tr from-black/10 to-transparent"></div>
-                  <svg v-if="store.cornerColor === 'same'" class="w-3.5 h-3.5 text-white drop-shadow-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                </div>
-                <div class="min-w-0 flex-1">
-                  <span class="block text-xs font-bold text-slate-900 truncate"><Cms k="category.cornerSame" /></span>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                id="corner-color-white"
-                @click="store.selectCornerColor('white')"
-                :class="[
-                  'p-2 rounded-xl border text-left flex items-center gap-2.5 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
-                  store.cornerColor === 'white'
-                    ? 'border-slate-900 ring-1 ring-slate-900 bg-slate-50 shadow-sm'
-                    : 'border-slate-200 bg-white hover:border-slate-300'
-                ]"
-              >
-                <div
-                  class="w-7 h-7 rounded-lg shrink-0 border border-slate-300 shadow-xs flex items-center justify-center relative overflow-hidden bg-[#f8fafc]"
-                >
-                  <svg v-if="store.cornerColor === 'white'" class="w-3.5 h-3.5 text-slate-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                </div>
-                <div class="min-w-0 flex-1">
-                  <span class="block text-xs font-bold text-slate-900 truncate"><Cms k="category.cornerWhite" /></span>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                id="corner-color-falurod"
-                @click="store.selectCornerColor('falurod')"
-                :class="[
-                  'p-2 rounded-xl border text-left flex items-center gap-2.5 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
-                  store.cornerColor === 'falurod'
-                    ? 'border-slate-900 ring-1 ring-slate-900 bg-slate-50 shadow-sm'
-                    : 'border-slate-200 bg-white hover:border-slate-300'
-                ]"
-              >
-                <div
-                  class="w-7 h-7 rounded-lg shrink-0 border border-slate-300 shadow-xs flex items-center justify-center relative overflow-hidden bg-[#8b2522]"
-                >
-                  <svg v-if="store.cornerColor === 'falurod'" class="w-3.5 h-3.5 text-white drop-shadow-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                </div>
-                <div class="min-w-0 flex-1">
-                  <span class="block text-xs font-bold text-slate-900 truncate"><Cms k="category.cornerFalurod" /></span>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                id="corner-color-grey"
-                @click="store.selectCornerColor('grey')"
-                :class="[
-                  'p-2 rounded-xl border text-left flex items-center gap-2.5 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
-                  store.cornerColor === 'grey'
-                    ? 'border-slate-900 ring-1 ring-slate-900 bg-slate-50 shadow-sm'
-                    : 'border-slate-200 bg-white hover:border-slate-300'
-                ]"
-              >
-                <div
-                  class="w-7 h-7 rounded-lg shrink-0 border border-slate-300 shadow-xs flex items-center justify-center relative overflow-hidden bg-[#64748b]"
-                >
-                  <svg v-if="store.cornerColor === 'grey'" class="w-3.5 h-3.5 text-white drop-shadow-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                </div>
-                <div class="min-w-0 flex-1">
-                  <span class="block text-xs font-bold text-slate-900 truncate"><Cms k="category.cornerGrey" /></span>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                id="corner-color-black"
-                @click="store.selectCornerColor('black')"
-                :class="[
-                  'p-2 rounded-xl border text-left flex items-center gap-2.5 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
-                  store.cornerColor === 'black'
-                    ? 'border-slate-900 ring-1 ring-slate-900 bg-slate-50 shadow-sm'
-                    : 'border-slate-200 bg-white hover:border-slate-300'
-                ]"
-              >
-                <div
-                  class="w-7 h-7 rounded-lg shrink-0 border border-slate-300 shadow-xs flex items-center justify-center relative overflow-hidden bg-[#1e293b]"
-                >
-                  <svg v-if="store.cornerColor === 'black'" class="w-3.5 h-3.5 text-white drop-shadow-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                </div>
-                <div class="min-w-0 flex-1">
-                  <span class="block text-xs font-bold text-slate-900 truncate"><Cms k="category.cornerBlack" /></span>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                id="corner-color-wood"
-                @click="store.selectCornerColor('wood')"
-                :class="[
-                  'p-2 rounded-xl border text-left flex items-center gap-2.5 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
-                  store.cornerColor === 'wood'
-                    ? 'border-slate-900 ring-1 ring-slate-900 bg-slate-50 shadow-sm'
-                    : 'border-slate-200 bg-white hover:border-slate-300'
-                ]"
-              >
-                <div
-                  class="w-7 h-7 rounded-lg shrink-0 border border-slate-300 shadow-xs flex items-center justify-center relative overflow-hidden bg-[#e8d8be]"
-                >
-                  <svg v-if="store.cornerColor === 'wood'" class="w-3.5 h-3.5 text-slate-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                </div>
-                <div class="min-w-0 flex-1">
-                  <span class="block text-xs font-bold text-slate-900 truncate"><Cms k="category.cornerWood" /></span>
-                </div>
-              </button>
-            </div>
-
-            <!-- Custom Corner Board Color Input & Swatches -->
-            <div class="mt-2.5 flex flex-wrap items-center gap-2">
-              <div
-                v-for="color in customCornerColors"
-                :key="color"
-                class="relative inline-flex items-center"
-              >
-                <button
-                  type="button"
-                  :id="store.cornerColor === color ? 'corner-color-custom' : `corner-color-custom-${color.replace('#', '')}`"
-                  @click="store.selectCornerColor(color)"
-                  class="group relative flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
-                  :class="store.cornerColor === color
-                    ? 'border-slate-900 ring-1 ring-slate-900 bg-slate-50 shadow-sm text-slate-900'
-                    : 'border-slate-200 bg-white hover:border-slate-300 text-slate-700'"
-                >
-                  <label
-                    class="relative w-5 h-5 rounded border border-slate-300 shrink-0 cursor-pointer flex items-center justify-center overflow-hidden"
-                    :style="{ backgroundColor: color }"
-                    title="Adjust color"
-                  >
-                    <input
-                      type="color"
-                      class="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
-                      :value="color"
-                      @input="store.updateCornerColor(color, ($event.target as HTMLInputElement).value)"
-                      @click.stop
-                    />
-                    <svg v-if="store.cornerColor === color" class="w-3 h-3 drop-shadow-sm" :class="readableInk(color) === '#ffffff' ? 'text-white' : 'text-slate-900'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  </label>
-                  <span><Cms k="category.cornerCustom" /></span>
-                  <span class="text-[10px] font-mono text-slate-500">
-                    {{ color.toUpperCase() }}
-                  </span>
-                  <span
-                    v-if="customCornerColors.length > 1"
-                    role="button"
-                    tabindex="0"
-                    :aria-label="t('tools.remove') || 'Remove'"
-                    class="ml-0.5 -mr-1 p-0.5 rounded text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                    @click.stop="store.removeCornerColor(color)"
-                  >
-                    <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                      <path d="M18 6L6 18M6 6l12 12" />
-                    </svg>
-                  </span>
-                </button>
-              </div>
-
-              <!-- + Add new custom corner color -->
-              <label
-                :id="customCornerColors.length === 0 ? 'corner-color-custom' : 'btn-add-corner-color'"
-                class="relative flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-slate-300 bg-white hover:border-slate-400 hover:bg-slate-50 text-xs font-medium text-slate-700 cursor-pointer transition-all focus-within:ring-2 focus-within:ring-slate-900"
-                :title="t('category.cornerAddColor')"
-              >
-                <input
-                  type="color"
-                  class="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
-                  value="#df9b9b"
-                  @input="onAddCornerColor(($event.target as HTMLInputElement).value)"
-                />
-                <svg class="w-3.5 h-3.5 text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                  <path d="M12 5v14M5 12h14" />
-                </svg>
-                <span class="font-bold text-slate-800">
-                  <Cms :k="customCornerColors.length === 0 ? 'category.cornerCustom' : 'category.cornerAddColor'" />
-                </span>
-              </label>
-            </div>
-          </template>
-        </div>
       </div>
     </template>
 
@@ -820,7 +529,7 @@
             </span>
             <button
               type="button"
-              id="color-toggle-corner-boards"
+              id="toggle-corner-boards"
               role="switch"
               :aria-checked="store.cornerBoards"
               :aria-label="t('category.toggleCornerBoards')"
@@ -845,7 +554,7 @@
           <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
             <button
               type="button"
-              id="color-corner-color-same"
+              id="corner-color-same"
               @click="store.selectCornerColor('same')"
               :class="[
                 'p-2 rounded-xl border text-left flex items-center gap-2.5 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
@@ -870,7 +579,7 @@
 
             <button
               type="button"
-              id="color-corner-color-white"
+              id="corner-color-white"
               @click="store.selectCornerColor('white')"
               :class="[
                 'p-2 rounded-xl border text-left flex items-center gap-2.5 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
@@ -893,7 +602,7 @@
 
             <button
               type="button"
-              id="color-corner-color-falurod"
+              id="corner-color-falurod"
               @click="store.selectCornerColor('falurod')"
               :class="[
                 'p-2 rounded-xl border text-left flex items-center gap-2.5 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
@@ -916,7 +625,7 @@
 
             <button
               type="button"
-              id="color-corner-color-grey"
+              id="corner-color-grey"
               @click="store.selectCornerColor('grey')"
               :class="[
                 'p-2 rounded-xl border text-left flex items-center gap-2.5 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
@@ -939,7 +648,7 @@
 
             <button
               type="button"
-              id="color-corner-color-black"
+              id="corner-color-black"
               @click="store.selectCornerColor('black')"
               :class="[
                 'p-2 rounded-xl border text-left flex items-center gap-2.5 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
@@ -962,7 +671,7 @@
 
             <button
               type="button"
-              id="color-corner-color-wood"
+              id="corner-color-wood"
               @click="store.selectCornerColor('wood')"
               :class="[
                 'p-2 rounded-xl border text-left flex items-center gap-2.5 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
@@ -993,7 +702,7 @@
             >
               <button
                 type="button"
-                :id="`color-corner-custom-${color.replace('#', '')}`"
+                :id="store.cornerColor === color ? 'corner-color-custom' : `corner-color-custom-${color.replace('#', '')}`"
                 @click="store.selectCornerColor(color)"
                 class="group relative flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
                 :class="store.cornerColor === color
@@ -1037,6 +746,7 @@
 
             <!-- + Add new custom corner color -->
             <label
+              :id="customCornerColors.length === 0 ? 'corner-color-custom' : 'btn-add-corner-color'"
               class="relative flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-slate-300 bg-white hover:border-slate-400 hover:bg-slate-50 text-xs font-medium text-slate-700 cursor-pointer transition-all focus-within:ring-2 focus-within:ring-slate-900"
               :title="t('category.cornerAddColor')"
             >
@@ -2785,17 +2495,6 @@ function openInteriorTab(id: 'plumbing' | 'electrical') {
 watch(floorPlanOpen, (open) => {
   if (!open && interiorTab.value !== 'layout') interiorTab.value = 'layout';
 });
-const colourMaterials = MATERIAL_OPTIONS.filter((mat) => mat.id !== 'wood');
-const woodMaterial = MATERIAL_OPTIONS.find((mat) => mat.id === 'wood') ?? MATERIAL_OPTIONS[0];
-
-function sizeTabClass(active: boolean) {
-  return [
-    'text-xs font-bold pb-2 border-b-2 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
-    active
-      ? 'border-slate-900 text-slate-900'
-      : 'border-transparent text-slate-400 hover:text-slate-600'
-  ];
-}
 
 const terraceSides = TERRACE_SIDES;
 const terraceBuildingRoofs = TERRACE_BUILDING_ROOFS;

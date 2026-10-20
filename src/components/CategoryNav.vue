@@ -1,7 +1,7 @@
 <template>
   <nav
     ref="navEl"
-    class="flex w-full min-w-0 gap-1.5 overflow-x-auto overscroll-x-contain min-[1180px]:grid min-[1180px]:grid-cols-3 min-[1180px]:overflow-visible"
+    class="flex w-full min-w-0 gap-1.5 overflow-x-auto overscroll-x-contain min-[1180px]:grid min-[1180px]:grid-cols-10 min-[1180px]:gap-1 min-[1180px]:overflow-visible min-[1180px]:max-w-[420px] min-[1180px]:mx-auto"
     :aria-label="t('nav.label')"
   >
     <button
@@ -12,7 +12,8 @@
       @click="pick(cat.id)"
       :aria-expanded="store.selectedCategory === cat.id ? expanded : undefined"
       :class="[
-        'flex w-[4.75rem] shrink-0 flex-col items-center justify-center min-h-11 py-2 px-1 rounded-xl transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 min-[1180px]:w-auto min-[1180px]:shrink',
+        'flex w-[4.75rem] shrink-0 flex-col items-center justify-center min-h-11 py-2 px-1 rounded-xl transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 min-[1180px]:w-auto min-[1180px]:shrink min-[1180px]:col-span-2 min-[1180px]:min-h-[3rem] min-[1180px]:py-1.5',
+        idx === 5 ? 'min-[1180px]:col-start-2' : '',
         store.selectedCategory === cat.id
           ? 'bg-slate-900 text-white shadow-sm border border-slate-900'
           : 'bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-slate-200/60 hover:border-[#FF5A00]'
@@ -136,9 +137,9 @@ const categories: { id: CategoryKey }[] = [
   { id: 'roof' },
   { id: 'doors' },
   { id: 'windows' },
-  { id: 'gates' },
   { id: 'extras' },
   { id: 'loft' },
-  { id: 'interior' }
+  { id: 'interior' },
+  { id: 'gates' }
 ];
 </script>

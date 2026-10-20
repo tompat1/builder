@@ -203,8 +203,7 @@ const actions: SearchEntry[] = [
     hint: '',
     keywords: ['knutbrädor', 'corner boards', 'hörn', ...COLOUR_WORDS],
     path: '/build',
-    category: 'size',
-    sizeTab: 'panel',
+    category: 'color',
     focus: 'corner-color-custom'
   }),
   entry({
