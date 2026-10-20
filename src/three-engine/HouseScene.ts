@@ -2275,6 +2275,106 @@ export class HouseScene {
         frontSyll.userData.framingStep = 1;
         this.framingGroup.add(frontSyll);
       }
+
+      // --- CROWN FASTENERS (Kemankare M12 gängstång cc 800 mm) ---
+      // Steel square washers (45x45 mm) and M12 hex nuts spaced cc 800 mm along sills
+      const fastenerMat = new THREE.MeshStandardMaterial({
+        color: '#cbd5e1',
+        roughness: 0.25,
+        metalness: 0.88
+      });
+      const washerGeo = new THREE.BoxGeometry(0.045, 0.005, 0.045);
+      const nutGeo = new THREE.CylinderGeometry(0.011, 0.011, 0.012, 6);
+
+      const addCrownFastener = (x: number, y: number, z: number) => {
+        const washer = new THREE.Mesh(washerGeo, fastenerMat);
+        washer.position.set(x, y + 0.0025, z);
+        washer.castShadow = true;
+        washer.userData.framingStep = 1;
+        washer.userData.ownMaterial = fastenerMat;
+        washer.userData.isFastener = true;
+        this.framingGroup.add(washer);
+
+        const nut = new THREE.Mesh(nutGeo, fastenerMat);
+        nut.position.set(x, y + 0.005 + 0.006, z);
+        nut.castShadow = true;
+        nut.userData.framingStep = 1;
+        nut.userData.ownMaterial = fastenerMat;
+        nut.userData.isFastener = true;
+        this.framingGroup.add(nut);
+      };
+
+      // Fasteners along back crown sill (cc 800 mm)
+      const backFastenerSpan = (framingRightX - 0.15) - (framingLeftX + 0.15);
+      const backFastenerCount = Math.max(2, Math.round(backFastenerSpan / 0.8));
+      const backFastenerSpacing = backFastenerSpan / backFastenerCount;
+      for (let i = 0; i <= backFastenerCount; i++) {
+        const bx = (framingLeftX + 0.15) + i * backFastenerSpacing;
+        addCrownFastener(bx, concreteH + studThick, framingBackZ);
+      }
+
+      // Fasteners along left crown sill (cc 800 mm)
+      const leftFastenerSpan = (concreteFrontZ - 0.15) - (framingBackZ + 0.15);
+      const leftFastenerCount = Math.max(2, Math.round(leftFastenerSpan / 0.8));
+      const leftFastenerSpacing = leftFastenerSpan / leftFastenerCount;
+      for (let i = 0; i <= leftFastenerCount; i++) {
+        const bz = (framingBackZ + 0.15) + i * leftFastenerSpacing;
+        addCrownFastener(framingLeftX, concreteH + studThick, bz);
+      }
+
+      // Fasteners along right crown sill (cc 800 mm)
+      if (this.concreteFacade('right')) {
+        for (let i = 0; i <= leftFastenerCount; i++) {
+          const bz = (framingBackZ + 0.15) + i * leftFastenerSpacing;
+          addCrownFastener(framingRightX, concreteH + studThick, bz);
+        }
+      }
+
+      // Fasteners along vertical concrete wall ends (screws facing forward at cc 600 mm)
+      const vertSpan = (concreteH - 0.15) - (baseElevation + 0.25);
+      const vertCount = Math.max(2, Math.round(vertSpan / 0.6));
+      const vertSpacing = vertSpan / vertCount;
+      for (let i = 0; i <= vertCount; i++) {
+        const vy = (baseElevation + 0.25) + i * vertSpacing;
+        const addVertFastener = (vx: number) => {
+          const vWasher = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 0.004), fastenerMat);
+          vWasher.position.set(vx, vy, concreteFrontZ + studThick + 0.002);
+          vWasher.castShadow = true;
+          vWasher.userData.framingStep = 1;
+          vWasher.userData.ownMaterial = fastenerMat;
+          vWasher.userData.isFastener = true;
+          this.framingGroup.add(vWasher);
+
+          const vScrew = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.01, 6), fastenerMat);
+          vScrew.position.set(vx, vy, concreteFrontZ + studThick + 0.009);
+          vScrew.rotation.x = Math.PI / 2;
+          vScrew.castShadow = true;
+          vScrew.userData.framingStep = 1;
+          vScrew.userData.ownMaterial = fastenerMat;
+          vScrew.userData.isFastener = true;
+          this.framingGroup.add(vScrew);
+        };
+        addVertFastener(framingLeftX);
+        if (this.concreteFacade('right')) addVertFastener(framingRightX);
+      }
+
+      // Fasteners along ground extension sills (cc 800 mm)
+      if (hasExtension) {
+        const extFastenerSpan = (framingFrontZ - 0.15) - (concreteFrontZ + studThick + 0.15);
+        if (extFastenerSpan > 0.3) {
+          const extCount = Math.max(1, Math.round(extFastenerSpan / 0.8));
+          const extSpacing = extFastenerSpan / extCount;
+          for (let i = 0; i <= extCount; i++) {
+            const ez = (concreteFrontZ + studThick + 0.15) + i * extSpacing;
+            addCrownFastener(framingLeftX, baseElevation + studThick, ez);
+            addCrownFastener(framingRightX, baseElevation + studThick, ez);
+          }
+        }
+        for (let i = 0; i <= backFastenerCount; i++) {
+          const fx = (framingLeftX + 0.15) + i * backFastenerSpacing;
+          addCrownFastener(fx, baseElevation + studThick, framingFrontZ);
+        }
+      }
     } else {
       // Standard house (all sills on ground foundation)
       const frontSyllGeo = new THREE.BoxGeometry(w - 0.05, studThick, studDepth);
@@ -2566,6 +2666,7 @@ export class HouseScene {
         strap.position.set(sp.x, concreteH, sp.z);
         strap.castShadow = true;
         strap.userData.framingStep = 6;
+        strap.userData.ownMaterial = strapMat;
         this.framingGroup.add(strap);
       }
 
@@ -2580,17 +2681,20 @@ export class HouseScene {
       const flashBack = new THREE.Mesh(new THREE.BoxGeometry(w, flashThick, 0.05), flashMat);
       flashBack.position.set(0, concreteH, framingBackZ - 0.02);
       flashBack.userData.framingStep = 7;
+      flashBack.userData.ownMaterial = flashMat;
       this.framingGroup.add(flashBack);
 
       const flashLeft = new THREE.Mesh(new THREE.BoxGeometry(0.05, flashThick, concreteSpanZ), flashMat);
       flashLeft.position.set(framingLeftX - 0.02, concreteH, (framingBackZ + concreteFrontZ) / 2);
       flashLeft.userData.framingStep = 7;
+      flashLeft.userData.ownMaterial = flashMat;
       this.framingGroup.add(flashLeft);
 
       if (this.concreteFacade('right')) {
         const flashRight = new THREE.Mesh(new THREE.BoxGeometry(0.05, flashThick, concreteSpanZ), flashMat);
         flashRight.position.set(framingRightX + 0.02, concreteH, (framingBackZ + concreteFrontZ) / 2);
         flashRight.userData.framingStep = 7;
+        flashRight.userData.ownMaterial = flashMat;
         this.framingGroup.add(flashRight);
       }
     }
@@ -7029,19 +7133,20 @@ export class HouseScene {
       group.traverse((obj) => {
         if (obj instanceof THREE.Mesh && obj.userData && typeof obj.userData.framingStep === 'number') {
           const meshStep = obj.userData.framingStep;
+          const ownMat = (obj.userData.ownMaterial as THREE.Material | undefined) ?? this.builtFramingMat;
           if (!isWalkthrough) {
             obj.visible = true;
-            obj.material = this.builtFramingMat;
+            obj.material = ownMat;
           } else if (meshStep > step) {
             obj.visible = false;
           } else {
             obj.visible = true;
             if (step === 7) {
-              obj.material = this.builtFramingMat;
+              obj.material = ownMat;
             } else if (meshStep === step) {
               obj.material = this.activeFramingMat;
             } else {
-              obj.material = this.builtFramingMat;
+              obj.material = ownMat;
             }
           }
         }

@@ -83,7 +83,7 @@ test('concrete combo framing guide accounts for existing concrete walls, dual si
   assert.equal(s1.key, 'sill');
   assert.ok(s1.titleSv.includes('Murkrön') && s1.titleSv.includes('Väggavslut'));
   const s1Fastener = s1.specs.find((s) => s.labelSv === 'Infästning murkrön');
-  assert.ok(s1Fastener?.valueSv.includes('Kemankare M12'));
+  assert.ok(s1Fastener?.valueSv.includes('Kemankare M12') && s1Fastener?.valueSv.includes('cc 800 mm'));
   const s1End = s1.specs.find((s) => s.labelSv === 'Väggavslutssyll');
   assert.ok(s1End?.valueSv.includes('Vertikal syll') && s1End?.valueSv.includes('svällband'));
   assert.ok(s1.proTipsSv.includes('kemankare'));
