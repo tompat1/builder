@@ -26,7 +26,7 @@ export interface FramingStepDefinition {
   checklistEn: string[];
 }
 
-export const FRAMING_STEPS: FramingStepDefinition[] = [
+export const FRAMING_STEPS_STANDARD: FramingStepDefinition[] = [
   {
     step: 1,
     key: 'sill',
@@ -365,9 +365,361 @@ export const FRAMING_STEPS: FramingStepDefinition[] = [
   }
 ];
 
-export const FRAMING_STEPS_TOTAL = FRAMING_STEPS.length;
+/**
+ * Timber Framing Walkthrough for Timber/Concrete Combo House (Påbyggnad på betonghus)
+ * Accounts for existing 50 cm concrete walls, dual sill elevations, chemical anchoring into murkrön,
+ * transition joints with expanding foam tape, transfer beams, and continuous uplift tie-down.
+ */
+export const FRAMING_STEPS_CONCRETE_COMBO: FramingStepDefinition[] = [
+  {
+    step: 1,
+    key: 'sill',
+    titleSv: '1. Syll på Murkrön & Markplatta',
+    titleEn: '1. Sill Plates on Concrete Crown & Slab',
+    subtitleSv: 'Kemankare i befintligt murkrön (2,5 m) samt marksyll för utbyggnad',
+    subtitleEn: 'Chemical anchoring into concrete wall tops (2.5 m) and ground extension slab',
+    specs: [
+      {
+        labelSv: 'Syll på murkrön',
+        labelEn: 'Crown Sill Dimension',
+        valueSv: '45×145 mm C24 konstruktionsvirke',
+        valueEn: '45×145 mm C24 structural timber'
+      },
+      {
+        labelSv: 'Infästning murkrön',
+        labelEn: 'Crown Fasteners',
+        valueSv: 'Kemankare M12 gängstång cc 800 mm',
+        valueEn: 'M12 chemical injection anchors cc 800 mm'
+      },
+      {
+        labelSv: 'Fuktskydd',
+        labelEn: 'Capillary Barrier',
+        valueSv: 'Dubbel EPDM-syllisolering 150 mm',
+        valueEn: '150 mm double EPDM sill barrier'
+      },
+      {
+        labelSv: 'Marksyll tillbyggnad',
+        labelEn: 'Slab Extension Sill',
+        valueSv: 'Expanderbult M10 cc 1000 mm',
+        valueEn: 'M10 anchor bolts cc 1000 mm'
+      }
+    ],
+    proTipsSv:
+      'Vid påbyggnad på befintligt betonghus finns två separata syllplan: ett övre på 2,5 m höjd direkt ovanpå de 50 cm tjocka betongväggarna (murkrönet), och ett nedre på den nya markplattan för tillbyggnaden. På murkrönet får mekaniska slagankare inte användas då gammal betong riskerar att spricka vid kanterna – använd godkänt kemankare (injekteringsmassa) med gängstång M12. Borrhålen ska borstas och blåsas rena. Syllen på murkrönet följer betongväggarna exakt och avslutas vid öppningen; den får aldrig hänga i luften. Lägg alltid dubbel EPDM-syllisolering mellan betong och träsyll.',
+    proTipsEn:
+      'When building on an existing concrete house, you have two distinct sill plate elevations: the upper sill at 2.5 m atop the 50 cm thick concrete wall crowns, and the lower sill on the new ground extension slab. Never use aggressive mechanical expansion anchors on aged wall crowns where edge spalling can occur – specify M12 threaded studs set in approved epoxy/hybrid chemical injection adhesive. Thoroughly blow and brush drill holes clean. The upper sill plate strictly follows the perimeter of the concrete walls and terminates at the front wall opening; it must never cantilever into open air. Install continuous double EPDM sill barrier between concrete and wood.',
+    checklistSv: [
+      'Avlägsna allt löst bruk på murkrönet och dammsug ytan ren',
+      'Lägg ut kontinuerlig EPDM-syllisolering längs betongväggarnas krön och markplattan',
+      'Borra, rengör och injektera kemankare M12 cc 800 mm i murkrönet',
+      'Dra åt syllarna på murkrönet och förankra främre marksyllen med expanderbult'
+    ],
+    checklistEn: [
+      'Inspect and clean the concrete wall tops, removing loose mortar and dust',
+      'Roll out continuous EPDM sill sealer along the 50 cm concrete walls and ground slab',
+      'Drill, brush, blow, and inject M12 chemical anchors cc 800 mm into wall crowns',
+      'Torque upper sills onto concrete crowns and secure ground extension sills'
+    ]
+  },
+  {
+    step: 2,
+    key: 'corners',
+    titleSv: '2. Hörnreglar & Fasadanslutning',
+    titleEn: '2. Corner Studs & Concrete Interface Ties',
+    subtitleSv: 'Ytterhörn samt elastisk anslutning mellan ny trästomme och befintliga betongväggar',
+    subtitleEn: 'Outer corner posts and flexible interface sealing between new timber and existing concrete',
+    specs: [
+      {
+        labelSv: 'Hörnkonstruktion',
+        labelEn: 'Corner Framing',
+        valueSv: 'Dubbla 45×145 C24 med gipsstöd',
+        valueEn: 'Double 45×145 C24 with drywall backing'
+      },
+      {
+        labelSv: 'Fasadinfästning',
+        labelEn: 'Concrete Wall Ties',
+        valueSv: 'Betongskruv 7,5×100 mm cc 400 mm',
+        valueEn: '7.5×100 mm concrete screws cc 400 mm'
+      },
+      {
+        labelSv: 'Fogtätning',
+        labelEn: 'Interface Sealing',
+        valueSv: 'Expanderande fogband (svällband)',
+        valueEn: 'Pre-compressed expanding foam tape'
+      },
+      {
+        labelSv: 'Lodkrav',
+        labelEn: 'Plumb Standard',
+        valueSv: 'Max 1 mm avvikelse per meter',
+        valueEn: 'Max 1 mm deviation per meter'
+      }
+    ],
+    proTipsSv:
+      'De bakre hörnreglarna reses ovanpå murkrönet på 2,5 m höjd, medan de främre hörnreglarna reses i full höjd från markplattan. Där tillbyggnadens träväggar möter det befintliga betonghuset skapas en kritisk anslutningspunkt: montera en anslutningsregel med expanderande fogband (svällband) mot betongfasaden och fäst med betongskruv cc 400 mm. Eftersom det äldre betonghuset redan har satt sig medan ny stomme rör sig med årstiderna, ska fogen vara rörelseupptagande och diffusionsöppen utåt men lufttät inåt.',
+    proTipsEn:
+      'Rear corner studs stand atop the concrete wall crown at 2.5 m, while front corner studs stand full height from the ground slab. Where timber extension walls intersect the existing concrete house, an interface stud is secured directly against the concrete facade with 7.5×100 mm concrete screws cc 400 mm. Always apply pre-compressed expanding foam tape (svällband) along the interface. Because the aged concrete structure has completed all settlement while the new timber frame undergoes seasonal movement, this joint must accommodate movement while remaining airtight inside and weather-tight outside.',
+    checklistSv: [
+      'Res och loda in de bakre hörnreglarna på murkrönet och de främre på markplattan',
+      'Applicera svällband och förankra anslutningsreglar i den befintliga betonggaveln med betongskruv',
+      'Kontrollera att träkonstruktionen tar hänsyn till eventuell lutning i det befintliga betonghuset'
+    ],
+    checklistEn: [
+      'Erect and plumb rear loft corners on the wall crown and front corners on the ground slab',
+      'Apply expanding foam tape and anchor interface studs into existing concrete with concrete screws',
+      'Verify that timber layout aligns plumb despite any minor irregularities in the existing concrete'
+    ]
+  },
+  {
+    step: 3,
+    key: 'studs',
+    titleSv: '3. Väggreglar & Nivåövergång',
+    titleEn: '3. Wall Studs & Elevation Transition',
+    subtitleSv: 'cc 600 mm anpassat för loftväggar på betong och fullhöjdsväggar i markplan',
+    subtitleEn: 'cc 600 mm layout for loft walls on concrete and full-height studs in extension',
+    specs: [
+      {
+        labelSv: 'cc-avstånd',
+        labelEn: 'cc Spacing',
+        valueSv: '600 mm centrum-till-centrum',
+        valueEn: '600 mm center-to-center'
+      },
+      {
+        labelSv: 'Regelvirke',
+        labelEn: 'Stud Grade',
+        valueSv: '45×145 mm C24 konstruktionsvirke',
+        valueEn: '45×145 mm C24 structural timber'
+      },
+      {
+        labelSv: 'Vägghöjder',
+        labelEn: 'Wall Heights',
+        valueSv: 'Loft: ~2,5 m / Tillbyggnad: upp till 5,0 m',
+        valueEn: 'Loft: ~2.5 m / Extension: up to 5.0 m'
+      },
+      {
+        labelSv: 'Skråspikning',
+        labelEn: 'Toe-nailing',
+        valueSv: '2 st 3,1×90 mm per sida',
+        valueEn: '2x 3.1×90 mm framing nails per side'
+      }
+    ],
+    proTipsSv:
+      'Väggreglarna på långsidorna byter nivå: över betongväggarna är reglarna ca 2,0–2,5 m höga och vilar på murkrönets syll, medan de i den främre tillbyggnaden sträcker sig från markplattan upp till takets hammarband. Placera alltid virkets krökningsbåge (krona) utåt. Vid övergången mellan betongkrön och markplatta ska en förstärkt dubbel bärande regelpelare placeras för att ta upp taklasten där murkrönet slutar.',
+    proTipsEn:
+      'Side wall studs transition between two base elevations: above the concrete walls, studs are ~2.0–2.5 m tall resting on the crown sill, while in the front extension they span continuously from the ground plate up to the sloping roofline. Always orient stud crowns facing outwards. At the exact transition point where the concrete wall crown terminates, install a doubled post to carry roof loads cleanly into the foundation.',
+    checklistSv: [
+      'Märk upp cc 600 mm på både murkrönssyll och markplattesyll',
+      'Kapa och montera korta reglar över betongväggarna och långa reglar i tillbyggnaden',
+      'Montera förstärkta dubbelreglar vid skarven där betongväggen slutar'
+    ],
+    checklistEn: [
+      'Mark cc 600 mm intervals on both crown sill and ground foundation plates',
+      'Cut and fit upper studs over the concrete walls and full-height studs in the extension',
+      'Install reinforced double studs at the transition junction where the concrete wall ends'
+    ]
+  },
+  {
+    step: 4,
+    key: 'openings',
+    titleSv: '4. Avväxlingar & Bärbalk över Öppning',
+    titleEn: '4. Headers & Opening Transfer Beam',
+    subtitleSv: 'Bärande limträ-/avväxlingsbalk över betongöppningen samt fönster- och dörravväxlingar',
+    subtitleEn: 'Structural header beam across concrete opening and door/window lintels',
+    specs: [
+      {
+        labelSv: 'Huvudbalk',
+        labelEn: 'Transfer Beam',
+        valueSv: 'Limträ / 45×195 mm C24 dubblerad',
+        valueEn: 'Glulam / Doubled 45×195 mm C24'
+      },
+      {
+        labelSv: 'Upplagslängd',
+        labelEn: 'Bearing Length',
+        valueSv: 'Minst 100 mm upplag på betong',
+        valueEn: 'Min 100 mm direct bearing on concrete'
+      },
+      {
+        labelSv: 'Fönsteravväxling',
+        labelEn: 'Window Headers',
+        valueSv: '45×195 mm C24 med jack studs',
+        valueEn: '45×195 mm C24 with jack studs'
+      },
+      {
+        labelSv: 'Ställmån',
+        labelEn: 'Framing Gap',
+        valueSv: '15–20 mm runtom korg',
+        valueEn: '15–20 mm perimeter frame gap'
+      }
+    ],
+    proTipsSv:
+      'Där betonghusets gamla front öppnats upp mot tillbyggnaden måste en bärande tvärbalk (avväxlingsbalk) placeras i nivå med murkrönet. Denna balk bär upp både loftets golvbjälklag och eventuella taklaster. Balken ska ha minst 100 mm fast upplag på de kvarvarande betongsidoväggarna, vilande på tryckfördelande stålplåtar eller syllvirke med fuktspärr. På övervåningen fälls avväxlingar in för de tre övre fönsterpartierna i träfasaden.',
+    proTipsEn:
+      'Where the original concrete front wall has been opened up into the extension, a heavy transfer beam must span across at the concrete crown elevation (2.5 m). This beam carries both the loft floor joists and vertical roof loads. It requires a minimum 100 mm bearing seat directly atop the solid concrete side walls, resting on steel bearing plates and bituminous moisture barrier. On the upper floor, headers are framed in for the upper clerestory window panels.',
+    checklistSv: [
+      'Lägg upp och förankra bärande tvärbalk på murkrönet med minst 100 mm upplag',
+      'Montera avväxlingsbalkar för dörrar och fönster med dubbla stödstolpar',
+      'Kontrollera att det finns minst 15 mm ställmån runt alla fönster- och dörrhål'
+    ],
+    checklistEn: [
+      'Seat and anchor structural transfer beam across wall crowns with min 100 mm bearing',
+      'Frame window and door headers with dedicated jack studs for full load path',
+      'Ensure 15–20 mm perimeter installation clearance around all planned openings'
+    ]
+  },
+  {
+    step: 5,
+    key: 'plates_noggings',
+    titleSv: '5. Hammarband & Mellanbjälklag',
+    titleEn: '5. Top Plates & Loft Floor Joists',
+    subtitleSv: 'Övre hammarband samt golvbjälklag för träloftet ovanpå betonghuset',
+    subtitleEn: 'Top perimeter plates and structural loft floor joists over the concrete house',
+    specs: [
+      {
+        labelSv: 'Loftbjälklag',
+        labelEn: 'Floor Joists',
+        valueSv: '45×220 mm C24 cc 600 mm',
+        valueEn: '45×220 mm C24 cc 600 mm'
+      },
+      {
+        labelSv: 'Balkskor',
+        labelEn: 'Joist Hangers',
+        valueSv: 'Kraftiga balkskor med ankarspik',
+        valueEn: 'Heavy-duty galvanized joist hangers'
+      },
+      {
+        labelSv: 'Hammarband',
+        labelEn: 'Top Plate',
+        valueSv: '45×145 mm C24 med överlapp i hörn',
+        valueEn: '45×145 mm continuous C24 with corner lap'
+      },
+      {
+        labelSv: 'Skivverkan',
+        labelEn: 'Diaphragm Action',
+        valueSv: '22 mm golvspånskiva limmad och skruvad',
+        valueEn: '22 mm tongue-and-groove floor panels glued/screwed'
+      }
+    ],
+    proTipsSv:
+      'Loftets golvbjälklag (45×220 mm) spänner över betonghuset och vilar direkt på murkrönets syll samt den bärande tvärbalken. Detta bjälklag fyller en dubbel funktion: det utgör sovloftets bärande golv, och bildar samtidigt en kraftig horisontell skiva (skivverkan) som förhindrar att betongväggarna trycks utåt av vindlaster. Hammarbandet (toppsyllen) binder samman regeltopparna i takfallet (pulpettaket 12°).',
+    proTipsEn:
+      'The loft floor joists (45×220 mm) span across the concrete house, bearing directly on the wall crown sills and the transfer beam. This floor serves a dual role: providing the living floor deck for the loft, and functioning as a rigid structural diaphragm tying the tops of the heavy concrete walls together. The sloping top plates (hammarband) interlock at the corners to unify the 12° mono-pitch timber envelope.',
+    checklistSv: [
+      'Montera golvbjälkar cc 600 mm för loftet med fuktskydd mot murkrön',
+      'Lägg och överlappa hammarbandet över alla hörn för maximal vridstyvhet',
+      'Montera kortlingar mellan reglarna på 1200 mm höjd för knäck- och skivstöd'
+    ],
+    checklistEn: [
+      'Position 45×220 mm loft floor joists cc 600 mm with moisture barrier beneath',
+      'Install continuous top header plates with interlocking lap joints at all corners',
+      'Fit staggered wall noggings at 1200 mm height for stud stabilization'
+    ]
+  },
+  {
+    step: 6,
+    key: 'trusses',
+    titleSv: '6. Takstolar & Vindförankring i Betong',
+    titleEn: '6. Roof Rafters & Concrete Mass Anchoring',
+    subtitleSv: 'Pulpettakstolar förankrade med genomgående dragband ner i betongstommen',
+    subtitleEn: 'Mono-pitch rafters anchored with continuous tension straps into concrete mass',
+    specs: [
+      {
+        labelSv: 'Takbalkar',
+        labelEn: 'Rafters',
+        valueSv: '45×220 mm C24 pulpettak cc 600 mm',
+        valueEn: '45×220 mm C24 mono-pitch cc 600 mm'
+      },
+      {
+        labelSv: 'Taklutning',
+        labelEn: 'Roof Pitch',
+        valueSv: '12° pulpettak (ensidigt fall)',
+        valueEn: '12° mono-pitch slope'
+      },
+      {
+        labelSv: 'Vindförankring',
+        labelEn: 'Uplift Straps',
+        valueSv: 'Hålband / Dragband förankrade i betong',
+        valueEn: 'Galvanized steel tension straps into concrete'
+      },
+      {
+        labelSv: 'Infästning',
+        labelEn: 'Clip Fasteners',
+        valueSv: 'Vinkelbeslag 90×90 med 4,0×40 ankarspik',
+        valueEn: '90×90 angle brackets with 4.0×40 anchor nails'
+      }
+    ],
+    proTipsSv:
+      'Pulpettaket lyfter träpåbyggnaden upp till 5 meters totalhöjd. Vid stark vind utsätts det höga taket för enorma sugkrafter (vindlyft). På ett vanligt trähus förlitar man sig på plattans tyngd; här ska du dra nytta av det befintliga betonghusets enorma massa! Förankra takstolarna med förstärkta vinkelbeslag mot hammarbandet, och montera kontinuerliga stålhålband (dragband) som löper vertikalt från takstolarna och bultas direkt in i betongväggarna med kemankare. Detta förhindrar all risk för taklyft.',
+    proTipsEn:
+      'The mono-pitch roof raises the timber addition up to a total height of 5 meters. Under heavy storm winds, this tall facade experiences significant aerodynamic uplift forces. Instead of relying solely on wood fasteners, take advantage of the massive ballast provided by the concrete house! Fasten rafters to the top plates using reinforced angle clips, and install continuous vertical steel tension straps running from the rafters down into the concrete walls anchored with chemical bolts. This permanently resists wind uplift.',
+    checklistSv: [
+      'Montera pulpettakstolar cc 600 mm med 12° takfall från front mot baksida',
+      'Spika vinkelbeslag med ankarspik på båda sidor om varje takstolsfot',
+      'Montera dragband som förbinder takkonstruktionen med den tunga betongstommen'
+    ],
+    checklistEn: [
+      'Install mono-pitch rafters cc 600 mm with 12° slope draining to the rear',
+      'Fasten heavy angle brackets with anchor nails on both sides of every rafter seat',
+      'Anchor continuous steel tie-down straps linking the roof structure to the concrete walls'
+    ]
+  },
+  {
+    step: 7,
+    key: 'inspection',
+    titleSv: '7. Slutkontroll & Fuktsäkerhet',
+    titleEn: '7. Final Quality Audit & Interface Sealing',
+    subtitleSv: 'Kvalitetskontroll av fuktspärrar, köldbryggor och lufttätning mot betong',
+    subtitleEn: 'Comprehensive audit of capillary breaks, thermal isolation, and air barrier seals',
+    specs: [
+      {
+        labelSv: 'Fuktkvot i virke',
+        labelEn: 'Wood Moisture',
+        valueSv: 'Max 16% fuktkvot före isolering',
+        valueEn: 'Max 16% wood moisture content'
+      },
+      {
+        labelSv: 'Lufttätning',
+        labelEn: 'Air Barrier',
+        valueSv: 'Tejpad ångbroms mot rengjord betong',
+        valueEn: 'Taped vapor retarder to primed concrete'
+      },
+      {
+        labelSv: 'Köldbryggor',
+        labelEn: 'Thermal Break',
+        valueSv: 'Isolering utanpå betongkrön',
+        valueEn: 'Exterior insulation over concrete junction'
+      },
+      {
+        labelSv: 'Vindstagning',
+        labelEn: 'Wind Bracing',
+        valueSv: 'Kryssband & utvändigt vindskydd',
+        valueEn: 'Diagonal tension bracing & exterior wrap'
+      }
+    ],
+    proTipsSv:
+      'Innan isolering och panelering påbörjas ska gränssnittet mellan trä och betong besiktigas noga. Kontrollera att ingen trädel har direktkontakt med rå betong utan mellanliggande fuktspärr. Säkerställ att ångspärren/ångbromsen i trädelen ansluts och tejpas med godkänd åldringsbeständig tätmassa/tejp mot betongens insida för att undvika fuktkonvektion. Utvändigt ska övergången mellan betongsockel och träfasad förses med plåtbeslag (sockelbleck) med droppnäsa som leder bort regnvatten från betongväggen.',
+    proTipsEn:
+      'Before insulation and exterior cladding proceed, meticulously inspect the timber-to-concrete interface. Verify zero direct wood-to-concrete contact without a capillary moisture barrier. Ensure the interior air/vapor barrier membrane is sealed to the primed concrete wall face with approved acoustic sealant and tape to prevent warm indoor air convection into the wall joint. Externally, install continuous metal base flashing (sockelbleck) with drip edge to shed water clear of the concrete facade.',
+    checklistSv: [
+      'Inspektera alla syll- och murkrönsanslutningar för fullständig fuktspärr',
+      'Täta luft- och ångspärr mot betongväggen med godkänd primer och fogmassa',
+      'Kontrollera fuktkvoten i virket (< 16%) och montera utvändigt sockelbleck'
+    ],
+    checklistEn: [
+      'Inspect all sill plate and crown interfaces for complete capillary isolation',
+      'Seal air/vapor barrier membranes to primed concrete walls with acoustic sealant',
+      'Verify wood moisture content (< 16%) and verify exterior drip flashing over concrete'
+    ]
+  }
+];
 
-export function getFramingStep(step: number): FramingStepDefinition {
-  const clamped = Math.max(1, Math.min(FRAMING_STEPS_TOTAL, Math.round(step || 1)));
-  return FRAMING_STEPS[clamped - 1];
+export const FRAMING_STEPS = FRAMING_STEPS_STANDARD;
+export const FRAMING_STEPS_TOTAL = FRAMING_STEPS_STANDARD.length;
+
+export function getFramingSteps(isConcrete = false): FramingStepDefinition[] {
+  return isConcrete ? FRAMING_STEPS_CONCRETE_COMBO : FRAMING_STEPS_STANDARD;
+}
+
+export function getFramingStep(step: number, isConcrete = false): FramingStepDefinition {
+  const steps = getFramingSteps(isConcrete);
+  const clamped = Math.max(1, Math.min(steps.length, Math.round(step || 1)));
+  return steps[clamped - 1];
 }

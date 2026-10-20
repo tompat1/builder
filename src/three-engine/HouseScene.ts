@@ -2190,60 +2190,100 @@ export class HouseScene {
     const framingRightX = w / 2 - 0.025 - studDepth / 2;
 
     // 1. Bottom Sill Plates (Syll 45x145 mm)
-    // Front sill sits at baseElevation on ground; beam at concrete crown if concreteBase
-    const frontSyllGeo = new THREE.BoxGeometry(w - 0.05, studThick, studDepth);
-    const frontSyll = new THREE.Mesh(frontSyllGeo, framingMat);
-    frontSyll.position.set(0, baseElevation + studThick / 2, framingFrontZ);
-    frontSyll.castShadow = true;
-    frontSyll.userData.framingStep = 1;
-    this.framingGroup.add(frontSyll);
-    if (isConcrete) {
-      const frontBeam = new THREE.Mesh(frontSyllGeo, framingMat);
-      frontBeam.position.set(0, concreteH + studThick / 2, framingFrontZ);
-      frontBeam.castShadow = true;
-      frontBeam.userData.framingStep = 1;
-      this.framingGroup.add(frontBeam);
-    }
-
-    // Back sill
-    const backSyll = new THREE.Mesh(frontSyllGeo, framingMat);
-    backSyll.position.set(0, concreteH + studThick / 2, framingBackZ);
-    backSyll.castShadow = true;
-    backSyll.userData.framingStep = 1;
-    this.framingGroup.add(backSyll);
-
-    // Left sill
-    const sideSyllGeo = new THREE.BoxGeometry(studDepth, studThick, d - 0.05 - studDepth * 2);
-    const leftSyll = new THREE.Mesh(sideSyllGeo, framingMat);
-    leftSyll.position.set(framingLeftX, concreteH + studThick / 2, 0);
-    leftSyll.castShadow = true;
-    leftSyll.userData.framingStep = 1;
-    this.framingGroup.add(leftSyll);
-
-    // Right sill
-    const rightSyll = new THREE.Mesh(sideSyllGeo, framingMat);
-    rightSyll.position.set(framingRightX, concreteH + studThick / 2, 0);
-    rightSyll.castShadow = true;
-    rightSyll.userData.framingStep = 1;
-    this.framingGroup.add(rightSyll);
-
+    // For concrete house additions, sills follow existing concrete walls (2.5m) and ground slab extension
     const shell = this.timberShell();
     const cd = (this.currentConfig.concreteDepthMm ?? 5200) / 1000;
-    const extensionDepth = (shell.z + d / 2) - cd / 2;
-    if (isConcrete && extensionDepth > 0.05) {
-      const extSyllGeo = new THREE.BoxGeometry(studDepth, studThick, extensionDepth);
-      const extZ = d / 2 - extensionDepth / 2;
-      const leftExtSyll = new THREE.Mesh(extSyllGeo, framingMat);
-      leftExtSyll.position.set(framingLeftX, baseElevation + studThick / 2, extZ);
-      leftExtSyll.castShadow = true;
-      leftExtSyll.userData.framingStep = 1;
-      this.framingGroup.add(leftExtSyll);
+    const cw = (this.currentConfig.concreteWidthMm ?? 5200) / 1000;
+    const concreteFrontZ = cd - d / 2; // front edge of concrete walls in houseGroup local coords
+    const hasExtension = isConcrete && (d - cd > 0.05);
 
-      const rightExtSyll = new THREE.Mesh(extSyllGeo, framingMat);
-      rightExtSyll.position.set(framingRightX, baseElevation + studThick / 2, extZ);
-      rightExtSyll.castShadow = true;
-      rightExtSyll.userData.framingStep = 1;
-      this.framingGroup.add(rightExtSyll);
+    if (isConcrete) {
+      // --- CONCRETE WALL CROWN SILLS (Elevation: 2.5m atop solid 50cm concrete walls) ---
+      // Back sill resting on back concrete wall
+      const backSyll = new THREE.Mesh(new THREE.BoxGeometry(w - 0.05, studThick, studDepth), framingMat);
+      backSyll.position.set(0, concreteH + studThick / 2, framingBackZ);
+      backSyll.castShadow = true;
+      backSyll.userData.framingStep = 1;
+      this.framingGroup.add(backSyll);
+
+      // Left sill strictly on concrete left wall (stops at concreteFrontZ, does not hang in air)
+      const concreteWallSpanZ = Math.max(0.1, (concreteFrontZ - studDepth / 2) - (framingBackZ + studDepth / 2));
+      const concreteSideSillZ = (framingBackZ + studDepth / 2) + concreteWallSpanZ / 2;
+      const leftSyll = new THREE.Mesh(new THREE.BoxGeometry(studDepth, studThick, concreteWallSpanZ), framingMat);
+      leftSyll.position.set(framingLeftX, concreteH + studThick / 2, concreteSideSillZ);
+      leftSyll.castShadow = true;
+      leftSyll.userData.framingStep = 1;
+      this.framingGroup.add(leftSyll);
+
+      // Right sill on concrete right wall (if timber sits on concrete facade)
+      if (this.concreteFacade('right')) {
+        const rightSyll = new THREE.Mesh(new THREE.BoxGeometry(studDepth, studThick, concreteWallSpanZ), framingMat);
+        rightSyll.position.set(framingRightX, concreteH + studThick / 2, concreteSideSillZ);
+        rightSyll.castShadow = true;
+        rightSyll.userData.framingStep = 1;
+        this.framingGroup.add(rightSyll);
+      }
+
+      // Front concrete crown ledger / transfer beam across the concrete front opening
+      // Rests squarely on the left and right concrete wall heads at concreteFrontZ
+      const crownBeam = new THREE.Mesh(new THREE.BoxGeometry(w - 0.05, studThick, studDepth), framingMat);
+      crownBeam.position.set(0, concreteH + studThick / 2, concreteFrontZ - studDepth / 2);
+      crownBeam.castShadow = true;
+      crownBeam.userData.framingStep = 1;
+      this.framingGroup.add(crownBeam);
+
+      // --- GROUND SLAB SILLS FOR EXTENSION (at baseElevation on ground) ---
+      if (hasExtension) {
+        // Front sill on ground slab
+        const frontSyll = new THREE.Mesh(new THREE.BoxGeometry(w - 0.05, studThick, studDepth), framingMat);
+        frontSyll.position.set(0, baseElevation + studThick / 2, framingFrontZ);
+        frontSyll.castShadow = true;
+        frontSyll.userData.framingStep = 1;
+        this.framingGroup.add(frontSyll);
+
+        // Left extension sill on ground slab (from concreteFrontZ to front sill)
+        const extSpanZ = Math.max(0.05, (framingFrontZ - studDepth / 2) - (concreteFrontZ + studDepth / 2));
+        const extSideSillZ = (concreteFrontZ + studDepth / 2) + extSpanZ / 2;
+
+        const leftExtSyll = new THREE.Mesh(new THREE.BoxGeometry(studDepth, studThick, extSpanZ), framingMat);
+        leftExtSyll.position.set(framingLeftX, baseElevation + studThick / 2, extSideSillZ);
+        leftExtSyll.castShadow = true;
+        leftExtSyll.userData.framingStep = 1;
+        this.framingGroup.add(leftExtSyll);
+
+        const rightExtSyll = new THREE.Mesh(new THREE.BoxGeometry(studDepth, studThick, extSpanZ), framingMat);
+        rightExtSyll.position.set(framingRightX, baseElevation + studThick / 2, extSideSillZ);
+        rightExtSyll.castShadow = true;
+        rightExtSyll.userData.framingStep = 1;
+        this.framingGroup.add(rightExtSyll);
+      }
+    } else {
+      // Standard house (all sills on ground foundation)
+      const frontSyllGeo = new THREE.BoxGeometry(w - 0.05, studThick, studDepth);
+      const frontSyll = new THREE.Mesh(frontSyllGeo, framingMat);
+      frontSyll.position.set(0, baseElevation + studThick / 2, framingFrontZ);
+      frontSyll.castShadow = true;
+      frontSyll.userData.framingStep = 1;
+      this.framingGroup.add(frontSyll);
+
+      const backSyll = new THREE.Mesh(frontSyllGeo, framingMat);
+      backSyll.position.set(0, baseElevation + studThick / 2, framingBackZ);
+      backSyll.castShadow = true;
+      backSyll.userData.framingStep = 1;
+      this.framingGroup.add(backSyll);
+
+      const sideSyllGeo = new THREE.BoxGeometry(studDepth, studThick, d - 0.05 - studDepth * 2);
+      const leftSyll = new THREE.Mesh(sideSyllGeo, framingMat);
+      leftSyll.position.set(framingLeftX, baseElevation + studThick / 2, 0);
+      leftSyll.castShadow = true;
+      leftSyll.userData.framingStep = 1;
+      this.framingGroup.add(leftSyll);
+
+      const rightSyll = new THREE.Mesh(sideSyllGeo, framingMat);
+      rightSyll.position.set(framingRightX, baseElevation + studThick / 2, 0);
+      rightSyll.castShadow = true;
+      rightSyll.userData.framingStep = 1;
+      this.framingGroup.add(rightSyll);
     }
 
     // 2. Top Header Plates (Hammarband / Toppsyll 45x145 mm)
@@ -2289,6 +2329,17 @@ export class HouseScene {
       { x: framingLeftX, z: framingBackZ, height: rearH, base: isConcrete ? concreteH : baseElevation },
       { x: framingRightX, z: framingBackZ, height: rearH, base: (isConcrete && this.concreteFacade('right')) ? concreteH : baseElevation }
     ];
+
+    // When concrete addition extends forward, add interface junction posts where timber meets concrete facade
+    if (isConcrete && hasExtension) {
+      const progress = (d / 2 - concreteFrontZ) / d;
+      const junctionH = frontH - progress * (frontH - rearH);
+      cornerPositions.push(
+        { x: framingLeftX, z: concreteFrontZ, height: junctionH, base: baseElevation },
+        { x: framingRightX, z: concreteFrontZ, height: junctionH, base: baseElevation }
+      );
+    }
+
     cornerPositions.forEach((cp) => {
       const studH = cp.height - cp.base - studThick * 2;
       if (studH > 0.05) {
@@ -2446,6 +2497,85 @@ export class HouseScene {
     this.addNoggings(this.gapsBetween(backSolids), 'x', framingBackZ, concreteH, studThick, studDepth, framingMat, backOpenings);
     this.addNoggings(this.gapsBetween(sideSolids), 'z', framingLeftX, concreteH, studThick, studDepth, framingMat, leftOpenings);
     this.addNoggings(this.gapsBetween(sideSolids), 'z', framingRightX, concreteH, studThick, studDepth, framingMat, rightOpenings);
+
+    if (isConcrete) {
+      // Step 4: Heavy Glulam Transfer Beam (Bärbalk 90x220 mm) across concrete front opening
+      // Min 100 mm direct bearing on solid concrete side wall heads at concreteFrontZ
+      const transferBeamH = 0.22;
+      const transferBeamW = 0.09;
+      const transferBeam = new THREE.Mesh(
+        new THREE.BoxGeometry(w - 0.05, transferBeamH, transferBeamW),
+        framingMat
+      );
+      transferBeam.position.set(0, concreteH - transferBeamH / 2, concreteFrontZ - transferBeamW / 2);
+      transferBeam.castShadow = true;
+      transferBeam.userData.framingStep = 4;
+      this.framingGroup.add(transferBeam);
+
+      // Step 5: Loft Floor Joists (Loftbjälklag 45x220 mm cc 600 mm) spanning across the concrete house
+      // Provides floor deck and critical horizontal diaphragm action tying tops of concrete walls together
+      const concreteSpanZ = Math.max(0.1, (concreteFrontZ - studDepth / 2) - (framingBackZ + studDepth / 2));
+      const joistCount = Math.max(2, Math.floor(concreteSpanZ / 0.6));
+      const joistSpacing = concreteSpanZ / joistCount;
+      const joistH = 0.195;
+      const joistW = 0.045;
+      const joistGeo = new THREE.BoxGeometry(w - 0.05 - studDepth * 2, joistH, joistW);
+      for (let j = 1; j < joistCount; j++) {
+        const jz = framingBackZ + studDepth / 2 + j * joistSpacing;
+        const joistMesh = new THREE.Mesh(joistGeo, framingMat);
+        joistMesh.position.set(0, concreteH + studThick + joistH / 2, jz);
+        joistMesh.castShadow = true;
+        joistMesh.userData.framingStep = 5;
+        this.framingGroup.add(joistMesh);
+      }
+
+      // Step 6: Wind Uplift Tie-Down Straps (Dragband förankrade i betong)
+      // Steel tension straps running vertically from rafters/studs anchored deep into concrete walls
+      const strapMat = new THREE.MeshStandardMaterial({
+        color: '#94a3b8',
+        roughness: 0.35,
+        metalness: 0.85
+      });
+      const strapGeo = new THREE.BoxGeometry(0.005, 0.45, 0.04);
+      const strapPositions = [
+        { x: framingLeftX - 0.005, z: framingBackZ + 0.3 },
+        { x: framingLeftX - 0.005, z: concreteFrontZ - 0.3 },
+        { x: framingRightX + 0.005, z: framingBackZ + 0.3 },
+        { x: framingRightX + 0.005, z: concreteFrontZ - 0.3 }
+      ];
+      for (const sp of strapPositions) {
+        const strap = new THREE.Mesh(strapGeo, strapMat);
+        strap.position.set(sp.x, concreteH, sp.z);
+        strap.castShadow = true;
+        strap.userData.framingStep = 6;
+        this.framingGroup.add(strap);
+      }
+
+      // Step 7: Metal Base Flashing / Drip Edge (Sockelbleck)
+      // Continuous sheet metal flashing shedding rainwater away from the concrete junction
+      const flashMat = new THREE.MeshStandardMaterial({
+        color: '#475569',
+        roughness: 0.4,
+        metalness: 0.7
+      });
+      const flashThick = 0.015;
+      const flashBack = new THREE.Mesh(new THREE.BoxGeometry(w, flashThick, 0.05), flashMat);
+      flashBack.position.set(0, concreteH, framingBackZ - 0.02);
+      flashBack.userData.framingStep = 7;
+      this.framingGroup.add(flashBack);
+
+      const flashLeft = new THREE.Mesh(new THREE.BoxGeometry(0.05, flashThick, concreteSpanZ), flashMat);
+      flashLeft.position.set(framingLeftX - 0.02, concreteH, (framingBackZ + concreteFrontZ) / 2);
+      flashLeft.userData.framingStep = 7;
+      this.framingGroup.add(flashLeft);
+
+      if (this.concreteFacade('right')) {
+        const flashRight = new THREE.Mesh(new THREE.BoxGeometry(0.05, flashThick, concreteSpanZ), flashMat);
+        flashRight.position.set(framingRightX + 0.02, concreteH, (framingBackZ + concreteFrontZ) / 2);
+        flashRight.userData.framingStep = 7;
+        this.framingGroup.add(flashRight);
+      }
+    }
   }
 
   /** Clear spans between stud faces, limited by the lower of the two studs. */
@@ -7184,39 +7314,76 @@ export class HouseScene {
     const cx = shell.x;
     const cz = shell.z;
 
+    const isConcrete = Boolean(this.currentConfig.concreteBase);
+    const cd = (this.currentConfig.concreteDepthMm ?? 5200) / 1000;
+    const concreteFrontZ = cd - d / 2;
+    const concreteH = isConcrete ? (this.currentConfig.concreteHeightMm ?? 2500) / 1000 : 0.25;
+
     let target = new THREE.Vector3(cx, h * 0.45, cz);
     let pos = new THREE.Vector3(cx + w * 1.15, h * 1.15, cz + d * 1.35);
 
-    if (clamped === 1) {
-      // Step 1: Sill detail looking down at front-left corner anchored to slab
-      target = new THREE.Vector3(cx - w / 2 + 0.45, 0.35, cz + d / 2 - 0.45);
-      pos = new THREE.Vector3(cx - w / 2 - 1.8, 1.45, cz + d / 2 + 2.0);
-    } else if (clamped === 2) {
-      // Step 2: Corner stud vertical plumb alignment
-      target = new THREE.Vector3(cx - w / 2 + 0.1, h * 0.48, cz + d / 2 - 0.1);
-      pos = new THREE.Vector3(cx - w / 2 - 2.2, h * 0.6, cz + d / 2 + 2.6);
-    } else if (clamped === 3) {
-      // Step 3: Regular wall studs cc 600 along front facade
-      target = new THREE.Vector3(cx, h * 0.45, cz + d / 2);
-      pos = new THREE.Vector3(cx - w * 0.45, h * 0.7, cz + d / 2 + 3.2);
-    } else if (clamped === 4) {
-      // Step 4: Window / door opening headers & trimmer jack studs
-      const openings = this.frontOpenings(w, h, 0.25);
-      const focusX = openings.length > 0 ? cx + openings[0].x : cx;
-      target = new THREE.Vector3(focusX, 1.45, cz + d / 2);
-      pos = new THREE.Vector3(focusX, 1.6, cz + d / 2 + 2.4);
-    } else if (clamped === 5) {
-      // Step 5: Hammarband (top plates) & staggered noggings
-      target = new THREE.Vector3(cx, h * 0.75, cz + d * 0.1);
-      pos = new THREE.Vector3(cx - w * 0.48, h * 1.35, cz + d / 2 + 3.2);
-    } else if (clamped === 6) {
-      // Step 6: Roof trusses and structural rafters
-      target = new THREE.Vector3(cx, h + 0.3, cz);
-      pos = new THREE.Vector3(cx - w * 0.65, h * 1.55, cz + d * 0.95);
+    if (isConcrete) {
+      if (clamped === 1) {
+        // Step 1: Concrete wall crown sill and slab extension transition
+        target = new THREE.Vector3(cx - w * 0.15, concreteH * 0.7, cz);
+        pos = new THREE.Vector3(cx - w * 1.25, concreteH + 2.2, cz + d * 1.1);
+      } else if (clamped === 2) {
+        // Step 2: Corner posts on concrete crown + interface studs with svällband
+        target = new THREE.Vector3(cx - w / 2, concreteH * 0.8, cz + concreteFrontZ);
+        pos = new THREE.Vector3(cx - w / 2 - 2.8, concreteH + 1.2, cz + concreteFrontZ + 2.4);
+      } else if (clamped === 3) {
+        // Step 3: Bilevel wall studs (short atop concrete, tall in extension)
+        target = new THREE.Vector3(cx - w / 2, concreteH * 0.9, cz);
+        pos = new THREE.Vector3(cx - w / 2 - 3.8, concreteH + 1.5, cz + d * 0.35);
+      } else if (clamped === 4) {
+        // Step 4: Transfer beam across the concrete front opening & window headers
+        target = new THREE.Vector3(cx, concreteH, cz + concreteFrontZ);
+        pos = new THREE.Vector3(cx + w * 0.7, concreteH + 1.4, cz + concreteFrontZ + 3.2);
+      } else if (clamped === 5) {
+        // Step 5: Loft floor joists diaphragm and top plates
+        target = new THREE.Vector3(cx, concreteH + 0.4, cz - d * 0.1);
+        pos = new THREE.Vector3(cx - w * 0.9, concreteH + 2.8, cz + d * 0.75);
+      } else if (clamped === 6) {
+        // Step 6: Mono-pitch rafters and wind uplift tie-downs into concrete
+        target = new THREE.Vector3(cx, h * 0.75, cz);
+        pos = new THREE.Vector3(cx - w * 0.9, h * 1.3, cz + d * 1.1);
+      } else {
+        // Step 7: Complete frame audit with exterior drip flashing
+        target = new THREE.Vector3(cx, h * 0.45, cz);
+        pos = new THREE.Vector3(cx + w * 1.15, h * 1.15, cz + d * 1.35);
+      }
     } else {
-      // Step 7: Complete timber skeleton audit
-      target = new THREE.Vector3(cx, h * 0.42, cz);
-      pos = new THREE.Vector3(cx + w * 1.15, h * 1.15, cz + d * 1.35);
+      if (clamped === 1) {
+        // Step 1: Sill detail looking down at front-left corner anchored to slab
+        target = new THREE.Vector3(cx - w / 2 + 0.45, 0.35, cz + d / 2 - 0.45);
+        pos = new THREE.Vector3(cx - w / 2 - 1.8, 1.45, cz + d / 2 + 2.0);
+      } else if (clamped === 2) {
+        // Step 2: Corner stud vertical plumb alignment
+        target = new THREE.Vector3(cx - w / 2 + 0.1, h * 0.48, cz + d / 2 - 0.1);
+        pos = new THREE.Vector3(cx - w / 2 - 2.2, h * 0.6, cz + d / 2 + 2.6);
+      } else if (clamped === 3) {
+        // Step 3: Regular wall studs cc 600 along front facade
+        target = new THREE.Vector3(cx, h * 0.45, cz + d / 2);
+        pos = new THREE.Vector3(cx - w * 0.45, h * 0.7, cz + d / 2 + 3.2);
+      } else if (clamped === 4) {
+        // Step 4: Window / door opening headers & trimmer jack studs
+        const openings = this.frontOpenings(w, h, 0.25);
+        const focusX = openings.length > 0 ? cx + openings[0].x : cx;
+        target = new THREE.Vector3(focusX, 1.45, cz + d / 2);
+        pos = new THREE.Vector3(focusX, 1.6, cz + d / 2 + 2.4);
+      } else if (clamped === 5) {
+        // Step 5: Hammarband (top plates) & staggered noggings
+        target = new THREE.Vector3(cx, h * 0.75, cz + d * 0.1);
+        pos = new THREE.Vector3(cx - w * 0.48, h * 1.35, cz + d / 2 + 3.2);
+      } else if (clamped === 6) {
+        // Step 6: Roof trusses and structural rafters
+        target = new THREE.Vector3(cx, h + 0.3, cz);
+        pos = new THREE.Vector3(cx - w * 0.65, h * 1.55, cz + d * 0.95);
+      } else {
+        // Step 7: Complete timber skeleton audit
+        target = new THREE.Vector3(cx, h * 0.42, cz);
+        pos = new THREE.Vector3(cx + w * 1.15, h * 1.15, cz + d * 1.35);
+      }
     }
 
     this.flyCamera(pos, target, 0.6, 0.05);

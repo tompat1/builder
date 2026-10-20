@@ -3,7 +3,9 @@
     id="builder-walkthrough-overlay"
     class="pointer-events-auto absolute inset-x-3 bottom-3 z-30 flex flex-col md:inset-x-auto md:left-6 md:right-auto md:bottom-6 md:w-[580px] max-w-full font-sans transition-all duration-300"
     role="region"
-    :aria-label="locale === 'sv' ? 'Byggmästarguide för trästomme' : 'Builder Timber Framing Guide'"
+    :aria-label="isConcrete
+      ? (locale === 'sv' ? 'Byggmästarguide för påbyggnad på betonghus' : 'Builder Guide for Addition on Concrete House')
+      : (locale === 'sv' ? 'Byggmästarguide för trästomme' : 'Builder Timber Framing Guide')"
   >
     <!-- Main Floating Glassmorphic Container -->
     <div
@@ -24,7 +26,9 @@
           <div class="min-w-0">
             <div class="flex items-center gap-2">
               <span class="text-[10px] font-extrabold uppercase tracking-widest text-amber-400">
-                {{ locale === 'sv' ? 'Byggmästarguide · Trästomme' : 'Builder Guide · Timber Frame' }}
+                {{ isConcrete
+                  ? (locale === 'sv' ? 'Byggmästarguide · Påbyggnad på betonghus' : 'Builder Guide · Concrete Addition Frame')
+                  : (locale === 'sv' ? 'Byggmästarguide · Trästomme' : 'Builder Guide · Timber Frame') }}
               </span>
               <span class="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold text-amber-300 border border-amber-500/30">
                 {{ locale === 'sv' ? `Steg ${currentStep.step} av ${totalSteps}` : `Step ${currentStep.step} of ${totalSteps}` }}
@@ -263,7 +267,7 @@
 import { computed, ref, onMounted, onBeforeUnmount, reactive } from 'vue';
 import { useConfigStore } from '../store/useConfigStore';
 import { useLabels } from '../i18n';
-import { FRAMING_STEPS, FRAMING_STEPS_TOTAL, getFramingStep, type FramingStepDefinition } from '../construction/framingWalkthrough';
+import { FRAMING_STEPS_TOTAL, getFramingStep, getFramingSteps, type FramingStepDefinition } from '../construction/framingWalkthrough';
 
 const store = useConfigStore();
 const { locale } = useLabels();
@@ -284,14 +288,40 @@ function toggleItemCheck(step: number, idx: number) {
   else checkedItems.add(key);
 }
 
-const allSteps = FRAMING_STEPS;
-const totalSteps = FRAMING_STEPS_TOTAL;
+const isConcrete = computed(() => store.selectedSizeId === 'size-paabyggnad');
+const allSteps = computed(() => getFramingSteps(isConcrete.value));
+const totalSteps = computed(() => allSteps.value.length || FRAMING_STEPS_TOTAL);
 
 const currentStep = computed<FramingStepDefinition>(() => {
-  return getFramingStep(store.framingStep);
+  return getFramingStep(store.framingStep, isConcrete.value);
 });
 
 function stepShortLabel(s: FramingStepDefinition): string {
+  if (isConcrete.value) {
+    if (locale.value === 'sv') {
+      switch (s.step) {
+        case 1: return 'Syll & Murkrön';
+        case 2: return 'Hörn & Anslutning';
+        case 3: return 'Väggreglar';
+        case 4: return 'Avväxling & Bärbalk';
+        case 5: return 'Hammarband & Bjälklag';
+        case 6: return 'Takstolar';
+        case 7: return 'Slutkontroll';
+        default: return `Steg ${s.step}`;
+      }
+    } else {
+      switch (s.step) {
+        case 1: return 'Crown & Slab Sills';
+        case 2: return 'Corners & Ties';
+        case 3: return 'Wall Studs';
+        case 4: return 'Headers & Beam';
+        case 5: return 'Plates & Joists';
+        case 6: return 'Rafters & Anchors';
+        case 7: return 'Final Audit';
+        default: return `Step ${s.step}`;
+      }
+    }
+  }
   if (locale.value === 'sv') {
     switch (s.step) {
       case 1: return 'Syll';
@@ -348,7 +378,7 @@ function startAutoTour() {
   isAutoPlaying.value = true;
   if (autoTourTimer) clearInterval(autoTourTimer);
   autoTourTimer = setInterval(() => {
-    if (store.framingStep < totalSteps) {
+    if (store.framingStep < totalSteps.value) {
       store.nextFramingStep();
     } else {
       store.setFramingStep(1);
