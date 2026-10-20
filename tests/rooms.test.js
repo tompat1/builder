@@ -154,7 +154,6 @@ test('two bedrooms fit side-by-side on the front loft without overlapping', () =
 
 test('bedroomBedPlacement keeps beds strictly inside room and shell bounds without protruding', () => {
   const shell = innerHalf(5.2, 6.731);
-  const loft = loftDeckBounds(5.2, 6.731, 16.4, 'fram', false, true);
 
   // Front bedroom with open.front = true (touching front exterior wall)
   const roomW = 2.41;
