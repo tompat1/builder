@@ -2206,8 +2206,8 @@ export class HouseScene {
       backSyll.userData.framingStep = 1;
       this.framingGroup.add(backSyll);
 
-      // Left sill strictly on concrete left wall (stops at concreteFrontZ, does not hang in air)
-      const concreteWallSpanZ = Math.max(0.1, (concreteFrontZ - studDepth / 2) - (framingBackZ + studDepth / 2));
+      // Left sill strictly on concrete left wall (from back wall to concreteFrontZ)
+      const concreteWallSpanZ = Math.max(0.1, concreteFrontZ - (framingBackZ + studDepth / 2));
       const concreteSideSillZ = (framingBackZ + studDepth / 2) + concreteWallSpanZ / 2;
       const leftSyll = new THREE.Mesh(new THREE.BoxGeometry(studDepth, studThick, concreteWallSpanZ), framingMat);
       leftSyll.position.set(framingLeftX, concreteH + studThick / 2, concreteSideSillZ);
@@ -2215,7 +2215,7 @@ export class HouseScene {
       leftSyll.userData.framingStep = 1;
       this.framingGroup.add(leftSyll);
 
-      // Right sill on concrete right wall (if timber sits on concrete facade)
+      // Right sill on concrete right wall
       if (this.concreteFacade('right')) {
         const rightSyll = new THREE.Mesh(new THREE.BoxGeometry(studDepth, studThick, concreteWallSpanZ), framingMat);
         rightSyll.position.set(framingRightX, concreteH + studThick / 2, concreteSideSillZ);
@@ -2224,13 +2224,25 @@ export class HouseScene {
         this.framingGroup.add(rightSyll);
       }
 
-      // Front concrete crown ledger / transfer beam across the concrete front opening
-      // Rests squarely on the left and right concrete wall heads at concreteFrontZ
-      const crownBeam = new THREE.Mesh(new THREE.BoxGeometry(w - 0.05, studThick, studDepth), framingMat);
-      crownBeam.position.set(0, concreteH + studThick / 2, concreteFrontZ - studDepth / 2);
-      crownBeam.castShadow = true;
-      crownBeam.userData.framingStep = 1;
-      this.framingGroup.add(crownBeam);
+      // --- VERTICAL SILL PLATES ON CONCRETE WALL ENDS (Elevation: concreteH down to baseElevation) ---
+      // Follows vertically on the concrete walls ends down to the foundation slab (NO horizontal sill across the open air!)
+      const wallEndH = (concreteH + studThick) - baseElevation;
+      const wallEndY = baseElevation + wallEndH / 2;
+      const wallEndZ = concreteFrontZ + studThick / 2;
+
+      const leftWallEndSyll = new THREE.Mesh(new THREE.BoxGeometry(studDepth, wallEndH, studThick), framingMat);
+      leftWallEndSyll.position.set(framingLeftX, wallEndY, wallEndZ);
+      leftWallEndSyll.castShadow = true;
+      leftWallEndSyll.userData.framingStep = 1;
+      this.framingGroup.add(leftWallEndSyll);
+
+      if (this.concreteFacade('right')) {
+        const rightWallEndSyll = new THREE.Mesh(new THREE.BoxGeometry(studDepth, wallEndH, studThick), framingMat);
+        rightWallEndSyll.position.set(framingRightX, wallEndY, wallEndZ);
+        rightWallEndSyll.castShadow = true;
+        rightWallEndSyll.userData.framingStep = 1;
+        this.framingGroup.add(rightWallEndSyll);
+      }
 
       // --- GROUND SLAB SILLS FOR EXTENSION (at baseElevation on ground) ---
       if (hasExtension) {
@@ -2241,9 +2253,9 @@ export class HouseScene {
         frontSyll.userData.framingStep = 1;
         this.framingGroup.add(frontSyll);
 
-        // Left extension sill on ground slab (from concreteFrontZ to front sill)
-        const extSpanZ = Math.max(0.05, (framingFrontZ - studDepth / 2) - (concreteFrontZ + studDepth / 2));
-        const extSideSillZ = (concreteFrontZ + studDepth / 2) + extSpanZ / 2;
+        // Left extension sill on ground slab (from concreteFrontZ + studThick to front sill)
+        const extSpanZ = Math.max(0.05, (framingFrontZ - studDepth / 2) - (concreteFrontZ + studThick));
+        const extSideSillZ = (concreteFrontZ + studThick) + extSpanZ / 2;
 
         const leftExtSyll = new THREE.Mesh(new THREE.BoxGeometry(studDepth, studThick, extSpanZ), framingMat);
         leftExtSyll.position.set(framingLeftX, baseElevation + studThick / 2, extSideSillZ);
@@ -2256,6 +2268,12 @@ export class HouseScene {
         rightExtSyll.castShadow = true;
         rightExtSyll.userData.framingStep = 1;
         this.framingGroup.add(rightExtSyll);
+      } else {
+        const frontSyll = new THREE.Mesh(new THREE.BoxGeometry(w - 0.05, studThick, studDepth), framingMat);
+        frontSyll.position.set(0, baseElevation + studThick / 2, concreteFrontZ + studThick + studDepth / 2);
+        frontSyll.castShadow = true;
+        frontSyll.userData.framingStep = 1;
+        this.framingGroup.add(frontSyll);
       }
     } else {
       // Standard house (all sills on ground foundation)
@@ -2335,8 +2353,8 @@ export class HouseScene {
       const progress = (d / 2 - concreteFrontZ) / d;
       const junctionH = frontH - progress * (frontH - rearH);
       cornerPositions.push(
-        { x: framingLeftX, z: concreteFrontZ, height: junctionH, base: baseElevation },
-        { x: framingRightX, z: concreteFrontZ, height: junctionH, base: baseElevation }
+        { x: framingLeftX, z: concreteFrontZ + studThick / 2, height: junctionH, base: concreteH + studThick },
+        { x: framingRightX, z: concreteFrontZ + studThick / 2, height: junctionH, base: concreteH + studThick }
       );
     }
 

@@ -374,10 +374,10 @@ export const FRAMING_STEPS_CONCRETE_COMBO: FramingStepDefinition[] = [
   {
     step: 1,
     key: 'sill',
-    titleSv: '1. Syll på Murkrön & Markplatta',
-    titleEn: '1. Sill Plates on Concrete Crown & Slab',
-    subtitleSv: 'Kemankare i befintligt murkrön (2,5 m) samt marksyll för utbyggnad',
-    subtitleEn: 'Chemical anchoring into concrete wall tops (2.5 m) and ground extension slab',
+    titleSv: '1. Syll på Murkrön, Väggavslut & Markplatta',
+    titleEn: '1. Sill Plates on Wall Crowns, Ends & Slab',
+    subtitleSv: 'Kemankare i murkrön (2,5 m), vertikal syll på betongväggarnas ändar samt marksyll för utbyggnad',
+    subtitleEn: 'Chemical anchoring into crowns (2.5 m), vertical sills on wall ends, and ground extension slab',
     specs: [
       {
         labelSv: 'Syll på murkrön',
@@ -392,10 +392,10 @@ export const FRAMING_STEPS_CONCRETE_COMBO: FramingStepDefinition[] = [
         valueEn: 'M12 chemical injection anchors cc 800 mm'
       },
       {
-        labelSv: 'Fuktskydd',
-        labelEn: 'Capillary Barrier',
-        valueSv: 'Dubbel EPDM-syllisolering 150 mm',
-        valueEn: '150 mm double EPDM sill barrier'
+        labelSv: 'Väggavslutssyll',
+        labelEn: 'Wall End Sills',
+        valueSv: 'Vertikal syll 45×145 med svällband',
+        valueEn: 'Vertical 45×145 sill with foam tape'
       },
       {
         labelSv: 'Marksyll tillbyggnad',
@@ -405,20 +405,20 @@ export const FRAMING_STEPS_CONCRETE_COMBO: FramingStepDefinition[] = [
       }
     ],
     proTipsSv:
-      'Vid påbyggnad på befintligt betonghus finns två separata syllplan: ett övre på 2,5 m höjd direkt ovanpå de 50 cm tjocka betongväggarna (murkrönet), och ett nedre på den nya markplattan för tillbyggnaden. På murkrönet får mekaniska slagankare inte användas då gammal betong riskerar att spricka vid kanterna – använd godkänt kemankare (injekteringsmassa) med gängstång M12. Borrhålen ska borstas och blåsas rena. Syllen på murkrönet följer betongväggarna exakt och avslutas vid öppningen; den får aldrig hänga i luften. Lägg alltid dubbel EPDM-syllisolering mellan betong och träsyll.',
+      'Vid påbyggnad på befintligt betonghus följer syllarna betongstommen exakt: horisontellt ovanpå de 50 cm tjocka betongväggarnas murkrön (2,5 m), viker sedan 90° ner och följer betongväggarnas främre gavelslut vertikalt ner till markplattan, och fortsätter därefter som marksyll runt tillbyggnaden. Ingen syll får någonsin hänga i luften över öppningen. På murkrönet används kemankare (injekteringsmassa) med gängstång M12 för att undvika sprickbildning i äldre betong. Längs murkrönet läggs dubbel EPDM-syllisolering, och mot de vertikala betongväggändarna monteras expanderande fogband (svällband).',
     proTipsEn:
-      'When building on an existing concrete house, you have two distinct sill plate elevations: the upper sill at 2.5 m atop the 50 cm thick concrete wall crowns, and the lower sill on the new ground extension slab. Never use aggressive mechanical expansion anchors on aged wall crowns where edge spalling can occur – specify M12 threaded studs set in approved epoxy/hybrid chemical injection adhesive. Thoroughly blow and brush drill holes clean. The upper sill plate strictly follows the perimeter of the concrete walls and terminates at the front wall opening; it must never cantilever into open air. Install continuous double EPDM sill barrier between concrete and wood.',
+      'When building on an existing concrete house, the sill plates strictly follow the concrete walls: horizontally atop the 50 cm wall crowns (2.5 m), turning 90° down to follow vertically on the front concrete wall ends to the foundation slab, and continuing along the slab around the ground extension. Sill plates never cantilever or hang in open air across the opening. Use M12 chemical injection studs in wall crowns to prevent edge spalling. Lay double EPDM sill barrier beneath crown sills, and pre-compressed expanding foam tape along the vertical concrete wall ends.',
     checklistSv: [
-      'Avlägsna allt löst bruk på murkrönet och dammsug ytan ren',
-      'Lägg ut kontinuerlig EPDM-syllisolering längs betongväggarnas krön och markplattan',
-      'Borra, rengör och injektera kemankare M12 cc 800 mm i murkrönet',
-      'Dra åt syllarna på murkrönet och förankra främre marksyllen med expanderbult'
+      'Lägg ut kontinuerlig EPDM-syllisolering längs murkrön och markplatta',
+      'Förankra syllarna på murkrönet med kemankare M12 cc 800 mm',
+      'Montera vertikala syllar på betongväggarnas gavelslut ner mot plattan med betongskruv och svällband',
+      'Förankra marksyllen för tillbyggnaden med expanderbult'
     ],
     checklistEn: [
-      'Inspect and clean the concrete wall tops, removing loose mortar and dust',
-      'Roll out continuous EPDM sill sealer along the 50 cm concrete walls and ground slab',
-      'Drill, brush, blow, and inject M12 chemical anchors cc 800 mm into wall crowns',
-      'Torque upper sills onto concrete crowns and secure ground extension sills'
+      'Roll out continuous EPDM sill sealer along the concrete wall crowns and ground slab',
+      'Anchor crown sills with M12 chemical injection studs cc 800 mm',
+      'Fasten vertical sill plates down the concrete wall ends to the slab with concrete screws and foam tape',
+      'Anchor ground extension sills to foundation slab with expansion bolts'
     ]
   },
   {

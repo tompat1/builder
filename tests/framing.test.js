@@ -78,16 +78,17 @@ test('concrete combo framing guide accounts for existing concrete walls, dual si
   assert.equal(steps.length, 7);
   assert.equal(FRAMING_STEPS_CONCRETE_COMBO.length, 7);
 
-  // Step 1: Chemical anchors on wall crown (2.5m) and slab extension sills
+  // Step 1: Chemical anchors on wall crown (2.5m), vertical sills on wall ends, and slab extension sills
   const s1 = getFramingStep(1, true);
   assert.equal(s1.key, 'sill');
-  assert.ok(s1.titleSv.includes('Murkrön') || s1.titleSv.includes('Syll'));
+  assert.ok(s1.titleSv.includes('Murkrön') && s1.titleSv.includes('Väggavslut'));
   const s1Fastener = s1.specs.find((s) => s.labelSv === 'Infästning murkrön');
   assert.ok(s1Fastener?.valueSv.includes('Kemankare M12'));
-  const s1Moisture = s1.specs.find((s) => s.labelSv === 'Fuktskydd');
-  assert.ok(s1Moisture?.valueSv.includes('EPDM'));
+  const s1End = s1.specs.find((s) => s.labelSv === 'Väggavslutssyll');
+  assert.ok(s1End?.valueSv.includes('Vertikal syll') && s1End?.valueSv.includes('svällband'));
   assert.ok(s1.proTipsSv.includes('kemankare'));
-  assert.ok(s1.proTipsSv.includes('hänga i luften')); // mentions sills following walls and never hanging in air!
+  assert.ok(s1.proTipsSv.includes('vertikalt'));
+  assert.ok(s1.proTipsSv.includes('hänga i luften'));
 
   // Step 2: Corners & concrete interface with svällband
   const s2 = getFramingStep(2, true);
