@@ -3,9 +3,15 @@
 export const TERRACE_SIDES = ['front', 'right', 'back', 'left'] as const;
 export type TerraceSide = (typeof TERRACE_SIDES)[number];
 
-/** How far the deck sticks out, in metres. */
+/** How far the deck sticks out, in metres. Preset standard sizes. */
 export const TERRACE_DEPTHS = [1.2, 1.8, 2.4, 3, 5] as const;
-export type TerraceDepth = (typeof TERRACE_DEPTHS)[number];
+export type StandardTerraceDepth = (typeof TERRACE_DEPTHS)[number];
+
+export const MIN_TERRACE_DEPTH = 0.8;
+export const MAX_TERRACE_DEPTH = 6.0;
+
+/** Terrace depth in metres (standard preset or custom within [0.8, 6.0]). */
+export type TerraceDepth = number;
 
 /** By the door, or along the whole wall. */
 export type TerraceSpan = 'door' | 'full';
@@ -37,6 +43,12 @@ export const SAUNA_WINDOWS = ['panorama', 'standard', 'sprojat', 'frost', 'none'
 export type SaunaWindowPlacement = 'yard' | 'side' | 'both' | 'none';
 export const SAUNA_WINDOW_PLACEMENTS = ['yard', 'side', 'both', 'none'] as const;
 
+export type SaunaSize = 'compact' | 'standard' | 'large';
+export const SAUNA_SIZES = ['compact', 'standard', 'large'] as const;
+
+export type SaunaWindowSize = 'compact' | 'standard' | 'large';
+export const SAUNA_WINDOW_SIZES = ['compact', 'standard', 'large'] as const;
+
 const SAUNA_WALLS: CabinWall[] = ['house', 'left', 'yard', 'right'];
 
 /** Benches, window, and door stay one room and step clockwise together. */
@@ -67,6 +79,10 @@ export interface HouseTerrace {
   buildingWindow?: SaunaWindow;
   /** Which wall(s) have windows */
   buildingWindowPlacement?: SaunaWindowPlacement;
+  /** Overall footprint size of the sauna cabin */
+  buildingSize?: SaunaSize;
+  /** Size scaling of the sauna window */
+  buildingWindowSize?: SaunaWindowSize;
 }
 
 const SAUNA_EAVE_M = 2.05;
@@ -126,8 +142,12 @@ const FULL_DECK = 58400;
 export const SAUNA_BUILDING_PRICE = 48000;
 export const SHED_BUILDING_PRICE = 32000;
 
-export function terraceBuildingPrice(building?: TerraceBuilding): number {
-  if (building === 'sauna') return SAUNA_BUILDING_PRICE;
+export function terraceBuildingPrice(building?: TerraceBuilding, size?: SaunaSize): number {
+  if (building === 'sauna') {
+    if (size === 'compact') return 42000;
+    if (size === 'large') return 56000;
+    return SAUNA_BUILDING_PRICE;
+  }
   if (building === 'shed') return SHED_BUILDING_PRICE;
   return 0;
 }
@@ -136,7 +156,7 @@ export function terracePrice(terrace: HouseTerrace): number {
   const depthScale = terrace.span === 'full' ? terrace.depth / FULL_DEPTH : terrace.depth / DOOR_DEPTH;
   const deck = terrace.span === 'full' ? FULL_DECK : DOOR_DECK;
   const roof = terrace.roof ? ROOF : 0;
-  const building = terraceBuildingPrice(terrace.building);
+  const building = terraceBuildingPrice(terrace.building, terrace.buildingSize);
   return Math.round(((deck + roof) * depthScale) / 100) * 100 + building;
 }
 
@@ -183,9 +203,22 @@ export function acceptTerraces(value: unknown): HouseTerrace[] {
       row.buildingWindowPlacement && SAUNA_WINDOW_PLACEMENTS.includes(row.buildingWindowPlacement as SaunaWindowPlacement)
         ? (row.buildingWindowPlacement as SaunaWindowPlacement)
         : undefined;
+    const buildingSize: SaunaSize | undefined =
+      row.buildingSize && SAUNA_SIZES.includes(row.buildingSize as SaunaSize)
+        ? (row.buildingSize as SaunaSize)
+        : undefined;
+    const buildingWindowSize: SaunaWindowSize | undefined =
+      row.buildingWindowSize && SAUNA_WINDOW_SIZES.includes(row.buildingWindowSize as SaunaWindowSize)
+        ? (row.buildingWindowSize as SaunaWindowSize)
+        : undefined;
+    const rawDepth = typeof row.depth === 'number' && !Number.isNaN(row.depth) ? row.depth : 1.8;
+    const depth =
+      rawDepth >= MIN_TERRACE_DEPTH && rawDepth <= MAX_TERRACE_DEPTH
+        ? Math.round(rawDepth * 10) / 10
+        : 1.8;
     terraces.push({
       side: row.side as TerraceSide,
-      depth: TERRACE_DEPTHS.includes(row.depth as TerraceDepth) ? (row.depth as TerraceDepth) : 1.8,
+      depth,
       span: row.span === 'full' ? 'full' : 'door',
       roof: row.roof === true,
       ...(building ? { building } : {}),
@@ -195,7 +228,9 @@ export function acceptTerraces(value: unknown): HouseTerrace[] {
       ...(buildingColor ? { buildingColor } : {}),
       ...(buildingDoor ? { buildingDoor } : {}),
       ...(buildingWindow ? { buildingWindow } : {}),
-      ...(buildingWindowPlacement ? { buildingWindowPlacement } : {})
+      ...(buildingWindowPlacement ? { buildingWindowPlacement } : {}),
+      ...(buildingSize ? { buildingSize } : {}),
+      ...(buildingWindowSize ? { buildingWindowSize } : {})
     });
     if (terraces.length >= TERRACE_SIDES.length) break;
   }

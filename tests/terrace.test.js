@@ -197,3 +197,53 @@ test('sauna color can be changed and preserves valid choices', () => {
   }]);
   assert.equal(updated.buildingColor, 'falurod');
 });
+
+test('sauna accepts building size and window size choices', () => {
+  const terraces = acceptTerraces([
+    {
+      side: 'front',
+      depth: 2.4,
+      span: 'full',
+      roof: true,
+      building: 'sauna',
+      buildingSize: 'compact',
+      buildingWindowSize: 'large'
+    },
+    {
+      side: 'back',
+      depth: 1.8,
+      span: 'door',
+      roof: false,
+      building: 'sauna',
+      buildingSize: 'large',
+      buildingWindowSize: 'compact'
+    },
+    {
+      side: 'left',
+      depth: 1.8,
+      span: 'door',
+      roof: false,
+      building: 'sauna',
+      buildingSize: 'invalid_size',
+      buildingWindowSize: 'invalid_win_size'
+    }
+  ]);
+
+  assert.equal(terraces[0].buildingSize, 'compact');
+  assert.equal(terraces[0].buildingWindowSize, 'large');
+  assert.equal(terraces[1].buildingSize, 'large');
+  assert.equal(terraces[1].buildingWindowSize, 'compact');
+  assert.equal(terraces[2].buildingSize, undefined);
+  assert.equal(terraces[2].buildingWindowSize, undefined);
+});
+
+test('terracePrice scales correctly with sauna building size', () => {
+  const base = terracePrice({ side: 'front', depth: 1.8, span: 'door', roof: false });
+  const compact = terracePrice({ side: 'front', depth: 1.8, span: 'door', roof: false, building: 'sauna', buildingSize: 'compact' });
+  const standard = terracePrice({ side: 'front', depth: 1.8, span: 'door', roof: false, building: 'sauna', buildingSize: 'standard' });
+  const large = terracePrice({ side: 'front', depth: 1.8, span: 'door', roof: false, building: 'sauna', buildingSize: 'large' });
+
+  assert.equal(compact, base + 42000);
+  assert.equal(standard, base + 48000);
+  assert.equal(large, base + 56000);
+});

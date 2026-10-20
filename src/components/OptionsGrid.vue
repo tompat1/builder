@@ -1938,6 +1938,10 @@
                 <rect x="65" y="12" width="12" height="50" fill="currentColor" fill-opacity="0.18" stroke="currentColor" stroke-width="0.8" />
                 <rect x="83" y="12" width="12" height="50" fill="currentColor" fill-opacity="0.18" stroke="currentColor" stroke-width="0.8" />
               </template>
+              <template v-else-if="door.id === 'BASTUDORR'">
+                <rect x="64" y="10" width="32" height="60" rx="1" fill="#f59e0b" fill-opacity="0.22" stroke="currentColor" stroke-width="1.2" />
+                <line x1="90" y1="26" x2="90" y2="54" stroke="#b45309" stroke-width="2.5" stroke-linecap="round" />
+              </template>
               <template v-else-if="door.id === 'SKJUTDORR'">
                 <rect x="30" y="8" width="100" height="64" rx="1" stroke="currentColor" stroke-width="2" />
                 <line x1="80" y1="8" x2="80" y2="72" stroke="currentColor" stroke-width="1.5" />
@@ -1977,9 +1981,10 @@
     <!-- Windows Options -->
     <template v-else-if="store.selectedCategory === 'windows'">
       <!-- Quick Sauna Window Card if a terrace sauna is mounted -->
+      <!-- Quick Sauna Window Card if a terrace sauna is mounted -->
       <div
         v-if="terraceWithSauna"
-        class="mb-3 p-3 bg-amber-50/70 rounded-xl border border-amber-200/80 space-y-2"
+        class="mb-3 p-3 bg-amber-50/70 rounded-xl border border-amber-200/80 space-y-2.5"
       >
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-1.5">
@@ -1999,19 +2004,48 @@
         <p class="text-[11px] text-amber-800/90 leading-snug">
           <Cms k="category.saunaWindowHint" />
         </p>
-        <div class="grid grid-cols-3 sm:grid-cols-5 gap-1.5 pt-1">
-          <button
-            v-for="w in saunaWindows"
-            :key="w"
-            type="button"
-            :id="`windows-quick-sauna-win-${w}`"
-            :aria-pressed="(terraceWithSauna.buildingWindow ?? 'panorama') === w"
-            :class="terraceChoiceClass((terraceWithSauna.buildingWindow ?? 'panorama') === w)"
-            @click="store.setTerraceBuildingWindow(terraceWithSauna.side, w)"
-          >
-            <Cms :k="`category.saunaWindow_${w}`" />
-          </button>
+
+        <!-- Window Style -->
+        <div>
+          <p class="mb-1 text-[11px] font-bold text-amber-950">
+            <Cms k="category.terraceSaunaWindow" />
+          </p>
+          <div class="grid grid-cols-3 sm:grid-cols-5 gap-1.5">
+            <button
+              v-for="w in saunaWindows"
+              :key="w"
+              type="button"
+              :id="`windows-quick-sauna-win-${w}`"
+              :aria-pressed="(terraceWithSauna.buildingWindow ?? 'panorama') === w"
+              :class="terraceChoiceClass((terraceWithSauna.buildingWindow ?? 'panorama') === w)"
+              @click="store.setTerraceBuildingWindow(terraceWithSauna.side, w)"
+            >
+              <Cms :k="`category.saunaWindow_${w}`" />
+            </button>
+          </div>
         </div>
+
+        <!-- Window Size (when window is not 'none') -->
+        <div v-if="(terraceWithSauna.buildingWindow ?? 'panorama') !== 'none'" class="pt-1.5 border-t border-amber-200/60">
+          <p class="mb-1 text-[11px] font-bold text-amber-950">
+            <Cms k="category.terraceSaunaWindowSize" />
+          </p>
+          <div class="grid grid-cols-3 gap-1.5">
+            <button
+              v-for="ws in saunaWindowSizes"
+              :key="ws"
+              type="button"
+              :id="`windows-quick-sauna-winsize-${ws}`"
+              :aria-pressed="(terraceWithSauna.buildingWindowSize ?? 'standard') === ws"
+              :class="terraceChoiceClass((terraceWithSauna.buildingWindowSize ?? 'standard') === ws)"
+              @click="store.setTerraceBuildingWindowSize(terraceWithSauna.side, ws)"
+            >
+              <Cms :k="`category.saunaWindowSize_${ws}`" />
+            </button>
+          </div>
+        </div>
+
+        <!-- Window Placement (when window is not 'none') -->
         <div v-if="(terraceWithSauna.buildingWindow ?? 'panorama') !== 'none'" class="pt-1.5 border-t border-amber-200/60">
           <p class="mb-1 text-[11px] font-bold text-amber-950">
             <Cms k="category.terraceSaunaWindowPlacement" />
@@ -2030,6 +2064,57 @@
             </button>
           </div>
         </div>
+
+        <!-- Sauna Footprint Size -->
+        <div class="pt-1.5 border-t border-amber-200/60">
+          <div class="flex items-center justify-between mb-1">
+            <p class="text-[11px] font-bold text-amber-950">
+              <Cms k="category.terraceSaunaSize" />
+            </p>
+            <span class="text-[10px] text-amber-800 font-medium">
+              {{ saunaSizeDimensions(terraceWithSauna.buildingSize ?? 'standard') }}
+            </span>
+          </div>
+          <div class="grid grid-cols-3 gap-1.5">
+            <button
+              v-for="sz in saunaSizes"
+              :key="sz"
+              type="button"
+              :id="`windows-quick-sauna-size-${sz}`"
+              :aria-pressed="(terraceWithSauna.buildingSize ?? 'standard') === sz"
+              :class="terraceChoiceClass((terraceWithSauna.buildingSize ?? 'standard') === sz)"
+              @click="store.setTerraceBuildingSize(terraceWithSauna.side, sz)"
+            >
+              <Cms :k="`category.saunaSize_${sz}`" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Prompt to add sauna if terraces exist but no sauna yet -->
+      <div
+        v-else-if="hasAnyTerrace"
+        class="mb-3 p-2.5 bg-amber-50/60 rounded-xl border border-dashed border-amber-300 flex items-center justify-between gap-2.5"
+      >
+        <div class="flex items-center gap-2">
+          <span class="text-base">🧖‍♂️</span>
+          <div>
+            <p class="text-xs font-semibold text-amber-950">
+              <Cms k="category.saunaAddWindowPrompt" />
+            </p>
+            <p class="text-[10px] text-amber-800/80">
+              <Cms k="category.saunaAddWindowPromptSub" />
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          id="btn-add-sauna-from-windows"
+          @click="addSaunaToFirstTerrace"
+          class="shrink-0 px-2.5 py-1 text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white rounded-lg shadow-2xs transition-colors"
+        >
+          <Cms k="category.addSauna" />
+        </button>
       </div>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -2341,6 +2426,31 @@
                   </div>
                 </div>
 
+                <!-- Sauna Size -->
+                <div>
+                  <div class="flex items-center justify-between mb-1">
+                    <p class="text-[11px] font-bold text-slate-700">
+                      <Cms k="category.terraceSaunaSize" />
+                    </p>
+                    <span class="text-[10px] text-slate-500 font-medium">
+                      {{ saunaSizeDimensions(deck.buildingSize ?? 'standard') }}
+                    </span>
+                  </div>
+                  <div class="grid grid-cols-3 gap-1.5">
+                    <button
+                      v-for="sz in saunaSizes"
+                      :key="sz"
+                      type="button"
+                      :id="`terrace-${deck.side}-sauna-size-${sz}`"
+                      :aria-pressed="(deck.buildingSize ?? 'standard') === sz"
+                      :class="terraceChoiceClass((deck.buildingSize ?? 'standard') === sz)"
+                      @click="store.setTerraceBuildingSize(deck.side, sz)"
+                    >
+                      <Cms :k="`category.saunaSize_${sz}`" />
+                    </button>
+                  </div>
+                </div>
+
                 <div>
                   <p class="mb-1 text-[11px] font-bold text-slate-700">
                     <Cms k="category.terraceSaunaDoor" />
@@ -2375,6 +2485,25 @@
                       @click="store.setTerraceBuildingWindow(deck.side, w)"
                     >
                       <Cms :k="`category.saunaWindow_${w}`" />
+                    </button>
+                  </div>
+                </div>
+
+                <div v-if="(deck.buildingWindow ?? 'panorama') !== 'none'">
+                  <p class="mb-1 text-[11px] font-bold text-slate-700">
+                    <Cms k="category.terraceSaunaWindowSize" />
+                  </p>
+                  <div class="grid grid-cols-3 gap-1.5">
+                    <button
+                      v-for="ws in saunaWindowSizes"
+                      :key="ws"
+                      type="button"
+                      :id="`terrace-${deck.side}-sauna-window-size-${ws}`"
+                      :aria-pressed="(deck.buildingWindowSize ?? 'standard') === ws"
+                      :class="terraceChoiceClass((deck.buildingWindowSize ?? 'standard') === ws)"
+                      @click="store.setTerraceBuildingWindowSize(deck.side, ws)"
+                    >
+                      <Cms :k="`category.saunaWindowSize_${ws}`" />
                     </button>
                   </div>
                 </div>
@@ -2442,6 +2571,8 @@ import {
   SAUNA_DOORS,
   SAUNA_WINDOWS,
   SAUNA_WINDOW_PLACEMENTS,
+  SAUNA_SIZES,
+  SAUNA_WINDOW_SIZES,
   type TerraceDepth,
   type TerraceBuilding,
   type TerraceBuildingPlacement,
@@ -2449,7 +2580,9 @@ import {
   type SaunaColor,
   type SaunaDoor,
   type SaunaWindow,
-  type SaunaWindowPlacement
+  type SaunaWindowPlacement,
+  type SaunaSize,
+  type SaunaWindowSize
 } from '../outside/terrace';
 import { useLabels } from '../i18n';
 import CustomPaint from './CustomPaint.vue';
@@ -2557,7 +2690,34 @@ const saunaColors = SAUNA_COLORS;
 const saunaDoors = SAUNA_DOORS;
 const saunaWindows = SAUNA_WINDOWS;
 const saunaPlacements = SAUNA_WINDOW_PLACEMENTS.filter((p) => p !== 'none');
+const saunaSizes = SAUNA_SIZES;
+const saunaWindowSizes = SAUNA_WINDOW_SIZES;
 const terraceWithSauna = computed(() => store.terraces.find((t) => t.building === 'sauna'));
+const hasAnyTerrace = computed(() => store.terraces.length > 0);
+
+function saunaSizeDimensions(size: SaunaSize): string {
+  if (size === 'compact') return '1,8 × 1,6 m · ca 2,9 m²';
+  if (size === 'large') return '2,6 × 2,2 m · ca 5,7 m²';
+  return '2,2 × 2,0 m · ca 4,4 m²';
+}
+
+function addSaunaToFirstTerrace() {
+  if (store.terraces.length === 0) {
+    store.addTerrace({
+      side: 'front',
+      depth: 2.4,
+      span: 'full',
+      roof: true,
+      building: 'sauna',
+      buildingWindow: 'panorama',
+      buildingSize: 'standard'
+    });
+  } else {
+    const first = store.terraces[0];
+    store.setTerraceBuilding(first.side, 'sauna');
+    store.setTerraceBuildingWindow(first.side, 'panorama');
+  }
+}
 
 function saunaSwatchColor(color: SaunaColor): string {
   switch (color) {

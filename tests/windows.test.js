@@ -150,6 +150,7 @@ test('a door on a wider bay stays a 10×21, and a slider stays a 20×21', () => 
   const right = fittedDoorOpening('STEHAG', 1.51, 'right');
   assert.equal(right.shift, -corner.shift);
   assert.equal(fittedDoorOpening('LERVIK', 1.2, null).width, 1);
+  assert.equal(fittedDoorOpening('BASTUDORR', 1.2, null).width, 0.9);
   assert.equal(fittedDoorOpening('SKJUTDORR', 2.4, null).width, 2);
   assert.equal(fittedDoorOpening('SVANSHALL', 2.2, null).width, 1.6);
 });

@@ -7,7 +7,8 @@ import {
   type SaunaColor,
   type SaunaDoor,
   type SaunaWindow,
-  type SaunaWindowPlacement
+  type SaunaWindowPlacement,
+  type SaunaWindowSize
 } from '../outside/terrace';
 
 export interface TerraceCabinOptions {
@@ -32,6 +33,8 @@ export interface TerraceCabinOptions {
   windowId?: SaunaWindow;
   /** Window placement wall */
   windowPlacement?: SaunaWindowPlacement;
+  /** Window size scaling: compact, standard, or large */
+  windowSize?: SaunaWindowSize;
   /** Exterior facade color/material for the sauna */
   colorId?: SaunaColor;
   /** Main house exterior color */
@@ -49,6 +52,7 @@ export function addTerraceCabin(group: THREE.Group, options: TerraceCabinOptions
   const doorId: SaunaDoor = options.doorId ?? (sauna ? 'glass' : 'solid');
   const windowId: SaunaWindow = options.windowId ?? 'standard';
   const windowPlacement: SaunaWindowPlacement = options.windowPlacement ?? 'yard';
+  const windowSize: SaunaWindowSize = options.windowSize ?? 'standard';
 
   let baseColorHex = sauna ? '#c4a574' : '#8d8478';
   if (sauna) {
@@ -121,7 +125,7 @@ export function addTerraceCabin(group: THREE.Group, options: TerraceCabinOptions
     }
     for (const wId of candidateWalls) {
       if (wId !== facing.door && wId !== 'house') {
-        windowHoles[wId] = openingOn(walls[wId], 'window', bD, deckTop, outward, openFront, undefined, undefined, windowId);
+        windowHoles[wId] = openingOn(walls[wId], 'window', bD, deckTop, outward, openFront, undefined, undefined, windowId, windowSize);
       }
     }
   }
@@ -244,10 +248,11 @@ function openingOn(
   openFront: boolean,
   targetAlong?: number,
   targetWidth?: number,
-  windowId: SaunaWindow = 'standard'
+  windowId: SaunaWindow = 'standard',
+  windowSize: SaunaWindowSize = 'standard'
 ) {
   if (openFront && wall.id === 'yard') return null;
-  if (kind === 'window') return windowOnWall(wall, deckTop, windowId);
+  if (kind === 'window') return windowOnWall(wall, deckTop, windowId, windowSize);
   if (wall.along === 'z') {
     const door = doorHole(depth, deckTop, (along) => wall.top(outward * along));
     if (!door) return null;
@@ -256,7 +261,12 @@ function openingOn(
   return doorOnSpan(wall.from, wall.to, deckTop, wall.top((wall.from + wall.to) / 2), targetAlong, targetWidth);
 }
 
-function windowOnWall(wall: CabinWallSpec, deckTop: number, windowId: SaunaWindow = 'standard') {
+function windowOnWall(
+  wall: CabinWallSpec,
+  deckTop: number,
+  windowId: SaunaWindow = 'standard',
+  windowSize: SaunaWindowSize = 'standard'
+) {
   if (windowId === 'none') return null;
   const lo = Math.min(wall.from, wall.to);
   const hi = Math.max(wall.from, wall.to);
@@ -275,6 +285,15 @@ function windowOnWall(wall: CabinWallSpec, deckTop: number, windowId: SaunaWindo
     width = Math.min(1.2, span - 0.36);
     sill = deckTop + 1.28;
     head = deckTop + 1.70;
+  }
+
+  // Adjust width and height by windowSize preset
+  if (windowSize === 'compact') {
+    width = Math.max(0.48, width * 0.75);
+    sill = Math.min(head - 0.35, sill + 0.10);
+  } else if (windowSize === 'large') {
+    width = Math.min(span - 0.2, width * 1.25);
+    sill = Math.max(deckTop + 0.35, sill - 0.08);
   }
 
   const mid = (lo + hi) / 2;

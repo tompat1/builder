@@ -3041,8 +3041,23 @@ export class HouseScene {
 
     const hasBuilding = terrace.building === 'sauna' || terrace.building === 'shed';
     const isLeft = terrace.buildingPlacement === 'left';
-    const bW = hasBuilding ? Math.min(2.0, Math.max(1.3, width * 0.45)) : 0;
-    const bD = hasBuilding ? Math.min(Math.max(depth, 1.6), 2.2) : 0;
+    let targetBW = 2.1;
+    let targetBD = 2.0;
+    if (terrace.building === 'sauna') {
+      const sz = terrace.buildingSize ?? 'standard';
+      if (sz === 'compact') {
+        targetBW = 1.7;
+        targetBD = 1.6;
+      } else if (sz === 'large') {
+        targetBW = 2.6;
+        targetBD = 2.4;
+      } else {
+        targetBW = 2.1;
+        targetBD = 2.0;
+      }
+    }
+    const bW = hasBuilding ? Math.min(width * 0.85, Math.max(1.3, targetBW)) : 0;
+    const bD = hasBuilding ? Math.min(depth, Math.max(1.5, targetBD)) : 0;
     const initialBX = hasBuilding
       ? isLeft
         ? along - width / 2 + bW / 2
@@ -3116,6 +3131,7 @@ export class HouseScene {
         doorId: terrace.buildingDoor,
         windowId: terrace.buildingWindow,
         windowPlacement: terrace.buildingWindowPlacement,
+        windowSize: terrace.buildingWindowSize,
         colorId: terrace.buildingColor,
         houseColorHex: this.houseExteriorHex()
       });
@@ -4159,6 +4175,69 @@ export class HouseScene {
       holder.position.x = opening.x ?? 0;
       parent.add(holder);
       this.addSlidingDoor(holder, doorW, doorH, doorY, userData, doorId === 'SKJUTDORR3' ? 3 : 2);
+      return;
+    }
+
+    if (doorId === 'BASTUDORR') {
+      const ox = opening.x ?? 0;
+      const leafZ = 0.02;
+      const leafD = 0.045;
+      const frameThick = 0.055;
+      const glassW = Math.max(0.2, doorW - frameThick * 2);
+      const glassH = Math.max(0.4, doorH - frameThick * 2);
+      const woodMat = new THREE.MeshStandardMaterial({
+        color: '#c99b6d',
+        roughness: 0.65,
+        metalness: 0.02
+      });
+
+      const frameParts: { x: number; y: number; w: number; h: number }[] = [
+        { x: ox, y: doorY + doorH / 2 - frameThick / 2, w: doorW, h: frameThick },
+        { x: ox, y: doorY - doorH / 2 + frameThick / 2, w: doorW, h: frameThick },
+        { x: ox - doorW / 2 + frameThick / 2, y: doorY, w: frameThick, h: doorH - frameThick * 2 },
+        { x: ox + doorW / 2 - frameThick / 2, y: doorY, w: frameThick, h: doorH - frameThick * 2 }
+      ];
+
+      for (const part of frameParts) {
+        if (part.w <= 0.01 || part.h <= 0.01) continue;
+        const frameMesh = new THREE.Mesh(new THREE.BoxGeometry(part.w, part.h, leafD), woodMat);
+        frameMesh.position.set(part.x, part.y, leafZ);
+        frameMesh.castShadow = true;
+        parent.add(frameMesh);
+        this.markSelectable(frameMesh, userData);
+      }
+
+      const glassMat = new THREE.MeshStandardMaterial({
+        color: '#bfa073',
+        transparent: true,
+        opacity: 0.35,
+        roughness: 0.08,
+        metalness: 0.1,
+        side: THREE.DoubleSide,
+        depthWrite: false
+      });
+      const glass = new THREE.Mesh(new THREE.PlaneGeometry(glassW, glassH), glassMat);
+      glass.position.set(ox, doorY, leafZ + leafD / 2 + 0.004);
+      glass.renderOrder = 2;
+      parent.add(glass);
+      this.markSelectable(glass, userData);
+
+      const handleH = Math.min(0.46, doorH * 0.24);
+      const handleGeo = new THREE.CylinderGeometry(0.014, 0.014, handleH, 12);
+      const handleMat = new THREE.MeshStandardMaterial({ color: '#af7e4f', roughness: 0.55, metalness: 0.02 });
+      const handle = new THREE.Mesh(handleGeo, handleMat);
+      handle.position.set(ox + doorW / 2 - 0.10, doorY, leafZ + leafD / 2 + 0.032);
+      parent.add(handle);
+      this.markSelectable(handle, userData);
+
+      for (const dy of [-handleH * 0.36, handleH * 0.36]) {
+        const standGeo = new THREE.CylinderGeometry(0.007, 0.007, 0.026, 8);
+        const stand = new THREE.Mesh(standGeo, handleMat);
+        stand.rotation.x = Math.PI / 2;
+        stand.position.set(ox + doorW / 2 - 0.10, doorY + dy, leafZ + leafD / 2 + 0.016);
+        parent.add(stand);
+        this.markSelectable(stand, userData);
+      }
       return;
     }
 

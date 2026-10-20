@@ -46,6 +46,7 @@ export function doorModuleMetres(itemId: string | undefined): number {
   if (itemId === 'SKJUTDORR3') return 3;
   if (itemId === 'SKJUTDORR') return 2;
   if (itemId === 'SVANSHALL') return 1.6;
+  if (itemId === 'BASTUDORR') return 0.9;
   return 1;
 }
 

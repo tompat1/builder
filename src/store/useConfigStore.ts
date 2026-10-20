@@ -41,6 +41,8 @@ import { acceptPlacedRooms, type PlacedRoom } from '../three-engine/roomWalls';
 import {
   acceptTerraces,
   TERRACE_DEPTHS,
+  MIN_TERRACE_DEPTH,
+  MAX_TERRACE_DEPTH,
   TERRACE_SIDES,
   terracePrice,
   terracesFromLegacy,
@@ -64,6 +66,10 @@ import {
   SAUNA_WINDOWS,
   type SaunaWindowPlacement,
   SAUNA_WINDOW_PLACEMENTS,
+  type SaunaSize,
+  SAUNA_SIZES,
+  type SaunaWindowSize,
+  SAUNA_WINDOW_SIZES,
   SAUNA_BUILDING_PRICE,
   SHED_BUILDING_PRICE
 } from '../outside/terrace';
@@ -411,6 +417,14 @@ export const DOORS_OPTIONS: OptionItem[] = [
     desc: 'Ytterdörr Stabil, slät m. vertikalt glas, 10x21',
     spec: 'Mått 10×21, dold gångjärnskonstruktion',
     priceDelta: 3200,
+    doorType: 'single'
+  },
+  {
+    id: 'BASTUDORR',
+    name: 'BASTU HELGLAS',
+    desc: 'Bastudörr i härdat säkerhetsglas m. träkarm & trähandtag, 9x21',
+    spec: 'Mått 9×21, 8 mm härdat säkerhetsglas',
+    priceDelta: 4900,
     doorType: 'single'
   },
   {
@@ -1642,11 +1656,16 @@ export const useConfigStore = defineStore('config', () => {
     saveSnapshot();
   }
 
-  const addTerrace = () => {
+  const addTerrace = (initial?: Partial<HouseTerrace>) => {
     const used = new Set(terraces.value.map((item) => item.side));
-    const side = TERRACE_SIDES.find((item) => !used.has(item));
+    const side = initial?.side && !used.has(initial.side)
+      ? initial.side
+      : TERRACE_SIDES.find((item) => !used.has(item));
     if (!side) return;
-    terraces.value = [...terraces.value, { side, depth: 1.8, span: 'door', roof: false }];
+    terraces.value = [
+      ...terraces.value,
+      { side, depth: 1.8, span: 'door', roof: false, ...initial }
+    ];
     saveSnapshot();
   }
 
@@ -1661,8 +1680,10 @@ export const useConfigStore = defineStore('config', () => {
   }
 
   const setTerraceDepth = (side: TerraceSide, depth: TerraceDepth) => {
-    if (!TERRACE_DEPTHS.includes(depth)) return;
-    replaceTerrace(side, { depth });
+    if (typeof depth !== 'number' || Number.isNaN(depth)) return;
+    const clamped = Math.min(MAX_TERRACE_DEPTH, Math.max(MIN_TERRACE_DEPTH, depth));
+    const rounded = Math.round(clamped * 10) / 10;
+    replaceTerrace(side, { depth: rounded });
   }
 
   const setTerraceSpan = (side: TerraceSide, span: TerraceSpan) => {
@@ -1709,6 +1730,16 @@ export const useConfigStore = defineStore('config', () => {
   const setTerraceBuildingWindowPlacement = (side: TerraceSide, buildingWindowPlacement: SaunaWindowPlacement) => {
     if (!SAUNA_WINDOW_PLACEMENTS.includes(buildingWindowPlacement)) return;
     replaceTerrace(side, { buildingWindowPlacement });
+  }
+
+  const setTerraceBuildingSize = (side: TerraceSide, buildingSize: SaunaSize) => {
+    if (!SAUNA_SIZES.includes(buildingSize)) return;
+    replaceTerrace(side, { buildingSize });
+  }
+
+  const setTerraceBuildingWindowSize = (side: TerraceSide, buildingWindowSize: SaunaWindowSize) => {
+    if (!SAUNA_WINDOW_SIZES.includes(buildingWindowSize)) return;
+    replaceTerrace(side, { buildingWindowSize });
   }
 
   const setFacing = (next: CompassFacing) => {
@@ -2356,6 +2387,8 @@ export const useConfigStore = defineStore('config', () => {
     setTerraceBuildingDoor,
     setTerraceBuildingWindow,
     setTerraceBuildingWindowPlacement,
+    setTerraceBuildingSize,
+    setTerraceBuildingWindowSize,
     setFacing,
     previewSunHour,
     commitSunHour,
