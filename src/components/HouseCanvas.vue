@@ -508,7 +508,7 @@ watch(
 watch(
   [
     () => store.doorCanopy,
-    () => store.terraces.map((item) => `${item.side}:${item.depth}:${item.span}:${item.roof ? 1 : 0}:${item.building ?? 'none'}:${item.buildingPlacement ?? 'right'}:${item.buildingRoof ?? 'pulpet'}:${item.buildingTurn ?? 0}:${item.buildingColor ?? 'natural'}:${item.buildingDoor ?? 'glass'}:${item.buildingWindow ?? 'standard'}:${item.buildingWindowPlacement ?? 'yard'}`).join('|')
+    () => store.terraces.map((item) => `${item.side}:${item.depth}:${item.span}:${item.roof ? 1 : 0}:${item.building ?? 'none'}:${item.buildingPlacement ?? 'right'}:${item.buildingRoof ?? 'pulpet'}:${item.buildingTurn ?? 0}:${item.buildingColor ?? 'natural'}:${item.buildingDoor ?? 'glass'}:${item.buildingWindow ?? 'panorama'}:${item.buildingWindowPlacement ?? 'yard'}`).join('|')
   ],
   () => {
     engine?.updateConfig({

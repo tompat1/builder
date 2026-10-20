@@ -272,8 +272,12 @@
                   <Cms k="category.saunaOnTerrace" />: <Cms k="category.terraceSaunaColor" />
                 </h5>
               </div>
-              <span class="text-[11px] font-semibold text-amber-800">
-                <Cms :k="`category.${terraceWithSauna.side}`" />
+              <span class="inline-flex items-center gap-1 rounded-md border border-amber-300/80 bg-amber-100/90 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-900 shadow-2xs">
+                <svg class="h-3 w-3 shrink-0 text-amber-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span><Cms k="category.terraceLocation" />: <Cms :k="`category.${terraceWithSauna.side}`" /></span>
               </span>
             </div>
             <p class="text-[11px] text-amber-800/90 leading-snug">
@@ -1779,8 +1783,12 @@
               <Cms k="category.saunaOnTerrace" />: <Cms k="category.terraceSaunaDoor" />
             </h5>
           </div>
-          <span class="text-[11px] font-semibold text-amber-800">
-            <Cms :k="`category.${terraceWithSauna.side}`" />
+          <span class="inline-flex items-center gap-1 rounded-md border border-amber-300/80 bg-amber-100/90 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-900 shadow-2xs">
+            <svg class="h-3 w-3 shrink-0 text-amber-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span><Cms k="category.terraceLocation" />: <Cms :k="`category.${terraceWithSauna.side}`" /></span>
           </span>
         </div>
         <p class="text-[11px] text-amber-800/90 leading-snug">
@@ -1943,8 +1951,12 @@
               <Cms k="category.saunaOnTerrace" />: <Cms k="category.terraceSaunaWindow" />
             </h5>
           </div>
-          <span class="text-[11px] font-semibold text-amber-800">
-            <Cms :k="`category.${terraceWithSauna.side}`" />
+          <span class="inline-flex items-center gap-1 rounded-md border border-amber-300/80 bg-amber-100/90 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-900 shadow-2xs">
+            <svg class="h-3 w-3 shrink-0 text-amber-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span><Cms k="category.terraceLocation" />: <Cms :k="`category.${terraceWithSauna.side}`" /></span>
           </span>
         </div>
         <p class="text-[11px] text-amber-800/90 leading-snug">

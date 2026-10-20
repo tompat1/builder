@@ -1551,6 +1551,10 @@ export const useConfigStore = defineStore('config', () => {
     const placementChanged = (next.buildingPlacement ?? 'right') !== (current.buildingPlacement ?? 'right');
     const buildingRoofChanged = (next.buildingRoof ?? 'pulpet') !== (current.buildingRoof ?? 'pulpet');
     const buildingTurnChanged = (next.buildingTurn ?? 0) !== (current.buildingTurn ?? 0);
+    const buildingColorChanged = (next.buildingColor ?? 'natural') !== (current.buildingColor ?? 'natural');
+    const buildingDoorChanged = (next.buildingDoor ?? 'glass') !== (current.buildingDoor ?? 'glass');
+    const buildingWindowChanged = (next.buildingWindow ?? 'panorama') !== (current.buildingWindow ?? 'panorama');
+    const buildingWindowPlacementChanged = (next.buildingWindowPlacement ?? 'yard') !== (current.buildingWindowPlacement ?? 'yard');
     if (
       next.side === current.side &&
       next.depth === current.depth &&
@@ -1559,7 +1563,11 @@ export const useConfigStore = defineStore('config', () => {
       !buildingChanged &&
       !placementChanged &&
       !buildingRoofChanged &&
-      !buildingTurnChanged
+      !buildingTurnChanged &&
+      !buildingColorChanged &&
+      !buildingDoorChanged &&
+      !buildingWindowChanged &&
+      !buildingWindowPlacementChanged
     ) {
       return;
     }

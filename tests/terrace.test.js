@@ -179,3 +179,21 @@ test('a sauna accepts custom door, window, placement, and color, and drops unkno
   assert.equal(terraces[1].buildingWindow, undefined);
   assert.equal(terraces[1].buildingWindowPlacement, undefined);
 });
+
+test('sauna color can be changed and preserves valid choices', () => {
+  const [initial] = acceptTerraces([{
+    side: 'back',
+    depth: 1.8,
+    span: 'door',
+    roof: false,
+    building: 'sauna',
+    buildingColor: 'natural'
+  }]);
+  assert.equal(initial.buildingColor, 'natural');
+
+  const [updated] = acceptTerraces([{
+    ...initial,
+    buildingColor: 'falurod'
+  }]);
+  assert.equal(updated.buildingColor, 'falurod');
+});
