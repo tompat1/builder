@@ -2972,10 +2972,7 @@ const concreteArea = computed(() => Math.round((store.concreteWidth * store.conc
 function planLimit(axis: 'width' | 'depth' | 'height', edge: 'min' | 'max') {
   if (store.selectedSizeId !== 'size-paabyggnad') return BUILDING_LIMITS[axis][edge] / 10;
   if (axis === 'height') return edge === 'min' ? 450 : 500;
-  if (edge === 'min') return BUILDING_LIMITS[axis].min / 10;
-  const otherMm = axis === 'width' ? store.dimensions.depth : store.dimensions.width;
-  const capCm = (35 * 1_000_000) / otherMm / 10;
-  return Math.min(BUILDING_LIMITS[axis].max / 10, capCm);
+  return BUILDING_LIMITS[axis][edge] / 10;
 }
 
 function concreteLimit(axis: 'width' | 'depth' | 'height', edge: 'min' | 'max') {

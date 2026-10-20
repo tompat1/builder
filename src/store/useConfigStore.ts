@@ -248,13 +248,13 @@ export const SIZE_OPTIONS: SizeOption[] = [
   {
     id: 'size-paabyggnad',
     name: 'Påbyggnad på betonghus',
-    badge: 'Upp till 35 m²',
+    badge: 'Flexibel yta',
     width: 5200,
     depth: 6731,
     height: 5000,
     areaSqMeters: 35.0,
     basePrice: 98000,
-    desc: '5200 × 5200 mm betonghus, 2,5 m högt. Gamla taket tas bort. Träloft och påbyggnad ovanför, höjd upp till 500 cm, yta upp till 35 m².'
+    desc: '5200 × 5200 mm betonghus, 2,5 m högt. Gamla taket tas bort. Träloft och påbyggnad ovanför, höjd upp till 500 cm, flexibel yta.'
   },
   {
     id: 'size-garage',
@@ -1533,6 +1533,7 @@ export const useConfigStore = defineStore('config', () => {
     if (nextWidth === buildingWidth.value && nextDepth === buildingDepth.value) return;
     buildingWidth.value = nextWidth;
     buildingDepth.value = nextDepth;
+    reconcileWallSlots();
     saveSnapshot();
   }
 

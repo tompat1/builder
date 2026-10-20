@@ -19,13 +19,21 @@ test('the concrete house stops at 2.5 m so the timber loft starts above it', () 
   assert.equal(CONCRETE_STOREY_TOP_M, 2.5);
 });
 
-test('the concrete house is 27 m² and can grow to 35 m² without shrinking the old plan', () => {
+test('the concrete house is 27 m² and can grow beyond 35 m² without shrinking the old plan', () => {
   assert.equal(floorAreaSqMeters(5200, 5200), 27);
 
-  const extended = clampPaabyggnadPlan('width', 8000, 5200, 5000);
-  assert.equal(extended.depth, 5200);
-  assert.ok(extended.width >= 5200);
-  assert.ok(floorAreaSqMeters(extended.width, extended.depth) <= 35);
+  // Extending length (depth) of timber addition goes beyond 35 m²
+  const extendedDepth = clampPaabyggnadPlan('depth', 5200, 8000, 5000);
+  assert.equal(extendedDepth.width, 5200);
+  assert.equal(extendedDepth.depth, 8000);
+  assert.equal(floorAreaSqMeters(extendedDepth.width, extendedDepth.depth), 41.6);
+  assert.ok(floorAreaSqMeters(extendedDepth.width, extendedDepth.depth) > 35);
+
+  const extendedWidth = clampPaabyggnadPlan('width', 8000, 5200, 5000);
+  assert.equal(extendedWidth.depth, 5200);
+  assert.equal(extendedWidth.width, 8000);
+  assert.equal(floorAreaSqMeters(extendedWidth.width, extendedWidth.depth), 41.6);
+  assert.ok(floorAreaSqMeters(extendedWidth.width, extendedWidth.depth) > 35);
 
   const smallerWood = clampPaabyggnadPlan('depth', 5200, 4000, 5000);
   assert.equal(smallerWood.width, 5200);
@@ -38,10 +46,26 @@ test('the timber addition stays between 450 and 500 cm high', () => {
   assert.equal(clampPaabyggnadPlan('height', 5200, 5200, 4800).height, 4800);
 });
 
-test('a loft on this house never exceeds the timber plan', () => {
+test('a loft on this house never exceeds the timber plan and scales beyond 35 m²', () => {
   const areas = paabyggnadLoftAreas(5200, 5200);
   assert.equal(areas[areas.length - 1], 27);
-  assert.ok(areas.every((area) => area <= 35));
+  assert.ok(areas.every((area) => area <= 27));
+
+  const largerAreas = paabyggnadLoftAreas(5200, 8000);
+  assert.equal(largerAreas[largerAreas.length - 1], 41.6);
+  assert.ok(largerAreas[largerAreas.length - 1] > 35);
+});
+
+test('timber addition length and area can extend beyond 35 m² up to building limits', () => {
+  const at8m = clampPaabyggnadPlan('depth', 5200, 8000, 5000);
+  assert.equal(at8m.depth, 8000);
+  assert.equal(at8m.width, 5200);
+  assert.equal(floorAreaSqMeters(at8m.width, at8m.depth), 41.6);
+
+  const at10m = clampPaabyggnadPlan('depth', 5200, 10000, 5000);
+  assert.equal(at10m.depth, 10000);
+  assert.equal(at10m.width, 5200);
+  assert.equal(floorAreaSqMeters(at10m.width, at10m.depth), 52);
 });
 
 test('changing the timber plan leaves the concrete walls at their own size', () => {

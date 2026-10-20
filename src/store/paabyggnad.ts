@@ -13,7 +13,7 @@ export const CONCRETE_MAX_HEIGHT_MM = 4000;
 export const CONCRETE_DEFAULT_HEIGHT_MM = 2500;
 
 /** Timber addition: plan may grow from the concrete house up to this floor area. */
-export const PAABYGGNAD_MAX_AREA = 35;
+export const PAABYGGNAD_MAX_AREA = 120;
 
 /** Highest point of the new timber house, millimetres. */
 export const PAABYGGNAD_MAX_HEIGHT_MM = 5000;
@@ -143,7 +143,7 @@ export function timberShellOnConcrete(
   };
 }
 
-/** Loft choices for the timber floor, never larger than the plan or 35 m². */
+/** Loft choices for the timber floor, never larger than the plan. */
 function planArea(widthMm: number, depthMm: number) {
   return Math.round((widthMm * depthMm) / 1e5) / 10;
 }

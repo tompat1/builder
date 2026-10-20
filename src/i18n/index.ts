@@ -510,7 +510,7 @@ const sv = {
     unitMm: 'mm',
     unitCm: 'cm',
     heightHint: 'Höjden räknas från marken till takets högsta punkt. Max 500 cm.',
-    paabyggnadHint: 'Betonghuset är 520 × 520 cm och 2,5 m högt. Ovanför det är träloftet och påbyggnaden, upp till 35 m² och 500 cm.',
+    paabyggnadHint: 'Betonghuset är 520 × 520 cm och 2,5 m högt. Ovanför det är träloftet och påbyggnaden, med flexibel yta och höjd upp till 500 cm.',
     customSize: 'Egen storlek',
     timberSize: 'Trähus',
     concreteSize: 'Betonghus',
@@ -1462,7 +1462,7 @@ const en = {
     unitMm: 'mm',
     unitCm: 'cm',
     heightHint: 'Height is measured from the ground to the highest point of the roof. Maximum 500 cm.',
-    paabyggnadHint: 'The concrete house is 520 × 520 cm and 2.5 m high. Above that is the timber loft and extension, up to 35 m² and 500 cm.',
+    paabyggnadHint: 'The concrete house is 520 × 520 cm and 2.5 m high. Above that is the timber loft and extension, with flexible area and height up to 500 cm.',
     customSize: 'Custom size',
     timberSize: 'Timber house',
     concreteSize: 'Concrete house',
@@ -1950,8 +1950,8 @@ const en = {
     },
     'size-paabyggnad': {
       name: 'Addition on a concrete house',
-      badge: 'Up to 35 m²',
-      desc: '5200 × 5200 mm concrete house, 2.5 m high. The old roof comes off. A timber loft and extension above it, up to 500 cm high and 35 m².'
+      badge: 'Flexible area',
+      desc: '5200 × 5200 mm concrete house, 2.5 m high. The old roof comes off. A timber loft and extension above it, up to 500 cm high with flexible area.'
     },
     'size-40': {
       name: 'Holiday house 40 m²',
