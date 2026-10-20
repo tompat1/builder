@@ -170,7 +170,7 @@ const actions: SearchEntry[] = [
     id: 'facade-colour',
     topic: 'colour',
     titleKey: 'category.colourTab',
-    title: 'Kulör',
+    title: 'Huvudkulör fasad',
     hintKey: 'paint.palette',
     hint: '',
     keywords: ['fasad', 'facade', 'träfärg', ...COLOUR_WORDS],
@@ -471,8 +471,8 @@ export const SEARCH_ENTRIES: SearchEntry[] = [
   ...WINDOWS_OPTIONS.map((win) => optionEntry(win, 'openings', 'windows', `option-${win.id}`, {
     keywords: [win.name, win.desc, win.spec ?? '', 'fönster', 'window']
   })),
-  ...GATES_OPTIONS.map((gate) => optionEntry(gate, 'openings', 'gates', `option-${gate.id}`, {
-    keywords: [gate.name, gate.desc, gate.spec ?? '', 'port', 'gate', 'garage']
+  ...GATES_OPTIONS.map((gate) => optionEntry(gate, 'openings', 'doors', `option-${gate.id}`, {
+    keywords: [gate.name, gate.desc, gate.spec ?? '', 'port', 'gate', 'garage', 'garageport']
   })),
   ...MERCH.map((item) => entry({
     id: `merch-${item.id}`,

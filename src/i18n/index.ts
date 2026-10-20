@@ -517,7 +517,7 @@ const sv = {
     concreteBlack: 'Svart betong',
     concreteCustom: 'Egen kulör',
     facade: 'Fasadmaterial & Kulör',
-    colourTab: 'Kulör',
+    colourTab: 'Huvudkulör fasad',
     facadePanel: 'Fasadmaterial & Panel',
     cladding: 'Paneltyp & dimension',
     standing: 'Stående',
@@ -568,6 +568,8 @@ const sv = {
     singleDoors: 'Enkeldörrar',
     doubleDoors: 'Pardörrar',
     slidingDoors: 'Skjutdörrar',
+    garageDoors: 'Garageportar',
+    showGarageDoors: 'Bygger du garage? Visa garageportar',
     series: 'Serie',
     seriesStabil: 'Stabil',
     seriesModern: 'Modern Funkis',
@@ -1451,7 +1453,7 @@ const en = {
     concreteBlack: 'Black concrete',
     concreteCustom: 'Custom colour',
     facade: 'Facade & colour',
-    colourTab: 'Colour',
+    colourTab: 'Main colour facade',
     facadePanel: 'Facade & panel',
     cladding: 'Cladding & board size',
     standing: 'Vertical',
@@ -1502,6 +1504,8 @@ const en = {
     singleDoors: 'Single doors',
     doubleDoors: 'Double doors',
     slidingDoors: 'Sliding doors',
+    garageDoors: 'Garage doors',
+    showGarageDoors: 'Building a garage? Show garage doors',
     series: 'Series',
     seriesStabil: 'Stabil',
     seriesModern: 'Modern functionalist',
@@ -1931,6 +1935,11 @@ const en = {
       name: 'Sauna',
       badge: 'Sauna',
       desc: '5200 × 2800 mm. A low cabin with a door, a frosted window, and a deck by the entrance.'
+    },
+    'size-garage': {
+      name: 'Garage & carport',
+      badge: 'Garage',
+      desc: '6000 × 6000 mm. A spacious garage with room for car, storage, and garage door.'
     },
     'size-shed': {
       name: 'Small shed',

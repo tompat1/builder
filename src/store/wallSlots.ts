@@ -122,10 +122,20 @@ export function shedWallSlots(): Record<string, WallSlot> {
   return slots;
 }
 
+/** Garage: a sectional overhead gate on front, a side entry door and a window. */
+export function garageWallSlots(): Record<string, WallSlot> {
+  const slots = clearedWallSlots(6000, 6000);
+  slots['front-0'] = { ...slots['front-0'], type: 'gate', itemId: 'overhead-white' };
+  slots['right-1'] = { ...slots['right-1'], type: 'door', itemId: 'STEHAG' };
+  slots['left-1'] = { ...slots['left-1'], type: 'window', itemId: 'standard-single' };
+  return slots;
+}
+
 export function defaultDimensionsForSize(sizeId?: string): { widthMm: number; depthMm: number } {
   if (sizeId === 'size-paabyggnad') return { widthMm: 5200, depthMm: 6731 };
   if (sizeId === 'size-sauna') return { widthMm: 5200, depthMm: 2800 };
   if (sizeId === 'size-shed') return { widthMm: 4000, depthMm: 2500 };
+  if (sizeId === 'size-garage') return { widthMm: 6000, depthMm: 6000 };
   if (sizeId === 'size-15') return { widthMm: 4800, depthMm: 3125 };
   if (sizeId === 'size-25') return { widthMm: 5800, depthMm: 4310 };
   if (sizeId === 'size-cube') return { widthMm: 6000, depthMm: 6000 };

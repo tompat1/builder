@@ -1,19 +1,18 @@
 <template>
   <nav
     ref="navEl"
-    class="flex w-full min-w-0 gap-1.5 overflow-x-auto overscroll-x-contain min-[1180px]:grid min-[1180px]:grid-cols-10 min-[1180px]:gap-1 min-[1180px]:overflow-visible min-[1180px]:max-w-[420px] min-[1180px]:mx-auto"
+    class="flex w-full min-w-0 gap-1.5 overflow-x-auto overscroll-x-contain min-[1180px]:grid min-[1180px]:grid-cols-4 min-[1180px]:gap-1.5 min-[1180px]:overflow-visible min-[1180px]:max-w-[420px] min-[1180px]:mx-auto"
     :aria-label="t('nav.label')"
   >
     <button
-      v-for="(cat, idx) in categories"
+      v-for="cat in categories"
       :key="cat.id"
       :id="`category-${cat.id}`"
       type="button"
       @click="pick(cat.id)"
       :aria-expanded="store.selectedCategory === cat.id ? expanded : undefined"
       :class="[
-        'flex w-[4.75rem] shrink-0 flex-col items-center justify-center min-h-11 py-2 px-1 rounded-xl transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 min-[1180px]:w-auto min-[1180px]:shrink min-[1180px]:col-span-2 min-[1180px]:min-h-[3rem] min-[1180px]:py-1.5',
-        idx === 5 ? 'min-[1180px]:col-start-2' : '',
+        'flex w-[4.75rem] shrink-0 flex-col items-center justify-center min-h-11 py-2 px-1 rounded-xl transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 min-[1180px]:w-auto min-[1180px]:shrink min-[1180px]:min-h-[3rem] min-[1180px]:py-1.5',
         store.selectedCategory === cat.id
           ? 'bg-slate-900 text-white shadow-sm border border-slate-900'
           : 'bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-slate-200/60 hover:border-[#FF5A00]'
@@ -68,14 +67,6 @@
           <rect x="3" y="3" width="18" height="18" rx="2" />
           <path d="M12 3v18" />
           <path d="M3 12h18" />
-        </svg>
-
-        <!-- Portar (Sectional garage door) -->
-        <svg v-else-if="cat.id === 'gates'" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="3" width="18" height="18" rx="2" />
-          <path d="M3 9h18" />
-          <path d="M3 15h18" />
-          <path d="M10 18h4" />
         </svg>
         <!-- Ute (Door roof and terrace) -->
         <svg v-else-if="cat.id === 'extras'" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
@@ -139,7 +130,6 @@ const categories: { id: CategoryKey }[] = [
   { id: 'windows' },
   { id: 'extras' },
   { id: 'loft' },
-  { id: 'interior' },
-  { id: 'gates' }
+  { id: 'interior' }
 ];
 </script>

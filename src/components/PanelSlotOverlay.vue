@@ -225,7 +225,7 @@ function openCategory(category: CategoryKey) {
 function replacePlaced() {
   const slot = activeSlot.value;
   if (!slot || slot.type === 'empty') return;
-  const category: CategoryKey = slot.type === 'door' ? 'doors' : slot.type === 'window' ? 'windows' : 'gates';
+  const category: CategoryKey = slot.type === 'window' ? 'windows' : 'doors';
   openCategory(category);
 }
 </script>

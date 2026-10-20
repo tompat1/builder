@@ -186,9 +186,8 @@ onMounted(() => {
     engine.onPanelClick = (slotId) => {
       store.selectSlot(slotId);
       const slot = store.wallSlots[slotId];
-      if (slot?.type === 'door') store.selectCategory('doors');
+      if (slot?.type === 'door' || slot?.type === 'gate') store.selectCategory('doors');
       else if (slot?.type === 'window') store.selectCategory('windows');
-      else if (slot?.type === 'gate') store.selectCategory('gates');
     };
 
     engine.onSlotMove = (fromSlotId, toSlotId) => {

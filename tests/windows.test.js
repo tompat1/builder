@@ -265,3 +265,32 @@ test('a panorama or mullioned window in a tight wooden overhang adapts to custom
   assert.ok(leftCasing >= woodSpan.from);
   assert.ok(rightCasing <= panelW / 2 - 0.165);
 });
+
+test('garage wall slots configure front gate and entry openings', async () => {
+  const { garageWallSlots, defaultDimensionsForSize } = await import('../src/store/wallSlots.ts');
+  const slots = garageWallSlots();
+  assert.equal(slots['front-0'].type, 'gate');
+  assert.equal(slots['front-0'].itemId, 'overhead-white');
+  assert.equal(slots['right-1'].type, 'door');
+  assert.equal(slots['left-1'].type, 'window');
+
+  const dims = defaultDimensionsForSize('size-garage');
+  assert.equal(dims.widthMm, 6000);
+  assert.equal(dims.depthMm, 6000);
+});
+
+test('dragging a gate to an upper clerestory bay is rejected while ground bay moves are allowed', async () => {
+  const { moveWallSlot } = await import('../src/store/slotMove.ts');
+  const slots = {
+    'front-0': { id: 'front-0', wall: 'front', index: 0, type: 'gate', itemId: 'overhead-white', canAcceptDoor: true },
+    'front-1': { id: 'front-1', wall: 'front', index: 1, type: 'empty', canAcceptDoor: true },
+    'front-1u': { id: 'front-1u', wall: 'front', index: 1, type: 'empty', canAcceptDoor: false, isUpper: true }
+  };
+
+  assert.equal(moveWallSlot(slots, 'front-0', 'front-1u'), false);
+  assert.equal(slots['front-0'].type, 'gate');
+
+  assert.equal(moveWallSlot(slots, 'front-0', 'front-1'), true);
+  assert.equal(slots['front-1'].type, 'gate');
+  assert.equal(slots['front-0'].type, 'empty');
+});

@@ -16,7 +16,7 @@
 
     <!-- Active Wall Slot Assignment Alert -->
     <div
-      v-if="['doors', 'windows', 'gates'].includes(store.selectedCategory) && store.selectedSlotId"
+      v-if="['doors', 'windows'].includes(store.selectedCategory) && store.selectedSlotId"
       class="bg-emerald-50 border border-emerald-200/80 rounded-xl p-2.5 flex items-center justify-between"
     >
       <div class="flex items-center gap-2">
@@ -346,49 +346,6 @@
 
     <!-- Color Category Content -->
     <template v-else-if="store.selectedCategory === 'color'">
-      <!-- Sauna Color Option if a terrace sauna is mounted -->
-      <div
-        v-if="terraceWithSauna"
-        class="mb-3 p-3 bg-amber-50/70 rounded-xl border border-amber-200/80 space-y-2"
-      >
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-1.5">
-            <span class="w-2 h-2 rounded-full bg-amber-600 animate-pulse" />
-            <h5 class="text-xs font-bold text-amber-950 uppercase tracking-wider">
-              <Cms k="category.saunaOnTerrace" />: <Cms k="category.terraceSaunaColor" />
-            </h5>
-          </div>
-          <span class="inline-flex items-center gap-1 rounded-md border border-amber-300/80 bg-amber-100/90 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-900 shadow-2xs">
-            <svg class="h-3 w-3 shrink-0 text-amber-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-              <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            <span><Cms k="category.terraceLocation" />: <Cms :k="`category.${terraceWithSauna.side}`" /></span>
-          </span>
-        </div>
-        <p class="text-[11px] text-amber-800/90 leading-snug">
-          <Cms k="category.saunaColorHint" />
-        </p>
-        <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5 pt-1">
-          <button
-            v-for="col in saunaColors"
-            :key="col"
-            type="button"
-            :id="`color-quick-sauna-color-${col}`"
-            :aria-pressed="(terraceWithSauna.buildingColor ?? 'natural') === col"
-            :class="terraceChoiceClass((terraceWithSauna.buildingColor ?? 'natural') === col)"
-            @click="store.setTerraceBuildingColor(terraceWithSauna.side, col)"
-            class="flex items-center justify-center gap-1.5 px-2 py-1.5"
-          >
-            <span
-              class="w-3.5 h-3.5 rounded-full shrink-0 border border-slate-300 shadow-2xs"
-              :style="{ backgroundColor: saunaSwatchColor(col) }"
-            />
-            <span class="truncate"><Cms :k="`category.saunaColor_${col}`" /></span>
-          </button>
-        </div>
-      </div>
-
       <!-- Main Facade Wall Colors -->
       <div>
         <div class="flex items-center justify-between mb-2">
@@ -878,6 +835,49 @@
             </svg>
             <span><Cms k="category.concreteCustom" /></span>
           </label>
+        </div>
+      </div>
+
+      <!-- Sauna Color Option if a terrace sauna is mounted -->
+      <div
+        v-if="terraceWithSauna"
+        class="mt-4 p-3 bg-amber-50/70 rounded-xl border border-amber-200/80 space-y-2"
+      >
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-amber-600 animate-pulse" />
+            <h5 class="text-xs font-bold text-amber-950 uppercase tracking-wider">
+              <Cms k="category.saunaOnTerrace" />: <Cms k="category.terraceSaunaColor" />
+            </h5>
+          </div>
+          <span class="inline-flex items-center gap-1 rounded-md border border-amber-300/80 bg-amber-100/90 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-900 shadow-2xs">
+            <svg class="h-3 w-3 shrink-0 text-amber-700" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            <span><Cms k="category.terraceLocation" />: <Cms :k="`category.${terraceWithSauna.side}`" /></span>
+          </span>
+        </div>
+        <p class="text-[11px] text-amber-800/90 leading-snug">
+          <Cms k="category.saunaColorHint" />
+        </p>
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5 pt-1">
+          <button
+            v-for="col in saunaColors"
+            :key="col"
+            type="button"
+            :id="`color-quick-sauna-color-${col}`"
+            :aria-pressed="(terraceWithSauna.buildingColor ?? 'natural') === col"
+            :class="terraceChoiceClass((terraceWithSauna.buildingColor ?? 'natural') === col)"
+            @click="store.setTerraceBuildingColor(terraceWithSauna.side, col)"
+            class="flex items-center justify-center gap-1.5 px-2 py-1.5"
+          >
+            <span
+              class="w-3.5 h-3.5 rounded-full shrink-0 border border-slate-300 shadow-2xs"
+              :style="{ backgroundColor: saunaSwatchColor(col) }"
+            />
+            <span class="truncate"><Cms :k="`category.saunaColor_${col}`" /></span>
+          </button>
         </div>
       </div>
     </template>
@@ -1778,14 +1778,14 @@
       <!-- Category Title matching other sections -->
       <div class="flex items-center justify-between mb-1">
         <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider">
-          Ytterdörrar
+          <Cms :k="doorTab === 'gates' ? 'category.gatesTitle' : 'nav.doors'" :fallback="doorTab === 'gates' ? 'Garageportar' : 'Ytterdörrar'" />
         </h4>
         <span class="text-xs text-slate-500 font-medium">
-          {{ Object.values(store.wallSlots).filter(s => s.type === 'door').length }} monterade
+          {{ Object.values(store.wallSlots).filter(s => s.type === (doorTab === 'gates' ? 'gate' : 'door')).length }} monterade
         </span>
       </div>
 
-      <!-- Door Type Tabs (Enkeldörrar / Pardörrar / Skjutdörrar) -->
+      <!-- Door Type Tabs (Enkeldörrar / Pardörrar / Skjutdörrar / Garageportar) -->
       <div class="flex border-b border-slate-200 gap-4 mb-2">
         <button
           type="button"
@@ -1808,10 +1808,31 @@
         >
           <Cms k="category.slidingDoors" />
         </button>
+        <button
+          v-if="hasGarageDoors"
+          type="button"
+          id="tab-doors-gates"
+          @click.capture="doorTab = 'gates'"
+          :class="doorTabClass(doorTab === 'gates')"
+        >
+          <Cms k="category.garageDoors" />
+        </button>
+      </div>
+
+      <!-- Quick toggle to show garage doors if not yet visible -->
+      <div v-if="!hasGarageDoors" class="mb-2 flex justify-end">
+        <button
+          type="button"
+          id="show-garage-doors-btn"
+          @click="showGarageDoors = true; doorTab = 'gates'"
+          class="text-[11px] font-medium text-slate-500 hover:text-slate-800 underline decoration-slate-300 hover:decoration-slate-600 transition-colors"
+        >
+          <Cms k="category.showGarageDoors" />
+        </button>
       </div>
 
       <!-- Door Series Selector -->
-      <div class="flex items-center justify-between bg-slate-50 p-2 rounded-xl border border-slate-200/80 mb-2">
+      <div v-if="doorTab !== 'gates'" class="flex items-center justify-between bg-slate-50 p-2 rounded-xl border border-slate-200/80 mb-2">
         <span class="text-xs font-bold text-slate-700"><Cms k="category.series" /></span>
         <select class="text-xs font-semibold bg-white border border-slate-300 rounded-lg px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-slate-900">
           <option>{{ t('category.seriesStabil') }}</option>
@@ -1832,6 +1853,56 @@
         <p class="text-[11px] text-amber-700">
           <Cms k="category.doorBlockedHint" />
         </p>
+      </div>
+
+      <!-- Gates Grid -->
+      <div v-else-if="doorTab === 'gates'" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+        <button
+          v-for="gate in GATES_OPTIONS"
+          :key="gate.id"
+          type="button"
+          :id="`option-${gate.id}`"
+          @click="placeGate(gate.id)"
+          :class="[
+            'text-left p-3 rounded-xl border transition-all duration-150 flex flex-col justify-between relative group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
+            isGateActiveInSelectedSlot(gate.id)
+              ? 'border-slate-900 ring-1 ring-slate-900 bg-slate-50/70 shadow-sm'
+              : 'border-slate-200/90 bg-white hover:border-slate-300 hover:bg-slate-50/40'
+          ]"
+        >
+          <CmsImage :k="`picture.gate.${gate.id === 'none' ? 'gate-none' : gate.id}`" class="mb-2 h-20 w-full">
+          <div class="w-full h-20 bg-slate-100/80 rounded-lg flex items-center justify-center p-2 relative overflow-hidden">
+            <svg class="w-full h-full text-slate-700" viewBox="0 0 160 80" fill="none">
+              <rect x="45" y="14" width="70" height="52" rx="1" stroke="currentColor" stroke-width="2" />
+              <template v-if="gate.id.includes('overhead')">
+                <line x1="45" y1="27" x2="115" y2="27" stroke="currentColor" stroke-width="1" />
+                <line x1="45" y1="40" x2="115" y2="40" stroke="currentColor" stroke-width="1" />
+                <line x1="45" y1="53" x2="115" y2="53" stroke="currentColor" stroke-width="1" />
+              </template>
+              <template v-else-if="gate.id === 'wood-slag'">
+                <line x1="80" y1="14" x2="80" y2="66" stroke="currentColor" stroke-width="1.5" />
+                <line x1="56" y1="20" x2="72" y2="60" stroke="currentColor" stroke-width="1" />
+                <line x1="104" y1="20" x2="88" y2="60" stroke="currentColor" stroke-width="1" />
+              </template>
+              <template v-else>
+                <line x1="60" y1="14" x2="60" y2="66" stroke="currentColor" stroke-width="0.8" stroke-dasharray="2 2" />
+                <line x1="80" y1="14" x2="80" y2="66" stroke="currentColor" stroke-width="0.8" stroke-dasharray="2 2" />
+                <line x1="100" y1="14" x2="100" y2="66" stroke="currentColor" stroke-width="0.8" stroke-dasharray="2 2" />
+              </template>
+            </svg>
+          </div>
+          </CmsImage>
+
+          <div>
+            <div class="flex items-center justify-between">
+              <p class="text-xs font-bold text-slate-900"><Cms :k="`catalog.${gate.id === 'none' ? 'gate-none' : gate.id}.name`" :fallback="gate.name" /></p>
+              <span class="text-xs font-extrabold text-slate-900 tabular-nums">
+                {{ delta(gate.priceDelta) }}
+              </span>
+            </div>
+            <p class="text-[11px] text-slate-500 mt-0.5"><Cms :k="`catalog.${gate.id === 'none' ? 'gate-none' : gate.id}.spec`" :fallback="gate.spec ?? ''" /></p>
+          </div>
+        </button>
       </div>
 
       <div v-else class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -2334,58 +2405,6 @@
       </section>
     </template>
 
-    <!-- Gates Options -->
-    <template v-else>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-        <button
-          v-for="gate in GATES_OPTIONS"
-          :key="gate.id"
-          type="button"
-          :id="`option-${gate.id}`"
-          @click="placeGate(gate.id)"
-          :class="[
-            'text-left p-3 rounded-xl border transition-all duration-150 flex flex-col justify-between relative group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
-            store.activeGate === gate.id
-              ? 'border-slate-900 ring-1 ring-slate-900 bg-slate-50/70 shadow-sm'
-              : 'border-slate-200/90 bg-white hover:border-slate-300 hover:bg-slate-50/40'
-          ]"
-        >
-          <CmsImage :k="`picture.gate.${gate.id === 'none' ? 'gate-none' : gate.id}`" class="mb-2 h-20 w-full">
-          <div class="w-full h-20 bg-slate-100/80 rounded-lg flex items-center justify-center p-2 relative overflow-hidden">
-            <svg class="w-full h-full text-slate-700" viewBox="0 0 160 80" fill="none">
-              <rect x="45" y="14" width="70" height="52" rx="1" stroke="currentColor" stroke-width="2" />
-              <template v-if="gate.id.includes('overhead')">
-                <line x1="45" y1="27" x2="115" y2="27" stroke="currentColor" stroke-width="1" />
-                <line x1="45" y1="40" x2="115" y2="40" stroke="currentColor" stroke-width="1" />
-                <line x1="45" y1="53" x2="115" y2="53" stroke="currentColor" stroke-width="1" />
-              </template>
-              <template v-else-if="gate.id === 'wood-slag'">
-                <line x1="80" y1="14" x2="80" y2="66" stroke="currentColor" stroke-width="1.5" />
-                <line x1="56" y1="20" x2="72" y2="60" stroke="currentColor" stroke-width="1" />
-                <line x1="104" y1="20" x2="88" y2="60" stroke="currentColor" stroke-width="1" />
-              </template>
-              <template v-else>
-                <line x1="60" y1="14" x2="60" y2="66" stroke="currentColor" stroke-width="0.8" stroke-dasharray="2 2" />
-                <line x1="80" y1="14" x2="80" y2="66" stroke="currentColor" stroke-width="0.8" stroke-dasharray="2 2" />
-                <line x1="100" y1="14" x2="100" y2="66" stroke="currentColor" stroke-width="0.8" stroke-dasharray="2 2" />
-              </template>
-            </svg>
-          </div>
-          </CmsImage>
-
-          <div>
-            <div class="flex items-center justify-between">
-              <p class="text-xs font-bold text-slate-900"><Cms :k="`catalog.${gate.id === 'none' ? 'gate-none' : gate.id}.name`" :fallback="gate.name" /></p>
-              <span class="text-xs font-extrabold text-slate-900 tabular-nums">
-                {{ delta(gate.priceDelta) }}
-              </span>
-            </div>
-            <p class="text-[11px] text-slate-500 mt-0.5"><Cms :k="`catalog.${gate.id === 'none' ? 'gate-none' : gate.id}.spec`" :fallback="gate.spec ?? ''" /></p>
-          </div>
-        </button>
-      </div>
-    </template>
-
   </div>
   </Transition>
 </template>
@@ -2473,8 +2492,37 @@ function applySearchNavigation() {
 }
 
 watch(searchRequest, applySearchNavigation);
-onMounted(applySearchNavigation);
-const doorTab = ref<'single' | 'double' | 'sliding'>('single');
+const doorTab = ref<'single' | 'double' | 'sliding' | 'gates'>('single');
+const showGarageDoors = ref(false);
+const hasGarageDoors = computed(() => {
+  return (
+    store.selectedSizeId === 'size-garage' ||
+    showGarageDoors.value ||
+    Object.values(store.wallSlots).some((s) => s.type === 'gate') ||
+    store.activeGate !== 'none'
+  );
+});
+
+watch(() => store.selectedSlotId, (slotId) => {
+  if (!slotId) return;
+  const slot = store.wallSlots[slotId];
+  if (slot?.type === 'gate') {
+    showGarageDoors.value = true;
+    doorTab.value = 'gates';
+  } else if (slot?.type === 'door') {
+    const door = DOORS_OPTIONS.find((d) => d.id === slot.itemId);
+    if (door && (door as any).doorType) {
+      doorTab.value = (door as any).doorType;
+    }
+  }
+});
+
+watch(() => store.selectedSizeId, (sizeId) => {
+  if (sizeId === 'size-garage') {
+    showGarageDoors.value = true;
+    doorTab.value = 'gates';
+  }
+});
 const interiorTab = ref<'layout' | 'plumbing' | 'electrical'>('layout');
 const floorPlanOpen = computed(() => store.floorPlanDone && Object.keys(store.placedRooms).length > 0);
 
@@ -2741,7 +2789,7 @@ const currentOptionsCount = computed(() => {
     case 'loft':
       return LOFT_OPTIONS.length;
     case 'doors':
-      return DOORS_OPTIONS.length;
+      return DOORS_OPTIONS.length + (hasGarageDoors.value ? GATES_OPTIONS.length : 0);
     case 'windows':
       return WINDOWS_OPTIONS.length;
     case 'gates':
@@ -2763,6 +2811,12 @@ function isDoorActiveInSelectedSlot(doorId: string): boolean {
   if (!store.selectedSlotId) return store.activeDoor === doorId;
   const slot = store.wallSlots[store.selectedSlotId];
   return slot?.type === 'door' && slot.itemId === doorId;
+}
+
+function isGateActiveInSelectedSlot(gateId: string): boolean {
+  if (!store.selectedSlotId) return store.activeGate === gateId;
+  const slot = store.wallSlots[store.selectedSlotId];
+  return slot?.type === 'gate' && slot.itemId === gateId;
 }
 
 function isWindowActiveInSelectedSlot(winId: string): boolean {

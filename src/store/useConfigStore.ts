@@ -251,6 +251,17 @@ export const SIZE_OPTIONS: SizeOption[] = [
     desc: '5200 × 5200 mm betonghus, 2,5 m högt. Gamla taket tas bort. Träloft och påbyggnad ovanför, höjd upp till 500 cm, yta upp till 35 m².'
   },
   {
+    id: 'size-garage',
+    name: 'Garage & carport',
+    badge: 'Garage',
+    width: 6000,
+    depth: 6000,
+    height: 3200,
+    areaSqMeters: 36.0,
+    basePrice: 125000,
+    desc: '6000 × 6000 mm. Rymligt garage med plats för bil, förvaring och garageport.'
+  },
+  {
     id: 'size-cube',
     name: 'Modern skandi-kub',
     badge: 'Kub',
@@ -522,6 +533,7 @@ import {
   cubeWallSlots,
   saunaWallSlots,
   shedWallSlots,
+  garageWallSlots,
   mergeWallSlots
 } from './wallSlots';
 
@@ -534,6 +546,7 @@ export {
   cubeWallSlots,
   saunaWallSlots,
   shedWallSlots,
+  garageWallSlots,
   mergeWallSlots,
   paabyggnadWallSlots
 };
@@ -1115,28 +1128,29 @@ export const useConfigStore = defineStore('config', () => {
   let viewModeBeforeLoft: ViewMode | null = null;
 
   const selectCategory = (category: CategoryKey) => {
-    if (category === 'doors' || category === 'windows' || category === 'gates' || category === 'extras' || category === 'color') {
+    const effectiveCategory = category === 'gates' ? 'doors' : category;
+    if (effectiveCategory === 'doors' || effectiveCategory === 'windows' || effectiveCategory === 'extras' || effectiveCategory === 'color') {
       viewMode.value = 'utsida';
       viewModeBeforeLoft = null;
-    } else if (category === 'loft') {
+    } else if (effectiveCategory === 'loft') {
       if (selectedCategory.value !== 'loft') {
         viewModeBeforeLoft = viewMode.value;
       }
       viewMode.value = 'insida';
-    } else if (category === 'interior') {
+    } else if (effectiveCategory === 'interior') {
       if (selectedCategory.value !== 'interior') {
         viewModeBeforeLoft = viewMode.value;
       }
       viewMode.value = 'insida';
       interiorFocusSignal.value++;
-    } else if (['loft', 'interior'].includes(selectedCategory.value) && !['loft', 'interior'].includes(category) && viewModeBeforeLoft) {
+    } else if (['loft', 'interior'].includes(selectedCategory.value) && !['loft', 'interior'].includes(effectiveCategory) && viewModeBeforeLoft) {
       viewMode.value = viewModeBeforeLoft;
       viewModeBeforeLoft = null;
     }
-    if (category !== 'interior') {
+    if (effectiveCategory !== 'interior') {
       interactionMode.value = 'default';
     }
-    selectedCategory.value = category;
+    selectedCategory.value = effectiveCategory;
     categoryRequest.value += 1;
   }
 
@@ -1224,6 +1238,27 @@ export const useConfigStore = defineStore('config', () => {
     selectedSlotId.value = null;
   }
 
+  const applyGarageShell = () => {
+    panelOrientation.value = 'staende';
+    verticalDoorBay.value = false;
+    doorCanopy.value = false;
+    flushRoof.value = false;
+    claddingSizeId.value = '22x145';
+    terraces.value = [];
+    activeRoof.value = 'sadeltak';
+    roofCovering.value = 'felt';
+    activeMaterial.value = 'falurod';
+    activePaintId.value = null;
+    activeLoft.value = 'none';
+    loftCount.value = 'ett';
+    loftPlacement.value = 'vanster';
+    wallSlots.value = garageWallSlots();
+    activeDoor.value = 'STEHAG';
+    activeGate.value = 'overhead-white';
+    activeWindow.value = 'standard-single';
+    selectedSlotId.value = null;
+  }
+
   const applyPlainShell = () => {
     panelOrientation.value = 'staende';
     verticalDoorBay.value = false;
@@ -1242,13 +1277,14 @@ export const useConfigStore = defineStore('config', () => {
   }
 
   const selectSize = (id: string) => {
-    const shelled = id === 'size-cube' || id === 'size-sauna' || id === 'size-shed' || id === 'size-paabyggnad';
-    const leavingShell = !shelled && (selectedSizeId.value === 'size-cube' || selectedSizeId.value === 'size-sauna' || selectedSizeId.value === 'size-shed' || selectedSizeId.value === 'size-paabyggnad');
+    const shelled = id === 'size-cube' || id === 'size-sauna' || id === 'size-shed' || id === 'size-garage' || id === 'size-paabyggnad';
+    const leavingShell = !shelled && (selectedSizeId.value === 'size-cube' || selectedSizeId.value === 'size-sauna' || selectedSizeId.value === 'size-shed' || selectedSizeId.value === 'size-garage' || selectedSizeId.value === 'size-paabyggnad');
     selectedSizeId.value = id;
     applyPresetSize(id);
     if (id === 'size-cube') applyCubeShell();
     else if (id === 'size-sauna') applySaunaShell();
     else if (id === 'size-shed') applyShedShell();
+    else if (id === 'size-garage') applyGarageShell();
     else if (leavingShell) applyPlainShell();
     if (id === 'size-paabyggnad') {
       activeRoof.value = 'pulpettak';
@@ -1334,7 +1370,7 @@ export const useConfigStore = defineStore('config', () => {
         const upperId = `${wall}-${i}u`;
         if (!updated[upperId]) {
           const isPaabyggnadFront = selectedSizeId.value === 'size-paabyggnad' && wall === 'front';
-          const isStandardFront = wall === 'front' && selectedSizeId.value !== 'size-sauna' && selectedSizeId.value !== 'size-shed';
+          const isStandardFront = wall === 'front' && selectedSizeId.value !== 'size-sauna' && selectedSizeId.value !== 'size-shed' && selectedSizeId.value !== 'size-garage';
           const isWindow = isPaabyggnadFront || isStandardFront;
           updated[upperId] = {
             id: upperId,
