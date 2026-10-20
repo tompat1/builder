@@ -170,3 +170,84 @@ export function roomInsideShell(box: RoomBox, hx: number, hz: number) {
     && box.z - box.d / 2 >= -hz - 1e-6
     && box.z + box.d / 2 <= hz + 1e-6;
 }
+
+export interface BedLayout {
+  bedW: number;
+  bedD: number;
+  bedX: number;
+  bedZ: number;
+}
+
+/**
+ * Positions and dimensions a bed securely inside a bedroom:
+ * - Prevents beds from ever poking through outer shell walls or window facades
+ * - Places headboard against interior partition walls
+ * - Maintains generous clearance from exterior walls and windows
+ * - Clamps bed coordinates to remain strictly within room and shell envelope
+ */
+export function bedroomBedPlacement(
+  w: number,
+  d: number,
+  open: ShellSides,
+  place?: { x?: number; y?: number; z?: number },
+  shellLimits?: { hx: number; hz: number }
+): BedLayout {
+  const wallThick = 0.1;
+  const wallInset = 0.12;
+  const availW = Math.max(0.6, w - (open.left ? wallInset : wallThick) - (open.right ? wallInset : wallThick) - 0.04);
+  const availD = Math.max(0.8, d - (open.back ? wallInset : wallThick) - (open.front ? wallInset : wallThick) - 0.04);
+
+  // Standard double bed (1.6m wide x 2.0m deep) or sideways (2.0m wide x 1.4-1.6m deep) if room is wider than deep
+  const sideways = availW >= 2.0 && availD < 2.2;
+  const bedW = sideways ? Math.min(2.0, availW) : Math.min(1.6, availW);
+  const bedD = sideways ? Math.min(1.6, availD) : Math.min(2.0, availD);
+
+  const minX = -w / 2 + bedW / 2 + (open.left ? wallInset : wallThick + 0.02);
+  const maxX = w / 2 - bedW / 2 - (open.right ? wallInset : wallThick + 0.02);
+  let bedX = Math.min(maxX, Math.max(minX, 0));
+
+  // Headboard sits against the interior partition or back wall, leaving walking space in front of the window
+  const minZ = -d / 2 + bedD / 2 + (open.back ? wallInset : wallThick + 0.02);
+  const maxZ = d / 2 - bedD / 2 - (open.front ? 0.25 : wallThick + 0.02);
+
+  let bedZ = minZ;
+  if (open.front && !open.back) {
+    // Front window wall: keep bed against the back partition
+    bedZ = minZ;
+  } else if (open.back && !open.front) {
+    bedZ = minZ;
+  } else {
+    bedZ = Math.min(maxZ, Math.max(minZ, (minZ + maxZ) / 2));
+  }
+  bedZ = Math.min(maxZ, Math.max(minZ, bedZ));
+
+  // Strict absolute safeguard against house shell bounds
+  if (place && shellLimits) {
+    if (Number.isFinite(place.z)) {
+      const maxAllowedZ = shellLimits.hz - 0.15;
+      const minAllowedZ = -shellLimits.hz + 0.15;
+      const worldFront = place.z! + bedZ + bedD / 2;
+      if (worldFront > maxAllowedZ) {
+        bedZ -= (worldFront - maxAllowedZ);
+      }
+      const worldBack = place.z! + bedZ - bedD / 2;
+      if (worldBack < minAllowedZ) {
+        bedZ += (minAllowedZ - worldBack);
+      }
+    }
+    if (place.x !== undefined && Number.isFinite(place.x)) {
+      const maxAllowedX = shellLimits.hx - 0.15;
+      const minAllowedX = -shellLimits.hx + 0.15;
+      const worldRight = place.x + bedX + bedW / 2;
+      if (worldRight > maxAllowedX) {
+        bedX -= (worldRight - maxAllowedX);
+      }
+      const worldLeft = place.x - bedX - bedW / 2;
+      if (worldLeft < minAllowedX) {
+        bedX += (minAllowedX - worldLeft);
+      }
+    }
+  }
+
+  return { bedW, bedD, bedX, bedZ };
+}

@@ -13,7 +13,7 @@ import { paintBoards } from '../color/paint';
 import { INTERIOR_FLOOR_TOP, LOFT_FLOORBOARD, curvedLoftStair, loftEndRotation, loftIsGhosted, loftJoistTop, loftStairOpening, loftStairRun, loftStairTreads, straightLoftStair, isLoftRoom, loftWallStudsVisible, loftDeckBounds, type LoftBounds } from './loftLevel';
 import { ceilingStations, loftCeilingY, sliceStations, type CeilingStation, type RoofSlope } from './roofClearance';
 import { NARROW_TALL, OVERLIGHT, PORTRAIT_PANORAMA, containWindowInPanel, fittedDoorOpening, fittedWindowOpening, narrowTallPane, openingClearOfRoof, overlightHeight, portraitPane, windowOpeningChanged } from './windowFit';
-import { fitRoom, innerHalf, roomFootprint, roomWallRuns, shellSides, SHELL_TOUCH, type RoomBox, type ShellSides, type RoomBounds } from './roomWalls';
+import { fitRoom, innerHalf, roomFootprint, roomWallRuns, shellSides, SHELL_TOUCH, bedroomBedPlacement, type RoomBox, type ShellSides, type RoomBounds } from './roomWalls';
 import { CONCRETE_WALL_THICK_M, timberShellOnConcrete } from '../store/paabyggnad';
 import { MEASURE_CURSOR } from '../measure/length';
 import {
@@ -622,7 +622,7 @@ export class HouseScene {
         fitted.w,
         fitted.d,
         this.getRoomShellSides(fitted, hx, hz, pt.y),
-        { y: pt.y, z: fitted.z }
+        { x: fitted.x, y: pt.y, z: fitted.z }
       );
       group.traverse((child) => {
         if (!(child instanceof THREE.Mesh)) return;
@@ -1080,7 +1080,8 @@ export class HouseScene {
           fitted.w,
           fitted.d,
           this.getRoomShellSides(fitted, hx, hz, baseY),
-          isLoftRoom(baseY) ? { y: baseY, z: fitted.z } : undefined
+          { x: fitted.x, y: baseY, z: fitted.z },
+          true
         );
         roomGroup.position.set(fitted.x, baseY, fitted.z);
 
@@ -6844,7 +6845,7 @@ export class HouseScene {
     w: number,
     d: number,
     open: ShellSides,
-    place?: { y: number; z: number },
+    place?: { x?: number; y: number; z: number },
     wallsVisible = true
   ): THREE.Group {
     const group = new THREE.Group();
@@ -6953,7 +6954,7 @@ export class HouseScene {
     }
     if (wallsVisible && ceiling && loft) this.addLoftCeiling(group, w, loft.z, ceiling, wallMat, edgeMat);
 
-    const edge = (againstShell: boolean) => (againstShell ? 0.02 : wallThick);
+    const edge = (againstShell: boolean) => (againstShell ? 0.08 : wallThick);
     const fitUp = (height: number, bottom: number, currentY: number) => {
       if (!ceiling) return { h: height, y: currentY };
       const limit = Math.min(ceiling(-d / 2), ceiling(0), ceiling(d / 2)) - 0.06;
@@ -7004,26 +7005,16 @@ export class HouseScene {
       group.add(counter);
     } else if (roomType === 'bedroom') {
       const bedFit = fitUp(0.5, 0, 0.25);
-      const availW = Math.max(0.6, w - edge(open.left) - edge(open.right) - 0.04);
-      const availD = Math.max(0.8, d - edge(open.back) - edge(open.front) - 0.04);
-      const bedW = Math.min(1.6, availW);
-      const bedD = Math.min(2.0, availD);
+      const { bedW, bedD, bedX, bedZ } = bedroomBedPlacement(
+        w,
+        d,
+        open,
+        place,
+        this.shellLimits()
+      );
       const bedGeo = new THREE.BoxGeometry(bedW, bedFit.h, bedD);
       const bedMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8 });
       const bed = new THREE.Mesh(bedGeo, bedMat);
-      const minX = -w / 2 + bedW / 2 + edge(open.left);
-      const maxX = w / 2 - bedW / 2 - edge(open.right);
-      const bedX = Math.min(maxX, Math.max(minX, (edge(open.left) - edge(open.right)) / 2));
-      let bedZ = 0;
-      if (open.front && !open.back) {
-        bedZ = d / 2 - bedD / 2 - edge(open.front);
-      } else if (open.back && !open.front) {
-        bedZ = -d / 2 + bedD / 2 + edge(open.back);
-      } else {
-        const minZ = -d / 2 + bedD / 2 + edge(open.back);
-        const maxZ = d / 2 - bedD / 2 - edge(open.front);
-        bedZ = Math.min(maxZ, Math.max(minZ, -d / 2 + bedD / 2 + edge(open.back)));
-      }
       bed.position.set(bedX, bedFit.y, bedZ);
       group.add(bed);
     }
@@ -7057,7 +7048,7 @@ export class HouseScene {
       fitted.w,
       fitted.d,
       this.getRoomShellSides(fitted, hx, hz, nextY),
-      isLoftRoom(nextY) ? { y: nextY, z: fitted.z } : undefined,
+      { x: fitted.x, y: nextY, z: fitted.z },
       showWalls
     );
     newRoom.userData.roomId = roomId;

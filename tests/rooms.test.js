@@ -6,7 +6,8 @@ import {
   innerHalf,
   roomInsideShell,
   roomWallRuns,
-  shellSides
+  shellSides,
+  bedroomBedPlacement
 } from '../src/three-engine/roomWalls.ts';
 import { loftDeckBounds } from '../src/three-engine/loftLevel.ts';
 
@@ -149,4 +150,45 @@ test('two bedrooms fit side-by-side on the front loft without overlapping', () =
   // Back edges do not fall behind loft deck
   assert.ok(bed1.z - bed1.d / 2 >= loft.minZ - 1e-6);
   assert.ok(bed2.z - bed2.d / 2 >= loft.minZ - 1e-6);
+});
+
+test('bedroomBedPlacement keeps beds strictly inside room and shell bounds without protruding', () => {
+  const shell = innerHalf(5.2, 6.731);
+  const loft = loftDeckBounds(5.2, 6.731, 16.4, 'fram', false, true);
+
+  // Front bedroom with open.front = true (touching front exterior wall)
+  const roomW = 2.41;
+  const roomD = 2.876;
+  const openFrontSides = { left: true, right: false, back: false, front: true };
+  const place = { x: 1.215, y: 2.8, z: 1.748 };
+
+  const layout = bedroomBedPlacement(roomW, roomD, openFrontSides, place, shell);
+
+  // The bed front face inside the room is pulled back from the front window wall
+  assert.ok(layout.bedZ + layout.bedD / 2 <= roomD / 2 - 0.20);
+
+  // The bed world coordinate stays strictly inside the house shell envelope
+  const worldFront = place.z + layout.bedZ + layout.bedD / 2;
+  const worldBack = place.z + layout.bedZ - layout.bedD / 2;
+  assert.ok(worldFront <= shell.hz - 0.15);
+  assert.ok(worldBack >= -shell.hz + 0.15);
+
+  const worldRight = place.x + layout.bedX + layout.bedW / 2;
+  const worldLeft = place.x + layout.bedX - layout.bedW / 2;
+  assert.ok(worldRight <= shell.hx - 0.15);
+  assert.ok(worldLeft >= -shell.hx + 0.15);
+
+  // Headboard sits against the interior back partition (-roomD / 2), leaving ample walking space
+  assert.ok(layout.bedZ - layout.bedD / 2 >= -roomD / 2 + 0.05);
+});
+
+test('bedroomBedPlacement orients bed sideways when room is wider than deep', () => {
+  const shallowRoom = bedroomBedPlacement(
+    2.4,
+    2.0,
+    { left: false, right: false, back: true, front: false }
+  );
+  // In a shallow room (d=2.0, w=2.4), bed is oriented sideways (2.0m wide along wall, 1.6m deep)
+  assert.equal(shallowRoom.bedW, 2.0);
+  assert.equal(shallowRoom.bedD, 1.6);
 });
