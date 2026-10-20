@@ -98,26 +98,42 @@ test('concrete combo framing guide accounts for existing concrete walls, dual si
   const s2Tie = s2.specs.find((s) => s.labelSv === 'Fasadinfästning');
   assert.ok(s2Tie?.valueSv.includes('Betongskruv'));
 
-  // Step 3: Bilevel wall heights
+  // Step 3: Bilevel wall heights with 500 cm front loft volume
   const s3 = getFramingStep(3, true);
   assert.equal(s3.key, 'studs');
   const s3Heights = s3.specs.find((s) => s.labelSv === 'Vägghöjder');
-  assert.ok(s3Heights?.valueSv.includes('Loft'));
+  assert.ok(s3Heights?.valueSv.includes('Loft') || s3Heights?.valueSv.includes('loft'));
+  assert.ok(s3.proTipsSv.includes('INTE placeras i husets bakkant'));
+  assert.ok(s3.proTipsSv.includes('500 cm'));
 
-  // Step 4: Transfer beam across front concrete opening
+  // Step 4: Transfer beam across front concrete opening and front carrier beam
   const s4 = getFramingStep(4, true);
   assert.equal(s4.key, 'openings');
-  const s4Beam = s4.specs.find((s) => s.labelSv === 'Huvudbalk');
+  const s4Beam = s4.specs.find((s) => s.labelSv.includes('Huvudbalk'));
   assert.ok(s4Beam?.valueSv.includes('Limträ') || s4Beam?.valueSv.includes('45×195'));
-  const s4Bearing = s4.specs.find((s) => s.labelSv === 'Upplagslängd');
+  const s4Bearing = s4.specs.find((s) => s.labelSv.includes('Upplag'));
   assert.ok(s4Bearing?.valueSv.includes('100 mm'));
+  const s4FrontBeam = s4.specs.find((s) => s.labelSv.includes('Främre bärlina'));
+  assert.ok(s4FrontBeam?.valueSv.includes('500 cm'));
+  const s4Concrete = s4.specs.find((s) => s.labelSv.includes('Betongens stödfunktion'));
+  assert.ok(s4Concrete?.valueSv.includes('tillskottsstöd'));
+  assert.ok(s4.proTipsSv.includes('tillskottsstöd'));
 
-  // Step 5: Loft floor joists and horizontal diaphragm action (skivverkan)
+  // Step 5: Big loft floor joists under 500 cm roof with partial concrete support and diaphragm action
   const s5 = getFramingStep(5, true);
   assert.equal(s5.key, 'plates_noggings');
+  assert.ok(s5.titleSv.includes('Stort Loft under 500 cm Taket'));
+  const s5Location = s5.specs.find((s) => s.labelSv === 'Loftplacering');
+  assert.ok(s5Location?.valueSv.includes('INTE i bakkant'));
+  assert.ok(s5Location?.valueSv.includes('500 cm'));
+  const s5Support = s5.specs.find((s) => s.labelSv === 'Understöd & Upplag');
+  assert.ok(s5Support?.valueSv.includes('betongväggarna'));
   const s5Diaphragm = s5.specs.find((s) => s.labelSv === 'Skivverkan');
   assert.ok(s5Diaphragm?.valueSv.includes('golvspånskiva'));
   assert.ok(s5.proTipsSv.includes('skivverkan'));
+  assert.ok(s5.proTipsSv.includes('istället för i bakkant'));
+  assert.ok(s5.proTipsSv.includes('500 cm'));
+  assert.ok(s5.proTipsSv.includes('delvis upplag'));
 
   // Step 6: Mono-pitch rafters and wind uplift tension straps into concrete mass
   const s6 = getFramingStep(6, true);
@@ -222,4 +238,38 @@ test('framing component metadata covers structural elements with Swedish and Eng
     assert.ok(comp.dim.length > 3, `Dimension for ${comp.sv} is valid`);
     assert.ok(comp.step >= 1 && comp.step <= 7, `Step for ${comp.sv} is in [1, 7]`);
   });
+});
+
+test('framing guide explicitly places the big loft at the highest 500 cm roof point on carrier beams with concrete support', () => {
+  const s3 = getFramingStep(3, true);
+  const s4 = getFramingStep(4, true);
+  const s5 = getFramingStep(5, true);
+  const s6 = getFramingStep(6, true);
+
+  // Loft is NOT in the back with lowest point of roofing
+  assert.ok(s3.proTipsSv.includes('INTE placeras i husets bakkant'));
+  assert.ok(s3.proTipsEn.includes('NOT placed at the rear of the house'));
+  assert.ok(s5.specs.find((s) => s.labelSv === 'Loftplacering')?.valueSv.includes('INTE i bakkant'));
+
+  // Loft is under the highest point of 500 cm roofing
+  assert.ok(s3.proTipsSv.includes('500 cm höga taket'));
+  assert.ok(s5.titleSv.includes('Stort Loft under 500 cm Taket'));
+  assert.ok(s5.titleEn.includes('Big Loft under 500 cm Roof'));
+
+  // Loft is on top of carrier beams
+  const s4FrontBeam = s4.specs.find((s) => s.labelSv === 'Främre bärlina');
+  assert.ok(s4FrontBeam?.valueSv.includes('90×220 mm'));
+  assert.ok(s5.specs.find((s) => s.labelSv === 'Loftbjälklag')?.valueSv.includes('ovanpå balkarna'));
+
+  // Loft has partial support from old concrete walls as added support
+  const s4Support = s4.specs.find((s) => s.labelSv === 'Betongens stödfunktion');
+  assert.ok(s4Support?.valueSv.includes('tillskottsstöd'));
+  const s5Support = s5.specs.find((s) => s.labelSv === 'Understöd & Upplag');
+  assert.ok(s5Support?.valueSv.includes('delvis stöd på de gamla betongväggarna'));
+  assert.ok(s5.proTipsSv.includes('delvis upplag direkt på de gamla betongväggarnas murkrön'));
+  assert.ok(s5.proTipsEn.includes('bearing partially directly onto the old concrete wall crowns'));
+
+  // Roof rafters slope down from 500 cm over the loft to the rear
+  assert.ok(s6.titleSv.includes('500 cm Pulpettak'));
+  assert.ok(s6.specs.find((s) => s.labelSv === 'Takhöjder')?.valueSv.includes('500 cm över loftet i fronten'));
 });

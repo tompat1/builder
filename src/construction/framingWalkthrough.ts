@@ -472,10 +472,10 @@ export const FRAMING_STEPS_CONCRETE_COMBO: FramingStepDefinition[] = [
   {
     step: 3,
     key: 'studs',
-    titleSv: '3. Väggreglar & Nivåövergång',
-    titleEn: '3. Wall Studs & Elevation Transition',
-    subtitleSv: 'cc 600 mm anpassat för loftväggar på betong och fullhöjdsväggar i markplan',
-    subtitleEn: 'cc 600 mm layout for loft walls on concrete and full-height studs in extension',
+    titleSv: '3. Väggreglar & Hög Front (500 cm)',
+    titleEn: '3. Wall Studs & 500 cm High Front Envelope',
+    subtitleSv: 'cc 600 mm anpassat för fullhöjd upp till 500 cm i fronten där loftet ryms, samt 2,5 m över betongstommen',
+    subtitleEn: 'cc 600 mm framing rising up to 500 cm at the front to house the big loft, and 2.5 m over existing concrete',
     specs: [
       {
         labelSv: 'cc-avstånd',
@@ -492,8 +492,14 @@ export const FRAMING_STEPS_CONCRETE_COMBO: FramingStepDefinition[] = [
       {
         labelSv: 'Vägghöjder',
         labelEn: 'Wall Heights',
-        valueSv: 'Loft: ~2,5 m / Tillbyggnad: upp till 5,0 m',
-        valueEn: 'Loft: ~2.5 m / Extension: up to 5.0 m'
+        valueSv: 'Front för loft (under 500 cm tak): upp till 5,0 m / Bakre betongväggar: 2,5 m',
+        valueEn: 'Front for loft (under 500 cm roof): up to 5.0 m / Rear concrete walls: 2.5 m'
+      },
+      {
+        labelSv: 'Takprofil för loft',
+        labelEn: 'Roof Profile for Loft',
+        valueSv: 'Pulpettak 12° – maximal takhöjd i fronten där loftet byggs',
+        valueEn: '12° mono-pitch – peak ceiling height at front where loft is built'
       },
       {
         labelSv: 'Skråspikning',
@@ -503,123 +509,143 @@ export const FRAMING_STEPS_CONCRETE_COMBO: FramingStepDefinition[] = [
       }
     ],
     proTipsSv:
-      'Väggreglarna på långsidorna byter nivå: över betongväggarna är reglarna ca 2,0–2,5 m höga och vilar på murkrönets syll, medan de i den främre tillbyggnaden sträcker sig från markplattan upp till takets hammarband. Placera alltid virkets krökningsbåge (krona) utåt. Vid övergången mellan betongkrön och markplatta ska en förstärkt dubbel bärande regelpelare placeras för att ta upp taklasten där murkrönet slutar.',
+      'Ett helt centralt faktum i stomresningen är att loftet INTE placeras i husets bakkant – där taket har sin lägsta punkt (ca 2,4–2,5 m) finns det ingen takhöjd för ett loft! Loftet hör hemma på den andra sidan av huset: vid husets högsta punkt i den främre delen, under det 500 cm höga taket. Därför reses väggreglarna i frampartiet i full höjd upp till 5,0 meters taklinje för att skapa den generösa volym som krävs för ett stort loft. Längs sidorna faller väggreglarna från 5,0 m vid fronten ned till 2,5 m på betongmurkrönet i bakkant. Vid skarven mot de gamla betongväggarna monteras förstärkta bärande dubbelpelare som förbereder upplaget för loftets bärbalkar.',
     proTipsEn:
-      'Side wall studs transition between two base elevations: above the concrete walls, studs are ~2.0–2.5 m tall resting on the crown sill, while in the front extension they span continuously from the ground plate up to the sloping roofline. Always orient stud crowns facing outwards. At the exact transition point where the concrete wall crown terminates, install a doubled post to carry roof loads cleanly into the foundation.',
+      'A crucial structural fact is that the loft is NOT placed at the rear of the house—where the roof reaches its lowest elevation (~2.4–2.5 m), there is no headroom for a loft! The loft belongs on the other side of the house: at the highest point in the front, directly under the 500 cm high roofing. Therefore, front envelope studs rise full height up to the 5.0 m roofline to create the generous volume needed for a big loft. Along the side walls, studs slope down from 5.0 m at the front to 2.5 m on the rear concrete wall crown. Reinforced double posts stand at the concrete junction to carry the loft beam bearing seats.',
     checklistSv: [
       'Märk upp cc 600 mm på både murkrönssyll och markplattesyll',
-      'Kapa och montera korta reglar över betongväggarna och långa reglar i tillbyggnaden',
-      'Montera förstärkta dubbelreglar vid skarven där betongväggen slutar'
+      'Res fullhöjdsreglar upp till 5,0 m i den främre zonen där det stora loftet ska byggas',
+      'Kapa och montera korta reglar över de bakre betongväggarna (2,5 m)',
+      'Montera förstärkta bärande dubbelreglar vid skarven där betongväggen möter tillbyggnaden'
     ],
     checklistEn: [
       'Mark cc 600 mm intervals on both crown sill and ground foundation plates',
-      'Cut and fit upper studs over the concrete walls and full-height studs in the extension',
-      'Install reinforced double studs at the transition junction where the concrete wall ends'
+      'Erect full-height studs up to 5.0 m in the front zone where the big loft is built',
+      'Cut and fit upper studs over the rear concrete walls (2.5 m)',
+      'Install reinforced double posts at the transition junction where concrete meets timber'
     ]
   },
   {
     step: 4,
     key: 'openings',
-    titleSv: '4. Avväxlingar & Bärbalk över Öppning',
-    titleEn: '4. Headers & Opening Transfer Beam',
-    subtitleSv: 'Bärande limträ-/avväxlingsbalk över betongöppningen samt fönster- och dörravväxlingar',
-    subtitleEn: 'Structural header beam across concrete opening and door/window lintels',
+    titleSv: '4. Bärande Balkar & Upplag mot Betongvägg',
+    titleEn: '4. Carrier Beams & Concrete Wall Bearing',
+    subtitleSv: 'Kraftiga limträbalkar och bärlinor på 2,5 m nivå med delvis stöd på de gamla 50 cm betongväggarna',
+    subtitleEn: 'Heavy glulam beams and ledger beams at 2.5 m elevation partially supported by the old 50 cm concrete walls',
     specs: [
       {
-        labelSv: 'Huvudbalk',
+        labelSv: 'Huvudbalk (avväxling)',
         labelEn: 'Transfer Beam',
-        valueSv: 'Limträ / 45×195 mm C24 dubblerad',
-        valueEn: 'Glulam / Doubled 45×195 mm C24'
+        valueSv: 'Limträ 90×220 mm GL28c på murkrön',
+        valueEn: 'Glulam 90×220 mm GL28c on wall crown'
       },
       {
-        labelSv: 'Upplagslängd',
+        labelSv: 'Främre bärlina',
+        labelEn: 'Front Carrier Beam',
+        valueSv: '90×220 mm GL28c under 500 cm-taket',
+        valueEn: '90×220 mm GL28c under 500 cm roof'
+      },
+      {
+        labelSv: 'Upplag mot betong',
         labelEn: 'Bearing Length',
-        valueSv: 'Minst 100 mm upplag på betong',
-        valueEn: 'Min 100 mm direct bearing on concrete'
+        valueSv: 'Minst 100 mm fast upplag på 50 cm betongmurkrön',
+        valueEn: 'Min 100 mm direct bearing on 50 cm concrete crowns'
+      },
+      {
+        labelSv: 'Betongens stödfunktion',
+        labelEn: 'Concrete Support Role',
+        valueSv: 'Gamla betongväggarna ger orubbligt tillskottsstöd åt loftet',
+        valueEn: 'Old concrete walls provide solid supplemental support for big loft'
       },
       {
         labelSv: 'Fönsteravväxling',
         labelEn: 'Window Headers',
         valueSv: '45×195 mm C24 med jack studs',
         valueEn: '45×195 mm C24 with jack studs'
-      },
-      {
-        labelSv: 'Ställmån',
-        labelEn: 'Framing Gap',
-        valueSv: '15–20 mm runtom korg',
-        valueEn: '15–20 mm perimeter frame gap'
       }
     ],
     proTipsSv:
-      'Där betonghusets gamla front öppnats upp mot tillbyggnaden måste en bärande tvärbalk (avväxlingsbalk) placeras i nivå med murkrönet. Denna balk bär upp både loftets golvbjälklag och eventuella taklaster. Balken ska ha minst 100 mm fast upplag på de kvarvarande betongsidoväggarna, vilande på tryckfördelande stålplåtar eller syllvirke med fuktspärr. På övervåningen fälls avväxlingar in för de tre övre fönsterpartierna i träfasaden.',
+      'För att bära upp det stora loftet under 500 cm-taket monteras ett kraftigt balksystem på 2,5 meters höjd. I bakkant av loftzonen läggs en bärande limträbalk (90×220 mm) tvärs över öppningen. Denna balk får minst 100 mm fast upplag direkt på de befintliga 50 cm tjocka betongsidoväggarnas murkrön, förankrad med kemankare M12 och tryckfördelande stålplåtar. I loftets framkant monteras en matchande främre bärlina som bärs av de bärande pelarna i frontväggen under det 500 cm höga taket. De gamla betongväggarna fungerar som ett massivt tillskottsstöd som avlastar träkonstruktionen, förhindrar nedböjning och ger ett helt stumt underlag för det stora loftet.',
     proTipsEn:
-      'Where the original concrete front wall has been opened up into the extension, a heavy transfer beam must span across at the concrete crown elevation (2.5 m). This beam carries both the loft floor joists and vertical roof loads. It requires a minimum 100 mm bearing seat directly atop the solid concrete side walls, resting on steel bearing plates and bituminous moisture barrier. On the upper floor, headers are framed in for the upper clerestory window panels.',
+      'To support the big loft under the 500 cm roof, a heavy beam system is framed at the 2.5-meter level. At the rear boundary of the loft zone, a glulam transfer beam (90×220 mm) spans across the opening, resting with a minimum 100 mm bearing seat directly on the 50 cm solid concrete side wall crowns with M12 chemical studs and steel bearing plates. At the front edge of the loft, a matching front carrier beam spans between reinforced front posts under the 500 cm roof. The indestructible old concrete walls act as massive supplemental support, carrying substantial dead and live loads to keep the big loft completely deflection-free.',
     checklistSv: [
-      'Lägg upp och förankra bärande tvärbalk på murkrönet med minst 100 mm upplag',
-      'Montera avväxlingsbalkar för dörrar och fönster med dubbla stödstolpar',
-      'Kontrollera att det finns minst 15 mm ställmån runt alla fönster- och dörrhål'
+      'Lägg upp och förankra bärande tvärbalk på murkrönet med minst 100 mm upplag mot betongen',
+      'Montera den främre bärlinan vid loftets framkant under det 500 cm höga taket',
+      'Förankra balkupplagen med kemankare M12 och tryckfördelande stålbrickor',
+      'Montera avväxlingar för frontens tre övre fönsterpartier med dubbla jack studs'
     ],
     checklistEn: [
-      'Seat and anchor structural transfer beam across wall crowns with min 100 mm bearing',
-      'Frame window and door headers with dedicated jack studs for full load path',
-      'Ensure 15–20 mm perimeter installation clearance around all planned openings'
+      'Seat and anchor structural transfer beam across wall crowns with min 100 mm bearing on concrete',
+      'Install the front carrier beam at the front edge of the loft under the 500 cm high roof',
+      'Secure beam seats with M12 chemical injection studs and load-spreading steel plates',
+      'Frame headers for the three upper clerestory windows with dedicated jack studs'
     ]
   },
   {
     step: 5,
     key: 'plates_noggings',
-    titleSv: '5. Hammarband & Mellanbjälklag',
-    titleEn: '5. Top Plates & Loft Floor Joists',
-    subtitleSv: 'Övre hammarband samt golvbjälklag för träloftet ovanpå betonghuset',
-    subtitleEn: 'Top perimeter plates and structural loft floor joists over the concrete house',
+    titleSv: '5. Stort Loft under 500 cm Taket & Mellanbjälklag',
+    titleEn: '5. Big Loft under 500 cm Roof & Floor Joists',
+    subtitleSv: '45×220 mm bjälklag ovanpå bärbalkarna med delvis stöd på betongstommen och full ståhöjd',
+    subtitleEn: '45×220 mm joists atop carrier beams with partial concrete support and generous headroom',
     specs: [
+      {
+        labelSv: 'Loftplacering',
+        labelEn: 'Loft Location',
+        valueSv: 'Husets främre del under 500 cm taket (INTE i bakkant)',
+        valueEn: 'Front of house under 500 cm roof (NOT at low rear)'
+      },
       {
         labelSv: 'Loftbjälklag',
         labelEn: 'Floor Joists',
-        valueSv: '45×220 mm C24 cc 600 mm',
-        valueEn: '45×220 mm C24 cc 600 mm'
+        valueSv: '45×220 mm C24 cc 600 mm ovanpå balkarna',
+        valueEn: '45×220 mm C24 cc 600 mm atop beams'
       },
       {
-        labelSv: 'Balkskor',
-        labelEn: 'Joist Hangers',
-        valueSv: 'Kraftiga balkskor med ankarspik',
-        valueEn: 'Heavy-duty galvanized joist hangers'
-      },
-      {
-        labelSv: 'Hammarband',
-        labelEn: 'Top Plate',
-        valueSv: '45×145 mm C24 med överlapp i hörn',
-        valueEn: '45×145 mm continuous C24 with corner lap'
+        labelSv: 'Understöd & Upplag',
+        labelEn: 'Support & Bearing',
+        valueSv: 'Bärbalkar fram + delvis stöd på de gamla betongväggarna',
+        valueEn: 'Front carrier beams + partial support from old concrete walls'
       },
       {
         labelSv: 'Skivverkan',
         labelEn: 'Diaphragm Action',
         valueSv: '22 mm golvspånskiva limmad och skruvad',
         valueEn: '22 mm tongue-and-groove floor panels glued/screwed'
+      },
+      {
+        labelSv: 'Takhöjd på loftet',
+        labelEn: 'Loft Headroom',
+        valueSv: 'Upp till 2,3 m ståhöjd mot det 500 cm höga taket',
+        valueEn: 'Up to 2.3 m standing headroom under 500 cm roof'
       }
     ],
     proTipsSv:
-      'Loftets golvbjälklag (45×220 mm) spänner över betonghuset och vilar direkt på murkrönets syll samt den bärande tvärbalken. Detta bjälklag fyller en dubbel funktion: det utgör sovloftets bärande golv, och bildar samtidigt en kraftig horisontell skiva (skivverkan) som förhindrar att betongväggarna trycks utåt av vindlaster. Hammarbandet (toppsyllen) binder samman regeltopparna i takfallet (pulpettaket 12°).',
+      'Här monteras det stora loftet på sin rätta plats i huset: i den främre delen under det 500 cm höga taket! Genom att placera loftet under takets högsta punkt – istället för i bakkant där taket är som lägst – skapas full generös ståhöjd på loftet (upp till ca 2,2–2,3 m), medan markplanet under loftet har behagliga 2,5 m i rumshöjd. Loftbjälkarna (45×220 mm C24 cc 600 mm) monteras ovanpå de bärande balkarna. De spänner från frontväggen och sträcker sig bakåt så att de vilar med delvis upplag direkt på de gamla betongväggarnas murkrön för maximal stadga och bärkraft. Ovanpå bjälkarna limmas och skruvas 22 mm spontad golvspånskiva. Detta bildar en vridstyv horisontalskiva (skivverkan) som låser samman tillbyggnadens trästomme med det gamla betonghuset.',
     proTipsEn:
-      'The loft floor joists (45×220 mm) span across the concrete house, bearing directly on the wall crown sills and the transfer beam. This floor serves a dual role: providing the living floor deck for the loft, and functioning as a rigid structural diaphragm tying the tops of the heavy concrete walls together. The sloping top plates (hammarband) interlock at the corners to unify the 12° mono-pitch timber envelope.',
+      'Here the big loft is assembled in its proper place: at the front of the house directly under the 500 cm high roofing! By placing the loft at the highest point of the house—rather than at the back where the roof is lowest—you gain generous standing headroom on the loft floor (up to ~2.2–2.3 m), while maintaining a comfortable 2.5 m ceiling clearance on the ground floor below. Floor joists (45×220 mm C24 cc 600 mm) sit directly on top of the carrier beams. They span from the front wall back across the transfer beam, bearing partially directly onto the old concrete wall crowns for supreme structural support. Glued and screwed 22 mm tongue-and-groove subfloor panels complete a rigid structural diaphragm locking the timber addition to the existing concrete walls.',
     checklistSv: [
-      'Montera golvbjälkar cc 600 mm för loftet med fuktskydd mot murkrön',
+      'Placera och rikta in 45×220 mm loftbjälkar cc 600 mm ovanpå bärbalkarna under 500 cm-taket',
+      'Säkerställ att loftets bakre del vilar stadigt med delvis stöd på de gamla 50 cm betongväggarna',
+      'Fäst bjälkarna med ankarspik i balkskor och bärlinor samt fuktskydd mot betong',
       'Lägg och överlappa hammarbandet över alla hörn för maximal vridstyvhet',
-      'Montera kortlingar mellan reglarna på 1200 mm höjd för knäck- och skivstöd'
+      'Limma och skruva 22 mm golvspånskivor med förskjutna skarvar för full skivverkan'
     ],
     checklistEn: [
-      'Position 45×220 mm loft floor joists cc 600 mm with moisture barrier beneath',
+      'Position and align 45×220 mm floor joists cc 600 mm atop carrier beams under the 500 cm roof',
+      'Ensure the rear of the loft bears firmly with partial support onto the old 50 cm concrete walls',
+      'Fasten joists with anchor nails into hangers and ledger beams with moisture barrier over concrete',
       'Install continuous top header plates with interlocking lap joints at all corners',
-      'Fit staggered wall noggings at 1200 mm height for stud stabilization'
+      'Glue and screw 22 mm subfloor panels with staggered seams for diaphragm action'
     ]
   },
   {
     step: 6,
     key: 'trusses',
-    titleSv: '6. Takstolar & Vindförankring i Betong',
-    titleEn: '6. Roof Rafters & Concrete Mass Anchoring',
-    subtitleSv: 'Pulpettakstolar förankrade med genomgående dragband ner i betongstommen',
-    subtitleEn: 'Mono-pitch rafters anchored with continuous tension straps into concrete mass',
+    titleSv: '6. Takstolar, 500 cm Pulpettak & Betongförankring',
+    titleEn: '6. Roof Rafters, 500 cm Mono-pitch & Concrete Anchors',
+    subtitleSv: 'Takbalkar med 12° fall från 500 cm över loftet ned mot bakre betongväggen, förankrade med stålband',
+    subtitleEn: 'Roof rafters sloping 12° from 500 cm over the loft down to rear concrete wall, tied with steel straps',
     specs: [
       {
         labelSv: 'Takbalkar',
@@ -628,10 +654,16 @@ export const FRAMING_STEPS_CONCRETE_COMBO: FramingStepDefinition[] = [
         valueEn: '45×220 mm C24 mono-pitch cc 600 mm'
       },
       {
+        labelSv: 'Takhöjder',
+        labelEn: 'Roof Elevations',
+        valueSv: '500 cm över loftet i fronten, faller till 2,4 m i bakkant',
+        valueEn: '500 cm over the loft at front, falling to 2.4 m at rear'
+      },
+      {
         labelSv: 'Taklutning',
         labelEn: 'Roof Pitch',
-        valueSv: '12° pulpettak (ensidigt fall)',
-        valueEn: '12° mono-pitch slope'
+        valueSv: '12° pulpettak (ensidigt fall från loft mot baksida)',
+        valueEn: '12° mono-pitch (draining rearward away from loft)'
       },
       {
         labelSv: 'Vindförankring',
@@ -647,18 +679,18 @@ export const FRAMING_STEPS_CONCRETE_COMBO: FramingStepDefinition[] = [
       }
     ],
     proTipsSv:
-      'Pulpettaket lyfter träpåbyggnaden upp till 5 meters totalhöjd. Vid stark vind utsätts det höga taket för enorma sugkrafter (vindlyft). På ett vanligt trähus förlitar man sig på plattans tyngd; här ska du dra nytta av det befintliga betonghusets enorma massa! Förankra takstolarna med förstärkta vinkelbeslag mot hammarbandet, och montera kontinuerliga stålhålband (dragband) som löper vertikalt från takstolarna och bultas direkt in i betongväggarna med kemankare. Detta förhindrar all risk för taklyft.',
+      'Pulpettaket lyfter träpåbyggnaden upp till 5 meters totalhöjd (500 cm) vid framkanten, vilket är själva grunden för att det stora loftet ryms med full rymd och luftighet. Takstolarna (45×220 mm C24) spänner med 12° fall från frontens hammarband (500 cm) hela vägen bakåt till murkrönet på betonghuset. Detta innebär att loftet badar i rymd och ljus från de tre övre fönsterpartierna i fronten, medan taket sluter tätt ned mot betongkanten i bakkant. För att säkra det höga taket och loftet mot stormkrafter monteras kraftiga stålhålband (dragband) som förbinder takstolarna och loftstommen direkt ner i det befintliga betonghusets massiva stomme med kemankare.',
     proTipsEn:
-      'The mono-pitch roof raises the timber addition up to a total height of 5 meters. Under heavy storm winds, this tall facade experiences significant aerodynamic uplift forces. Instead of relying solely on wood fasteners, take advantage of the massive ballast provided by the concrete house! Fasten rafters to the top plates using reinforced angle clips, and install continuous vertical steel tension straps running from the rafters down into the concrete walls anchored with chemical bolts. This permanently resists wind uplift.',
+      'The mono-pitch roof elevates the timber addition up to a total height of 5 meters (500 cm) at the front edge, providing the ceiling height that makes the big loft bright and spacious. Rafters (45×220 mm C24) span at a 12° pitch from the front top plate (500 cm) back down to the rear concrete wall crown. This floods the loft with light from the three upper clerestory windows in the front. To secure the tall roof and loft structure against aerodynamic storm uplift, continuous heavy-gauge steel tension straps tie the rafters and loft frame directly into the massive concrete ballast using chemical anchor bolts.',
     checklistSv: [
-      'Montera pulpettakstolar cc 600 mm med 12° takfall från front mot baksida',
+      'Montera pulpettakstolar cc 600 mm med 12° takfall från front (500 cm över loft) mot baksida',
       'Spika vinkelbeslag med ankarspik på båda sidor om varje takstolsfot',
-      'Montera dragband som förbinder takkonstruktionen med den tunga betongstommen'
+      'Montera genomgående dragband som förbinder tak- och loftkonstruktionen med den tunga betongstommen'
     ],
     checklistEn: [
-      'Install mono-pitch rafters cc 600 mm with 12° slope draining to the rear',
+      'Install mono-pitch rafters cc 600 mm with 12° slope from front (500 cm over loft) to rear',
       'Fasten heavy angle brackets with anchor nails on both sides of every rafter seat',
-      'Anchor continuous steel tie-down straps linking the roof structure to the concrete walls'
+      'Anchor continuous steel tie-down straps linking roof and loft structure to the heavy concrete walls'
     ]
   },
   {

@@ -2824,8 +2824,9 @@ export class HouseScene {
     this.addNoggings(this.gapsBetween(sideSolids), 'z', framingRightX, concreteH, studThick, studDepth, framingMat, rightOpenings);
 
     if (isConcrete) {
-      // Step 4: Heavy Glulam Transfer Beam (Bärbalk 90x220 mm) across concrete front opening
-      // Min 100 mm direct bearing on solid concrete side wall heads at concreteFrontZ
+      // Step 4: Heavy Glulam Transfer Beam & Front Loft Carrier Beam (90x220 mm GL28c)
+      // Carries the big loft at 2.5m elevation: rear beam seats with min 100 mm direct bearing
+      // on solid 50 cm concrete side walls at concreteFrontZ; front beam spans front posts under 500 cm roof.
       const transferBeamH = 0.22;
       const transferBeamW = 0.09;
       const transferBeam = new THREE.Mesh(
@@ -2835,30 +2836,73 @@ export class HouseScene {
       transferBeam.position.set(0, concreteH - transferBeamH / 2, concreteFrontZ - transferBeamW / 2);
       transferBeam.castShadow = true;
       transferBeam.userData.framingStep = 4;
-      transferBeam.userData.framingNameSv = 'Bärande limträbalk (avväxling)';
-      transferBeam.userData.framingNameEn = 'Glulam Transfer Beam';
-      transferBeam.userData.dimension = '90×220 mm GL28c · 100 mm upplag';
+      transferBeam.userData.framingNameSv = 'Bärande limträbalk (avväxling mot betong)';
+      transferBeam.userData.framingNameEn = 'Glulam Transfer Beam (Concrete Bearing)';
+      transferBeam.userData.dimension = '90×220 mm GL28c · 100 mm upplag på betong';
       this.framingGroup.add(transferBeam);
 
-      // Step 5: Loft Floor Joists (Loftbjälklag 45x220 mm cc 600 mm) spanning across the concrete house
-      // Provides floor deck and critical horizontal diaphragm action tying tops of concrete walls together
-      const concreteSpanZ = Math.max(0.1, (concreteFrontZ - studDepth / 2) - (framingBackZ + studDepth / 2));
-      const joistCount = Math.max(2, Math.floor(concreteSpanZ / 0.6));
-      const joistSpacing = concreteSpanZ / joistCount;
-      const joistH = 0.195;
+      // Främre bärlina för loftet under 500 cm tak (Front Carrier Beam at 2.5m elevation)
+      const frontLoftBeam = new THREE.Mesh(
+        new THREE.BoxGeometry(w - 0.05 - studDepth * 2, transferBeamH, transferBeamW),
+        framingMat
+      );
+      frontLoftBeam.position.set(0, concreteH - transferBeamH / 2, framingFrontZ - studDepth / 2 - transferBeamW / 2);
+      frontLoftBeam.castShadow = true;
+      frontLoftBeam.userData.framingStep = 4;
+      frontLoftBeam.userData.framingNameSv = 'Främre bärlina för loft under 500 cm tak';
+      frontLoftBeam.userData.framingNameEn = 'Front Loft Carrier Beam under 500 cm Roof';
+      frontLoftBeam.userData.dimension = '90×220 mm GL28c · Bär loftets framkant';
+      this.framingGroup.add(frontLoftBeam);
+
+      // Step 5: Big Loft Floor Joists (Stort loftbjälklag 45x220 mm cc 600 mm)
+      // Placed at the HIGHEST point of the house under the 500 cm roofing (NOT at the low rear).
+      // Spans atop the carrier beams and extends back onto the old 50 cm concrete walls for solid added support.
+      const loftFrontZ = framingFrontZ - studDepth / 2;
+      const loftRearZ = Math.max(framingBackZ + 1.2, concreteFrontZ - 1.5);
+      const loftSpanZ = Math.max(0.6, loftFrontZ - loftRearZ);
+      const joistCount = Math.max(3, Math.floor(loftSpanZ / 0.6) + 1);
+      const joistSpacing = loftSpanZ / (joistCount - 1);
+      const joistH = 0.22;
       const joistW = 0.045;
-      const joistGeo = new THREE.BoxGeometry(w - 0.05 - studDepth * 2, joistH, joistW);
-      for (let j = 1; j < joistCount; j++) {
-        const jz = framingBackZ + studDepth / 2 + j * joistSpacing;
+      const joistLenX = w - 0.05 - studDepth * 2;
+      const joistGeo = new THREE.BoxGeometry(joistLenX, joistH, joistW);
+
+      for (let j = 0; j < joistCount; j++) {
+        const jz = loftFrontZ - j * joistSpacing;
         const joistMesh = new THREE.Mesh(joistGeo, framingMat);
         joistMesh.position.set(0, concreteH + studThick + joistH / 2, jz);
         joistMesh.castShadow = true;
         joistMesh.userData.framingStep = 5;
-        joistMesh.userData.framingNameSv = 'Loftgolvbjälke cc 600 mm';
-        joistMesh.userData.framingNameEn = 'Loft Floor Joist cc 600 mm';
-        joistMesh.userData.dimension = '45×220 mm C24 · Skivverkan';
+        const overConcrete = jz <= concreteFrontZ + 0.05;
+        joistMesh.userData.framingNameSv = overConcrete
+          ? 'Loftbjälke med stöd på betongvägg & bärbalk'
+          : 'Loftbjälke under 500 cm tak cc 600 mm';
+        joistMesh.userData.framingNameEn = overConcrete
+          ? 'Loft Joist supported by Concrete Wall & Transfer Beam'
+          : 'Loft Joist under 500 cm Roof cc 600 mm';
+        joistMesh.userData.dimension = '45×220 mm C24 · Delvis upplag på betongstomme';
         this.framingGroup.add(joistMesh);
       }
+
+      // Structural subfloor deck for the big loft under 500 cm roof (skivverkan)
+      const deckThick = 0.022; // 22 mm tongue & groove floor panels
+      const deckMat = new THREE.MeshStandardMaterial({
+        color: '#dfcaa6',
+        roughness: 0.6,
+        metalness: 0.02
+      });
+      const deckMesh = new THREE.Mesh(
+        new THREE.BoxGeometry(joistLenX, deckThick, loftSpanZ),
+        deckMat
+      );
+      deckMesh.position.set(0, concreteH + studThick + joistH + deckThick / 2, (loftFrontZ + loftRearZ) / 2);
+      deckMesh.castShadow = true;
+      deckMesh.userData.framingStep = 5;
+      deckMesh.userData.ownMaterial = deckMat;
+      deckMesh.userData.framingNameSv = 'Loftgolv under 500 cm tak (skivverkan)';
+      deckMesh.userData.framingNameEn = 'Loft Floor Deck under 500 cm Roof (Diaphragm)';
+      deckMesh.userData.dimension = '22 mm golvspånskiva · Delvis stöd på betongvägg';
+      this.framingGroup.add(deckMesh);
 
       // Step 6: Wind Uplift Tie-Down Straps (Dragband förankrade i betong)
       // Steel tension straps running vertically from rafters/studs anchored deep into concrete walls
@@ -2903,7 +2947,8 @@ export class HouseScene {
       flashBack.userData.dimension = 'Pulverlackad stålplåt';
       this.framingGroup.add(flashBack);
 
-      const flashLeft = new THREE.Mesh(new THREE.BoxGeometry(0.05, flashThick, concreteSpanZ), flashMat);
+      const concreteSideWallSpanZ = Math.max(0.1, concreteFrontZ - framingBackZ);
+      const flashLeft = new THREE.Mesh(new THREE.BoxGeometry(0.05, flashThick, concreteSideWallSpanZ), flashMat);
       flashLeft.position.set(framingLeftX - 0.02, concreteH, (framingBackZ + concreteFrontZ) / 2);
       flashLeft.userData.framingStep = 7;
       flashLeft.userData.ownMaterial = flashMat;
@@ -2913,7 +2958,7 @@ export class HouseScene {
       this.framingGroup.add(flashLeft);
 
       if (this.concreteFacade('right')) {
-        const flashRight = new THREE.Mesh(new THREE.BoxGeometry(0.05, flashThick, concreteSpanZ), flashMat);
+        const flashRight = new THREE.Mesh(new THREE.BoxGeometry(0.05, flashThick, concreteSideWallSpanZ), flashMat);
         flashRight.position.set(framingRightX + 0.02, concreteH, (framingBackZ + concreteFrontZ) / 2);
         flashRight.userData.framingStep = 7;
         flashRight.userData.ownMaterial = flashMat;
@@ -7732,21 +7777,23 @@ export class HouseScene {
         target = new THREE.Vector3(cx - w / 2, concreteH * 0.8, cz + concreteFrontZ);
         pos = new THREE.Vector3(cx - w / 2 - 2.8, concreteH + 1.2, cz + concreteFrontZ + 2.4);
       } else if (clamped === 3) {
-        // Step 3: Bilevel wall studs (short atop concrete, tall in extension)
-        target = new THREE.Vector3(cx - w / 2, concreteH * 0.9, cz);
-        pos = new THREE.Vector3(cx - w / 2 - 3.8, concreteH + 1.5, cz + d * 0.35);
+        // Step 3: Full-height front wall studs (up to 500 cm roof) & side transition
+        target = new THREE.Vector3(cx, h * 0.5, cz + d * 0.35);
+        pos = new THREE.Vector3(cx - w * 0.85, h * 0.65, cz + d * 0.95);
       } else if (clamped === 4) {
-        // Step 4: Transfer beam across the concrete front opening & window headers
-        target = new THREE.Vector3(cx, concreteH, cz + concreteFrontZ);
-        pos = new THREE.Vector3(cx + w * 0.7, concreteH + 1.4, cz + concreteFrontZ + 3.2);
+        // Step 4: Carrier beams across concrete wall crowns and front loft opening
+        const midBeamZ = (concreteFrontZ + (d / 2 - 0.05)) / 2;
+        target = new THREE.Vector3(cx, concreteH + 0.2, cz + midBeamZ);
+        pos = new THREE.Vector3(cx + w * 0.8, concreteH + 1.8, cz + d * 0.85);
       } else if (clamped === 5) {
-        // Step 5: Loft floor joists diaphragm and top plates
-        target = new THREE.Vector3(cx, concreteH + 0.4, cz - d * 0.1);
-        pos = new THREE.Vector3(cx - w * 0.9, concreteH + 2.8, cz + d * 0.75);
+        // Step 5: Big loft floor joists and deck under 500 cm roof with partial concrete support
+        const loftMidZ = (d / 2 - 0.05 + Math.max(-d / 2 + 1.2, concreteFrontZ - 1.5)) / 2;
+        target = new THREE.Vector3(cx, concreteH + 0.6, cz + loftMidZ);
+        pos = new THREE.Vector3(cx - w * 0.85, concreteH + 2.5, cz + d * 0.8);
       } else if (clamped === 6) {
-        // Step 6: Mono-pitch rafters and wind uplift tie-downs into concrete
-        target = new THREE.Vector3(cx, h * 0.75, cz);
-        pos = new THREE.Vector3(cx - w * 0.9, h * 1.3, cz + d * 1.1);
+        // Step 6: Mono-pitch rafters up to 500 cm over the loft, anchored into concrete
+        target = new THREE.Vector3(cx, h * 0.75, cz + d * 0.15);
+        pos = new THREE.Vector3(cx - w * 0.95, h * 1.25, cz + d * 0.85);
       } else {
         // Step 7: Complete frame audit with exterior drip flashing
         target = new THREE.Vector3(cx, h * 0.45, cz);

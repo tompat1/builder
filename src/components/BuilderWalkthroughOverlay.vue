@@ -302,10 +302,10 @@ function stepShortLabel(s: FramingStepDefinition): string {
       switch (s.step) {
         case 1: return 'Syll & Murkrön';
         case 2: return 'Hörn & Anslutning';
-        case 3: return 'Väggreglar';
-        case 4: return 'Avväxling & Bärbalk';
-        case 5: return 'Hammarband & Bjälklag';
-        case 6: return 'Takstolar';
+        case 3: return 'Reglar & Hög Front';
+        case 4: return 'Balkar & Betongstöd';
+        case 5: return 'Stort Loft (500 cm)';
+        case 6: return 'Pulpettak 500 cm';
         case 7: return 'Slutkontroll';
         default: return `Steg ${s.step}`;
       }
@@ -313,10 +313,10 @@ function stepShortLabel(s: FramingStepDefinition): string {
       switch (s.step) {
         case 1: return 'Crown & Slab Sills';
         case 2: return 'Corners & Ties';
-        case 3: return 'Wall Studs';
-        case 4: return 'Headers & Beam';
-        case 5: return 'Plates & Joists';
-        case 6: return 'Rafters & Anchors';
+        case 3: return 'Studs & High Front';
+        case 4: return 'Beams & Concrete';
+        case 5: return 'Big Loft (500 cm)';
+        case 6: return 'Rafters & Pitch';
         case 7: return 'Final Audit';
         default: return `Step ${s.step}`;
       }
