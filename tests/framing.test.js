@@ -132,3 +132,14 @@ test('concrete combo framing guide accounts for existing concrete walls, dual si
   assert.ok(s7Air?.valueSv.includes('ångbroms'));
   assert.ok(s7.proTipsSv.includes('sockelbleck'));
 });
+
+test('standard houses never receive concrete combo steps or text', () => {
+  const stdSteps = getFramingSteps(false);
+  assert.equal(stdSteps.length, 7);
+  stdSteps.forEach((s) => {
+    assert.ok(!s.titleSv.includes('Murkrön'));
+    assert.ok(!s.specs.some((spec) => spec.labelSv === 'Infästning murkrön'));
+    assert.ok(!s.specs.some((spec) => spec.labelSv === 'Fogtätning' && spec.valueSv.includes('svällband')));
+    assert.ok(!s.proTipsSv.includes('betongväggarna'));
+  });
+});
