@@ -1,7 +1,7 @@
 <template>
   <nav
     ref="navEl"
-    class="flex w-full min-w-0 gap-1.5 overflow-x-auto overscroll-x-contain min-[1180px]:grid min-[1180px]:grid-cols-4 min-[1180px]:overflow-visible"
+    class="flex w-full min-w-0 gap-1.5 overflow-x-auto overscroll-x-contain min-[1180px]:grid min-[1180px]:grid-cols-3 min-[1180px]:overflow-visible"
     :aria-label="t('nav.label')"
   >
     <button
@@ -28,6 +28,15 @@
           <path d="m11.5 9.5 2-2" />
           <path d="m8.5 6.5 2-2" />
           <path d="m17.5 15.5 2-2" />
+        </svg>
+
+        <!-- Kulör (Color palette / paint) -->
+        <svg v-else-if="cat.id === 'color'" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="13.5" cy="6.5" r=".5" fill="currentColor" />
+          <circle cx="17.5" cy="10.5" r=".5" fill="currentColor" />
+          <circle cx="8.5" cy="7.5" r=".5" fill="currentColor" />
+          <circle cx="6.5" cy="12.5" r=".5" fill="currentColor" />
+          <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.992 6.012 17.49 2 12 2z" />
         </svg>
 
         <!-- Tak (Roof) -->
@@ -123,12 +132,13 @@ watch(() => store.selectedCategory, async () => {
 
 const categories: { id: CategoryKey }[] = [
   { id: 'size' },
+  { id: 'color' },
   { id: 'roof' },
   { id: 'doors' },
   { id: 'windows' },
+  { id: 'gates' },
   { id: 'extras' },
   { id: 'loft' },
-  { id: 'interior' },
-  { id: 'gates' }
+  { id: 'interior' }
 ];
 </script>

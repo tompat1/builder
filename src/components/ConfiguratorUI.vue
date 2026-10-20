@@ -90,9 +90,34 @@
     <aside
       v-if="!store.isFullscreen"
       id="config-panel"
-      class="pointer-events-auto z-40 mt-auto flex w-full flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 shadow-xl backdrop-blur-md max-[1179px]:max-h-[min(68dvh,calc(100dvh-11rem))] min-[1180px]:absolute min-[1180px]:bottom-[max(1.5rem,env(safe-area-inset-bottom))] min-[1180px]:right-6 min-[1180px]:top-24 min-[1180px]:h-auto min-[1180px]:max-h-[calc(100dvh-7.5rem)] min-[1180px]:w-[410px] min-[1180px]:justify-between"
+      class="pointer-events-auto z-40 mt-auto flex w-full flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 shadow-xl backdrop-blur-md max-[1179px]:max-h-[min(68dvh,calc(100dvh-11rem))] min-[1180px]:absolute min-[1180px]:bottom-[max(1.5rem,env(safe-area-inset-bottom))] min-[1180px]:right-6 min-[1180px]:top-24 min-[1180px]:h-auto min-[1180px]:max-h-[calc(100dvh-7.5rem)] min-[1180px]:justify-between"
+      :style="panelInlineStyle"
       :aria-label="t('panel.label')"
     >
+      <!-- Left Resize Handle (Desktop only) -->
+      <div
+        id="config-panel-resizer"
+        role="separator"
+        aria-orientation="vertical"
+        tabindex="0"
+        :aria-valuenow="desktopPanelWidth"
+        :aria-valuemin="MIN_PANEL_WIDTH"
+        :aria-valuemax="maxPanelWidth"
+        :aria-label="t('panel.resizeHandle')"
+        :title="t('panel.resizeHandle')"
+        class="hidden min-[1180px]:flex absolute left-0 top-0 bottom-0 w-3.5 cursor-col-resize items-center justify-center z-50 select-none group touch-none focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5A00]"
+        @pointerdown="onResizeStart"
+        @dblclick="onResizeReset"
+        @keydown="onResizeKeydown"
+      >
+        <div
+          class="h-10 w-1 rounded-full transition-all duration-150 shadow-2xs"
+          :class="isResizing
+            ? 'h-16 w-1.5 bg-[#FF5A00] ring-2 ring-[#FF5A00]/30 shadow-md'
+            : 'bg-slate-300/80 group-hover:h-14 group-hover:w-1.5 group-hover:bg-[#FF5A00] group-hover:shadow-sm'"
+        />
+      </div>
+
       <!-- Main Panel Title (Desktop) -->
       <div class="hidden min-[1180px]:block shrink-0 border-b border-slate-100 px-5 pb-2 pt-4">
         <h2 class="text-base font-extrabold tracking-tight text-slate-900">
@@ -160,6 +185,13 @@ import HouseNotes from './HouseNotes.vue';
 import MoodBoard from './MoodBoard.vue';
 import Cms from './Cms.vue';
 import { searchAction, searchRequest } from '../search/run';
+import {
+  DEFAULT_PANEL_WIDTH,
+  MIN_PANEL_WIDTH,
+  clampPanelWidth,
+  loadPanelWidth,
+  savePanelWidth
+} from '../services/displayPrefs';
 
 const store = useConfigStore();
 const { t } = useLabels();
@@ -175,8 +207,88 @@ const sheetOpen = ref(false);
 const narrow = ref(false);
 const optionsScroll = ref<HTMLElement | null>(null);
 
+const windowWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1280);
+const desktopPanelWidth = ref(loadPanelWidth(windowWidth.value));
+const isResizing = ref(false);
+let resizeStartX = 0;
+let resizeStartWidth = 0;
+
+const maxPanelWidth = computed(() => {
+  return Math.min(960, Math.max(MIN_PANEL_WIDTH, windowWidth.value - 120));
+});
+
+const panelInlineStyle = computed(() => {
+  if (narrow.value) return undefined;
+  return {
+    width: `${desktopPanelWidth.value}px`,
+    maxWidth: 'calc(100vw - 3rem)'
+  };
+});
+
+function onResizeStart(event: PointerEvent) {
+  if (event.button !== 0) return;
+  isResizing.value = true;
+  resizeStartX = event.clientX;
+  resizeStartWidth = desktopPanelWidth.value;
+  document.body.style.userSelect = 'none';
+  document.body.style.cursor = 'col-resize';
+  window.addEventListener('pointermove', onResizeMove);
+  window.addEventListener('pointerup', onResizeEnd);
+  window.addEventListener('pointercancel', onResizeEnd);
+}
+
+function onResizeMove(event: PointerEvent) {
+  if (!isResizing.value) return;
+  const deltaX = resizeStartX - event.clientX;
+  desktopPanelWidth.value = clampPanelWidth(resizeStartWidth + deltaX, windowWidth.value);
+}
+
+function onResizeEnd() {
+  if (!isResizing.value) return;
+  isResizing.value = false;
+  document.body.style.userSelect = '';
+  document.body.style.cursor = '';
+  window.removeEventListener('pointermove', onResizeMove);
+  window.removeEventListener('pointerup', onResizeEnd);
+  window.removeEventListener('pointercancel', onResizeEnd);
+  savePanelWidth(desktopPanelWidth.value);
+}
+
+function onResizeReset() {
+  desktopPanelWidth.value = DEFAULT_PANEL_WIDTH;
+  savePanelWidth(DEFAULT_PANEL_WIDTH);
+}
+
+function onResizeKeydown(event: KeyboardEvent) {
+  const step = event.shiftKey ? 50 : 20;
+  if (event.key === 'ArrowLeft') {
+    event.preventDefault();
+    desktopPanelWidth.value = clampPanelWidth(desktopPanelWidth.value + step, windowWidth.value);
+    savePanelWidth(desktopPanelWidth.value);
+  } else if (event.key === 'ArrowRight') {
+    event.preventDefault();
+    desktopPanelWidth.value = clampPanelWidth(desktopPanelWidth.value - step, windowWidth.value);
+    savePanelWidth(desktopPanelWidth.value);
+  } else if (event.key === 'Home') {
+    event.preventDefault();
+    desktopPanelWidth.value = MIN_PANEL_WIDTH;
+    savePanelWidth(desktopPanelWidth.value);
+  } else if (event.key === 'End') {
+    event.preventDefault();
+    desktopPanelWidth.value = maxPanelWidth.value;
+    savePanelWidth(desktopPanelWidth.value);
+  } else if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault();
+    onResizeReset();
+  }
+}
+
 function readNarrow() {
   narrow.value = window.matchMedia('(max-width: 1179px)').matches;
+  windowWidth.value = window.innerWidth;
+  if (desktopPanelWidth.value > maxPanelWidth.value) {
+    desktopPanelWidth.value = maxPanelWidth.value;
+  }
 }
 
 function closeMobilePicker() {
@@ -226,6 +338,11 @@ onBeforeUnmount(() => {
   window.removeEventListener('resize', readNarrow);
   window.removeEventListener('builder:onboarding-sheet', onTourSheet);
   window.removeEventListener('builder:onboarding-tools', onTourTools);
+  window.removeEventListener('pointermove', onResizeMove);
+  window.removeEventListener('pointerup', onResizeEnd);
+  window.removeEventListener('pointercancel', onResizeEnd);
+  document.body.style.userSelect = '';
+  document.body.style.cursor = '';
 });
 
 watch(

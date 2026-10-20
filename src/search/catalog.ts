@@ -160,7 +160,7 @@ const actions: SearchEntry[] = [
       ...COLOUR_WORDS
     ],
     path: '/build',
-    category: 'size',
+    category: 'color',
     sizeTab: 'kulor',
     focus: 'custom-paint',
     lead: true,
@@ -175,7 +175,7 @@ const actions: SearchEntry[] = [
     hint: '',
     keywords: ['fasad', 'facade', 'träfärg', ...COLOUR_WORDS],
     path: '/build',
-    category: 'size',
+    category: 'color',
     sizeTab: 'kulor',
     focus: 'size-tab-colour',
     lead: true,
@@ -444,7 +444,7 @@ export const SEARCH_ENTRIES: SearchEntry[] = [
     sizeId: size.id,
     keywords: [size.name, size.desc, size.badge, `${size.areaSqMeters} m2`, 'storlek', 'size', 'house']
   })),
-  ...MATERIAL_OPTIONS.map((material) => optionEntry(material, 'colour', 'size', `material-${material.id}`, {
+  ...MATERIAL_OPTIONS.map((material) => optionEntry(material, 'colour', 'color', `material-${material.id}`, {
     sizeTab: 'kulor',
     keywords: [material.name, material.desc, material.badge, ...COLOUR_WORDS]
   })),

@@ -57,3 +57,36 @@ export function saveDisplayPrefs(prefs: DisplayPrefs) {
     v: VERSION
   }));
 }
+
+export const DEFAULT_PANEL_WIDTH = 410;
+export const MIN_PANEL_WIDTH = 380;
+export const MAX_PANEL_WIDTH = 960;
+
+export function clampPanelWidth(width: number, viewportWidth = 1280): number {
+  if (!Number.isFinite(width)) return DEFAULT_PANEL_WIDTH;
+  const maxAllowed = Math.min(MAX_PANEL_WIDTH, Math.max(MIN_PANEL_WIDTH, viewportWidth - 120));
+  return Math.round(Math.max(MIN_PANEL_WIDTH, Math.min(maxAllowed, width)));
+}
+
+export function loadPanelWidth(viewportWidth = 1280): number {
+  const store = readStore();
+  if (!store) return DEFAULT_PANEL_WIDTH;
+  try {
+    const raw = store.getItem('builder:panel-width');
+    if (!raw) return DEFAULT_PANEL_WIDTH;
+    const parsed = Number.parseInt(raw, 10);
+    return clampPanelWidth(parsed, viewportWidth);
+  } catch {
+    return DEFAULT_PANEL_WIDTH;
+  }
+}
+
+export function savePanelWidth(width: number) {
+  const store = readStore();
+  if (!store) return;
+  try {
+    store.setItem('builder:panel-width', String(Math.round(width)));
+  } catch {
+    // Ignore
+  }
+}

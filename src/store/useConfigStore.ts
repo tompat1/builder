@@ -87,7 +87,7 @@ export type CameraView = {
 };
 
 export type ViewMode = 'utsida' | 'insida' | 'blueprint';
-export type CategoryKey = 'size' | 'roof' | 'loft' | 'interior' | 'doors' | 'windows' | 'gates' | 'extras';
+export type CategoryKey = 'size' | 'color' | 'roof' | 'loft' | 'interior' | 'doors' | 'windows' | 'gates' | 'extras';
 export type MaterialKey = 'wood' | 'falurod' | 'grey' | 'white' | 'black';
 export type PanelOrientation = 'staende' | 'liggande';
 export type InteractionMode =
@@ -1115,7 +1115,7 @@ export const useConfigStore = defineStore('config', () => {
   let viewModeBeforeLoft: ViewMode | null = null;
 
   const selectCategory = (category: CategoryKey) => {
-    if (category === 'doors' || category === 'windows' || category === 'gates' || category === 'extras') {
+    if (category === 'doors' || category === 'windows' || category === 'gates' || category === 'extras' || category === 'color') {
       viewMode.value = 'utsida';
       viewModeBeforeLoft = null;
     } else if (category === 'loft') {

@@ -384,11 +384,13 @@ const sv = {
     title: 'Börja anpassa din byggnad',
     show: 'Visa panel ▲',
     hide: 'Minimera ▼',
-    export: 'Exportera'
+    export: 'Exportera',
+    resizeHandle: 'Dra för att ändra panelens bredd (dubbelklicka för att återställa)'
   },
   nav: {
     label: 'Konfigurationssteg',
     size: 'Storlek',
+    color: 'Kulör',
     roof: 'Tak',
     interior: 'Interiör',
     loft: 'Loft',
@@ -404,6 +406,7 @@ const sv = {
     placeHint: 'Klicka på en produkt för att placera',
     replaceHint: 'Klicka på en produkt för att byta ut den',
     sizeTitle: 'Storlek & Grundmått',
+    colorTitle: 'Kulör & Färgval',
     roofTitle: 'Taktyp & Vinkel',
     covering: 'Takbeklädnad',
     roofEdge: 'Takfot',
@@ -1315,11 +1318,13 @@ const en = {
     title: 'Start customising your building',
     show: 'Show panel ▲',
     hide: 'Minimise ▼',
-    export: 'Export'
+    export: 'Export',
+    resizeHandle: 'Drag to resize panel width (double-click to reset)'
   },
   nav: {
     label: 'Configuration steps',
     size: 'Size',
+    color: 'Color',
     roof: 'Roof',
     interior: 'Interior',
     loft: 'Loft',
@@ -1335,6 +1340,7 @@ const en = {
     placeHint: 'Click a product to place it',
     replaceHint: 'Click a product to replace it',
     sizeTitle: 'Size & footprint',
+    colorTitle: 'Color & Finish',
     roofTitle: 'Roof type & pitch',
     covering: 'Roof covering',
     roofEdge: 'Roof edge',
