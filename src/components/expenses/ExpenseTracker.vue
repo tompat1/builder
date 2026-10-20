@@ -11,7 +11,9 @@
         <div>
           <div class="flex items-center gap-2">
             <h1 class="text-base sm:text-lg font-bold text-[#173D35] tracking-tight">
-              {{ isEn ? 'Expense Tracker' : 'Kostnadsuppföljning' }}
+              {{ activeTab === 'expenses'
+                ? (isEn ? 'Expense Tracker' : 'Kostnadsuppföljning')
+                : (isEn ? 'Shopping List' : 'Inköpslista') }}
             </h1>
             <span class="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold tracking-wider uppercase text-amber-800 border border-amber-500/30">
               <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
@@ -19,7 +21,9 @@
             </span>
           </div>
           <p class="text-xs text-stone-500">
-            {{ isEn ? 'Project building costs in Polish Złoty (PLN) with live Revolut SEK comparison' : 'Projektets byggkostnader i Polska Złoty (zł) med Revolut-kurs mot SEK' }}
+            {{ activeTab === 'expenses'
+              ? (isEn ? 'Project building costs in Polish Złoty (PLN) with live Revolut SEK comparison' : 'Projektets byggkostnader i Polska Złoty (zł) med Revolut-kurs mot SEK')
+              : (isEn ? 'Planned purchases for garden, power tools, kitchen & furniture' : 'Planerade inköp för trädgård, elverktyg, kök & möbler') }}
           </p>
         </div>
       </div>
@@ -50,8 +54,9 @@
           <span>{{ isEn ? 'Invite' : 'Bjud in' }}</span>
         </button>
 
-        <!-- New Expense Button -->
+        <!-- Primary Action Button: New Expense or New Shopping Item -->
         <button
+          v-if="activeTab === 'expenses'"
           type="button"
           id="btn-add-expense"
           class="inline-flex items-center gap-1.5 rounded-xl bg-[#173D35] px-3.5 py-1.5 text-xs font-bold text-white shadow-md shadow-[#173D35]/20 transition hover:bg-[#0f2b25] active:scale-95"
@@ -59,6 +64,16 @@
         >
           <span class="text-base leading-none font-bold">+</span>
           <span>{{ isEn ? 'New Expense' : 'Nytt utlägg' }}</span>
+        </button>
+        <button
+          v-else
+          type="button"
+          id="btn-add-shopping-item-header"
+          class="inline-flex items-center gap-1.5 rounded-xl bg-[#173D35] px-3.5 py-1.5 text-xs font-bold text-white shadow-md shadow-[#173D35]/20 transition hover:bg-[#0f2b25] active:scale-95"
+          @click="shoppingListRef?.openNewItemModal()"
+        >
+          <span class="text-base leading-none font-bold">+</span>
+          <span>{{ isEn ? 'New Item' : 'Ny artikel' }}</span>
         </button>
 
         <!-- Close / Return if standalone or embedded -->
@@ -76,6 +91,61 @@
 
     <!-- Main Content Area -->
     <main class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto w-full">
+      <!-- Top Co-existing Tabs: Expenses vs. Shopping List -->
+      <nav class="flex items-center justify-between flex-wrap gap-3 pb-1" aria-label="Expenses and Shopping Tabs">
+        <div class="inline-flex p-1 bg-[#eae6dc] rounded-2xl border border-[#d7d1c4] shadow-inner" role="tablist">
+          <button
+            type="button"
+            id="tab-btn-expenses"
+            role="tab"
+            :aria-selected="activeTab === 'expenses'"
+            class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200"
+            :class="activeTab === 'expenses'
+              ? 'bg-white text-[#173D35] shadow-md shadow-stone-400/20'
+              : 'text-stone-600 hover:text-stone-900 hover:bg-white/50'"
+            @click="switchTab('expenses')"
+          >
+            <span class="text-base">🧾</span>
+            <span>{{ isEn ? 'Logged Expenses' : 'Utlägg & Kvitton' }}</span>
+            <span
+              class="ml-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold tracking-wide"
+              :class="activeTab === 'expenses' ? 'bg-[#173D35]/10 text-[#173D35]' : 'bg-stone-300/80 text-stone-700'"
+            >
+              {{ expenses.length }}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            id="tab-btn-shopping"
+            role="tab"
+            :aria-selected="activeTab === 'shopping'"
+            class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200"
+            :class="activeTab === 'shopping'
+              ? 'bg-white text-[#173D35] shadow-md shadow-stone-400/20'
+              : 'text-stone-600 hover:text-stone-900 hover:bg-white/50'"
+            @click="switchTab('shopping')"
+          >
+            <span class="text-base">🛒</span>
+            <span>{{ isEn ? 'Shopping List' : 'Inköpslista' }}</span>
+            <span
+              class="ml-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold tracking-wide"
+              :class="activeTab === 'shopping' ? 'bg-amber-500/20 text-amber-900' : 'bg-stone-300/80 text-stone-700'"
+            >
+              {{ shoppingSummary.toBuyCount }} {{ isEn ? 'to buy' : 'kvar' }}
+            </span>
+          </button>
+        </div>
+
+        <!-- Quick info badge -->
+        <div class="hidden sm:flex items-center gap-2 text-xs text-stone-500">
+          <span class="inline-block w-2 h-2 rounded-full" :class="activeTab === 'expenses' ? 'bg-emerald-500' : 'bg-amber-500'"></span>
+          <span>{{ activeTab === 'expenses'
+            ? (isEn ? 'Recorded receipts & payments in PLN / SEK' : 'Bokförda kvitton och utlägg i PLN / SEK')
+            : (isEn ? 'Planned purchases: Garden, Power tools, Kitchen, Furniture' : 'Planerade inköp: Trädgård, elverktyg, kök & möbler') }}</span>
+        </div>
+      </nav>
+
       <!-- 0. Live Revolut Currency Checker & SEK Comparison Bar -->
       <section class="rounded-2xl border border-[#d7d1c4] bg-[#FAF8F5] p-4 sm:p-5 shadow-sm transition hover:shadow-md">
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -238,8 +308,10 @@
         </div>
       </section>
 
-      <!-- 1. Automatic Summary Dashboard in PLN with SEK Comparison -->
-      <section class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <!-- Tab 1: Logged Expenses View -->
+      <template v-if="activeTab === 'expenses'">
+        <!-- 1. Automatic Summary Dashboard in PLN with SEK Comparison -->
+        <section class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <!-- Total Spent Card -->
         <div class="relative overflow-hidden rounded-2xl border border-[#d7d1c4] bg-white p-5 shadow-sm">
           <div class="flex items-center justify-between">
@@ -606,19 +678,30 @@
           </div>
         </div>
       </section>
-    </main>
+    </template>
 
-    <!-- Sticky Manual Summary Drawer at Bottom (when items selected) -->
-    <transition
-      enter-active-class="transition duration-200 ease-out"
-      enter-from-class="translate-y-full opacity-0"
-      enter-to-class="translate-y-0 opacity-100"
-      leave-active-class="transition duration-150 ease-in"
-      leave-from-class="translate-y-0 opacity-100"
-      leave-to-class="translate-y-full opacity-0"
-    >
-      <aside
-        v-if="manualSelectionMode && selectedIds.size > 0"
+    <!-- Tab 2: Shopping List View -->
+    <template v-else-if="activeTab === 'shopping'">
+      <ShoppingList
+        ref="shoppingListRef"
+        :house-key="activeHouseKey"
+        @log-expense="handleShoppingLogExpense"
+        @toast="showToast"
+      />
+    </template>
+  </main>
+
+  <!-- Sticky Manual Summary Drawer at Bottom (when items selected) -->
+  <transition
+    enter-active-class="transition duration-200 ease-out"
+    enter-from-class="translate-y-full opacity-0"
+    enter-to-class="translate-y-0 opacity-100"
+    leave-active-class="transition duration-150 ease-in"
+    leave-from-class="translate-y-0 opacity-100"
+    leave-to-class="translate-y-full opacity-0"
+  >
+    <aside
+      v-if="activeTab === 'expenses' && manualSelectionMode && selectedIds.size > 0"
         class="fixed bottom-4 left-1/2 -translate-x-1/2 z-30 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-stone-800 bg-[#173D35] px-6 py-3.5 text-white shadow-2xl w-[92%] max-w-2xl"
       >
         <div class="flex items-center gap-3">
@@ -1092,7 +1175,14 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
+import ShoppingList from './ShoppingList.vue';
+import {
+  loadShoppingList,
+  calculateShoppingSummary,
+  updateShoppingItem,
+  type ShoppingState
+} from '../../services/shoppingSave';
 import {
   type ExpenseItem,
   type ExpenseCategory,
@@ -1139,12 +1229,60 @@ const emit = defineEmits<{
   (e: 'close'): void;
 }>();
 
+const route = useRoute();
 const router = useRouter();
 const sessionStore = useSessionStore();
 const { locale } = useLabels();
 const isEn = computed(() => locale.value === 'en');
 
 const activeHouseKey = computed(() => props.houseKey || expenseHouseKey());
+
+const activeTab = ref<'expenses' | 'shopping'>(
+  route.query?.tab === 'shopping' ? 'shopping' : 'expenses'
+);
+const shoppingListRef = ref<InstanceType<typeof ShoppingList> | null>(null);
+const shoppingState = ref<ShoppingState>(loadShoppingList(activeHouseKey.value));
+
+const shoppingSummary = computed(() => {
+  return calculateShoppingSummary(shoppingState.value.items, currencyRate.value.ratePlnToSek);
+});
+
+function switchTab(tab: 'expenses' | 'shopping') {
+  activeTab.value = tab;
+  shoppingState.value = loadShoppingList(activeHouseKey.value);
+  try {
+    const query = { ...route.query, tab };
+    router.replace({ query }).catch(() => {});
+  } catch {
+    // ignore
+  }
+}
+
+let pendingShoppingId: string | null = null;
+
+function handleShoppingLogExpense(payload: {
+  title: string;
+  amount: number;
+  category: ExpenseCategory;
+  notes?: string;
+  shoppingId: string;
+}) {
+  pendingShoppingId = payload.shoppingId;
+  activeTab.value = 'expenses';
+  editingExpenseId.value = null;
+  formTitle.value = payload.title;
+  formAmount.value = payload.amount;
+  formCategory.value = payload.category;
+  formDate.value = new Date().toISOString().slice(0, 10);
+  formNotes.value = payload.notes || '';
+  formReceipt.value = undefined;
+  formCurrency.value = 'PLN';
+  formOriginalAmount.value = undefined;
+  showSekInputHelper.value = false;
+  formSekHelperAmount.value = '';
+  showExpenseModal.value = true;
+  showToast(isEn.value ? 'Pre-filled expense from shopping list' : 'Skapar utlägg från artikeln i inköpslistan');
+}
 
 const expenses = ref<ExpenseItem[]>([]);
 const inviteToken = ref('');
@@ -1212,6 +1350,7 @@ function refresh() {
   const state = loadExpenses(activeHouseKey.value);
   expenses.value = state.expenses;
   inviteToken.value = state.inviteToken || '';
+  shoppingState.value = loadShoppingList(activeHouseKey.value);
 }
 
 onMounted(() => {
@@ -1467,7 +1606,7 @@ function saveExpenseForm() {
     );
     showToast(isEn.value ? 'Expense updated' : 'Utlägg uppdaterat');
   } else {
-    addExpense(
+    const created = addExpense(
       {
         title: formTitle.value.trim(),
         amount: amountVal,
@@ -1482,6 +1621,11 @@ function saveExpenseForm() {
       },
       activeHouseKey.value
     );
+    if (pendingShoppingId) {
+      updateShoppingItem(pendingShoppingId, { loggedExpenseId: created.id }, activeHouseKey.value);
+      pendingShoppingId = null;
+      shoppingState.value = loadShoppingList(activeHouseKey.value);
+    }
     showToast(isEn.value ? 'Expense added with timestamp' : 'Utlägg sparat med tidsstämpel');
   }
 
