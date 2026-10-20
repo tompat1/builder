@@ -10,10 +10,10 @@ import { calculateCompassHeading, createSceneLighting, updateSunPosition } from 
 import { eaveLiftMm, gablePitchDegrees, isGableRoof, wallPlateHeightM, type RoofId } from '../store/roof';
 import { inferNoteNormal, noteAxes, noteCameraTransform, noteSheetTransform, noteTiltRadians, stickFacing, NOTE_SURFACE_SCALE } from '../notes/surface';
 import { paintBoards } from '../color/paint';
-import { INTERIOR_FLOOR_TOP, LOFT_FLOORBOARD, curvedLoftStair, loftEndRotation, loftIsGhosted, loftJoistTop, loftStairOpening, loftStairRun, loftStairTreads, straightLoftStair, isLoftRoom, loftWallStudsVisible } from './loftLevel';
+import { INTERIOR_FLOOR_TOP, LOFT_FLOORBOARD, curvedLoftStair, loftEndRotation, loftIsGhosted, loftJoistTop, loftStairOpening, loftStairRun, loftStairTreads, straightLoftStair, isLoftRoom, loftWallStudsVisible, loftDeckBounds, type LoftBounds } from './loftLevel';
 import { ceilingStations, loftCeilingY, sliceStations, type CeilingStation, type RoofSlope } from './roofClearance';
 import { NARROW_TALL, OVERLIGHT, PORTRAIT_PANORAMA, containWindowInPanel, fittedDoorOpening, fittedWindowOpening, narrowTallPane, openingClearOfRoof, overlightHeight, portraitPane, windowOpeningChanged } from './windowFit';
-import { fitRoom, innerHalf, roomFootprint, roomWallRuns, shellSides, SHELL_TOUCH, type RoomBox, type ShellSides } from './roomWalls';
+import { fitRoom, innerHalf, roomFootprint, roomWallRuns, shellSides, SHELL_TOUCH, type RoomBox, type ShellSides, type RoomBounds } from './roomWalls';
 import { CONCRETE_WALL_THICK_M, timberShellOnConcrete } from '../store/paabyggnad';
 import { MEASURE_CURSOR } from '../measure/length';
 import {
@@ -528,6 +528,28 @@ export class HouseScene {
     return innerHalf(this.currentConfig.widthMm / 1000, this.currentConfig.depthMm / 1000);
   }
 
+  private loftLimits(): LoftBounds | null {
+    if (!this.currentConfig.hasLoft) return null;
+    return loftDeckBounds(
+      this.currentConfig.widthMm / 1000,
+      this.currentConfig.depthMm / 1000,
+      this.currentConfig.loftAreaSqMeters ?? 10.95,
+      this.currentConfig.loftPlacement ?? 'vanster',
+      this.currentConfig.loftCount === 'tva',
+      Boolean(this.currentConfig.concreteBase)
+    );
+  }
+
+  private roomLimits(y?: number): { hx: number; hz: number; bounds?: RoomBounds } {
+    const shell = this.shellLimits();
+    const loft = y !== undefined && isLoftRoom(y) ? this.loftLimits() : null;
+    return {
+      hx: shell.hx,
+      hz: shell.hz,
+      bounds: loft ? { minX: loft.minX, maxX: loft.maxX, minZ: loft.minZ, maxZ: loft.maxZ } : undefined
+    };
+  }
+
   private getRoomShellSides(box: RoomBox, hx: number, hz: number, y = 0.3): ShellSides {
     const sides = shellSides(box, hx, hz);
     if (this.currentConfig.concreteBase && !isLoftRoom(y)) {
@@ -572,7 +594,8 @@ export class HouseScene {
   private clearRoomPreview() {
     const preview = this.roomPreviewGroup;
     if (!preview) return;
-    this.scene.remove(preview);
+    if (preview.parent) preview.parent.remove(preview);
+    else this.scene.remove(preview);
     this.disposeObject(preview);
     this.roomPreviewGroup = null;
     this.syncLoftPresentation();
@@ -585,8 +608,11 @@ export class HouseScene {
     }
 
     const footprint = roomFootprint(roomType);
-    const { hx, hz } = this.shellLimits();
-    const fitted = fitRoom({ x: pt.x, z: pt.z, w: footprint.w, d: footprint.d }, hx, hz);
+    const shell = this.timberShell();
+    const localX = pt.x - shell.x;
+    const localZ = pt.z - shell.z;
+    const { hx, hz, bounds } = this.roomLimits(pt.y);
+    const fitted = fitRoom({ x: localX, z: localZ, w: footprint.w, d: footprint.d }, hx, hz, bounds);
     const onLoft = isLoftRoom(pt.y);
 
     if (onLoft) {
@@ -610,7 +636,7 @@ export class HouseScene {
       group.position.set(fitted.x, pt.y, fitted.z);
       group.userData.onLoft = true;
       this.roomPreviewGroup = group;
-      this.scene.add(group);
+      this.houseGroup.add(group);
       this.syncLoftPresentation();
       return;
     }
@@ -622,7 +648,7 @@ export class HouseScene {
       const mesh = new THREE.Mesh(geo, mat);
       mesh.userData.roomType = roomType;
       this.roomPreviewGroup = mesh;
-      this.scene.add(mesh);
+      this.houseGroup.add(mesh);
     }
 
     const preview = this.roomPreviewGroup;
@@ -725,13 +751,13 @@ export class HouseScene {
         const dz = pt.z - this.draggingRoom.startPt.z;
         const newX = Math.round((this.draggingRoom.startX + dx) * 20) / 20;
         const newZ = Math.round((this.draggingRoom.startZ + dz) * 20) / 20;
-        const { hx, hz } = this.shellLimits();
+        const { hx, hz, bounds } = this.roomLimits(this.draggingRoom.startY);
         const fitted = fitRoom({
           x: newX,
           z: newZ,
           w: this.draggingRoom.startW,
           d: this.draggingRoom.startD
-        }, hx, hz);
+        }, hx, hz, bounds);
         const room = this.interiorGroup.children.find((child) => child.userData.roomId === this.draggingRoom?.roomId);
         if (room) room.position.set(fitted.x, this.draggingRoom.startY, fitted.z);
         this.draggingRoom.currentX = fitted.x;
@@ -1035,17 +1061,20 @@ export class HouseScene {
     if (!this.outsideShell() && this.currentConfig.interactionMode.startsWith('place_room_')) {
       const pt = this.housePointAt(e.clientX, e.clientY);
       if (pt) {
+        const shell = this.timberShell();
+        const localX = pt.x - shell.x;
+        const localZ = pt.z - shell.z;
         const roomType = this.currentConfig.interactionMode.split('_').pop()!;
         const vecPt = new THREE.Vector3(
-          Math.round(pt.x * 10) / 10,
+          Math.round(localX * 10) / 10,
           0,
-          Math.round(pt.z * 10) / 10
+          Math.round(localZ * 10) / 10
         );
 
         const footprint = roomFootprint(roomType);
-        const { hx, hz } = this.shellLimits();
-        const fitted = fitRoom({ x: vecPt.x, z: vecPt.z, w: footprint.w, d: footprint.d }, hx, hz);
         const baseY = isLoftRoom(pt.y) ? pt.y : 0.3;
+        const { hx, hz, bounds } = this.roomLimits(baseY);
+        const fitted = fitRoom({ x: vecPt.x, z: vecPt.z, w: footprint.w, d: footprint.d }, hx, hz, bounds);
         const roomGroup = this.createRoomGroup(
           roomType,
           fitted.w,
@@ -6975,10 +7004,27 @@ export class HouseScene {
       group.add(counter);
     } else if (roomType === 'bedroom') {
       const bedFit = fitUp(0.5, 0, 0.25);
-      const bedGeo = new THREE.BoxGeometry(1.6, bedFit.h, 2.0);
+      const availW = Math.max(0.6, w - edge(open.left) - edge(open.right) - 0.04);
+      const availD = Math.max(0.8, d - edge(open.back) - edge(open.front) - 0.04);
+      const bedW = Math.min(1.6, availW);
+      const bedD = Math.min(2.0, availD);
+      const bedGeo = new THREE.BoxGeometry(bedW, bedFit.h, bedD);
       const bedMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8 });
       const bed = new THREE.Mesh(bedGeo, bedMat);
-      bed.position.set(0, bedFit.y, -d / 2 + 1.0 + edge(open.back));
+      const minX = -w / 2 + bedW / 2 + edge(open.left);
+      const maxX = w / 2 - bedW / 2 - edge(open.right);
+      const bedX = Math.min(maxX, Math.max(minX, (edge(open.left) - edge(open.right)) / 2));
+      let bedZ = 0;
+      if (open.front && !open.back) {
+        bedZ = d / 2 - bedD / 2 - edge(open.front);
+      } else if (open.back && !open.front) {
+        bedZ = -d / 2 + bedD / 2 + edge(open.back);
+      } else {
+        const minZ = -d / 2 + bedD / 2 + edge(open.back);
+        const maxZ = d / 2 - bedD / 2 - edge(open.front);
+        bedZ = Math.min(maxZ, Math.max(minZ, -d / 2 + bedD / 2 + edge(open.back)));
+      }
+      bed.position.set(bedX, bedFit.y, bedZ);
       group.add(bed);
     }
 
@@ -7003,9 +7049,9 @@ export class HouseScene {
       this.interiorGroup.remove(existing);
     }
 
-    const { hx, hz } = this.shellLimits();
-    const fitted = fitRoom({ x: x ?? currentX, z: z ?? currentZ, w, d }, hx, hz);
     const nextY = y ?? currentY;
+    const { hx, hz, bounds } = this.roomLimits(nextY);
+    const fitted = fitRoom({ x: x ?? currentX, z: z ?? currentZ, w, d }, hx, hz, bounds);
     const newRoom = this.createRoomGroup(
       roomType,
       fitted.w,

@@ -8,6 +8,7 @@ import {
   roomWallRuns,
   shellSides
 } from '../src/three-engine/roomWalls.ts';
+import { loftDeckBounds } from '../src/three-engine/loftLevel.ts';
 
 const attefall = innerHalf(6.25, 5.12);
 
@@ -97,4 +98,55 @@ test('room partitions meet at closed corners without leaving a square gap', () =
   const openFront = roomWallRuns(3, 2, { left: false, right: false, front: true, back: false });
   assert.ok(Math.abs(openFront.left.size - 1.9) < 1e-9);
   assert.equal(openFront.left.center, 0.05);
+});
+
+test('fitRoom clamps a room within custom loft deck bounds', () => {
+  const loftBounds = {
+    minX: -2.42,
+    maxX: 2.42,
+    minZ: 0.20,
+    maxZ: 3.18
+  };
+  // Trying to place a room beyond the front wall or behind the railing
+  const roomPastFront = fitRoom({ x: 0, z: 4.5, w: 2.4, d: 2.8 }, 2.42, 3.18, loftBounds);
+  assert.ok(roomPastFront.z + roomPastFront.d / 2 <= loftBounds.maxZ + 1e-6);
+  assert.ok(roomPastFront.z - roomPastFront.d / 2 >= loftBounds.minZ - 1e-6);
+
+  const roomBehindRailing = fitRoom({ x: 0, z: -1.0, w: 2.4, d: 2.8 }, 2.42, 3.18, loftBounds);
+  assert.ok(roomBehindRailing.z - roomBehindRailing.d / 2 >= loftBounds.minZ - 1e-6);
+  assert.ok(roomBehindRailing.z + roomBehindRailing.d / 2 <= loftBounds.maxZ + 1e-6);
+});
+
+test('two bedrooms fit side-by-side on the front loft without overlapping', () => {
+  const loft = loftDeckBounds(5.2, 6.731, 16.4, 'fram', false, true);
+  assert.ok(loft.minX < 0 && loft.maxX > 0);
+  assert.ok(loft.minZ > 0); // Front loft stays in front half
+  assert.ok(loft.maxZ > loft.minZ);
+
+  const bed1 = fitRoom(
+    { x: -1.21, z: 1.69, w: 2.4, d: 2.8 },
+    loft.maxX,
+    loft.maxZ,
+    loft
+  );
+  const bed2 = fitRoom(
+    { x: 1.21, z: 1.69, w: 2.4, d: 2.8 },
+    loft.maxX,
+    loft.maxZ,
+    loft
+  );
+
+  // Both bedrooms stay on the loft deck
+  assert.ok(bed1.x - bed1.w / 2 >= loft.minX - 1e-6);
+  assert.ok(bed1.x + bed1.w / 2 <= 1e-6); // Left bedroom stays on left half
+  assert.ok(bed2.x - bed2.w / 2 >= -1e-6); // Right bedroom stays on right half
+  assert.ok(bed2.x + bed2.w / 2 <= loft.maxX + 1e-6);
+
+  // Front edges do not poke past front wall
+  assert.ok(bed1.z + bed1.d / 2 <= loft.maxZ + 1e-6);
+  assert.ok(bed2.z + bed2.d / 2 <= loft.maxZ + 1e-6);
+
+  // Back edges do not fall behind loft deck
+  assert.ok(bed1.z - bed1.d / 2 >= loft.minZ - 1e-6);
+  assert.ok(bed2.z - bed2.d / 2 >= loft.minZ - 1e-6);
 });

@@ -111,6 +111,7 @@ import { useConfigStore } from '../store/useConfigStore';
 import type { RoofId } from '../store/roof';
 import { noteTargetId, noteVisibleInView } from '../notes/board';
 import { fitRoom, innerHalf } from '../three-engine/roomWalls';
+import { isLoftRoom, loftDeckBounds } from '../three-engine/loftLevel';
 import { useLabels } from '../i18n';
 import Cms from './Cms.vue';
 
@@ -366,8 +367,21 @@ function syncPlacedRooms() {
   if (!engine) return;
   engine.pruneRooms(Object.keys(store.placedRooms));
   const { hx, hz } = innerHalf(store.dimensions.width / 1000, store.dimensions.depth / 1000);
+  const loftBounds = store.activeLoft && store.activeLoft !== 'none'
+    ? loftDeckBounds(
+        store.dimensions.width / 1000,
+        store.dimensions.depth / 1000,
+        store.selectedLoftSize ?? 10.95,
+        store.loftPlacement ?? 'vanster',
+        store.loftCount === 'tva',
+        store.selectedSizeId === 'size-paabyggnad'
+      )
+    : null;
   for (const [id, info] of Object.entries(store.placedRooms)) {
-    const fitted = fitRoom({ x: info.x, z: info.z, w: info.w, d: info.d }, hx, hz);
+    const bounds = isLoftRoom(info.y) && loftBounds
+      ? { minX: loftBounds.minX, maxX: loftBounds.maxX, minZ: loftBounds.minZ, maxZ: loftBounds.maxZ }
+      : undefined;
+    const fitted = fitRoom({ x: info.x, z: info.z, w: info.w, d: info.d }, hx, hz, bounds);
     if (
       Math.abs(fitted.w - info.w) > 1e-4
       || Math.abs(fitted.d - info.d) > 1e-4

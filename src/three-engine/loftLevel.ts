@@ -200,3 +200,86 @@ export function curvedLoftStair(args: {
     yTop: INTERIOR_FLOOR_TOP + args.rise
   };
 }
+
+export interface LoftBounds {
+  minX: number;
+  maxX: number;
+  minZ: number;
+  maxZ: number;
+  loftDepth: number;
+}
+
+/** Compute the footprint bounding box for rooms placed on the loft deck. */
+export function loftDeckBounds(
+  widthM: number,
+  depthM: number,
+  loftAreaSqMeters: number,
+  placement: 'fram' | 'bak' | 'vanster' | 'hoger' = 'vanster',
+  isTwoLofts = false,
+  isConcrete = false
+): LoftBounds {
+  const wt = 0.18;
+  const hx = Math.max(widthM / 2 - wt, 0.5);
+  const hz = Math.max(depthM / 2 - wt, 0.5);
+
+  const endOn = !isTwoLofts && (placement === 'fram' || placement === 'bak');
+  const w = endOn ? depthM : widthM;
+  const interiorW = w - wt * 2;
+
+  const houseAreaRef = isConcrete
+    ? (widthM * depthM)
+    : (widthM === 4.8 ? 13.7
+      : widthM === 5.8 ? 22.8
+      : widthM === 8.0 ? 36.5
+      : 27.38);
+
+  const areaFraction = Math.min(1.0, Math.max(0.25, loftAreaSqMeters / houseAreaRef));
+
+  if (isTwoLofts) {
+    const eachW = Math.min(interiorW * 0.42, (interiorW * areaFraction) / 2);
+    return {
+      minX: -hx,
+      maxX: hx,
+      minZ: -hz,
+      maxZ: hz,
+      loftDepth: eachW
+    };
+  }
+
+  const loftW = interiorW * areaFraction;
+
+  if (placement === 'fram') {
+    return {
+      minX: -hx,
+      maxX: hx,
+      minZ: hz - loftW,
+      maxZ: hz,
+      loftDepth: loftW
+    };
+  }
+  if (placement === 'bak') {
+    return {
+      minX: -hx,
+      maxX: hx,
+      minZ: -hz,
+      maxZ: -hz + loftW,
+      loftDepth: loftW
+    };
+  }
+  if (placement === 'hoger') {
+    return {
+      minX: hx - loftW,
+      maxX: hx,
+      minZ: -hz,
+      maxZ: hz,
+      loftDepth: loftW
+    };
+  }
+  return {
+    minX: -hx,
+    maxX: -hx + loftW,
+    minZ: -hz,
+    maxZ: hz,
+    loftDepth: loftW
+  };
+}

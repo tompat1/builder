@@ -921,11 +921,59 @@ export const useConfigStore = defineStore('config', () => {
         }
       }
       placedRooms.value = acceptPlacedRooms(data.placedRooms);
-      if (data.selectedSizeId === 'size-paabyggnad' && placedRooms.value.bathroom_1) {
-        const b = placedRooms.value.bathroom_1;
-        if (Math.abs(b.x - -1.43) < 0.05 && Math.abs(b.z - -2.1955) < 0.05) {
-          b.x = -1.10;
-          b.z = -1.8655;
+      if (data.selectedSizeId === 'size-paabyggnad') {
+        if (placedRooms.value.bathroom_1) {
+          const b = placedRooms.value.bathroom_1;
+          if (Math.abs(b.x - -1.43) < 0.05 && Math.abs(b.z - -2.1955) < 0.05) {
+            b.x = -1.10;
+            b.z = -1.8655;
+          }
+        }
+        const hasLoftBedrooms = Boolean(
+          (placedRooms.value.bedroom_1 && isLoftRoom(placedRooms.value.bedroom_1.y)) ||
+          (placedRooms.value.bedroom_2 && isLoftRoom(placedRooms.value.bedroom_2.y))
+        );
+        if (hasLoftBedrooms) {
+          const b1 = placedRooms.value.bedroom_1;
+          const b2 = placedRooms.value.bedroom_2;
+          const refY = b1?.y ?? b2?.y ?? 2.8;
+          const refZ = b1 && b1.z <= 2.2 ? b1.z : 1.69;
+
+          if (!placedRooms.value.bedroom_1) {
+            placedRooms.value.bedroom_1 = {
+              type: 'bedroom',
+              w: 2.4,
+              d: 2.8,
+              x: -1.21,
+              y: refY,
+              z: refZ,
+              wallsVisible: b2?.wallsVisible ?? true
+            };
+          } else {
+            placedRooms.value.bedroom_1.w = Math.min(placedRooms.value.bedroom_1.w, 2.4);
+            if (placedRooms.value.bedroom_1.x > -0.2) placedRooms.value.bedroom_1.x = -1.21;
+            if (placedRooms.value.bedroom_1.z > 2.2 || placedRooms.value.bedroom_1.z + placedRooms.value.bedroom_1.d / 2 > 3.18) {
+              placedRooms.value.bedroom_1.z = refZ;
+            }
+          }
+
+          if (!placedRooms.value.bedroom_2) {
+            placedRooms.value.bedroom_2 = {
+              type: 'bedroom',
+              w: 2.4,
+              d: 2.8,
+              x: 1.21,
+              y: refY,
+              z: refZ,
+              wallsVisible: b1?.wallsVisible ?? true
+            };
+          } else {
+            placedRooms.value.bedroom_2.w = Math.min(placedRooms.value.bedroom_2.w, 2.4);
+            if (placedRooms.value.bedroom_2.x < 0.2) placedRooms.value.bedroom_2.x = 1.21;
+            if (placedRooms.value.bedroom_2.z > 2.2 || placedRooms.value.bedroom_2.z + placedRooms.value.bedroom_2.d / 2 > 3.18) {
+              placedRooms.value.bedroom_2.z = refZ;
+            }
+          }
         }
       }
       floorPlanDone.value = data.floorPlanDone === true && Object.keys(placedRooms.value).length > 0;
@@ -1358,6 +1406,24 @@ export const useConfigStore = defineStore('config', () => {
           x: -1.10,
           y: 0.3,
           z: -1.8655,
+          wallsVisible: true
+        },
+        bedroom_1: {
+          type: 'bedroom',
+          w: 2.4,
+          d: 2.8,
+          x: -1.21,
+          y: 2.8,
+          z: 1.69,
+          wallsVisible: true
+        },
+        bedroom_2: {
+          type: 'bedroom',
+          w: 2.4,
+          d: 2.8,
+          x: 1.21,
+          y: 2.8,
+          z: 1.69,
           wallsVisible: true
         }
       };

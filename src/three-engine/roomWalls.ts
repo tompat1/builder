@@ -94,10 +94,22 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
-/** Shrink and shift a room so it stays inside the stud line, snapping near edges flush. */
-export function fitRoom(box: RoomBox, hx: number, hz: number): RoomBox {
-  const maxW = Math.max(hx * 2, 0);
-  const maxD = Math.max(hz * 2, 0);
+export interface RoomBounds {
+  minX: number;
+  maxX: number;
+  minZ: number;
+  maxZ: number;
+}
+
+/** Shrink and shift a room so it stays inside the stud line (or loft deck bounds), snapping near edges flush. */
+export function fitRoom(box: RoomBox, hx: number, hz: number, bounds?: RoomBounds): RoomBox {
+  const minX = bounds ? bounds.minX : -hx;
+  const maxX = bounds ? bounds.maxX : hx;
+  const minZ = bounds ? bounds.minZ : -hz;
+  const maxZ = bounds ? bounds.maxZ : hz;
+
+  const maxW = Math.max(maxX - minX, 0);
+  const maxD = Math.max(maxZ - minZ, 0);
   const minW = Math.min(1, maxW);
   const minD = Math.min(1, maxD);
 
@@ -106,10 +118,10 @@ export function fitRoom(box: RoomBox, hx: number, hz: number): RoomBox {
   let back = box.z - box.d / 2;
   let front = box.z + box.d / 2;
 
-  if (Math.abs(left + hx) <= SHELL_SNAP) left = -hx;
-  if (Math.abs(right - hx) <= SHELL_SNAP) right = hx;
-  if (Math.abs(back + hz) <= SHELL_SNAP) back = -hz;
-  if (Math.abs(front - hz) <= SHELL_SNAP) front = hz;
+  if (Math.abs(left - minX) <= SHELL_SNAP) left = minX;
+  if (Math.abs(right - maxX) <= SHELL_SNAP) right = maxX;
+  if (Math.abs(back - minZ) <= SHELL_SNAP) back = minZ;
+  if (Math.abs(front - maxZ) <= SHELL_SNAP) front = maxZ;
 
   let w = right - left;
   let d = front - back;
@@ -118,28 +130,28 @@ export function fitRoom(box: RoomBox, hx: number, hz: number): RoomBox {
   w = Math.min(Math.max(w, minW), maxW);
   d = Math.min(Math.max(d, minD), maxD);
 
-  const leftPinned = Math.abs(left + hx) <= 1e-6;
-  const rightPinned = Math.abs(right - hx) <= 1e-6;
-  const backPinned = Math.abs(back + hz) <= 1e-6;
-  const frontPinned = Math.abs(front - hz) <= 1e-6;
+  const leftPinned = Math.abs(left - minX) <= 1e-6;
+  const rightPinned = Math.abs(right - maxX) <= 1e-6;
+  const backPinned = Math.abs(back - minZ) <= 1e-6;
+  const frontPinned = Math.abs(front - maxZ) <= 1e-6;
 
   let x = leftPinned && rightPinned
-    ? 0
+    ? (minX + maxX) / 2
     : leftPinned
-      ? -hx + w / 2
+      ? minX + w / 2
       : rightPinned
-        ? hx - w / 2
-        : clamp((left + right) / 2, -hx + w / 2, hx - w / 2);
+        ? maxX - w / 2
+        : clamp((left + right) / 2, minX + w / 2, maxX - w / 2);
   let z = backPinned && frontPinned
-    ? 0
+    ? (minZ + maxZ) / 2
     : backPinned
-      ? -hz + d / 2
+      ? minZ + d / 2
       : frontPinned
-        ? hz - d / 2
-        : clamp((back + front) / 2, -hz + d / 2, hz - d / 2);
+        ? maxZ - d / 2
+        : clamp((back + front) / 2, minZ + d / 2, maxZ - d / 2);
 
-  x = clamp(x, -hx + w / 2, hx - w / 2);
-  z = clamp(z, -hz + d / 2, hz - d / 2);
+  x = clamp(x, minX + w / 2, maxX - w / 2);
+  z = clamp(z, minZ + d / 2, maxZ - d / 2);
   return { x, z, w, d };
 }
 
