@@ -373,3 +373,117 @@ function clamp(value: number, min: number, max: number) {
   if (!Number.isFinite(value)) return min;
   return Math.min(max, Math.max(min, value));
 }
+
+export function autoArrangePieces(piecesList: MoodPiece[]): void {
+  if (piecesList.length === 0) return;
+
+  if (piecesList.length === 1) {
+    piecesList[0].x = 35;
+    piecesList[0].w = 30;
+    piecesList[0].y = 4;
+    piecesList[0].tilt = 0;
+    return;
+  }
+
+  if (piecesList.length === 2) {
+    piecesList[0].x = 18;
+    piecesList[0].w = 30;
+    piecesList[0].y = 4;
+    piecesList[0].tilt = -0.6;
+    piecesList[1].x = 52;
+    piecesList[1].w = 30;
+    piecesList[1].y = 4;
+    piecesList[1].tilt = 0.6;
+    return;
+  }
+
+  const cols = [3, 36, 69];
+  const widths = [29.5, 29.5, 28];
+  const colHeights = [4, 4, 4];
+  const tilts = [-0.8, 0.7, -0.5, 0.6, -0.6, 0.5];
+
+  piecesList.forEach((piece, index) => {
+    let targetCol = 0;
+    let minH = colHeights[0];
+    for (let c = 1; c < colHeights.length; c++) {
+      if (colHeights[c] < minH) {
+        minH = colHeights[c];
+        targetCol = c;
+      }
+    }
+
+    piece.x = cols[targetCol];
+    piece.w = widths[targetCol];
+    piece.y = colHeights[targetCol];
+    piece.tilt = tilts[index % tilts.length];
+
+    const el = typeof document !== 'undefined' ? document.getElementById(`mood-${piece.id}`) : null;
+    let hUnits = 36;
+    if (el && el.offsetHeight > 40) {
+      hUnits = Math.round(el.offsetHeight / 7.5) + 3;
+    } else if (piece.kind === 'note') {
+      hUnits = 24;
+    } else if (piece.kind === 'clip') {
+      hUnits = 34;
+    } else if (piece.caption) {
+      hUnits = 40;
+    }
+
+    colHeights[targetCol] += hUnits;
+  });
+}
+
+export function arrangeNewPieces(existingPieces: MoodPiece[], newPieces: MoodPiece[]): void {
+  if (existingPieces.length === 0) {
+    autoArrangePieces(newPieces);
+    return;
+  }
+
+  const cols = [3, 36, 69];
+  const widths = [29.5, 29.5, 28];
+  const colHeights: [number, number, number] = [4, 4, 4];
+  const tilts = [-0.8, 0.7, -0.5, 0.6, -0.6, 0.5];
+
+  for (const piece of existingPieces) {
+    const el = typeof document !== 'undefined' ? document.getElementById(`mood-${piece.id}`) : null;
+    let hUnits = 36;
+    if (el && el.offsetHeight > 40) {
+      hUnits = Math.round(el.offsetHeight / 7.5) + 3;
+    } else if (piece.kind === 'note') {
+      hUnits = 24;
+    } else if (piece.kind === 'clip') {
+      hUnits = 34;
+    } else if (piece.caption) {
+      hUnits = 40;
+    }
+
+    const pieceBottom = piece.y + hUnits;
+    const pieceCenter = piece.x + piece.w / 2;
+    if (pieceCenter < 33) {
+      colHeights[0] = Math.max(colHeights[0], pieceBottom);
+    } else if (pieceCenter < 66) {
+      colHeights[1] = Math.max(colHeights[1], pieceBottom);
+    } else {
+      colHeights[2] = Math.max(colHeights[2], pieceBottom);
+    }
+  }
+
+  newPieces.forEach((piece, idx) => {
+    let targetCol = 0;
+    let minH = colHeights[0];
+    for (let c = 1; c < colHeights.length; c++) {
+      if (colHeights[c] < minH) {
+        minH = colHeights[c];
+        targetCol = c;
+      }
+    }
+
+    piece.x = cols[targetCol];
+    piece.w = widths[targetCol];
+    piece.y = colHeights[targetCol];
+    piece.tilt = tilts[(existingPieces.length + idx) % tilts.length];
+
+    const hUnits = piece.kind === 'note' ? 24 : (piece.kind === 'clip' ? 34 : 36);
+    colHeights[targetCol] += hUnits;
+  });
+}

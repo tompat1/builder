@@ -2,6 +2,7 @@
   <section
     id="mood-board"
     class="mood-board pointer-events-auto absolute inset-0 z-50 flex flex-col bg-[#F5F3EC] text-[#222925]"
+    :class="{ 'is-arranging': isArranging }"
     role="region"
     :aria-label="t('mood.tool')"
     @dragenter.prevent="onDragEnter"
@@ -115,6 +116,22 @@
         </div>
 
         <div class="flex items-center gap-1.5 sm:gap-2">
+          <!-- Auto-arrange button (Admin only) -->
+          <button
+            v-if="isAdmin"
+            type="button"
+            id="btn-mood-auto-arrange"
+            class="flex h-9 sm:h-10 items-center gap-1.5 rounded-xl border border-[#173D35]/20 bg-white px-2.5 sm:px-3 text-xs font-semibold text-[#173D35] shadow-xs transition hover:border-[#173D35] hover:bg-[#173D35]/5 active:scale-95"
+            :title="t('mood.autoArrange')"
+            :aria-label="t('mood.autoArrange')"
+            @click="autoArrangeAll"
+          >
+            <svg class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 12a1 1 0 011-1h4a1 1 0 011 1v7a1 1 0 01-1 1h-4a1 1 0 01-1-1v-7z" />
+            </svg>
+            <span class="hidden md:inline">{{ t('mood.autoArrange') }}</span>
+          </button>
+
           <!-- Full-screen feed toggle control -->
           <button
             type="button"
@@ -238,17 +255,34 @@
       class="pointer-events-none absolute top-3 inset-x-0 z-50 flex items-center justify-between px-3 sm:px-6"
       :style="{ top: 'max(0.75rem, env(safe-area-inset-top))' }"
     >
-      <button
-        type="button"
-        id="btn-mood-exit-fullscreen"
-        class="pointer-events-auto flex items-center gap-1.5 rounded-full border border-[#173D35]/20 bg-white/95 px-3.5 py-1.5 text-xs font-bold text-[#173D35] shadow-lg backdrop-blur-md transition hover:bg-[#173D35] hover:text-[#F5F3EC] active:scale-95"
-        @click="isFeedFullscreen = false"
-      >
-        <svg class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M9 4v5H4m11 0h5V4m-5 16v-5h5M4 15h5v5" />
-        </svg>
-        <span>{{ t('mood.exitFullscreen') }}</span>
-      </button>
+      <div class="pointer-events-auto flex items-center gap-2">
+        <button
+          v-if="isAdmin"
+          type="button"
+          id="btn-mood-auto-arrange-fullscreen"
+          class="flex items-center gap-1.5 rounded-full border border-[#173D35]/20 bg-white/95 px-3.5 py-1.5 text-xs font-bold text-[#173D35] shadow-lg backdrop-blur-md transition hover:bg-[#173D35] hover:text-[#F5F3EC] active:scale-95"
+          :title="t('mood.autoArrange')"
+          :aria-label="t('mood.autoArrange')"
+          @click="autoArrangeAll"
+        >
+          <svg class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 12a1 1 0 011-1h4a1 1 0 011 1v7a1 1 0 01-1 1h-4a1 1 0 01-1-1v-7z" />
+          </svg>
+          <span class="hidden sm:inline">{{ t('mood.autoArrange') }}</span>
+        </button>
+
+        <button
+          type="button"
+          id="btn-mood-exit-fullscreen"
+          class="flex items-center gap-1.5 rounded-full border border-[#173D35]/20 bg-white/95 px-3.5 py-1.5 text-xs font-bold text-[#173D35] shadow-lg backdrop-blur-md transition hover:bg-[#173D35] hover:text-[#F5F3EC] active:scale-95"
+          @click="isFeedFullscreen = false"
+        >
+          <svg class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 4v5H4m11 0h5V4m-5 16v-5h5M4 15h5v5" />
+          </svg>
+          <span>{{ t('mood.exitFullscreen') }}</span>
+        </button>
+      </div>
 
       <button
         v-if="!standalone || !isInvited"
@@ -279,12 +313,17 @@
         :class="isMobile ? 'flex flex-col items-center gap-5 pb-24 max-w-lg mx-auto' : 'relative w-full'"
         :style="isMobile ? {} : sheetStyle"
       >
-        <p
+        <div
           v-if="over"
-          class="pointer-events-none absolute left-1/2 top-6 z-10 -translate-x-1/2 rounded-full bg-[#173D35] px-4 py-2 text-sm font-semibold text-[#F5F3EC]"
+          class="pointer-events-none sticky top-6 z-30 flex justify-center px-4"
         >
-          <Cms k="mood.drop" />
-        </p>
+          <div class="flex items-center gap-2 rounded-full bg-[#173D35] px-5 py-2.5 text-xs sm:text-sm font-semibold text-[#F5F3EC] shadow-2xl ring-4 ring-[#173D35]/20 animate-bounce">
+            <svg class="h-4 w-4 sm:h-5 sm:w-5 text-[#F5F3EC] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+            </svg>
+            <span>{{ t('mood.dropAutoArrange') }}</span>
+          </div>
+        </div>
 
         <!-- Empty state -->
         <div
@@ -1120,6 +1159,8 @@ import {
   moodId,
   pieceFrom,
   placeFor,
+  autoArrangePieces,
+  arrangeNewPieces,
   linkHost,
   readLink,
   vimeoEmbed,
@@ -1175,6 +1216,8 @@ const router = useRouter();
 const store = useConfigStore();
 const sessionStore = useSessionStore();
 const { t, locale } = useLabels();
+const isAdmin = computed(() => sessionStore.user?.role === 'admin');
+const isArranging = ref(false);
 
 const pieces = ref<MoodPiece[]>([]);
 const participants = ref<MoodParticipant[]>([]);
@@ -1786,14 +1829,28 @@ function addPostIt(color: MoodColor = 'yellow') {
   showToast('Post-it tillagd', 'success');
 }
 
+function autoArrangeAll() {
+  if (pieces.value.length === 0) return;
+  isArranging.value = true;
+  autoArrangePieces(pieces.value);
+  persist();
+  showToast(t('mood.autoArrangeToast'), 'success');
+  setTimeout(() => {
+    isArranging.value = false;
+  }, 500);
+}
+
 async function addFiles(files: File[]) {
   if (!files.length) return;
   const finish = startFeedback('Läser in bildfiler...');
+  isArranging.value = true;
   try {
     notice.value = '';
     let added = 0;
+    const newPieces: MoodPiece[] = [];
+
     for (const file of files) {
-      if (pieces.value.length >= MOOD_LIMIT) {
+      if (pieces.value.length + newPieces.length >= MOOD_LIMIT) {
         notice.value = 'mood.full';
         break;
       }
@@ -1812,8 +1869,16 @@ async function addFiles(files: File[]) {
         const parsed = readLink(`local:${id}`);
         if (!parsed) continue;
         urls.value = { ...urls.value, [id]: URL.createObjectURL(file) };
-        const pieceY = isMobile.value && pieces.value.length > 0 ? Math.max(...pieces.value.map((p) => p.y)) + 25 : placeFor(pieces.value.length).y;
-        pieces.value.push({ id, ...parsed, ...placeFor(pieces.value.length), y: pieceY, caption: '', author: { ...currentAuthor.value } });
+        newPieces.push({
+          id,
+          ...parsed,
+          x: 3,
+          y: 4,
+          w: 29.5,
+          tilt: 0,
+          caption: '',
+          author: { ...currentAuthor.value }
+        });
         added++;
         continue;
       }
@@ -1828,22 +1893,37 @@ async function addFiles(files: File[]) {
           notice.value = 'mood.bad';
           continue;
         }
-        const piece = pieceFrom(parsed, pieces.value.length, '', { ...currentAuthor.value });
-        if (isMobile.value && pieces.value.length > 0) {
-          piece.y = Math.max(...pieces.value.map((p) => p.y)) + 25;
-        }
-        pieces.value.push(piece);
+        const piece = pieceFrom(parsed, pieces.value.length + newPieces.length, '', { ...currentAuthor.value });
+        newPieces.push(piece);
         added++;
       } catch {
         notice.value = 'mood.big';
       }
     }
+
+    if (newPieces.length > 0) {
+      if (isMobile.value) {
+        let currentMaxY = pieces.value.length > 0 ? Math.max(...pieces.value.map((p) => p.y)) : 0;
+        for (const p of newPieces) {
+          currentMaxY += 25;
+          p.y = currentMaxY;
+          pieces.value.push(p);
+        }
+      } else {
+        arrangeNewPieces(pieces.value, newPieces);
+        pieces.value.push(...newPieces);
+      }
+    }
+
     persist();
     if (added > 0) {
-      showToast(`${added} ${added === 1 ? 'fil tillagd' : 'filer tillagda'}`, 'success');
+      showToast(`${added} ${added === 1 ? 'fil tillagd & auto-arrangerad' : 'filer tillagda & auto-arrangerade'}`, 'success');
     }
   } finally {
     finish();
+    setTimeout(() => {
+      isArranging.value = false;
+    }, 500);
   }
 }
 
@@ -2080,6 +2160,12 @@ function clamp(value: number, min: number, max: number) {
     opacity: 1;
   }
 }
+.mood-board.is-arranging .mood-piece {
+  transition: left 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+              top 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+              width 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.45s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
 .mood-piece {
   animation: mood-in 280ms cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -2116,6 +2202,9 @@ function clamp(value: number, min: number, max: number) {
   animation: slideLeft 240ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 @media (prefers-reduced-motion: reduce) {
+  .mood-board.is-arranging .mood-piece {
+    transition: none !important;
+  }
   .mood-piece,
   .animate-fadeIn,
   .animate-slideLeft {

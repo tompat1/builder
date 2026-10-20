@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { acceptMood, acceptMoodBoard, pieceFrom, placeFor, readLink, youtubeEmbed, vimeoEmbed } from '../src/mood/board.ts';
+import { acceptMood, acceptMoodBoard, pieceFrom, placeFor, autoArrangePieces, arrangeNewPieces, readLink, youtubeEmbed, vimeoEmbed } from '../src/mood/board.ts';
 import { readPagePreview, safePreviewUrl } from '../workers/linkPreview.js';
 import { generateAiAvatar, defaultAccountAvatar } from '../src/mood/avatar.ts';
 import { generateQrSvg } from '../src/mood/qr.ts';
@@ -662,4 +662,53 @@ test('handleMood persists participants to Cloudflare D1 and returns them for cro
   assert.ok(restored);
   assert.equal(restored.name, 'Maria');
   assert.deepEqual(restored.themes, ['Dreamy', 'Chill']);
+});
+
+test('autoArrangePieces distributes pictures evenly into columns without overlap', () => {
+  const p1 = pieceFrom(readLink('/homes/home-cube.webp'), 0);
+  const p2 = pieceFrom(readLink('/homes/home-cube.webp'), 1);
+  const p3 = pieceFrom(readLink('/homes/home-cube.webp'), 2);
+  const p4 = pieceFrom(readLink('/homes/home-cube.webp'), 3);
+  const p5 = pieceFrom(readLink('/homes/home-cube.webp'), 4);
+
+  p1.x = 80; p1.y = 200;
+  p2.x = 80; p2.y = 200;
+  p3.x = 10; p3.y = 10;
+  p4.x = 10; p4.y = 10;
+  p5.x = 50; p5.y = 50;
+
+  autoArrangePieces([p1, p2, p3, p4, p5]);
+
+  assert.equal(p1.x, 3);
+  assert.equal(p1.y, 4);
+  assert.equal(p2.x, 36);
+  assert.equal(p2.y, 4);
+  assert.equal(p3.x, 69);
+  assert.equal(p3.y, 4);
+
+  assert.ok(p4.y > 4);
+  assert.ok([3, 36, 69].includes(p4.x));
+  assert.ok(p5.y > 4);
+  assert.ok([3, 36, 69].includes(p5.x));
+});
+
+test('arrangeNewPieces places dropped pieces into the shortest columns below existing items', () => {
+  const existing = [
+    pieceFrom(readLink('/homes/home-cube.webp'), 0),
+    pieceFrom(readLink('/homes/home-cube.webp'), 1),
+    pieceFrom(readLink('/homes/home-cube.webp'), 2)
+  ];
+  existing[0].x = 3; existing[0].y = 4;
+  existing[1].x = 36; existing[1].y = 4;
+  existing[2].x = 69; existing[2].y = 4;
+
+  const newDrop1 = pieceFrom(readLink('/homes/home-cube.webp'), 3);
+  const newDrop2 = pieceFrom(readLink('/homes/home-cube.webp'), 4);
+
+  arrangeNewPieces(existing, [newDrop1, newDrop2]);
+
+  assert.ok(newDrop1.y >= 35);
+  assert.ok([3, 36, 69].includes(newDrop1.x));
+  assert.ok(newDrop2.y >= 35);
+  assert.ok([3, 36, 69].includes(newDrop2.x));
 });

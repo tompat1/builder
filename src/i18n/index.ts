@@ -799,7 +799,10 @@ const sv = {
     exitFullscreen: 'Avsluta flödesläge',
     moveUp: 'Flytta upp',
     moveDown: 'Flytta ner',
-    endOfBoard: 'Du har nått slutet av moodboarden'
+    endOfBoard: 'Du har nått slutet av moodboarden',
+    autoArrange: 'Auto-arrangera',
+    autoArrangeToast: 'Alla bilder har auto-arrangerats',
+    dropAutoArrange: 'Släpp bilder här för att lägga till & auto-arrangera'
   },
   dims: {
     pitch: 'Taklutning',
@@ -1726,7 +1729,10 @@ const en = {
     exitFullscreen: 'Exit feed view',
     moveUp: 'Move up',
     moveDown: 'Move down',
-    endOfBoard: 'You have reached the end of the mood board'
+    endOfBoard: 'You have reached the end of the mood board',
+    autoArrange: 'Auto-arrange',
+    autoArrangeToast: 'All pictures auto-arranged',
+    dropAutoArrange: 'Drop images here to add & auto-arrange'
   },
   dims: {
     pitch: 'Roof pitch',
