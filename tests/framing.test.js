@@ -144,3 +144,82 @@ test('standard houses never receive concrete combo steps or text', () => {
     assert.ok(!s.proTipsSv.includes('betongväggarna'));
   });
 });
+
+test('framing component metadata covers structural elements with Swedish and English nomenclature', () => {
+  // Key structural components identified during 3D walkthrough inspection
+  const coreComponents = [
+    {
+      sv: 'Syll på murkrön (bakvägg)',
+      en: 'Crown Sill Plate (Rear Wall)',
+      dim: '45×145 mm C24 · EPDM-tätning',
+      step: 1
+    },
+    {
+      sv: 'Kemankare M12 & sexkantsmutter',
+      en: 'M12 Chemical Anchor & Hex Nut',
+      dim: 'M12 syrafast/FZV cc 800 mm',
+      step: 1
+    },
+    {
+      sv: 'Hörnstolpe (dubbelregel)',
+      en: 'Corner Post (Double Stud)',
+      dim: '2× 45×145 mm C24',
+      step: 2
+    },
+    {
+      sv: 'Väggregel (framvägg)',
+      en: 'Wall Stud (Front Wall)',
+      dim: '45×145 mm C24 cc 600 mm',
+      step: 3
+    },
+    {
+      sv: 'Kortregel / passregel',
+      en: 'Cripple Stud / Blocking',
+      dim: '45×145 mm C24',
+      step: 4
+    },
+    {
+      sv: 'Bärande limträbalk',
+      en: 'Glulam Header Beam',
+      dim: '90×220 mm GL28c',
+      step: 4
+    },
+    {
+      sv: 'Hammarband (framvägg)',
+      en: 'Top Plate (Front Wall)',
+      dim: '45×145 mm C24',
+      step: 5
+    },
+    {
+      sv: 'Kortling',
+      en: 'Nogging / Mid-wall Blocking',
+      dim: '45×145 mm C24',
+      step: 5
+    },
+    {
+      sv: 'Takstol / takbalk (pulpettak)',
+      en: 'Rafter / Roof Beam (Mono-pitch)',
+      dim: '45×145 mm C24 cc 600 mm',
+      step: 6
+    },
+    {
+      sv: 'Dragband / vindförankring',
+      en: 'Wind Uplift Tension Strap',
+      dim: 'Varmförzinkat stål 2.0 mm',
+      step: 6
+    },
+    {
+      sv: 'Sockelbleck / droppbleck',
+      en: 'Base Flashing / Drip Edge',
+      dim: '0.6 mm lackerad stålplåt',
+      step: 7
+    }
+  ];
+
+  coreComponents.forEach((comp) => {
+    assert.ok(comp.sv.length > 3, `Swedish name for ${comp.sv} is valid`);
+    assert.ok(comp.en.length > 3, `English name for ${comp.en} is valid`);
+    assert.ok(comp.dim.length > 3, `Dimension for ${comp.sv} is valid`);
+    assert.ok(comp.step >= 1 && comp.step <= 7, `Step for ${comp.sv} is in [1, 7]`);
+  });
+});

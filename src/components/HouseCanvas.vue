@@ -56,12 +56,57 @@
         </div>
       </div>
     </transition>
+
+    <!-- Framing Walkthrough Component Inspector Tooltip -->
+    <transition
+      enter-active-class="transition duration-150 ease-out"
+      enter-from-class="opacity-0 translate-y-1 scale-95"
+      enter-to-class="opacity-100 translate-y-0 scale-100"
+      leave-active-class="transition duration-100 ease-in"
+      leave-from-class="opacity-100 translate-y-0 scale-100"
+      leave-to-class="opacity-0 translate-y-1 scale-95"
+    >
+      <div
+        v-if="store.framingWalkthrough && hoveredFramingItem"
+        data-testid="framing-hover-tooltip"
+        class="fixed z-50 pointer-events-none select-none max-w-xs sm:max-w-sm rounded-xl p-3 shadow-2xl backdrop-blur-xl border transition-all duration-75"
+        :style="framingTooltipStyle"
+        style="background: rgba(15, 23, 42, 0.90); border-color: rgba(245, 158, 11, 0.45); box-shadow: 0 16px 36px -4px rgba(0, 0, 0, 0.55), 0 0 20px -2px rgba(245, 158, 11, 0.2);"
+      >
+        <div class="flex items-center gap-2 mb-1">
+          <span
+            v-if="hoveredFramingItem.step"
+            class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold tracking-wider uppercase bg-amber-500/20 text-amber-300 border border-amber-500/30"
+          >
+            <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>
+            {{ locale === 'en' ? `Step ${hoveredFramingItem.step}` : `Steg ${hoveredFramingItem.step}` }}
+          </span>
+          <span class="text-[11px] font-medium text-slate-400 truncate">
+            {{ locale === 'en' ? hoveredFramingItem.nameSv : hoveredFramingItem.nameEn }}
+          </span>
+        </div>
+
+        <h4 class="text-sm font-bold text-white tracking-tight leading-snug drop-shadow-sm">
+          {{ locale === 'en' ? hoveredFramingItem.nameEn : hoveredFramingItem.nameSv }}
+        </h4>
+
+        <div
+          v-if="hoveredFramingItem.dimension"
+          class="mt-2 flex items-center gap-1.5 pt-1.5 border-t border-slate-700/60 text-xs font-medium text-amber-200/90"
+        >
+          <svg class="w-3.5 h-3.5 text-amber-400 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+          </svg>
+          <span class="font-mono text-[11px] tracking-wide">{{ hoveredFramingItem.dimension }}</span>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue';
-import { HouseScene } from '../three-engine/HouseScene';
+import { HouseScene, type FramingHoverItem } from '../three-engine/HouseScene';
 import { useConfigStore } from '../store/useConfigStore';
 import type { RoofId } from '../store/roof';
 import { noteTargetId, noteVisibleInView } from '../notes/board';
@@ -71,10 +116,36 @@ import Cms from './Cms.vue';
 
 const canvasContainer = ref<HTMLElement | null>(null);
 const store = useConfigStore();
-const { t } = useLabels();
+const { t, locale } = useLabels();
 let engine: HouseScene | null = null;
 const showDragHint = ref(false);
 const compassDial = ref(0);
+const hoveredFramingItem = ref<FramingHoverItem | null>(null);
+
+const framingTooltipStyle = computed(() => {
+  if (!hoveredFramingItem.value) return {};
+  const { screenX, screenY } = hoveredFramingItem.value;
+  const tooltipWidth = 280;
+  const tooltipHeight = 90;
+  const padding = 16;
+
+  let left = screenX + 16;
+  let top = screenY + 16;
+
+  if (typeof window !== 'undefined') {
+    if (left + tooltipWidth > window.innerWidth - padding) {
+      left = screenX - tooltipWidth - 16;
+    }
+    if (top + tooltipHeight > window.innerHeight - padding) {
+      top = screenY - tooltipHeight - 16;
+    }
+  }
+
+  return {
+    left: `${Math.max(padding, left)}px`,
+    top: `${Math.max(padding, top)}px`
+  };
+});
 const compassMarks = computed(() => {
   const turn = (compassDial.value * Math.PI) / 180;
   const radius = 26;
@@ -202,6 +273,10 @@ onMounted(() => {
 
     engine.onPanelHover = (slotId, x, y) => {
       store.setHoveredSlot(slotId, slotId && x && y ? { x, y } : null);
+    };
+
+    engine.onFramingItemHover = (item) => {
+      hoveredFramingItem.value = item;
     };
 
     engine.onSlotScreenPositionUpdate = (pos) => {
@@ -566,6 +641,9 @@ watch(
 watch(
   [() => store.framingWalkthrough, () => store.framingStep],
   ([walkthrough, step]) => {
+    if (!walkthrough) {
+      hoveredFramingItem.value = null;
+    }
     engine?.updateConfig({
       framingWalkthrough: walkthrough,
       framingStep: step
@@ -578,6 +656,7 @@ watch(
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onRoomKey);
+  hoveredFramingItem.value = null;
   engine?.destroy();
 });
 

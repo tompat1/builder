@@ -121,6 +121,15 @@ interface OutsideAnchor {
   panelWidth?: number;
 }
 
+export interface FramingHoverItem {
+  nameSv: string;
+  nameEn: string;
+  dimension?: string;
+  step?: number;
+  screenX: number;
+  screenY: number;
+}
+
 export class HouseScene {
   private container: HTMLElement;
   private scene: THREE.Scene;
@@ -225,6 +234,8 @@ export class HouseScene {
   // Callbacks for 3D interactions
   public onPanelClick?: (slotId: string, screenX: number, screenY: number) => void;
   public onPanelHover?: (slotId: string | null, screenX: number, screenY: number) => void;
+  public onFramingItemHover?: (item: FramingHoverItem | null) => void;
+  private framingHoverBox: THREE.LineSegments | null = null;
   public onSlotMove?: (fromSlotId: string, toSlotId: string) => boolean;
   public onDragStateChange?: (isDragging: boolean) => void;
   public onSlotScreenPositionUpdate?: (pos: { x: number; y: number; visible: boolean; slotId: string }) => void;
@@ -780,6 +791,67 @@ export class HouseScene {
       }
     }
 
+    if (this.currentConfig.framingWalkthrough) {
+      this.updateHoverBox(null);
+      this.onPanelHover?.(null, 0, 0);
+
+      const candidates: THREE.Mesh[] = [];
+      const collectVisibleMeshes = (group: THREE.Group | undefined) => {
+        if (!group || !group.visible) return;
+        group.traverse((obj) => {
+          if (obj instanceof THREE.Mesh && obj.visible) {
+            candidates.push(obj);
+          }
+        });
+      };
+
+      collectVisibleMeshes(this.framingGroup);
+      collectVisibleMeshes(this.trussesGroup);
+      collectVisibleMeshes(this.concreteGroup);
+      collectVisibleMeshes(this.foundationGroup);
+
+      const hits = this.raycaster.intersectObjects(candidates, false);
+      if (hits.length > 0) {
+        const hitMesh = hits[0].object as THREE.Mesh;
+        let targetObj: THREE.Object3D | null = hitMesh;
+        while (
+          targetObj &&
+          !targetObj.userData?.framingNameSv &&
+          targetObj !== this.framingGroup &&
+          targetObj !== this.trussesGroup &&
+          targetObj !== this.concreteGroup &&
+          targetObj.parent
+        ) {
+          targetObj = targetObj.parent;
+        }
+        if (!targetObj || !targetObj.userData?.framingNameSv) {
+          targetObj = hitMesh;
+        }
+
+        const nameSv = (targetObj.userData?.framingNameSv as string) || (targetObj.userData?.concrete ? 'Befintlig betongkonstruktion' : 'Byggkomponent');
+        const nameEn = (targetObj.userData?.framingNameEn as string) || (targetObj.userData?.concrete ? 'Existing Concrete Structure' : 'Framing Component');
+        const dimension = targetObj.userData?.dimension as string | undefined;
+        const step = typeof targetObj.userData?.framingStep === 'number' ? targetObj.userData.framingStep : undefined;
+
+        this.container.style.cursor = 'help';
+        this.updateFramingHoverBox(targetObj);
+        this.onFramingItemHover?.({
+          nameSv,
+          nameEn,
+          dimension,
+          step,
+          screenX: e.clientX,
+          screenY: e.clientY
+        });
+        return;
+      } else {
+        this.container.style.cursor = 'default';
+        this.updateFramingHoverBox(null);
+        this.onFramingItemHover?.(null);
+        return;
+      }
+    }
+
     const intersects = this.outsideShell()
       ? this.raycaster.intersectObjects(this.interactivePanels, false)
       : [];
@@ -810,6 +882,8 @@ export class HouseScene {
     this.container.style.cursor = 'default';
     this.updateHoverBox(null);
     this.onPanelHover?.(null, 0, 0);
+    this.updateFramingHoverBox(null);
+    this.onFramingItemHover?.(null);
   }
 
   private handlePointerUp = (e: PointerEvent) => {
@@ -1045,6 +1119,10 @@ export class HouseScene {
       }
     }
 
+    if (this.currentConfig.framingWalkthrough) {
+      return;
+    }
+
     const intersects = this.outsideShell()
       ? this.raycaster.intersectObjects(this.interactivePanels, false)
       : [];
@@ -1097,6 +1175,8 @@ export class HouseScene {
       }
       this.updateHoverBox(null);
       this.onPanelHover?.(null, 0, 0);
+      this.updateFramingHoverBox(null);
+      this.onFramingItemHover?.(null);
       this.updateRoomPreview(null);
     });
 
@@ -1112,6 +1192,8 @@ export class HouseScene {
   }
 
   public rebuildScene() {
+    this.updateFramingHoverBox(null);
+    this.onFramingItemHover?.(null);
     // Clear groups
     while (this.foundationGroup.children.length > 0) {
       this.foundationGroup.remove(this.foundationGroup.children[0]);
@@ -1217,6 +1299,9 @@ export class HouseScene {
     slab.position.set(0, 0.125, 0);
     slab.receiveShadow = true;
     slab.castShadow = true;
+    slab.userData.framingNameSv = 'Gjuten betongplatta';
+    slab.userData.framingNameEn = 'Concrete Foundation Slab';
+    slab.userData.dimension = 'Isolerad platta på mark';
     this.foundationGroup.add(slab);
 
     // 2. Interior Floor
@@ -1308,7 +1393,7 @@ export class HouseScene {
 
   /** The Outside tab. Facade panels belong to it, and rooms do not. */
   private outsideShell() {
-    return this.currentConfig.viewMode === 'utsida';
+    return this.currentConfig.viewMode === 'utsida' && !this.currentConfig.framingWalkthrough;
   }
 
   /** Empty decks stay outside the interior view. A sauna or shed stays, with its yard wall opened. */
@@ -1695,6 +1780,9 @@ export class HouseScene {
       mesh.receiveShadow = true;
       mesh.userData.concrete = true;
       mesh.userData.outsideAddition = true;
+      mesh.userData.framingNameSv = 'Befintlig betongmellanvägg';
+      mesh.userData.framingNameEn = 'Existing Concrete Partition Wall';
+      mesh.userData.dimension = `${this.currentConfig.concreteHeightMm ?? 2500} mm · Massiv betong`;
       this.concreteGroup.add(mesh);
     };
     for (const wall of this.currentConfig.concreteWalls ?? []) {
@@ -1728,6 +1816,9 @@ export class HouseScene {
       mesh.receiveShadow = true;
       mesh.userData.concrete = true;
       mesh.userData.outsideAddition = true;
+      mesh.userData.framingNameSv = 'Befintlig bakre betongvägg';
+      mesh.userData.framingNameEn = 'Existing Concrete Rear Wall';
+      mesh.userData.dimension = '500 mm massiv gjuten betong';
       this.concreteGroup.add(mesh);
     };
 
@@ -1800,6 +1891,9 @@ export class HouseScene {
       mesh.receiveShadow = true;
       mesh.userData.concrete = true;
       mesh.userData.outsideAddition = true;
+      mesh.userData.framingNameSv = isLeft ? 'Befintlig vänster betongvägg' : 'Befintlig höger betongvägg';
+      mesh.userData.framingNameEn = isLeft ? 'Existing Concrete Left Wall' : 'Existing Concrete Right Wall';
+      mesh.userData.dimension = '500 mm massiv gjuten betong';
       this.concreteGroup.add(mesh);
     };
 
@@ -2143,7 +2237,15 @@ export class HouseScene {
     mat: THREE.Material,
     along: 'x' | 'z' = 'x'
   ) {
-    const place = (sizeAlong: number, height: number, at: number, y: number) => {
+    const place = (
+      sizeAlong: number,
+      height: number,
+      at: number,
+      y: number,
+      nameSv: string,
+      nameEn: string,
+      dimension: string
+    ) => {
       const mesh = new THREE.Mesh(
         along === 'x'
           ? new THREE.BoxGeometry(sizeAlong, height, studDepth)
@@ -2153,19 +2255,46 @@ export class HouseScene {
       mesh.position.set(along === 'x' ? at : fixed, y, along === 'z' ? at : fixed);
       mesh.castShadow = true;
       mesh.userData.framingStep = 4;
+      mesh.userData.framingNameSv = nameSv;
+      mesh.userData.framingNameEn = nameEn;
+      mesh.userData.dimension = dimension;
       this.framingGroup.add(mesh);
     };
     const bottom = opening.sill < 0.4 ? opening.sill + studThick : opening.sill;
     const trimmerH = opening.head - bottom;
     if (trimmerH > 0.05) {
       for (const side of [-1, 1]) {
-        place(studThick, trimmerH, alongPos + side * (opening.winW / 2 + studThick / 2), bottom + trimmerH / 2);
+        place(
+          studThick,
+          trimmerH,
+          alongPos + side * (opening.winW / 2 + studThick / 2),
+          bottom + trimmerH / 2,
+          'Avväxlingsstolpe vid öppning',
+          'Opening Jack Stud / Trimmer',
+          '45×145 mm C24'
+        );
       }
     }
     if (opening.sill > 0.4) {
-      place(opening.winW + studThick * 2, studThick, alongPos, opening.sill - studThick / 2);
+      place(
+        opening.winW + studThick * 2,
+        studThick,
+        alongPos,
+        opening.sill - studThick / 2,
+        'Bröstningsregel (fönster)',
+        'Window Sill Plate / Cripple',
+        '45×145 mm C24'
+      );
     }
-    place(opening.winW + studThick * 2, studThick * 2, alongPos, opening.head + studThick);
+    place(
+      opening.winW + studThick * 2,
+      studThick * 2,
+      alongPos,
+      opening.head + studThick,
+      'Överstycke / bärbalk (öppning)',
+      'Opening Header / Lintel',
+      '45×145 mm C24 dubbelregel'
+    );
   }
 
   // --- Proper Architectural Timber Framing (Regelstomme 45x145 mm) ---
@@ -2204,6 +2333,9 @@ export class HouseScene {
       backSyll.position.set(0, concreteH + studThick / 2, framingBackZ);
       backSyll.castShadow = true;
       backSyll.userData.framingStep = 1;
+      backSyll.userData.framingNameSv = 'Syll på murkrön (bakvägg)';
+      backSyll.userData.framingNameEn = 'Crown Sill Plate (Rear)';
+      backSyll.userData.dimension = '45×145 mm C24 · EPDM-tätning';
       this.framingGroup.add(backSyll);
 
       // Left sill strictly on concrete left wall (from back wall to concreteFrontZ)
@@ -2213,6 +2345,9 @@ export class HouseScene {
       leftSyll.position.set(framingLeftX, concreteH + studThick / 2, concreteSideSillZ);
       leftSyll.castShadow = true;
       leftSyll.userData.framingStep = 1;
+      leftSyll.userData.framingNameSv = 'Syll på murkrön (vänstervägg)';
+      leftSyll.userData.framingNameEn = 'Crown Sill Plate (Left)';
+      leftSyll.userData.dimension = '45×145 mm C24 · EPDM-tätning';
       this.framingGroup.add(leftSyll);
 
       // Right sill on concrete right wall
@@ -2221,6 +2356,9 @@ export class HouseScene {
         rightSyll.position.set(framingRightX, concreteH + studThick / 2, concreteSideSillZ);
         rightSyll.castShadow = true;
         rightSyll.userData.framingStep = 1;
+        rightSyll.userData.framingNameSv = 'Syll på murkrön (högervägg)';
+        rightSyll.userData.framingNameEn = 'Crown Sill Plate (Right)';
+        rightSyll.userData.dimension = '45×145 mm C24 · EPDM-tätning';
         this.framingGroup.add(rightSyll);
       }
 
@@ -2234,6 +2372,9 @@ export class HouseScene {
       leftWallEndSyll.position.set(framingLeftX, wallEndY, wallEndZ);
       leftWallEndSyll.castShadow = true;
       leftWallEndSyll.userData.framingStep = 1;
+      leftWallEndSyll.userData.framingNameSv = 'Vertikal syll på murände (vänster)';
+      leftWallEndSyll.userData.framingNameEn = 'Vertical Wall-End Sill Plate (Left)';
+      leftWallEndSyll.userData.dimension = '45×145 mm C24 · Svällbandstätning';
       this.framingGroup.add(leftWallEndSyll);
 
       if (this.concreteFacade('right')) {
@@ -2241,6 +2382,9 @@ export class HouseScene {
         rightWallEndSyll.position.set(framingRightX, wallEndY, wallEndZ);
         rightWallEndSyll.castShadow = true;
         rightWallEndSyll.userData.framingStep = 1;
+        rightWallEndSyll.userData.framingNameSv = 'Vertikal syll på murände (höger)';
+        rightWallEndSyll.userData.framingNameEn = 'Vertical Wall-End Sill Plate (Right)';
+        rightWallEndSyll.userData.dimension = '45×145 mm C24 · Svällbandstätning';
         this.framingGroup.add(rightWallEndSyll);
       }
 
@@ -2251,6 +2395,9 @@ export class HouseScene {
         frontSyll.position.set(0, baseElevation + studThick / 2, framingFrontZ);
         frontSyll.castShadow = true;
         frontSyll.userData.framingStep = 1;
+        frontSyll.userData.framingNameSv = 'Syll på tillbyggnadsplatta (framvägg)';
+        frontSyll.userData.framingNameEn = 'Extension Slab Sill Plate (Front)';
+        frontSyll.userData.dimension = '45×145 mm C24 · Syllisolering';
         this.framingGroup.add(frontSyll);
 
         // Left extension sill on ground slab (from concreteFrontZ + studThick to front sill)
@@ -2261,18 +2408,27 @@ export class HouseScene {
         leftExtSyll.position.set(framingLeftX, baseElevation + studThick / 2, extSideSillZ);
         leftExtSyll.castShadow = true;
         leftExtSyll.userData.framingStep = 1;
+        leftExtSyll.userData.framingNameSv = 'Syll på tillbyggnadsplatta (vänster)';
+        leftExtSyll.userData.framingNameEn = 'Extension Slab Sill Plate (Left)';
+        leftExtSyll.userData.dimension = '45×145 mm C24 · Syllisolering';
         this.framingGroup.add(leftExtSyll);
 
         const rightExtSyll = new THREE.Mesh(new THREE.BoxGeometry(studDepth, studThick, extSpanZ), framingMat);
         rightExtSyll.position.set(framingRightX, baseElevation + studThick / 2, extSideSillZ);
         rightExtSyll.castShadow = true;
         rightExtSyll.userData.framingStep = 1;
+        rightExtSyll.userData.framingNameSv = 'Syll på tillbyggnadsplatta (höger)';
+        rightExtSyll.userData.framingNameEn = 'Extension Slab Sill Plate (Right)';
+        rightExtSyll.userData.dimension = '45×145 mm C24 · Syllisolering';
         this.framingGroup.add(rightExtSyll);
       } else {
         const frontSyll = new THREE.Mesh(new THREE.BoxGeometry(w - 0.05, studThick, studDepth), framingMat);
         frontSyll.position.set(0, baseElevation + studThick / 2, concreteFrontZ + studThick + studDepth / 2);
         frontSyll.castShadow = true;
         frontSyll.userData.framingStep = 1;
+        frontSyll.userData.framingNameSv = 'Syll på betongplatta';
+        frontSyll.userData.framingNameEn = 'Concrete Slab Sill Plate';
+        frontSyll.userData.dimension = '45×145 mm C24 · Syllisolering';
         this.framingGroup.add(frontSyll);
       }
 
@@ -2293,6 +2449,9 @@ export class HouseScene {
         washer.userData.framingStep = 1;
         washer.userData.ownMaterial = fastenerMat;
         washer.userData.isFastener = true;
+        washer.userData.framingNameSv = 'Fyrkantsbricka för kemankare';
+        washer.userData.framingNameEn = 'Square Washer for Chemical Anchor';
+        washer.userData.dimension = '45×45×4 mm DIN 440 FZV';
         this.framingGroup.add(washer);
 
         const nut = new THREE.Mesh(nutGeo, fastenerMat);
@@ -2301,6 +2460,9 @@ export class HouseScene {
         nut.userData.framingStep = 1;
         nut.userData.ownMaterial = fastenerMat;
         nut.userData.isFastener = true;
+        nut.userData.framingNameSv = 'Kemankare M12 & sexkantsmutter';
+        nut.userData.framingNameEn = 'M12 Chemical Anchor & Hex Nut';
+        nut.userData.dimension = 'M12 syrafast/FZV cc 800 mm';
         this.framingGroup.add(nut);
       };
 
@@ -2343,6 +2505,9 @@ export class HouseScene {
           vWasher.userData.framingStep = 1;
           vWasher.userData.ownMaterial = fastenerMat;
           vWasher.userData.isFastener = true;
+          vWasher.userData.framingNameSv = 'Bricka för murändesinfästning';
+          vWasher.userData.framingNameEn = 'Washer for Wall-End Fastener';
+          vWasher.userData.dimension = '40×40 mm FZV';
           this.framingGroup.add(vWasher);
 
           const vScrew = new THREE.Mesh(new THREE.CylinderGeometry(0.009, 0.009, 0.01, 6), fastenerMat);
@@ -2352,6 +2517,9 @@ export class HouseScene {
           vScrew.userData.framingStep = 1;
           vScrew.userData.ownMaterial = fastenerMat;
           vScrew.userData.isFastener = true;
+          vScrew.userData.framingNameSv = 'Murändesinfästning / betongskruv';
+          vScrew.userData.framingNameEn = 'Wall-End Fastener / Concrete Screw';
+          vScrew.userData.dimension = 'cc 600 mm i betonggavel';
           this.framingGroup.add(vScrew);
         };
         addVertFastener(framingLeftX);
@@ -2382,12 +2550,18 @@ export class HouseScene {
       frontSyll.position.set(0, baseElevation + studThick / 2, framingFrontZ);
       frontSyll.castShadow = true;
       frontSyll.userData.framingStep = 1;
+      frontSyll.userData.framingNameSv = 'Undersyll (framvägg)';
+      frontSyll.userData.framingNameEn = 'Bottom Sill Plate (Front)';
+      frontSyll.userData.dimension = '45×145 mm C24 · Syllisolering';
       this.framingGroup.add(frontSyll);
 
       const backSyll = new THREE.Mesh(frontSyllGeo, framingMat);
       backSyll.position.set(0, baseElevation + studThick / 2, framingBackZ);
       backSyll.castShadow = true;
       backSyll.userData.framingStep = 1;
+      backSyll.userData.framingNameSv = 'Undersyll (bakvägg)';
+      backSyll.userData.framingNameEn = 'Bottom Sill Plate (Rear)';
+      backSyll.userData.dimension = '45×145 mm C24 · Syllisolering';
       this.framingGroup.add(backSyll);
 
       const sideSyllGeo = new THREE.BoxGeometry(studDepth, studThick, d - 0.05 - studDepth * 2);
@@ -2395,12 +2569,18 @@ export class HouseScene {
       leftSyll.position.set(framingLeftX, baseElevation + studThick / 2, 0);
       leftSyll.castShadow = true;
       leftSyll.userData.framingStep = 1;
+      leftSyll.userData.framingNameSv = 'Undersyll (vänstervägg)';
+      leftSyll.userData.framingNameEn = 'Bottom Sill Plate (Left)';
+      leftSyll.userData.dimension = '45×145 mm C24 · Syllisolering';
       this.framingGroup.add(leftSyll);
 
       const rightSyll = new THREE.Mesh(sideSyllGeo, framingMat);
       rightSyll.position.set(framingRightX, baseElevation + studThick / 2, 0);
       rightSyll.castShadow = true;
       rightSyll.userData.framingStep = 1;
+      rightSyll.userData.framingNameSv = 'Undersyll (högervägg)';
+      rightSyll.userData.framingNameEn = 'Bottom Sill Plate (Right)';
+      rightSyll.userData.dimension = '45×145 mm C24 · Syllisolering';
       this.framingGroup.add(rightSyll);
     }
 
@@ -2411,6 +2591,9 @@ export class HouseScene {
     frontHeader.position.set(0, frontH - studThick / 2, framingFrontZ);
     frontHeader.castShadow = true;
     frontHeader.userData.framingStep = 5;
+    frontHeader.userData.framingNameSv = 'Hammarband (framvägg)';
+    frontHeader.userData.framingNameEn = 'Top Header Plate (Front)';
+    frontHeader.userData.dimension = '45×145 mm C24';
     this.framingGroup.add(frontHeader);
 
     // Back header (at rear slope height)
@@ -2418,6 +2601,9 @@ export class HouseScene {
     backHeader.position.set(0, rearH - studThick / 2, framingBackZ);
     backHeader.castShadow = true;
     backHeader.userData.framingStep = 5;
+    backHeader.userData.framingNameSv = 'Hammarband (bakvägg)';
+    backHeader.userData.framingNameEn = 'Top Header Plate (Rear)';
+    backHeader.userData.dimension = '45×145 mm C24';
     this.framingGroup.add(backHeader);
 
     // Sloping side headers on left and right connecting front to rear
@@ -2430,6 +2616,9 @@ export class HouseScene {
     leftHeader.rotation.x = -slopeAngle;
     leftHeader.castShadow = true;
     leftHeader.userData.framingStep = 5;
+    leftHeader.userData.framingNameSv = 'Lutande hammarband (vänster)';
+    leftHeader.userData.framingNameEn = 'Sloping Top Header (Left)';
+    leftHeader.userData.dimension = '45×145 mm C24';
     this.framingGroup.add(leftHeader);
 
     const rightHeader = new THREE.Mesh(sideHeaderGeo, framingMat);
@@ -2437,15 +2626,18 @@ export class HouseScene {
     rightHeader.rotation.x = -slopeAngle;
     rightHeader.castShadow = true;
     rightHeader.userData.framingStep = 5;
+    rightHeader.userData.framingNameSv = 'Lutande hammarband (höger)';
+    rightHeader.userData.framingNameEn = 'Sloping Top Header (Right)';
+    rightHeader.userData.dimension = '45×145 mm C24';
     this.framingGroup.add(rightHeader);
 
     // 3. Vertical Wall Studs (Väggreglar cc 600 mm)
     // Corner Studs (dubbla hörnreglar)
     const cornerPositions = [
-      { x: framingLeftX, z: framingFrontZ, height: frontH, base: baseElevation },
-      { x: framingRightX, z: framingFrontZ, height: frontH, base: baseElevation },
-      { x: framingLeftX, z: framingBackZ, height: rearH, base: isConcrete ? concreteH : baseElevation },
-      { x: framingRightX, z: framingBackZ, height: rearH, base: (isConcrete && this.concreteFacade('right')) ? concreteH : baseElevation }
+      { x: framingLeftX, z: framingFrontZ, height: frontH, base: baseElevation, isJunction: false },
+      { x: framingRightX, z: framingFrontZ, height: frontH, base: baseElevation, isJunction: false },
+      { x: framingLeftX, z: framingBackZ, height: rearH, base: isConcrete ? concreteH : baseElevation, isJunction: false },
+      { x: framingRightX, z: framingBackZ, height: rearH, base: (isConcrete && this.concreteFacade('right')) ? concreteH : baseElevation, isJunction: false }
     ];
 
     // When concrete addition extends forward, add interface junction posts where timber meets concrete facade
@@ -2453,8 +2645,8 @@ export class HouseScene {
       const progress = (d / 2 - concreteFrontZ) / d;
       const junctionH = frontH - progress * (frontH - rearH);
       cornerPositions.push(
-        { x: framingLeftX, z: concreteFrontZ + studThick / 2, height: junctionH, base: concreteH + studThick },
-        { x: framingRightX, z: concreteFrontZ + studThick / 2, height: junctionH, base: concreteH + studThick }
+        { x: framingLeftX, z: concreteFrontZ + studThick / 2, height: junctionH, base: concreteH + studThick, isJunction: true },
+        { x: framingRightX, z: concreteFrontZ + studThick / 2, height: junctionH, base: concreteH + studThick, isJunction: true }
       );
     }
 
@@ -2466,6 +2658,9 @@ export class HouseScene {
         cMesh.position.set(cp.x, cp.base + studThick + studH / 2, cp.z);
         cMesh.castShadow = true;
         cMesh.userData.framingStep = 2;
+        cMesh.userData.framingNameSv = cp.isJunction ? 'Anslutningsstolpe vid mur' : 'Dubbel hörnregel';
+        cMesh.userData.framingNameEn = cp.isJunction ? 'Concrete Interface Post' : 'Double Corner Post';
+        cMesh.userData.dimension = cp.isJunction ? '45×145 mm C24' : '2 st 45×145 mm C24';
         this.framingGroup.add(cMesh);
       }
     });
@@ -2490,6 +2685,9 @@ export class HouseScene {
         studMesh.position.set(sx, frontStudBase + studThick + frontStudH / 2, framingFrontZ);
         studMesh.castShadow = true;
         studMesh.userData.framingStep = 3;
+        studMesh.userData.framingNameSv = 'Väggregel cc 600 mm (framvägg)';
+        studMesh.userData.framingNameEn = 'Wall Stud cc 600 mm (Front Wall)';
+        studMesh.userData.dimension = '45×145 mm C24';
         this.framingGroup.add(studMesh);
       }
 
@@ -2533,6 +2731,9 @@ export class HouseScene {
         studMesh.position.set(sx, concreteH + studThick + rearStudH / 2, framingBackZ);
         studMesh.castShadow = true;
         studMesh.userData.framingStep = 3;
+        studMesh.userData.framingNameSv = 'Väggregel cc 600 mm (bakvägg)';
+        studMesh.userData.framingNameEn = 'Wall Stud cc 600 mm (Rear Wall)';
+        studMesh.userData.dimension = '45×145 mm C24';
         this.framingGroup.add(studMesh);
       }
       for (const opening of backOpenings) {
@@ -2562,6 +2763,9 @@ export class HouseScene {
           leftStud.position.set(framingLeftX, leftBase + studThick + leftStudH / 2, sz);
           leftStud.castShadow = true;
           leftStud.userData.framingStep = 3;
+          leftStud.userData.framingNameSv = 'Väggregel cc 600 mm (vänstervägg)';
+          leftStud.userData.framingNameEn = 'Wall Stud cc 600 mm (Left Wall)';
+          leftStud.userData.dimension = '45×145 mm C24';
           this.framingGroup.add(leftStud);
         }
       }
@@ -2577,6 +2781,9 @@ export class HouseScene {
           rightStud.position.set(framingRightX, rightBase + studThick + rightStudH / 2, sz);
           rightStud.castShadow = true;
           rightStud.userData.framingStep = 3;
+          rightStud.userData.framingNameSv = 'Väggregel cc 600 mm (högervägg)';
+          rightStud.userData.framingNameEn = 'Wall Stud cc 600 mm (Right Wall)';
+          rightStud.userData.dimension = '45×145 mm C24';
           this.framingGroup.add(rightStud);
         }
       }
@@ -2628,6 +2835,9 @@ export class HouseScene {
       transferBeam.position.set(0, concreteH - transferBeamH / 2, concreteFrontZ - transferBeamW / 2);
       transferBeam.castShadow = true;
       transferBeam.userData.framingStep = 4;
+      transferBeam.userData.framingNameSv = 'Bärande limträbalk (avväxling)';
+      transferBeam.userData.framingNameEn = 'Glulam Transfer Beam';
+      transferBeam.userData.dimension = '90×220 mm GL28c · 100 mm upplag';
       this.framingGroup.add(transferBeam);
 
       // Step 5: Loft Floor Joists (Loftbjälklag 45x220 mm cc 600 mm) spanning across the concrete house
@@ -2644,6 +2854,9 @@ export class HouseScene {
         joistMesh.position.set(0, concreteH + studThick + joistH / 2, jz);
         joistMesh.castShadow = true;
         joistMesh.userData.framingStep = 5;
+        joistMesh.userData.framingNameSv = 'Loftgolvbjälke cc 600 mm';
+        joistMesh.userData.framingNameEn = 'Loft Floor Joist cc 600 mm';
+        joistMesh.userData.dimension = '45×220 mm C24 · Skivverkan';
         this.framingGroup.add(joistMesh);
       }
 
@@ -2667,6 +2880,9 @@ export class HouseScene {
         strap.castShadow = true;
         strap.userData.framingStep = 6;
         strap.userData.ownMaterial = strapMat;
+        strap.userData.framingNameSv = 'Vinddragband i stål';
+        strap.userData.framingNameEn = 'Steel Wind Uplift Strap';
+        strap.userData.dimension = 'Förzinkat stål 2.0 mm förankrat i betong';
         this.framingGroup.add(strap);
       }
 
@@ -2682,12 +2898,18 @@ export class HouseScene {
       flashBack.position.set(0, concreteH, framingBackZ - 0.02);
       flashBack.userData.framingStep = 7;
       flashBack.userData.ownMaterial = flashMat;
+      flashBack.userData.framingNameSv = 'Sockelbleck vid betongkrön';
+      flashBack.userData.framingNameEn = 'Base Drip Edge Flashing';
+      flashBack.userData.dimension = 'Pulverlackad stålplåt';
       this.framingGroup.add(flashBack);
 
       const flashLeft = new THREE.Mesh(new THREE.BoxGeometry(0.05, flashThick, concreteSpanZ), flashMat);
       flashLeft.position.set(framingLeftX - 0.02, concreteH, (framingBackZ + concreteFrontZ) / 2);
       flashLeft.userData.framingStep = 7;
       flashLeft.userData.ownMaterial = flashMat;
+      flashLeft.userData.framingNameSv = 'Sockelbleck vid betongkrön';
+      flashLeft.userData.framingNameEn = 'Base Drip Edge Flashing';
+      flashLeft.userData.dimension = 'Pulverlackad stålplåt';
       this.framingGroup.add(flashLeft);
 
       if (this.concreteFacade('right')) {
@@ -2695,6 +2917,9 @@ export class HouseScene {
         flashRight.position.set(framingRightX + 0.02, concreteH, (framingBackZ + concreteFrontZ) / 2);
         flashRight.userData.framingStep = 7;
         flashRight.userData.ownMaterial = flashMat;
+        flashRight.userData.framingNameSv = 'Sockelbleck vid betongkrön';
+        flashRight.userData.framingNameEn = 'Base Drip Edge Flashing';
+        flashRight.userData.dimension = 'Pulverlackad stålplåt';
         this.framingGroup.add(flashRight);
       }
     }
@@ -2756,6 +2981,9 @@ export class HouseScene {
         mesh.position.set(axis === 'x' ? mid : fixed, centerY, axis === 'z' ? mid : fixed);
         mesh.castShadow = true;
         mesh.userData.framingStep = 5;
+        mesh.userData.framingNameSv = 'Kortling (väggsträva)';
+        mesh.userData.framingNameEn = 'Mid-Wall Nogging / Blocking';
+        mesh.userData.dimension = '45×145 mm C24';
         this.framingGroup.add(mesh);
       }
     });
@@ -3685,6 +3913,9 @@ export class HouseScene {
       stud.position.set(along === 'x' ? alongPos : fixed, y, along === 'z' ? alongPos : fixed);
       stud.castShadow = true;
       stud.userData.framingStep = 4;
+      stud.userData.framingNameSv = 'Kortregel / passregel';
+      stud.userData.framingNameEn = 'Cripple Stud / Blocking';
+      stud.userData.dimension = `${Math.round(studThick * 1000)}×${Math.round(studDepth * 1000)} mm C24`;
       this.framingGroup.add(stud);
     };
     const spans = [...blocked].sort((a, b) => a.sill - b.sill);
@@ -5059,6 +5290,9 @@ export class HouseScene {
         rafter.rotation.x = -slopeAngle;
         rafter.castShadow = !ghost;
         rafter.userData.framingStep = 6;
+        rafter.userData.framingNameSv = 'Takstol / takbalk (pulpettak)';
+        rafter.userData.framingNameEn = 'Rafter / Roof Beam (Mono-pitch)';
+        rafter.userData.dimension = `${Math.round(rafterW * 1000)}×${Math.round(depth * 1000)} mm C24 cc 600 mm`;
         beamParent.add(rafter);
       }
     } else if (this.currentConfig.roofType === 'flackt') {
@@ -5073,6 +5307,9 @@ export class HouseScene {
         rafter.rotation.x = -shallowAngle;
         rafter.castShadow = !ghost;
         rafter.userData.framingStep = 6;
+        rafter.userData.framingNameSv = 'Flack takbjälke';
+        rafter.userData.framingNameEn = 'Flat Roof Joist';
+        rafter.userData.dimension = `${Math.round(rafterW * 1000)}×${Math.round(depth * 1000)} mm C24 cc 600 mm`;
         beamParent.add(rafter);
       }
     } else {
@@ -5089,6 +5326,9 @@ export class HouseScene {
         frontRafter.rotation.x = gableAngle;
         frontRafter.castShadow = !ghost;
         frontRafter.userData.framingStep = 6;
+        frontRafter.userData.framingNameSv = 'Takstol / taksparre (fram)';
+        frontRafter.userData.framingNameEn = 'Rafter / Truss Member (Front)';
+        frontRafter.userData.dimension = `${Math.round(rafterW * 1000)}×${Math.round(rafterH * 1000)} mm C24 cc 600 mm`;
         beamParent.add(frontRafter);
 
         const rearRafter = new THREE.Mesh(rafterGeo, rafterMat);
@@ -5096,6 +5336,9 @@ export class HouseScene {
         rearRafter.rotation.x = -gableAngle;
         rearRafter.castShadow = !ghost;
         rearRafter.userData.framingStep = 6;
+        rearRafter.userData.framingNameSv = 'Takstol / taksparre (bak)';
+        rearRafter.userData.framingNameEn = 'Rafter / Truss Member (Rear)';
+        rearRafter.userData.dimension = `${Math.round(rafterW * 1000)}×${Math.round(rafterH * 1000)} mm C24 cc 600 mm`;
         beamParent.add(rearRafter);
       }
     }
@@ -6187,6 +6430,38 @@ export class HouseScene {
     this.scene.add(this.hoverBox);
   }
 
+  private updateFramingHoverBox(target: THREE.Object3D | null) {
+    if (this.framingHoverBox) {
+      this.scene.remove(this.framingHoverBox);
+      this.framingHoverBox = null;
+    }
+    if (!target) return;
+
+    const bbox = new THREE.Box3().setFromObject(target);
+    const size = new THREE.Vector3();
+    const center = new THREE.Vector3();
+    bbox.getSize(size);
+    bbox.getCenter(center);
+
+    const pad = 0.01;
+    const boxGeo = new THREE.BoxGeometry(
+      Math.max(0.02, size.x + pad),
+      Math.max(0.02, size.y + pad),
+      Math.max(0.02, size.z + pad)
+    );
+    const edges = new THREE.EdgesGeometry(boxGeo);
+    const lineMat = new THREE.LineBasicMaterial({
+      color: '#f59e0b',
+      linewidth: 2,
+      depthTest: false
+    });
+    const lineSegs = new THREE.LineSegments(edges, lineMat);
+    lineSegs.renderOrder = 999;
+    lineSegs.position.copy(center);
+    this.framingHoverBox = lineSegs;
+    this.scene.add(this.framingHoverBox);
+  }
+
   private updateDragTargetBox(target: THREE.Object3D | null, valid: boolean, isDoorWithCanopy = false) {
     if (this.dragTargetBox) {
       this.scene.remove(this.dragTargetBox);
@@ -7126,6 +7401,8 @@ export class HouseScene {
   }
 
   private syncFramingWalkthrough() {
+    this.updateFramingHoverBox(null);
+    this.onFramingItemHover?.(null);
     const isWalkthrough = Boolean(this.currentConfig.framingWalkthrough);
     const step = Math.max(1, Math.min(7, this.currentConfig.framingStep ?? 1));
 
@@ -7475,38 +7752,36 @@ export class HouseScene {
         target = new THREE.Vector3(cx, h * 0.45, cz);
         pos = new THREE.Vector3(cx + w * 1.15, h * 1.15, cz + d * 1.35);
       }
+    } else if (clamped === 1) {
+      // Step 1: Sill detail looking down at front-left corner anchored to slab
+      target = new THREE.Vector3(cx - w / 2 + 0.45, 0.35, cz + d / 2 - 0.45);
+      pos = new THREE.Vector3(cx - w / 2 - 1.8, 1.45, cz + d / 2 + 2.0);
+    } else if (clamped === 2) {
+      // Step 2: Corner stud vertical plumb alignment
+      target = new THREE.Vector3(cx - w / 2 + 0.1, h * 0.48, cz + d / 2 - 0.1);
+      pos = new THREE.Vector3(cx - w / 2 - 2.2, h * 0.6, cz + d / 2 + 2.6);
+    } else if (clamped === 3) {
+      // Step 3: Regular wall studs cc 600 along front facade
+      target = new THREE.Vector3(cx, h * 0.45, cz + d / 2);
+      pos = new THREE.Vector3(cx - w * 0.45, h * 0.7, cz + d / 2 + 3.2);
+    } else if (clamped === 4) {
+      // Step 4: Window / door opening headers & trimmer jack studs
+      const openings = this.frontOpenings(w, h, 0.25);
+      const focusX = openings.length > 0 ? cx + openings[0].x : cx;
+      target = new THREE.Vector3(focusX, 1.45, cz + d / 2);
+      pos = new THREE.Vector3(focusX, 1.6, cz + d / 2 + 2.4);
+    } else if (clamped === 5) {
+      // Step 5: Hammarband (top plates) & staggered noggings
+      target = new THREE.Vector3(cx, h * 0.75, cz + d * 0.1);
+      pos = new THREE.Vector3(cx - w * 0.48, h * 1.35, cz + d / 2 + 3.2);
+    } else if (clamped === 6) {
+      // Step 6: Roof trusses and structural rafters
+      target = new THREE.Vector3(cx, h + 0.3, cz);
+      pos = new THREE.Vector3(cx - w * 0.65, h * 1.55, cz + d * 0.95);
     } else {
-      if (clamped === 1) {
-        // Step 1: Sill detail looking down at front-left corner anchored to slab
-        target = new THREE.Vector3(cx - w / 2 + 0.45, 0.35, cz + d / 2 - 0.45);
-        pos = new THREE.Vector3(cx - w / 2 - 1.8, 1.45, cz + d / 2 + 2.0);
-      } else if (clamped === 2) {
-        // Step 2: Corner stud vertical plumb alignment
-        target = new THREE.Vector3(cx - w / 2 + 0.1, h * 0.48, cz + d / 2 - 0.1);
-        pos = new THREE.Vector3(cx - w / 2 - 2.2, h * 0.6, cz + d / 2 + 2.6);
-      } else if (clamped === 3) {
-        // Step 3: Regular wall studs cc 600 along front facade
-        target = new THREE.Vector3(cx, h * 0.45, cz + d / 2);
-        pos = new THREE.Vector3(cx - w * 0.45, h * 0.7, cz + d / 2 + 3.2);
-      } else if (clamped === 4) {
-        // Step 4: Window / door opening headers & trimmer jack studs
-        const openings = this.frontOpenings(w, h, 0.25);
-        const focusX = openings.length > 0 ? cx + openings[0].x : cx;
-        target = new THREE.Vector3(focusX, 1.45, cz + d / 2);
-        pos = new THREE.Vector3(focusX, 1.6, cz + d / 2 + 2.4);
-      } else if (clamped === 5) {
-        // Step 5: Hammarband (top plates) & staggered noggings
-        target = new THREE.Vector3(cx, h * 0.75, cz + d * 0.1);
-        pos = new THREE.Vector3(cx - w * 0.48, h * 1.35, cz + d / 2 + 3.2);
-      } else if (clamped === 6) {
-        // Step 6: Roof trusses and structural rafters
-        target = new THREE.Vector3(cx, h + 0.3, cz);
-        pos = new THREE.Vector3(cx - w * 0.65, h * 1.55, cz + d * 0.95);
-      } else {
-        // Step 7: Complete timber skeleton audit
-        target = new THREE.Vector3(cx, h * 0.42, cz);
-        pos = new THREE.Vector3(cx + w * 1.15, h * 1.15, cz + d * 1.35);
-      }
+      // Step 7: Complete timber skeleton audit
+      target = new THREE.Vector3(cx, h * 0.42, cz);
+      pos = new THREE.Vector3(cx + w * 1.15, h * 1.15, cz + d * 1.35);
     }
 
     this.flyCamera(pos, target, 0.6, 0.05);
@@ -7620,6 +7895,7 @@ export class HouseScene {
       this.scene.remove(this.dragTargetBox);
       this.dragTargetBox = null;
     }
+    this.updateFramingHoverBox(null);
     if (this.animFrameId) cancelAnimationFrame(this.animFrameId);
     this.groundMesh = null;
     this.renderer.dispose();
