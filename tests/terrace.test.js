@@ -247,3 +247,42 @@ test('terracePrice scales correctly with sauna building size', () => {
   assert.equal(standard, base + 48000);
   assert.equal(large, base + 56000);
 });
+
+test('acceptTerraces accepts custom depth within [0.8, 6.0] and handles out-of-range values', () => {
+  const terraces = acceptTerraces([
+    { side: 'front', depth: 2.1, span: 'door', roof: false },
+    { side: 'right', depth: 3.5, span: 'full', roof: true },
+    { side: 'back', depth: 0.8, span: 'door', roof: false },
+    { side: 'left', depth: 6.0, span: 'full', roof: false }
+  ]);
+
+  assert.equal(terraces[0].depth, 2.1);
+  assert.equal(terraces[1].depth, 3.5);
+  assert.equal(terraces[2].depth, 0.8);
+  assert.equal(terraces[3].depth, 6.0);
+
+  const outOfRange = acceptTerraces([
+    { side: 'front', depth: 0.4, span: 'door' },
+    { side: 'back', depth: 10.5, span: 'door' }
+  ]);
+  assert.equal(outOfRange[0].depth, 1.8);
+  assert.equal(outOfRange[1].depth, 1.8);
+});
+
+test('custom terrace depths calculate accurate proportional pricing and flush boards', () => {
+  const price24 = terracePrice({ side: 'left', depth: 2.4, span: 'full', roof: false });
+  const price36 = terracePrice({ side: 'left', depth: 3.6, span: 'full', roof: false });
+  const price48 = terracePrice({ side: 'left', depth: 4.8, span: 'full', roof: false });
+
+  assert.ok(price36 > price24);
+  assert.ok(price48 > price36);
+  assert.equal(price48, price24 * 2);
+
+  for (const customD of [1.5, 2.1, 3.7, 4.2, 5.8]) {
+    const layout = terraceBoardLayout(customD);
+    const firstEdge = layout.centers[0] - layout.depth / 2;
+    const lastEdge = layout.centers.at(-1) + layout.depth / 2;
+    assert.ok(Math.abs(firstEdge) < 1e-10);
+    assert.ok(Math.abs(lastEdge - customD) < 1e-10);
+  }
+});

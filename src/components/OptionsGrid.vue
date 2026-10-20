@@ -2257,19 +2257,87 @@
             </button>
           </div>
           <div>
-            <p class="mb-1 text-[11px] font-bold text-slate-700"><Cms k="category.terraceDepth" /></p>
-            <div class="grid grid-cols-5 gap-1.5">
+            <div class="flex items-center justify-between mb-1">
+              <p class="text-[11px] font-bold text-slate-700"><Cms k="category.terraceDepth" /></p>
+              <span class="text-[11px] font-extrabold text-slate-900 tabular-nums">
+                {{ depthLabel(deck.depth) }}
+              </span>
+            </div>
+            <div class="grid grid-cols-6 gap-1.5 mb-1.5">
               <button
                 v-for="depth in terraceDepths"
                 :key="depth"
                 type="button"
                 :id="`terrace-${deck.side}-depth-${Math.round(depth * 10)}`"
-                :aria-pressed="deck.depth === depth"
-                :class="terraceChoiceClass(deck.depth === depth)"
-                @click="store.setTerraceDepth(deck.side, depth)"
+                :aria-pressed="deck.depth === depth && !customDepthOpen[deck.side]"
+                :class="terraceChoiceClass(deck.depth === depth && !customDepthOpen[deck.side])"
+                @click="selectPresetDepth(deck.side, depth)"
               >
                 {{ depthLabel(depth) }}
               </button>
+              <button
+                type="button"
+                :id="`terrace-${deck.side}-depth-custom`"
+                :aria-pressed="isCustomDepth(deck.side, deck.depth)"
+                :class="terraceChoiceClass(isCustomDepth(deck.side, deck.depth))"
+                @click="toggleCustomDepth(deck.side, deck.depth)"
+              >
+                <Cms k="category.customTerraceDepth" fallback="Anpassad" />
+              </button>
+            </div>
+
+            <!-- Custom depth slider & stepper when custom depth is active or deck.depth is custom -->
+            <div
+              v-if="isCustomDepth(deck.side, deck.depth)"
+              class="p-2.5 bg-slate-50/90 rounded-xl border border-slate-200/90 space-y-2 animate-fade-in"
+            >
+              <div class="flex items-center justify-between text-[11px]">
+                <span class="font-medium text-slate-600">
+                  <Cms k="category.customDepthSliderLabel" fallback="Valfritt djup (0,8 – 6,0 m):" />
+                </span>
+                <div class="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    :id="`terrace-${deck.side}-depth-dec`"
+                    @click="stepTerraceDepth(deck.side, -0.1, deck.depth)"
+                    :disabled="deck.depth <= MIN_TERRACE_DEPTH"
+                    class="w-6 h-6 rounded border border-slate-300 bg-white hover:bg-slate-100 flex items-center justify-center font-bold text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                    title="- 0.1 m"
+                  >
+                    −
+                  </button>
+                  <span class="font-extrabold text-slate-900 px-1 tabular-nums">
+                    {{ depthLabel(deck.depth) }}
+                  </span>
+                  <button
+                    type="button"
+                    :id="`terrace-${deck.side}-depth-inc`"
+                    @click="stepTerraceDepth(deck.side, 0.1, deck.depth)"
+                    :disabled="deck.depth >= MAX_TERRACE_DEPTH"
+                    class="w-6 h-6 rounded border border-slate-300 bg-white hover:bg-slate-100 flex items-center justify-center font-bold text-slate-700 disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                    title="+ 0.1 m"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+              <input
+                type="range"
+                :id="`terrace-${deck.side}-depth-slider`"
+                :min="MIN_TERRACE_DEPTH"
+                :max="MAX_TERRACE_DEPTH"
+                step="0.1"
+                :value="deck.depth"
+                @input="onDepthSliderInput(deck.side, $event)"
+                class="w-full accent-slate-900 cursor-pointer"
+              />
+              <div class="flex justify-between text-[10px] text-slate-600 px-0.5 font-medium tabular-nums">
+                <span>{{ MIN_TERRACE_DEPTH.toFixed(1) }} m</span>
+                <span>2,0 m</span>
+                <span>3,0 m</span>
+                <span>4,0 m</span>
+                <span>{{ MAX_TERRACE_DEPTH.toFixed(1) }} m</span>
+              </div>
             </div>
           </div>
           <div>
@@ -2561,6 +2629,8 @@ import {
 } from '../store/useConfigStore';
 import {
   TERRACE_DEPTHS,
+  MIN_TERRACE_DEPTH,
+  MAX_TERRACE_DEPTH,
   TERRACE_SIDES,
   terracePrice,
   SAUNA_BUILDING_PRICE,
@@ -2573,6 +2643,7 @@ import {
   SAUNA_WINDOW_PLACEMENTS,
   SAUNA_SIZES,
   SAUNA_WINDOW_SIZES,
+  type TerraceSide,
   type TerraceDepth,
   type TerraceBuilding,
   type TerraceBuildingPlacement,
@@ -2745,6 +2816,36 @@ function terraceChoiceClass(active: boolean) {
       ? 'border-slate-900 bg-slate-900 text-white'
       : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
   ];
+}
+
+const customDepthOpen = ref<Record<string, boolean>>({});
+
+function isCustomDepth(side: TerraceSide, depth: number): boolean {
+  return !(TERRACE_DEPTHS as readonly number[]).includes(depth) || !!customDepthOpen.value[side];
+}
+
+function selectPresetDepth(side: TerraceSide, depth: number) {
+  customDepthOpen.value[side] = false;
+  store.setTerraceDepth(side, depth);
+}
+
+function toggleCustomDepth(side: TerraceSide, currentDepth: number) {
+  customDepthOpen.value[side] = !customDepthOpen.value[side];
+}
+
+function stepTerraceDepth(side: TerraceSide, deltaM: number, currentDepth: number) {
+  customDepthOpen.value[side] = true;
+  const next = Math.round((currentDepth + deltaM) * 10) / 10;
+  store.setTerraceDepth(side, next);
+}
+
+function onDepthSliderInput(side: TerraceSide, event: Event) {
+  customDepthOpen.value[side] = true;
+  const target = event.target as HTMLInputElement;
+  const val = parseFloat(target.value);
+  if (!Number.isNaN(val)) {
+    store.setTerraceDepth(side, val);
+  }
 }
 
 function depthLabel(depth: TerraceDepth) {
