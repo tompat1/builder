@@ -13,6 +13,22 @@
     <div class="flex items-center gap-1">
       <button
         type="button"
+        id="btn-stomme-mobile"
+        class="grid h-11 w-11 place-items-center rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5A00]"
+        :class="store.framingWalkthrough ? 'bg-amber-500 text-slate-950 font-bold shadow-sm' : 'text-[#173D35] hover:bg-[#F5F3EC]'"
+        :aria-label="locale === 'sv' ? 'Stomguide' : 'Framing Guide'"
+        :title="locale === 'sv' ? 'Stomguide' : 'Framing Guide'"
+        @click="store.framingWalkthrough ? store.stopFramingWalkthrough() : store.startFramingWalkthrough()"
+      >
+        <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="m15 12-8.5 8.5c-.83.83-2.17.83-3 0 0 0 0 0 0 0a2.12 2.12 0 0 1 0-3L12 9" />
+          <path d="M17.64 15 22 10.64" />
+          <path d="m20.91 3.26-6.5 6.5" />
+          <path d="m19.26 2.36 2.38 2.38a1.69 1.69 0 0 1 0 2.38L20 8.75l-4.75-4.75 1.63-1.64a1.69 1.69 0 0 1 2.38 0Z" />
+        </svg>
+      </button>
+      <button
+        type="button"
         id="btn-search-mobile"
         class="grid h-11 w-11 place-items-center rounded-xl text-[#173D35] hover:bg-[#F5F3EC] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5A00]"
         :aria-label="t('search.open')"
@@ -153,17 +169,17 @@
         </button>
       </nav>
 
-    <!-- Center Segmented Master Toggle (Outside / Inside) -->
+    <!-- Center Segmented Master Toggle (Outside / Inside / Stomguide) -->
     <nav class="flex bg-graphite p-1 rounded-xl shadow-inner shrink-0" role="tablist" :aria-label="t('header.view')">
       <button
         type="button"
         role="tab"
         id="toggle-utsida"
-        :aria-selected="store.viewMode === 'utsida'"
+        :aria-selected="store.viewMode === 'utsida' && !store.framingWalkthrough"
         @click="store.setViewMode('utsida')"
         :class="[
           'flex items-center gap-1 px-2.5 min-[1180px]:px-4 py-1 text-xs min-[1180px]:text-sm font-semibold rounded-lg transition-all duration-200 min-h-[30px] min-[1180px]:min-h-[34px]',
-          store.viewMode === 'utsida'
+          store.viewMode === 'utsida' && !store.framingWalkthrough
             ? 'bg-[#FF5A00] text-graphite shadow-sm'
             : 'text-ivory hover:text-white'
         ]"
@@ -175,16 +191,38 @@
         type="button"
         role="tab"
         id="toggle-insida"
-        :aria-selected="store.viewMode === 'insida'"
+        :aria-selected="store.viewMode === 'insida' && !store.framingWalkthrough"
         @click="store.setViewMode('insida')"
         :class="[
           'flex items-center gap-1 px-2.5 min-[1180px]:px-4 py-1 text-xs min-[1180px]:text-sm font-semibold rounded-lg transition-all duration-200 min-h-[30px] min-[1180px]:min-h-[34px]',
-          store.viewMode === 'insida'
+          store.viewMode === 'insida' && !store.framingWalkthrough
             ? 'bg-[#FF5A00] text-graphite shadow-sm'
             : 'text-ivory hover:text-white'
         ]"
       >
         <span><Cms k="header.inside" /></span>
+      </button>
+
+      <button
+        type="button"
+        role="tab"
+        id="toggle-stomme"
+        :aria-selected="store.framingWalkthrough"
+        @click="store.framingWalkthrough ? store.stopFramingWalkthrough() : store.startFramingWalkthrough()"
+        :class="[
+          'flex items-center gap-1.5 px-2.5 min-[1180px]:px-4 py-1 text-xs min-[1180px]:text-sm font-semibold rounded-lg transition-all duration-200 min-h-[30px] min-[1180px]:min-h-[34px]',
+          store.framingWalkthrough
+            ? 'bg-amber-500 text-slate-950 font-extrabold shadow-sm'
+            : 'text-ivory hover:text-amber-300'
+        ]"
+      >
+        <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="m15 12-8.5 8.5c-.83.83-2.17.83-3 0 0 0 0 0 0 0a2.12 2.12 0 0 1 0-3L12 9" />
+          <path d="M17.64 15 22 10.64" />
+          <path d="m20.91 3.26-6.5 6.5" />
+          <path d="m19.26 2.36 2.38 2.38a1.69 1.69 0 0 1 0 2.38L20 8.75l-4.75-4.75 1.63-1.64a1.69 1.69 0 0 1 2.38 0Z" />
+        </svg>
+        <span><Cms k="header.framing" fallback="Stomguide" /></span>
       </button>
     </nav>
     </div>

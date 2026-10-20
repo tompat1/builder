@@ -102,6 +102,10 @@ export interface SceneConfig {
   concreteWalls?: { id: string; axis: 'x' | 'z'; offsetMm: number }[];
   /** Exterior color of the concrete walls (hex code). */
   concreteColor?: string | null;
+  /** Isolated structural framing walkthrough mode */
+  framingWalkthrough?: boolean;
+  /** Current builder walkthrough step (1 to 7) */
+  framingStep?: number;
 }
 
 interface OutsideAnchor {
@@ -140,6 +144,7 @@ export class HouseScene {
     receiveShadow: boolean;
     renderOrder: number;
   }>();
+  private foundationGroup: THREE.Group;
   private wallsGroup: THREE.Group;
   private concreteGroup: THREE.Group;
   private framingGroup: THREE.Group;
@@ -148,6 +153,20 @@ export class HouseScene {
   private trussesGroup: THREE.Group;
   private dimensionsGroup: THREE.Group;
   private interiorGroup: THREE.Group;
+  private activeFramingMat = new THREE.MeshStandardMaterial({
+    color: '#f59e0b',
+    emissive: '#b45309',
+    emissiveIntensity: 0.25,
+    roughness: 0.45,
+    metalness: 0.05,
+    side: THREE.DoubleSide
+  });
+  private builtFramingMat = new THREE.MeshStandardMaterial({
+    color: '#eedec5',
+    roughness: 0.65,
+    metalness: 0.02,
+    side: THREE.DoubleSide
+  });
   private drywallMat!: THREE.MeshStandardMaterial;
   private highlightBox: THREE.LineSegments | null = null;
   private contactShadow: THREE.Mesh | null = null;
@@ -334,6 +353,7 @@ export class HouseScene {
     this.setupLighting();
 
     this.houseGroup = new THREE.Group();
+    this.foundationGroup = new THREE.Group();
     this.concreteGroup = new THREE.Group();
     this.wallsGroup = new THREE.Group();
     this.framingGroup = new THREE.Group();
@@ -350,6 +370,7 @@ export class HouseScene {
       side: THREE.DoubleSide
     });
 
+    this.houseGroup.add(this.foundationGroup);
     this.houseGroup.add(this.wallsGroup);
     this.houseGroup.add(this.framingGroup);
     this.houseGroup.add(this.innerWallsGroup);
@@ -1092,6 +1113,9 @@ export class HouseScene {
 
   public rebuildScene() {
     // Clear groups
+    while (this.foundationGroup.children.length > 0) {
+      this.foundationGroup.remove(this.foundationGroup.children[0]);
+    }
     while (this.wallsGroup.children.length > 0) {
       this.wallsGroup.remove(this.wallsGroup.children[0]);
     }
@@ -1193,14 +1217,14 @@ export class HouseScene {
     slab.position.set(0, 0.125, 0);
     slab.receiveShadow = true;
     slab.castShadow = true;
-    this.wallsGroup.add(slab);
+    this.foundationGroup.add(slab);
 
     // 2. Interior Floor
     const floorGeo = new THREE.BoxGeometry(w - 0.28, 0.05, d - 0.28);
     const floor = new THREE.Mesh(floorGeo, floorMat);
     floor.position.set(0, 0.275, 0);
     floor.receiveShadow = true;
-    this.wallsGroup.add(floor);
+    this.foundationGroup.add(floor);
 
     // 3. Modular Exterior Walls Construction (outer wood siding, inside left open for beams)
     this.windowFitOfferIds = [];
@@ -2128,6 +2152,7 @@ export class HouseScene {
       );
       mesh.position.set(along === 'x' ? at : fixed, y, along === 'z' ? at : fixed);
       mesh.castShadow = true;
+      mesh.userData.framingStep = 4;
       this.framingGroup.add(mesh);
     };
     const bottom = opening.sill < 0.4 ? opening.sill + studThick : opening.sill;
@@ -2170,11 +2195,13 @@ export class HouseScene {
     const frontSyll = new THREE.Mesh(frontSyllGeo, framingMat);
     frontSyll.position.set(0, baseElevation + studThick / 2, framingFrontZ);
     frontSyll.castShadow = true;
+    frontSyll.userData.framingStep = 1;
     this.framingGroup.add(frontSyll);
     if (isConcrete) {
       const frontBeam = new THREE.Mesh(frontSyllGeo, framingMat);
       frontBeam.position.set(0, concreteH + studThick / 2, framingFrontZ);
       frontBeam.castShadow = true;
+      frontBeam.userData.framingStep = 1;
       this.framingGroup.add(frontBeam);
     }
 
@@ -2182,6 +2209,7 @@ export class HouseScene {
     const backSyll = new THREE.Mesh(frontSyllGeo, framingMat);
     backSyll.position.set(0, concreteH + studThick / 2, framingBackZ);
     backSyll.castShadow = true;
+    backSyll.userData.framingStep = 1;
     this.framingGroup.add(backSyll);
 
     // Left sill
@@ -2189,12 +2217,14 @@ export class HouseScene {
     const leftSyll = new THREE.Mesh(sideSyllGeo, framingMat);
     leftSyll.position.set(framingLeftX, concreteH + studThick / 2, 0);
     leftSyll.castShadow = true;
+    leftSyll.userData.framingStep = 1;
     this.framingGroup.add(leftSyll);
 
     // Right sill
     const rightSyll = new THREE.Mesh(sideSyllGeo, framingMat);
     rightSyll.position.set(framingRightX, concreteH + studThick / 2, 0);
     rightSyll.castShadow = true;
+    rightSyll.userData.framingStep = 1;
     this.framingGroup.add(rightSyll);
 
     const shell = this.timberShell();
@@ -2206,11 +2236,13 @@ export class HouseScene {
       const leftExtSyll = new THREE.Mesh(extSyllGeo, framingMat);
       leftExtSyll.position.set(framingLeftX, baseElevation + studThick / 2, extZ);
       leftExtSyll.castShadow = true;
+      leftExtSyll.userData.framingStep = 1;
       this.framingGroup.add(leftExtSyll);
 
       const rightExtSyll = new THREE.Mesh(extSyllGeo, framingMat);
       rightExtSyll.position.set(framingRightX, baseElevation + studThick / 2, extZ);
       rightExtSyll.castShadow = true;
+      rightExtSyll.userData.framingStep = 1;
       this.framingGroup.add(rightExtSyll);
     }
 
@@ -2220,12 +2252,14 @@ export class HouseScene {
     const frontHeader = new THREE.Mesh(frontHeaderGeo, framingMat);
     frontHeader.position.set(0, frontH - studThick / 2, framingFrontZ);
     frontHeader.castShadow = true;
+    frontHeader.userData.framingStep = 5;
     this.framingGroup.add(frontHeader);
 
     // Back header (at rear slope height)
     const backHeader = new THREE.Mesh(frontHeaderGeo, framingMat);
     backHeader.position.set(0, rearH - studThick / 2, framingBackZ);
     backHeader.castShadow = true;
+    backHeader.userData.framingStep = 5;
     this.framingGroup.add(backHeader);
 
     // Sloping side headers on left and right connecting front to rear
@@ -2237,12 +2271,14 @@ export class HouseScene {
     leftHeader.position.set(framingLeftX, (frontH + rearH) / 2 - studThick / 2, 0);
     leftHeader.rotation.x = -slopeAngle;
     leftHeader.castShadow = true;
+    leftHeader.userData.framingStep = 5;
     this.framingGroup.add(leftHeader);
 
     const rightHeader = new THREE.Mesh(sideHeaderGeo, framingMat);
     rightHeader.position.set(framingRightX, (frontH + rearH) / 2 - studThick / 2, 0);
     rightHeader.rotation.x = -slopeAngle;
     rightHeader.castShadow = true;
+    rightHeader.userData.framingStep = 5;
     this.framingGroup.add(rightHeader);
 
     // 3. Vertical Wall Studs (Väggreglar cc 600 mm)
@@ -2260,6 +2296,7 @@ export class HouseScene {
         const cMesh = new THREE.Mesh(cGeo, framingMat);
         cMesh.position.set(cp.x, cp.base + studThick + studH / 2, cp.z);
         cMesh.castShadow = true;
+        cMesh.userData.framingStep = 2;
         this.framingGroup.add(cMesh);
       }
     });
@@ -2283,6 +2320,7 @@ export class HouseScene {
         const studMesh = new THREE.Mesh(new THREE.BoxGeometry(studThick, frontStudH, studDepth), framingMat);
         studMesh.position.set(sx, frontStudBase + studThick + frontStudH / 2, framingFrontZ);
         studMesh.castShadow = true;
+        studMesh.userData.framingStep = 3;
         this.framingGroup.add(studMesh);
       }
 
@@ -2325,6 +2363,7 @@ export class HouseScene {
         const studMesh = new THREE.Mesh(new THREE.BoxGeometry(studThick, rearStudH, studDepth), framingMat);
         studMesh.position.set(sx, concreteH + studThick + rearStudH / 2, framingBackZ);
         studMesh.castShadow = true;
+        studMesh.userData.framingStep = 3;
         this.framingGroup.add(studMesh);
       }
       for (const opening of backOpenings) {
@@ -2353,6 +2392,7 @@ export class HouseScene {
           const leftStud = new THREE.Mesh(new THREE.BoxGeometry(studDepth, leftStudH, studThick), framingMat);
           leftStud.position.set(framingLeftX, leftBase + studThick + leftStudH / 2, sz);
           leftStud.castShadow = true;
+          leftStud.userData.framingStep = 3;
           this.framingGroup.add(leftStud);
         }
       }
@@ -2367,6 +2407,7 @@ export class HouseScene {
           const rightStud = new THREE.Mesh(new THREE.BoxGeometry(studDepth, rightStudH, studThick), framingMat);
           rightStud.position.set(framingRightX, rightBase + studThick + rightStudH / 2, sz);
           rightStud.castShadow = true;
+          rightStud.userData.framingStep = 3;
           this.framingGroup.add(rightStud);
         }
       }
@@ -2462,6 +2503,7 @@ export class HouseScene {
         const mid = (gap.from + gap.to) / 2;
         mesh.position.set(axis === 'x' ? mid : fixed, centerY, axis === 'z' ? mid : fixed);
         mesh.castShadow = true;
+        mesh.userData.framingStep = 5;
         this.framingGroup.add(mesh);
       }
     });
@@ -3374,6 +3416,7 @@ export class HouseScene {
       );
       stud.position.set(along === 'x' ? alongPos : fixed, y, along === 'z' ? alongPos : fixed);
       stud.castShadow = true;
+      stud.userData.framingStep = 4;
       this.framingGroup.add(stud);
     };
     const spans = [...blocked].sort((a, b) => a.sill - b.sill);
@@ -4684,6 +4727,7 @@ export class HouseScene {
         );
         rafter.rotation.x = -slopeAngle;
         rafter.castShadow = !ghost;
+        rafter.userData.framingStep = 6;
         beamParent.add(rafter);
       }
     } else if (this.currentConfig.roofType === 'flackt') {
@@ -4697,6 +4741,7 @@ export class HouseScene {
         rafter.position.set(rx, h - (ghost ? rafterH / 2 - 0.04 : 0.12), 0);
         rafter.rotation.x = -shallowAngle;
         rafter.castShadow = !ghost;
+        rafter.userData.framingStep = 6;
         beamParent.add(rafter);
       }
     } else {
@@ -4712,12 +4757,14 @@ export class HouseScene {
         frontRafter.position.set(rx, y, d / 4);
         frontRafter.rotation.x = gableAngle;
         frontRafter.castShadow = !ghost;
+        frontRafter.userData.framingStep = 6;
         beamParent.add(frontRafter);
 
         const rearRafter = new THREE.Mesh(rafterGeo, rafterMat);
         rearRafter.position.set(rx, y, -d / 4);
         rearRafter.rotation.x = -gableAngle;
         rearRafter.castShadow = !ghost;
+        rearRafter.userData.framingStep = 6;
         beamParent.add(rearRafter);
       }
     }
@@ -5898,6 +5945,18 @@ export class HouseScene {
     const prevH = this.currentConfig.heightMm;
     this.ghostInstant = !viewChanged;
     const interactionChanged = config.interactionMode !== undefined && config.interactionMode !== this.currentConfig.interactionMode;
+    if (
+      (config.framingWalkthrough !== undefined || config.framingStep !== undefined) &&
+      config.widthMm === undefined &&
+      config.depthMm === undefined &&
+      config.heightMm === undefined &&
+      config.roofType === undefined &&
+      config.wallSlots === undefined
+    ) {
+      Object.assign(this.currentConfig, config);
+      this.applyViewMode();
+      return;
+    }
     if (config.showInnerWalls !== undefined && Object.keys(config).length === 1) {
       this.currentConfig.showInnerWalls = config.showInnerWalls;
       this.innerWallsGroup.visible = this.currentConfig.viewMode === 'blueprint'
@@ -6735,9 +6794,56 @@ export class HouseScene {
     this.applyViewMode();
   }
 
+  private syncFramingWalkthrough() {
+    const isWalkthrough = Boolean(this.currentConfig.framingWalkthrough);
+    const step = Math.max(1, Math.min(7, this.currentConfig.framingStep ?? 1));
+
+    const processGroup = (group: THREE.Group) => {
+      group.traverse((obj) => {
+        if (obj instanceof THREE.Mesh && obj.userData && typeof obj.userData.framingStep === 'number') {
+          const meshStep = obj.userData.framingStep;
+          if (!isWalkthrough) {
+            obj.visible = true;
+            obj.material = this.builtFramingMat;
+          } else if (meshStep > step) {
+            obj.visible = false;
+          } else {
+            obj.visible = true;
+            if (step === 7) {
+              obj.material = this.builtFramingMat;
+            } else if (meshStep === step) {
+              obj.material = this.activeFramingMat;
+            } else {
+              obj.material = this.builtFramingMat;
+            }
+          }
+        }
+      });
+    };
+
+    processGroup(this.framingGroup);
+    processGroup(this.trussesGroup);
+  }
+
   private applyViewMode() {
-    this.wallsGroup.visible = true;
     if (this.contactShadow) this.contactShadow.visible = true;
+
+    if (this.currentConfig.framingWalkthrough) {
+      this.wallsGroup.visible = false;
+      this.roofGroup.visible = false;
+      this.innerWallsGroup.visible = false;
+      this.loftGroup.visible = false;
+      this.dimensionsGroup.visible = false;
+      this.interiorGroup.visible = false;
+      this.framingGroup.visible = true;
+      this.trussesGroup.visible = true;
+      if (this.gridHelper) this.gridHelper.visible = false;
+      this.syncFramingWalkthrough();
+      return;
+    }
+
+    this.wallsGroup.visible = true;
+    this.syncFramingWalkthrough();
 
     const showInner = this.currentConfig.showInnerWalls ?? true;
     if (this.ceilingDrywallGroup) {
@@ -6943,6 +7049,10 @@ export class HouseScene {
 
   /** Return the camera to the marked outside view, or the starting frame of this view. */
   public resetView() {
+    if (this.currentConfig.framingWalkthrough) {
+      this.frameFramingStep(this.currentConfig.framingStep ?? 1);
+      return;
+    }
     this.followFrame = true;
     const marked = this.defaultView;
     const outside = this.currentConfig.viewMode === 'utsida'
@@ -6983,6 +7093,54 @@ export class HouseScene {
       this.controls.minDistance,
       this.camera.near
     );
+  }
+
+  /** Smoothly glide camera and focus on the current timber framing construction step */
+  public frameFramingStep(step: number) {
+    const clamped = Math.max(1, Math.min(7, Math.round(step || 1)));
+    const shell = this.timberShell();
+    const w = shell.widthM;
+    const d = shell.depthM;
+    const h = this.wallTopM();
+    const cx = shell.x;
+    const cz = shell.z;
+
+    let target = new THREE.Vector3(cx, h * 0.45, cz);
+    let pos = new THREE.Vector3(cx + w * 1.15, h * 1.15, cz + d * 1.35);
+
+    if (clamped === 1) {
+      // Step 1: Sill detail looking down at front-left corner anchored to slab
+      target = new THREE.Vector3(cx - w / 2 + 0.45, 0.35, cz + d / 2 - 0.45);
+      pos = new THREE.Vector3(cx - w / 2 - 1.8, 1.45, cz + d / 2 + 2.0);
+    } else if (clamped === 2) {
+      // Step 2: Corner stud vertical plumb alignment
+      target = new THREE.Vector3(cx - w / 2 + 0.1, h * 0.48, cz + d / 2 - 0.1);
+      pos = new THREE.Vector3(cx - w / 2 - 2.2, h * 0.6, cz + d / 2 + 2.6);
+    } else if (clamped === 3) {
+      // Step 3: Regular wall studs cc 600 along front facade
+      target = new THREE.Vector3(cx, h * 0.45, cz + d / 2);
+      pos = new THREE.Vector3(cx - w * 0.45, h * 0.7, cz + d / 2 + 3.2);
+    } else if (clamped === 4) {
+      // Step 4: Window / door opening headers & trimmer jack studs
+      const openings = this.frontOpenings(w, h, 0.25);
+      const focusX = openings.length > 0 ? cx + openings[0].x : cx;
+      target = new THREE.Vector3(focusX, 1.45, cz + d / 2);
+      pos = new THREE.Vector3(focusX, 1.6, cz + d / 2 + 2.4);
+    } else if (clamped === 5) {
+      // Step 5: Hammarband (top plates) & staggered noggings
+      target = new THREE.Vector3(cx, h * 0.75, cz + d * 0.1);
+      pos = new THREE.Vector3(cx - w * 0.48, h * 1.35, cz + d / 2 + 3.2);
+    } else if (clamped === 6) {
+      // Step 6: Roof trusses and structural rafters
+      target = new THREE.Vector3(cx, h + 0.3, cz);
+      pos = new THREE.Vector3(cx - w * 0.65, h * 1.55, cz + d * 0.95);
+    } else {
+      // Step 7: Complete timber skeleton audit
+      target = new THREE.Vector3(cx, h * 0.42, cz);
+      pos = new THREE.Vector3(cx + w * 1.15, h * 1.15, cz + d * 1.35);
+    }
+
+    this.flyCamera(pos, target, 0.6, 0.05);
   }
 
   public getCanvas(): HTMLCanvasElement {

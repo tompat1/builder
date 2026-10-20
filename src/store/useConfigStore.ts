@@ -554,6 +554,8 @@ export {
 export const useConfigStore = defineStore('config', () => {
   const displayPrefs = loadDisplayPrefs();
   const viewMode = ref<ViewMode>('utsida');
+  const framingWalkthrough = ref<boolean>(false);
+  const framingStep = ref<number>(1);
   const interactionMode = ref<InteractionMode>('default');
   const generateElectricalSignal = ref(0);
   const interiorFocusSignal = ref(0);
@@ -1110,12 +1112,39 @@ export const useConfigStore = defineStore('config', () => {
   });
 
   const toggleViewMode = () => {
+    framingWalkthrough.value = false;
     viewMode.value = viewMode.value === 'utsida' ? 'insida' : 'utsida';
   }
 
   const setViewMode = (mode: ViewMode) => {
+    framingWalkthrough.value = false;
     viewMode.value = mode;
   }
+
+  const startFramingWalkthrough = () => {
+    framingWalkthrough.value = true;
+    framingStep.value = 1;
+  };
+
+  const stopFramingWalkthrough = () => {
+    framingWalkthrough.value = false;
+  };
+
+  const setFramingStep = (step: number) => {
+    framingStep.value = Math.max(1, Math.min(7, Math.round(step || 1)));
+  };
+
+  const nextFramingStep = () => {
+    if (framingStep.value < 7) {
+      framingStep.value++;
+    }
+  };
+
+  const prevFramingStep = () => {
+    if (framingStep.value > 1) {
+      framingStep.value--;
+    }
+  };
 
   const setInteractionMode = (mode: InteractionMode) => {
     interactionMode.value = mode;
@@ -1128,6 +1157,7 @@ export const useConfigStore = defineStore('config', () => {
   let viewModeBeforeLoft: ViewMode | null = null;
 
   const selectCategory = (category: CategoryKey) => {
+    framingWalkthrough.value = false;
     const effectiveCategory = category === 'gates' ? 'doors' : category;
     if (effectiveCategory === 'doors' || effectiveCategory === 'windows' || effectiveCategory === 'extras' || effectiveCategory === 'color') {
       viewMode.value = 'utsida';
@@ -2268,6 +2298,13 @@ export const useConfigStore = defineStore('config', () => {
     selectedSlotCanAcceptDoor,
     toggleViewMode,
     setViewMode,
+    framingWalkthrough,
+    framingStep,
+    startFramingWalkthrough,
+    stopFramingWalkthrough,
+    setFramingStep,
+    nextFramingStep,
+    prevFramingStep,
     setInteractionMode,
     triggerGenerateElectrical,
     selectCategory,

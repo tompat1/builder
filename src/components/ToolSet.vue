@@ -265,6 +265,23 @@
               </svg>
               <span class="tool-tip"><Cms k="interior.innerWalls" fallback="Innerväggar (gips)" /></span>
             </button>
+            <div class="w-px h-7 bg-slate-200/60"></div>
+            <button
+              type="button"
+              id="btn-tool-framing"
+              @click="store.framingWalkthrough ? store.stopFramingWalkthrough() : store.startFramingWalkthrough()"
+              :aria-pressed="store.framingWalkthrough"
+              :aria-label="locale === 'sv' ? 'Stomguide (byggmästarvandring)' : 'Framing Guide'"
+              :class="toolButton(store.framingWalkthrough)"
+            >
+              <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m15 12-8.5 8.5c-.83.83-2.17.83-3 0 0 0 0 0 0 0a2.12 2.12 0 0 1 0-3L12 9" />
+                <path d="M17.64 15 22 10.64" />
+                <path d="m20.91 3.26-6.5 6.5" />
+                <path d="m19.26 2.36 2.38 2.38a1.69 1.69 0 0 1 0 2.38L20 8.75l-4.75-4.75 1.63-1.64a1.69 1.69 0 0 1 2.38 0Z" />
+              </svg>
+              <span class="tool-tip"><Cms k="header.framing" fallback="Stomguide" /></span>
+            </button>
           </div>
         </div>
         <button
@@ -541,7 +558,7 @@ function onSunInput(event: Event) {
 function onSunCommit(event: Event) {
   store.commitSunHour(Number((event.target as HTMLInputElement).value));
 }
-const { t } = useLabels();
+const { t, locale } = useLabels();
 const rulerOpen = ref(false);
 const sunOpen = ref(false);
 const viewOpen = ref(false);

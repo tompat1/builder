@@ -176,7 +176,9 @@ onMounted(() => {
       concreteDepthMm: store.concreteDepth,
       concreteHeightMm: store.concreteHeight,
       concreteWalls: store.concreteWalls.map((wall) => ({ ...wall })),
-      concreteColor: store.concreteColor
+      concreteColor: store.concreteColor,
+      framingWalkthrough: store.framingWalkthrough,
+      framingStep: store.framingStep
     });
 
     (window as any).__houseScene = engine;
@@ -560,6 +562,20 @@ watch(
   }
 );
 
+// Watch structural framing walkthrough & step
+watch(
+  [() => store.framingWalkthrough, () => store.framingStep],
+  ([walkthrough, step]) => {
+    engine?.updateConfig({
+      framingWalkthrough: walkthrough,
+      framingStep: step
+    });
+    if (walkthrough) {
+      engine?.frameFramingStep(step);
+    }
+  }
+);
+
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onRoomKey);
   engine?.destroy();
@@ -571,6 +587,7 @@ defineExpose({
   zoomOut: () => engine?.zoomOut(),
   resetView: () => engine?.resetView(),
   reframeInterior: () => engine?.reframeInterior(),
+  frameFramingStep: (step: number) => engine?.frameFramingStep(step),
   markView: () => {
     const view = engine?.captureView();
     if (view) store.markDefaultView(view);

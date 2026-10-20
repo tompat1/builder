@@ -20,17 +20,20 @@
     <!-- 3D Scene In-Canvas Overlays (Aligned with the 3D Canvas Area) -->
     <div
       class="pointer-events-none absolute inset-0 z-10 overflow-hidden transition-all duration-300 min-[1180px]:right-[434px]"
-      :style="{ right: store.isFullscreen ? '0px' : undefined }"
+      :style="{ right: (store.isFullscreen || store.framingWalkthrough) ? '0px' : undefined }"
     >
       <!-- 3D Dimension Overlay -->
       <DimensionOverlay />
       <MeasureRuler />
 
-      <!-- In-Scene Wall Panel Interaction Overlay (disabled in fullscreen mode) -->
-      <PanelSlotOverlay v-if="!store.isFullscreen" />
+      <!-- In-Scene Wall Panel Interaction Overlay (disabled in fullscreen mode and walkthrough) -->
+      <PanelSlotOverlay v-if="!store.isFullscreen && !store.framingWalkthrough" />
 
       <HouseNotes />
     </div>
+
+    <!-- Master Carpenter Timber Framing Walkthrough Overlay -->
+    <BuilderWalkthroughOverlay v-if="store.framingWalkthrough" />
 
     <MoodBoard v-if="store.showMood" />
 
@@ -88,7 +91,7 @@
 
     <!-- Right Sidebar / Mobile Bottom Sheet -->
     <aside
-      v-if="!store.isFullscreen"
+      v-if="!store.isFullscreen && !store.framingWalkthrough"
       id="config-panel"
       class="pointer-events-auto z-40 mt-auto flex w-full flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 shadow-xl backdrop-blur-md max-[1179px]:max-h-[min(68dvh,calc(100dvh-11rem))] min-[1180px]:absolute min-[1180px]:bottom-[max(1.5rem,env(safe-area-inset-bottom))] min-[1180px]:right-6 min-[1180px]:top-24 min-[1180px]:h-auto min-[1180px]:max-h-[calc(100dvh-7.5rem)] min-[1180px]:justify-between"
       :style="panelInlineStyle"
@@ -181,6 +184,7 @@ import ToolSet from './ToolSet.vue';
 import DimensionOverlay from './DimensionOverlay.vue';
 import MeasureRuler from './MeasureRuler.vue';
 import PanelSlotOverlay from './PanelSlotOverlay.vue';
+import BuilderWalkthroughOverlay from './BuilderWalkthroughOverlay.vue';
 import HouseNotes from './HouseNotes.vue';
 import MoodBoard from './MoodBoard.vue';
 import Cms from './Cms.vue';
