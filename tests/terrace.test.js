@@ -196,6 +196,40 @@ test('sauna color can be changed and preserves valid choices', () => {
     buildingColor: 'falurod'
   }]);
   assert.equal(updated.buildingColor, 'falurod');
+
+  const [matched] = acceptTerraces([{
+    ...initial,
+    buildingColor: 'match'
+  }]);
+  assert.equal(matched.buildingColor, 'match');
+});
+
+test('choosing roof low and updating sauna size preserves both roof and size', () => {
+  const [deckWithLowRoof] = acceptTerraces([{
+    side: 'front',
+    depth: 2.0,
+    span: 'full',
+    roof: false,
+    building: 'sauna',
+    buildingRoof: 'low',
+    buildingSize: 'standard'
+  }]);
+  assert.equal(deckWithLowRoof.buildingRoof, 'low');
+  assert.equal(deckWithLowRoof.buildingSize, 'standard');
+
+  const [updatedCompact] = acceptTerraces([{
+    ...deckWithLowRoof,
+    buildingSize: 'compact'
+  }]);
+  assert.equal(updatedCompact.buildingRoof, 'low');
+  assert.equal(updatedCompact.buildingSize, 'compact');
+
+  const [updatedLarge] = acceptTerraces([{
+    ...deckWithLowRoof,
+    buildingSize: 'large'
+  }]);
+  assert.equal(updatedLarge.buildingRoof, 'low');
+  assert.equal(updatedLarge.buildingSize, 'large');
 });
 
 test('sauna accepts building size and window size choices', () => {

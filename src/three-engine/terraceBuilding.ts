@@ -39,6 +39,10 @@ export interface TerraceCabinOptions {
   colorId?: SaunaColor;
   /** Main house exterior color */
   houseColorHex?: string;
+  /** Main house corner boards color */
+  houseCornerHex?: string;
+  /** Main house window casing/framing color */
+  houseCasingHex?: string;
 }
 
 /**
@@ -88,6 +92,23 @@ export function addTerraceCabin(group: THREE.Group, options: TerraceCabinOptions
     roughness: 0.55,
     metalness: 0.04
   });
+
+  const isMatchHouse = sauna && colorId === 'match';
+  const cornerMat = isMatchHouse && options.houseCornerHex
+    ? new THREE.MeshStandardMaterial({
+        color: new THREE.Color(options.houseCornerHex),
+        roughness: 0.58,
+        metalness: 0.02
+      })
+    : trimMat;
+
+  const casingMat = isMatchHouse && (options.houseCasingHex || options.houseCornerHex)
+    ? new THREE.MeshStandardMaterial({
+        color: new THREE.Color(options.houseCasingHex ?? options.houseCornerHex!),
+        roughness: 0.58,
+        metalness: 0.02
+      })
+    : trimMat;
   const metalMat = new THREE.MeshStandardMaterial({ color: '#1e242b', roughness: 0.28, metalness: 0.86 });
   const glassMat = new THREE.MeshStandardMaterial({
     color: sauna ? '#e7f2f4' : '#b7c3ce',
@@ -148,14 +169,14 @@ export function addTerraceCabin(group: THREE.Group, options: TerraceCabinOptions
       altMat,
       recessMat,
       innerMat,
-      trimMat,
+      trimMat: casingMat,
       hole: windowHere ?? doorHere,
       frameHole: windowHere != null,
       windowId: windowHere != null ? windowId : undefined
     });
   }
 
-  addCornerPosts(group, trimMat, deckTop, x0, x1, houseZ, yardZ, topAt, yardTop);
+  addCornerPosts(group, cornerMat, deckTop, x0, x1, houseZ, yardZ, topAt, yardTop);
   addRoof(group, {
     bX,
     bW,
@@ -166,7 +187,7 @@ export function addTerraceCabin(group: THREE.Group, options: TerraceCabinOptions
     topAt,
     roofMat,
     innerMat,
-    trimMat
+    trimMat: cornerMat
   });
   addFloor(group, innerMat, bX, bW, bD, deckTop, outward);
 
@@ -202,7 +223,7 @@ export function addTerraceCabin(group: THREE.Group, options: TerraceCabinOptions
       doorType: doorId,
       sauna,
       glassMat,
-      trimMat,
+      trimMat: casingMat,
       leafMat: isGlass ? glassMat : outerMat
     });
   }

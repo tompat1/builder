@@ -3512,6 +3512,32 @@ export class HouseScene {
     }
   }
 
+  private houseCornerHex(): string {
+    const cc = this.currentConfig.cornerColor;
+    if (cc && cc !== 'same') {
+      if (cc === 'white') return '#f8fafc';
+      if (cc === 'falurod') return '#892622';
+      if (cc === 'grey') return '#64748b';
+      if (cc === 'black') return '#1a1c1b';
+      if (cc === 'wood') return '#f6ead8';
+      if (cc.startsWith('#')) return cc;
+    }
+    return this.houseExteriorHex();
+  }
+
+  private houseCasingHex(): string {
+    const cc = this.currentConfig.cornerColor;
+    if (cc && cc !== 'same') {
+      if (cc === 'white') return '#f8fafc';
+      if (cc === 'falurod') return '#892622';
+      if (cc === 'grey') return '#64748b';
+      if (cc === 'black') return '#1a1c1b';
+      if (cc === 'wood') return '#f6ead8';
+      if (cc.startsWith('#')) return cc;
+    }
+    return this.casingColor();
+  }
+
   private addTerrace(
     door: OutsideAnchor,
     deckMat: THREE.Material,
@@ -3596,18 +3622,18 @@ export class HouseScene {
 
     const hasBuilding = terrace.building === 'sauna' || terrace.building === 'shed';
     const isLeft = terrace.buildingPlacement === 'left';
-    let targetBW = 2.1;
+    let targetBW = 2.2;
     let targetBD = 2.0;
     if (terrace.building === 'sauna') {
       const sz = terrace.buildingSize ?? 'standard';
       if (sz === 'compact') {
-        targetBW = 1.7;
+        targetBW = 1.8;
         targetBD = 1.6;
       } else if (sz === 'large') {
         targetBW = 2.6;
-        targetBD = 2.4;
+        targetBD = 2.2;
       } else {
-        targetBW = 2.1;
+        targetBW = 2.2;
         targetBD = 2.0;
       }
     }
@@ -3688,7 +3714,9 @@ export class HouseScene {
         windowPlacement: terrace.buildingWindowPlacement,
         windowSize: terrace.buildingWindowSize,
         colorId: terrace.buildingColor,
-        houseColorHex: this.houseExteriorHex()
+        houseColorHex: this.houseExteriorHex(),
+        houseCornerHex: this.houseCornerHex(),
+        houseCasingHex: this.houseCasingHex()
       });
     }
 

@@ -1702,6 +1702,8 @@ export const useConfigStore = defineStore('config', () => {
     const buildingDoorChanged = (next.buildingDoor ?? 'glass') !== (current.buildingDoor ?? 'glass');
     const buildingWindowChanged = (next.buildingWindow ?? 'panorama') !== (current.buildingWindow ?? 'panorama');
     const buildingWindowPlacementChanged = (next.buildingWindowPlacement ?? 'yard') !== (current.buildingWindowPlacement ?? 'yard');
+    const buildingSizeChanged = (next.buildingSize ?? 'standard') !== (current.buildingSize ?? 'standard');
+    const buildingWindowSizeChanged = (next.buildingWindowSize ?? 'standard') !== (current.buildingWindowSize ?? 'standard');
     if (
       next.side === current.side &&
       next.depth === current.depth &&
@@ -1714,7 +1716,9 @@ export const useConfigStore = defineStore('config', () => {
       !buildingColorChanged &&
       !buildingDoorChanged &&
       !buildingWindowChanged &&
-      !buildingWindowPlacementChanged
+      !buildingWindowPlacementChanged &&
+      !buildingSizeChanged &&
+      !buildingWindowSizeChanged
     ) {
       return;
     }
@@ -1762,7 +1766,9 @@ export const useConfigStore = defineStore('config', () => {
   }
 
   const setTerraceBuilding = (side: TerraceSide, building: TerraceBuilding) => {
-    replaceTerrace(side, { building });
+    const current = terraces.value.find((item) => item.side === side);
+    const depth = building === 'sauna' && current && current.depth < 2.0 ? 2.0 : undefined;
+    replaceTerrace(side, { building, ...(depth ? { depth } : {}) });
   }
 
   const setTerraceBuildingPlacement = (side: TerraceSide, buildingPlacement: TerraceBuildingPlacement) => {
@@ -1801,7 +1807,10 @@ export const useConfigStore = defineStore('config', () => {
 
   const setTerraceBuildingSize = (side: TerraceSide, buildingSize: SaunaSize) => {
     if (!SAUNA_SIZES.includes(buildingSize)) return;
-    replaceTerrace(side, { buildingSize });
+    const current = terraces.value.find((item) => item.side === side);
+    const minDepth = buildingSize === 'large' ? 2.2 : (buildingSize === 'standard' ? 2.0 : 1.6);
+    const depth = current && current.depth < minDepth ? minDepth : undefined;
+    replaceTerrace(side, { buildingSize, ...(depth ? { depth } : {}) });
   }
 
   const setTerraceBuildingWindowSize = (side: TerraceSide, buildingWindowSize: SaunaWindowSize) => {
