@@ -13,7 +13,9 @@ import {
   calculateShoppingSummary,
   generateShoppingSummaryText,
   generateShoppingCsv,
-  getCuratedSeedItems
+  getCuratedSeedItems,
+  POLISH_TRICITY_STORES,
+  resetShoppingListToSeeds
 } from '../src/services/shoppingSave.ts';
 
 // Mock localStorage for test environment
@@ -78,11 +80,18 @@ test('curated seed items provide comprehensive starter items for house building 
   assert.ok(categories.has('kitchen'));
   assert.ok(categories.has('furniture'));
 
-  // Verify specific requested items exist in seeds
-  assert.ok(seeds.some((s) => s.title.toLowerCase().includes('gräsklippare')));
-  assert.ok(seeds.some((s) => s.title.toLowerCase().includes('såg') || s.title.toLowerCase().includes('skruvdragare')));
-  assert.ok(seeds.some((s) => s.title.toLowerCase().includes('induktionshäll') || s.title.toLowerCase().includes('kyl')));
-  assert.ok(seeds.some((s) => s.title.toLowerCase().includes('säng') || s.title.toLowerCase().includes('soffa') || s.title.toLowerCase().includes('bord')));
+  // Verify specific requested items exist in seeds in English
+  assert.ok(seeds.some((s) => s.title.toLowerCase().includes('lawn mower') || s.title.toLowerCase().includes('mower')));
+  assert.ok(seeds.some((s) => s.title.toLowerCase().includes('saw') || s.title.toLowerCase().includes('drill')));
+  assert.ok(seeds.some((s) => s.title.toLowerCase().includes('induction') || s.title.toLowerCase().includes('fridge')));
+  assert.ok(seeds.some((s) => s.title.toLowerCase().includes('bed') || s.title.toLowerCase().includes('sofa') || s.title.toLowerCase().includes('table')));
+
+  // Verify Polish Gdańsk / Gdynia stores are referenced
+  assert.ok(seeds.some((s) => s.storeOrUrl?.includes('Gdańsk') || s.storeOrUrl?.includes('Gdynia')));
+  assert.ok(seeds.some((s) => s.storeOrUrl?.includes('Castorama')));
+  assert.ok(seeds.some((s) => s.storeOrUrl?.includes('Leroy Merlin')));
+  assert.ok(seeds.some((s) => s.storeOrUrl?.includes('IKEA Gdańsk')));
+  assert.ok(seeds.some((s) => s.storeOrUrl?.includes('Bricoman Gdańsk')));
 });
 
 test('loadShoppingList initializes and pre-seeds a new house project shopping list', () => {
@@ -251,15 +260,15 @@ test('generateShoppingSummaryText and generateShoppingCsv output well-structured
   ];
 
   const text = generateShoppingSummaryText(items);
-  assert.ok(text.includes('=== Inköpslista & Planerade Inköp ==='));
+  assert.ok(text.includes('=== Shopping List & Planned Purchases ==='));
   assert.ok(text.includes('1 600 zł'));
   assert.ok(text.includes('Kap- & gersåg 216mm'));
   assert.ok(text.includes('Castorama'));
 
   const csv = generateShoppingCsv(items);
-  assert.ok(csv.startsWith('Status;Artikel;Kategori;Prioritet;Antal;Enhet;Estimerat pris (PLN);Estimerat pris (SEK);Inköpt pris (PLN);Butik/Länk;Anteckningar'));
+  assert.ok(csv.startsWith('Status;Item;Category;Priority;Quantity;Unit;Estimated Price (PLN);Estimated Price (SEK);Purchased Price (PLN);Store/Link;Notes'));
   assert.ok(csv.includes('"Kap- & gersåg 216mm"'));
-  assert.ok(csv.includes('"Elverktyg & Byggmaskiner"'));
+  assert.ok(csv.includes('"Power Tools & Machinery"'));
 });
 
 test('saveShoppingList persists state and seedCuratedItemsToShoppingList appends non-duplicate seeds', () => {
@@ -271,7 +280,7 @@ test('saveShoppingList persists state and seedCuratedItemsToShoppingList appends
     items: [
       {
         id: 'existing_1',
-        title: 'Robotgräsklippare med installationskit',
+        title: 'Robotic lawn mower with installation kit',
         category: 'garden',
         estimatedPricePln: 2800,
         quantity: 1,
@@ -284,11 +293,37 @@ test('saveShoppingList persists state and seedCuratedItemsToShoppingList appends
 
   const initial = loadShoppingList(houseKey);
   assert.equal(initial.items.length, 1);
+  assert.ok(initial.items[0].title.toLowerCase().includes('lawn mower'));
 
   // Seed curated items: should add all items except the one already present
   const updated = seedCuratedItemsToShoppingList(houseKey);
   assert.ok(updated.length > 15);
-  // Ensure the robotgräsklippare was not duplicated
-  const mowers = updated.filter((i) => i.title.toLowerCase().includes('robotgräsklippare'));
+  // Ensure the robotic lawn mower was not duplicated
+  const mowers = updated.filter((i) => i.title.toLowerCase().includes('lawn mower'));
   assert.equal(mowers.length, 1);
+});
+
+test('POLISH_TRICITY_STORES covers major home improvement retailers in Gdańsk and Gdynia', () => {
+  assert.ok(POLISH_TRICITY_STORES.length >= 7);
+  const cities = new Set(POLISH_TRICITY_STORES.map((s) => s.city));
+  assert.ok(cities.has('Gdańsk'));
+  assert.ok(cities.has('Gdynia'));
+
+  assert.ok(POLISH_TRICITY_STORES.some((s) => s.name.includes('Castorama Gdańsk')));
+  assert.ok(POLISH_TRICITY_STORES.some((s) => s.name.includes('Leroy Merlin')));
+  assert.ok(POLISH_TRICITY_STORES.some((s) => s.name.includes('Bricoman Gdańsk')));
+  assert.ok(POLISH_TRICITY_STORES.some((s) => s.name.includes('IKEA Gdańsk')));
+  assert.ok(POLISH_TRICITY_STORES.some((s) => s.name.includes('OBI Gdańsk')));
+});
+
+test('resetShoppingListToSeeds resets house items to fresh English Gdańsk/Gdynia seed catalogue', () => {
+  globalThis.localStorage.clear();
+  const houseKey = 'house_reset_test';
+
+  const resetState = resetShoppingListToSeeds(houseKey);
+  assert.ok(resetState.items.length >= 15);
+  for (const item of resetState.items) {
+    assert.ok(item.title);
+    assert.ok(item.storeOrUrl?.includes('Gdańsk') || item.storeOrUrl?.includes('Gdynia'));
+  }
 });

@@ -10,6 +10,7 @@ This directory contains **Directives** — Standard Operating Procedures (SOPs) 
 | [Public image conversion](image_conversion.md) | Turn PNG and JPEG files in `public/` into WebP and rewrite the links |
 | [Account sign-in providers](account_providers.md) | GitHub sign-in, and the plan for Google and Apple |
 | [Trello boards for house projects](trello_boards.md) | Connect Trello, create a board per house, auto-fill tasks |
+| [Polish stores shopping scraper (Gdańsk & Gdynia)](polish_stores_shopping_scraper.md) | Source products and tools focusing on Polish stores in Gdańsk & Gdynia |
 
 ## 📄 Template Structure
 

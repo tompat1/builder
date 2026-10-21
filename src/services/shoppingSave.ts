@@ -264,223 +264,553 @@ function writeBucket(bucket: Record<string, ShoppingState>): void {
   }
 }
 
+export interface PolishStoreTricity {
+  id: string;
+  name: string;
+  chain: string;
+  city: 'Gdańsk' | 'Gdynia';
+  location: string;
+  address: string;
+  searchUrl: (query: string) => string;
+  specialty: string;
+}
+
+export const POLISH_TRICITY_STORES: PolishStoreTricity[] = [
+  {
+    id: 'castorama_oliwa',
+    name: 'Castorama Gdańsk Oliwa',
+    chain: 'Castorama',
+    city: 'Gdańsk',
+    location: 'Oliwa',
+    address: 'al. Grunwaldzka 262, 80-314 Gdańsk',
+    searchUrl: (q: string) => `https://www.castorama.pl/szukaj?query=${encodeURIComponent(q)}`,
+    specialty: 'Power tools (DeWalt, Bosch), siding timber, decking, plumbing'
+  },
+  {
+    id: 'castorama_osowa',
+    name: 'Castorama Gdańsk Osowa',
+    chain: 'Castorama',
+    city: 'Gdańsk',
+    location: 'Osowa',
+    address: 'ul. Odyseusza 2, 80-299 Gdańsk',
+    searchUrl: (q: string) => `https://www.castorama.pl/szukaj?query=${encodeURIComponent(q)}`,
+    specialty: 'Garden machinery, laser levels, timber, hardware'
+  },
+  {
+    id: 'castorama_gdynia',
+    name: 'Castorama Gdynia',
+    chain: 'Castorama',
+    city: 'Gdynia',
+    location: 'Morska',
+    address: 'ul. Morska 10, 81-323 Gdynia',
+    searchUrl: (q: string) => `https://www.castorama.pl/szukaj?query=${encodeURIComponent(q)}`,
+    specialty: 'Framing hardware, cordless tools, structural fixings'
+  },
+  {
+    id: 'leroy_karczemki',
+    name: 'Leroy Merlin Gdańsk Karczemki',
+    chain: 'Leroy Merlin',
+    city: 'Gdańsk',
+    location: 'Karczemki',
+    address: 'ul. Szczęśliwa 7, 80-176 Gdańsk',
+    searchUrl: (q: string) => `https://www.leroymerlin.pl/szukaj.html?q=${encodeURIComponent(q)}`,
+    specialty: 'Large building depot, timber, sheet goods, garden center'
+  },
+  {
+    id: 'leroy_oliwa',
+    name: 'Leroy Merlin Gdańsk Oliwa',
+    chain: 'Leroy Merlin',
+    city: 'Gdańsk',
+    location: 'Oliwa',
+    address: 'al. Grunwaldzka 309, 80-309 Gdańsk',
+    searchUrl: (q: string) => `https://www.leroymerlin.pl/szukaj.html?q=${encodeURIComponent(q)}`,
+    specialty: 'Kitchen sinks, bathroom fittings, lighting, interior finishes'
+  },
+  {
+    id: 'leroy_gdynia',
+    name: 'Leroy Merlin Gdynia',
+    chain: 'Leroy Merlin',
+    city: 'Gdynia',
+    location: 'Chylonia',
+    address: 'ul. Kcyńska 27, 81-005 Gdynia',
+    searchUrl: (q: string) => `https://www.leroymerlin.pl/szukaj.html?q=${encodeURIComponent(q)}`,
+    specialty: 'Power tools, flooring, exterior paints, garden tools'
+  },
+  {
+    id: 'bricoman_gdansk',
+    name: 'Bricoman Gdańsk',
+    chain: 'Bricoman',
+    city: 'Gdańsk',
+    location: 'Kowale / Szadółki',
+    address: 'ul. Przywidzka 10B, 80-174 Gdańsk',
+    searchUrl: (q: string) => `https://www.bricoman.pl/szukaj?q=${encodeURIComponent(q)}`,
+    specialty: 'Trade supply, C24 structural timber, wheelbarrows, insulation'
+  },
+  {
+    id: 'obi_matarnia',
+    name: 'OBI Gdańsk Matarnia',
+    chain: 'OBI',
+    city: 'Gdańsk',
+    location: 'Matarnia',
+    address: 'ul. Złota Karczma 26, 80-298 Gdańsk',
+    searchUrl: (q: string) => `https://www.obi.pl/search/${encodeURIComponent(q)}/`,
+    specialty: 'Garden center, hoses, lawn care, outdoor lighting'
+  },
+  {
+    id: 'ikea_gdansk',
+    name: 'IKEA Gdańsk Matarnia',
+    chain: 'IKEA',
+    city: 'Gdańsk',
+    location: 'Matarnia',
+    address: 'ul. Złota Karczma 26, 80-298 Gdańsk',
+    searchUrl: (q: string) => `https://www.ikea.com/pl/pl/search/?q=${encodeURIComponent(q)}`,
+    specialty: 'Kitchen systems, appliances, continental beds, sofas, dining tables'
+  },
+  {
+    id: 'mediaexpert_matarnia',
+    name: 'Media Expert Gdańsk Matarnia',
+    chain: 'Media Expert',
+    city: 'Gdańsk',
+    location: 'Matarnia',
+    address: 'ul. Złota Karczma 26, 80-298 Gdańsk',
+    searchUrl: (q: string) => `https://www.mediaexpert.pl/szukaj?query=${encodeURIComponent(q)}`,
+    specialty: 'Integrated kitchen appliances, induction hobs, quiet fridge-freezers'
+  },
+  {
+    id: 'jula_matarnia',
+    name: 'Jula Gdańsk Matarnia',
+    chain: 'Jula',
+    city: 'Gdańsk',
+    location: 'Matarnia',
+    address: 'ul. Złota Karczma 26, 80-298 Gdańsk',
+    searchUrl: (q: string) => `https://www.jula.pl/search/?query=${encodeURIComponent(q)}`,
+    specialty: 'Workshop gear, patio furniture, garden equipment'
+  }
+];
+
 /**
- * Curated shopping list items covering Garden, Power Tools, Kitchen, Furniture, etc.
+ * Curated shopping list items covering Garden, Power Tools, Kitchen, Furniture, Materials
+ * specifically sourced and priced from Polish stores in Gdańsk & Gdynia (Trójmiasto).
  */
 export function getCuratedSeedItems(): Omit<ShoppingItem, 'id' | 'createdAt'>[] {
   return [
-    // Garden & Outdoor
+    // 1. Garden & Outdoor (Polish stores in Gdańsk / Gdynia)
     {
-      title: 'Robotgräsklippare med installationskit',
+      title: 'Robotic lawn mower with installation kit',
       category: 'garden',
       estimatedPricePln: 2800,
       quantity: 1,
-      unit: 'st',
+      unit: 'pcs',
       priority: 'high',
       isPurchased: false,
-      notes: 'För tomtyta ca 600–800 m²',
-      storeOrUrl: 'Castorama / Leroy Merlin'
+      notes: 'For lawn area ~600–800 m², perimeter boundary wire & pegs included',
+      storeOrUrl: 'Castorama Gdańsk Oliwa / Leroy Merlin Karczemki'
     },
     {
-      title: 'Trädgårdsslang & automatisk vinda 30m',
+      title: 'Garden hose & 30m automatic retractable reel',
       category: 'garden',
       estimatedPricePln: 350,
       quantity: 1,
-      unit: 'st',
+      unit: 'pcs',
       priority: 'medium',
       isPurchased: false,
-      notes: 'Väggmonterad med munstycken',
-      storeOrUrl: 'Bauhaus'
+      notes: 'Wall-mounted pivoting reel with adjustable brass nozzle set',
+      storeOrUrl: 'Castorama Gdańsk Osowa / OBI Matarnia'
     },
     {
-      title: 'Skottkärra 100L kraftig galvaniserad',
+      title: 'Heavy-duty galvanized wheelbarrow 100L',
       category: 'garden',
       estimatedPricePln: 220,
       quantity: 1,
-      unit: 'st',
+      unit: 'pcs',
       priority: 'high',
       isPurchased: false,
-      notes: 'Punkteringsfritt hjul för mark- och trädgårdsarbete',
-      storeOrUrl: 'Castorama'
+      notes: 'Puncture-proof PU pneumatic tire for earthwork, gravel, and site clearing',
+      storeOrUrl: 'Bricoman Gdańsk / Castorama Gdańsk'
     },
     {
-      title: 'Loungeset utemöbler till altanen',
+      title: 'Outdoor patio lounge furniture set',
       category: 'garden',
       estimatedPricePln: 3200,
       quantity: 1,
       unit: 'set',
       priority: 'medium',
       isPurchased: false,
-      notes: 'Väderbeständigt loungeset med bord och dynor',
-      storeOrUrl: 'Jula / IKEA'
+      notes: 'Weather-resistant 4-piece corner lounge with low table and cushions',
+      storeOrUrl: 'IKEA Gdańsk Matarnia / Jula Matarnia'
     },
 
-    // Power Tools for house building
+    // 2. Power Tools for house building (Gdańsk & Gdynia depots)
     {
-      title: 'Kap- & gersåg 216mm med sågbord',
+      title: 'Sliding compound mitre saw 216mm with stand',
       category: 'power_tools',
       estimatedPricePln: 1600,
       quantity: 1,
-      unit: 'st',
+      unit: 'pcs',
       priority: 'high',
       isPurchased: false,
-      notes: 'Oumbärlig för fasadpanel, reglar och altandäck',
-      storeOrUrl: 'Castorama (DeWalt / Bosch)'
+      notes: 'Crucial for facade cladding, framing joists, rafters, and deck boards',
+      storeOrUrl: 'Castorama Gdańsk Oliwa (DeWalt / Bosch)'
     },
     {
-      title: 'Sänksåg med 1400mm styrskena',
+      title: 'Plunge cut circular saw with 1400mm guide rail',
       category: 'power_tools',
       estimatedPricePln: 1200,
       quantity: 1,
-      unit: 'st',
+      unit: 'pcs',
       priority: 'high',
       isPurchased: false,
-      notes: 'För millimeterprecis sågning av skivmaterial och dörrfoder',
-      storeOrUrl: 'Makita / Festool'
+      notes: 'Millimeter-accurate splinter-free cuts in OSB, plywood sheets, and interior linings',
+      storeOrUrl: 'Leroy Merlin Gdańsk Karczemki (Makita / Bosch)'
     },
     {
-      title: 'Borrskruvdragare 18V kit med 2 batterier',
+      title: '18V Brushless drill & impact driver combo kit (2 batteries)',
       category: 'power_tools',
       estimatedPricePln: 850,
       quantity: 1,
-      unit: 'kit',
+      unit: 'set',
       priority: 'high',
       isPurchased: false,
-      notes: 'Kompakt och kraftfull för träskruv och stombyggnad',
-      storeOrUrl: 'Leroy Merlin'
+      notes: 'High torque cordless kit with fast charger and case for timber framing',
+      storeOrUrl: 'Castorama Gdynia (ul. Morska 10) / Leroy Merlin Gdańsk'
     },
     {
-      title: 'Korslinjelaser 360° med teleskopstativ',
+      title: '360° Cross-line laser level with telescopic tripod',
       category: 'power_tools',
       estimatedPricePln: 450,
       quantity: 1,
-      unit: 'st',
+      unit: 'pcs',
       priority: 'high',
       isPurchased: false,
-      notes: 'För rak montering av innerväggar, kök och innertak',
-      storeOrUrl: 'Castorama'
+      notes: 'Self-leveling green beam for partition framing, kitchen heights, and ceiling leveling',
+      storeOrUrl: 'Castorama Gdańsk Osowa'
     },
     {
-      title: 'Byggdammsugare grovdammsugare våt/torr 25L',
+      title: 'Wet & dry workshop vacuum cleaner 25L with power take-off',
       category: 'power_tools',
       estimatedPricePln: 550,
       quantity: 1,
-      unit: 'st',
+      unit: 'pcs',
       priority: 'medium',
       isPurchased: false,
-      notes: 'Med eluttag för automatisk start vid sågning',
-      storeOrUrl: 'Kärcher / Castorama'
+      notes: 'Synchronized auto-start socket activates dust extraction automatically with saw/sanders',
+      storeOrUrl: 'Castorama Gdańsk Oliwa / Kärcher Gdynia'
     },
 
-    // Kitchen & Appliances
+    // 3. Kitchen & Appliances (IKEA Gdańsk & Media Expert Matarnia)
     {
-      title: 'Induktionshäll 60cm med booster',
+      title: '60cm Induction cooktop with boost & bridge zones',
       category: 'kitchen',
       estimatedPricePln: 1600,
       quantity: 1,
-      unit: 'st',
+      unit: 'pcs',
       priority: 'high',
       isPurchased: false,
-      notes: 'Inbyggnad med timer och fasövergång',
-      storeOrUrl: 'IKEA / MediaMarkt'
+      notes: 'Slim built-in design, flexible cooking zones, and power management timer',
+      storeOrUrl: 'IKEA Gdańsk Matarnia / Media Expert Gdańsk'
     },
     {
-      title: 'Inbyggnadsugn med varmluft & grill',
+      title: 'Built-in convection oven with fan & grill',
       category: 'kitchen',
       estimatedPricePln: 1800,
       quantity: 1,
-      unit: 'st',
+      unit: 'pcs',
       priority: 'high',
       isPurchased: false,
-      notes: 'Svart glas eller rostfritt stål',
-      storeOrUrl: 'IKEA'
+      notes: 'Black glass / stainless steel front with telescopic rails and soft-close door',
+      storeOrUrl: 'IKEA Gdańsk Matarnia'
     },
     {
-      title: 'Integrerad kyl & frys 178cm',
+      title: 'Integrated fridge-freezer 178cm low-noise',
       category: 'kitchen',
       estimatedPricePln: 2400,
       quantity: 1,
-      unit: 'st',
+      unit: 'pcs',
       priority: 'high',
       isPurchased: false,
-      notes: 'Låg ljudnivå lämplig för öppen planlösning',
-      storeOrUrl: 'Castorama / IKEA'
+      notes: 'Quiet compressor (<35 dB), NoFrost technology, ideal for open-plan living layout',
+      storeOrUrl: 'Media Expert Gdańsk Matarnia / IKEA Gdańsk'
     },
     {
-      title: 'Underlimmad diskho & köksblandare',
+      title: 'Undermount composite kitchen sink & mixer tap',
       category: 'kitchen',
       estimatedPricePln: 890,
       quantity: 1,
       unit: 'set',
       priority: 'high',
       isPurchased: false,
-      notes: 'Komplett med vattenlås och anslutningsslangar',
-      storeOrUrl: 'Castorama'
+      notes: 'Black granite composite bowl with high-arc pull-out tap and siphon set',
+      storeOrUrl: 'Castorama Gdańsk Oliwa / Leroy Merlin Gdańsk'
     },
     {
-      title: 'Integrerad diskmaskin 60cm',
+      title: 'Fully integrated 60cm dishwasher with floor beam',
       category: 'kitchen',
       estimatedPricePln: 1950,
       quantity: 1,
-      unit: 'st',
+      unit: 'pcs',
       priority: 'medium',
       isPurchased: false,
-      notes: 'Helintegrerad med golvlampa som lyser vid körning',
-      storeOrUrl: 'IKEA / MediaMarkt'
+      notes: 'Low water consumption, cutlery tray, and optical LED beam projected on the floor',
+      storeOrUrl: 'IKEA Gdańsk Matarnia / Media Expert'
     },
 
-    // Furniture & Interior
+    // 4. Furniture & Interior (IKEA Gdańsk Matarnia)
     {
-      title: 'Kontinentalsäng 160×200cm till sovloftet',
+      title: 'Queen continental bed 160×200cm for loft bedroom',
       category: 'furniture',
       estimatedPricePln: 2800,
       quantity: 1,
-      unit: 'st',
+      unit: 'pcs',
       priority: 'high',
       isPurchased: false,
-      notes: 'Inklusive bäddmadrass och sängben',
-      storeOrUrl: 'IKEA / Jysk'
+      notes: 'Multi-layer pocket-spring base with high-density topper and solid oak legs',
+      storeOrUrl: 'IKEA Gdańsk Matarnia'
     },
     {
-      title: 'Matbord massiv ek 180cm + 6 stolar',
+      title: 'Solid oak dining table 180cm + 6 chairs',
       category: 'furniture',
       estimatedPricePln: 3600,
       quantity: 1,
-      unit: 'grupp',
+      unit: 'set',
       priority: 'medium',
       isPurchased: false,
-      notes: 'Tidlös design för matplatsen',
-      storeOrUrl: 'IKEA'
+      notes: 'Oiled natural solid oak top with durable Scandinavian dining chairs',
+      storeOrUrl: 'IKEA Gdańsk Matarnia'
     },
     {
-      title: 'Hörnsoffa 3-sits med schäslong',
+      title: '3-seater corner sofa with chaise lounge',
       category: 'furniture',
       estimatedPricePln: 4200,
       quantity: 1,
-      unit: 'st',
+      unit: 'pcs',
       priority: 'medium',
       isPurchased: false,
-      notes: 'Avtagbar tvättbar klädsel i ljusgrå linneblandning',
-      storeOrUrl: 'IKEA'
+      notes: 'Removable wash-friendly textured fabric cover in light neutral stone tone',
+      storeOrUrl: 'IKEA Gdańsk Matarnia'
     },
     {
-      title: 'Garderobslösning med skjutdörrar',
+      title: 'Modular sliding wardrobe storage system',
       category: 'furniture',
       estimatedPricePln: 2100,
       quantity: 2,
-      unit: 'st',
+      unit: 'pcs',
       priority: 'medium',
       isPurchased: false,
-      notes: 'Inredning med trådkorgar och klädstång',
-      storeOrUrl: 'Castorama / IKEA'
+      notes: 'Fitted with interior drawers, pull-out wire baskets, and hanger rods',
+      storeOrUrl: 'Castorama Gdańsk Oliwa / IKEA Gdańsk'
+    },
+
+    // 5. Building Materials & Fasteners (Gdańsk Trade Depots)
+    {
+      title: 'C24 Structural timber & framing joists (pack)',
+      category: 'materials',
+      estimatedPricePln: 1450,
+      quantity: 1,
+      unit: 'pack',
+      priority: 'high',
+      isPurchased: false,
+      notes: 'Kiln-dried certified structural timber for floor joists and terrace substructure',
+      storeOrUrl: 'Bricoman Gdańsk (ul. Przywidzka 10B)'
+    },
+    {
+      title: 'Corrosion-resistant structural exterior screws & joist hangers',
+      category: 'hardware_elec',
+      estimatedPricePln: 380,
+      quantity: 1,
+      unit: 'pack',
+      priority: 'high',
+      isPurchased: false,
+      notes: 'C4-coated structural torx screws (8x160mm) and heavy-duty angle brackets',
+      storeOrUrl: 'Castorama Gdynia / Castorama Gdańsk'
     }
   ];
+}
+
+const SWEDISH_TO_ENGLISH_SEED_MAP: Record<string, Partial<ShoppingItem>> = {
+  'robotgräsklippare': {
+    title: 'Robotic lawn mower with installation kit',
+    notes: 'For lawn area ~600–800 m², perimeter boundary wire & pegs included',
+    storeOrUrl: 'Castorama Gdańsk Oliwa / Leroy Merlin Karczemki',
+    unit: 'pcs'
+  },
+  'trädgårdsslang': {
+    title: 'Garden hose & 30m automatic retractable reel',
+    notes: 'Wall-mounted pivoting reel with adjustable brass nozzle set',
+    storeOrUrl: 'Castorama Gdańsk Osowa / OBI Matarnia',
+    unit: 'pcs'
+  },
+  'skottkärra': {
+    title: 'Heavy-duty galvanized wheelbarrow 100L',
+    notes: 'Puncture-proof PU pneumatic tire for earthwork, gravel, and site clearing',
+    storeOrUrl: 'Bricoman Gdańsk / Castorama Gdańsk',
+    unit: 'pcs'
+  },
+  'loungeset': {
+    title: 'Outdoor patio lounge furniture set',
+    notes: 'Weather-resistant 4-piece corner lounge with low table and cushions',
+    storeOrUrl: 'IKEA Gdańsk Matarnia / Jula Matarnia',
+    unit: 'set'
+  },
+  'kap- & gersåg': {
+    title: 'Sliding compound mitre saw 216mm with stand',
+    notes: 'Crucial for facade cladding, framing joists, rafters, and deck boards',
+    storeOrUrl: 'Castorama Gdańsk Oliwa (DeWalt / Bosch)',
+    unit: 'pcs'
+  },
+  'sänksåg': {
+    title: 'Plunge cut circular saw with 1400mm guide rail',
+    notes: 'Millimeter-accurate splinter-free cuts in OSB, plywood sheets, and interior linings',
+    storeOrUrl: 'Leroy Merlin Gdańsk Karczemki (Makita / Bosch)',
+    unit: 'pcs'
+  },
+  'borrskruvdragare': {
+    title: '18V Brushless drill & impact driver combo kit (2 batteries)',
+    notes: 'High torque cordless kit with fast charger and case for timber framing',
+    storeOrUrl: 'Castorama Gdynia (ul. Morska 10) / Leroy Merlin Gdańsk',
+    unit: 'set'
+  },
+  'korslinjelaser': {
+    title: '360° Cross-line laser level with telescopic tripod',
+    notes: 'Self-leveling green beam for partition framing, kitchen heights, and ceiling leveling',
+    storeOrUrl: 'Castorama Gdańsk Osowa',
+    unit: 'pcs'
+  },
+  'byggdammsugare': {
+    title: 'Wet & dry workshop vacuum cleaner 25L with power take-off',
+    notes: 'Synchronized auto-start socket activates dust extraction automatically with saw/sanders',
+    storeOrUrl: 'Castorama Gdańsk Oliwa / Kärcher Gdynia',
+    unit: 'pcs'
+  },
+  'induktionshäll': {
+    title: '60cm Induction cooktop with boost & bridge zones',
+    notes: 'Slim built-in design, flexible cooking zones, and power management timer',
+    storeOrUrl: 'IKEA Gdańsk Matarnia / Media Expert Gdańsk',
+    unit: 'pcs'
+  },
+  'inbyggnadsugn': {
+    title: 'Built-in convection oven with fan & grill',
+    notes: 'Black glass / stainless steel front with telescopic rails and soft-close door',
+    storeOrUrl: 'IKEA Gdańsk Matarnia',
+    unit: 'pcs'
+  },
+  'integrerad kyl': {
+    title: 'Integrated fridge-freezer 178cm low-noise',
+    notes: 'Quiet compressor (<35 dB), NoFrost technology, ideal for open-plan living layout',
+    storeOrUrl: 'Media Expert Gdańsk Matarnia / IKEA Gdańsk',
+    unit: 'pcs'
+  },
+  'underlimmad diskho': {
+    title: 'Undermount composite kitchen sink & mixer tap',
+    notes: 'Black granite composite bowl with high-arc pull-out tap and siphon set',
+    storeOrUrl: 'Castorama Gdańsk Oliwa / Leroy Merlin Gdańsk',
+    unit: 'set'
+  },
+  'integrerad diskmaskin': {
+    title: 'Fully integrated 60cm dishwasher with floor beam',
+    notes: 'Low water consumption, cutlery tray, and optical LED beam projected on the floor',
+    storeOrUrl: 'IKEA Gdańsk Matarnia / Media Expert',
+    unit: 'pcs'
+  },
+  'kontinentalsäng': {
+    title: 'Queen continental bed 160×200cm for loft bedroom',
+    notes: 'Multi-layer pocket-spring base with high-density topper and solid oak legs',
+    storeOrUrl: 'IKEA Gdańsk Matarnia',
+    unit: 'pcs'
+  },
+  'matbord massiv ek': {
+    title: 'Solid oak dining table 180cm + 6 chairs',
+    notes: 'Oiled natural solid oak top with durable Scandinavian dining chairs',
+    storeOrUrl: 'IKEA Gdańsk Matarnia',
+    unit: 'set'
+  },
+  'hörnsoffa': {
+    title: '3-seater corner sofa with chaise lounge',
+    notes: 'Removable wash-friendly textured fabric cover in light neutral stone tone',
+    storeOrUrl: 'IKEA Gdańsk Matarnia',
+    unit: 'pcs'
+  },
+  'garderobslösning': {
+    title: 'Modular sliding wardrobe storage system',
+    notes: 'Fitted with interior drawers, pull-out wire baskets, and hanger rods',
+    storeOrUrl: 'Castorama Gdańsk Oliwa / IKEA Gdańsk',
+    unit: 'pcs'
+  }
+};
+
+export function migrateShoppingItemsToEnglish(items: ShoppingItem[]): { items: ShoppingItem[]; migratedCount: number } {
+  let migratedCount = 0;
+  const migrated = items.map((item) => {
+    let updated = { ...item };
+    const lowerTitle = (item.title || '').toLowerCase();
+
+    // Check seed translation map
+    for (const [swKey, englishData] of Object.entries(SWEDISH_TO_ENGLISH_SEED_MAP)) {
+      if (lowerTitle.includes(swKey)) {
+        updated = {
+          ...updated,
+          ...englishData
+        };
+        migratedCount++;
+        break;
+      }
+    }
+
+    // Convert Swedish units
+    if (updated.unit === 'st') {
+      updated.unit = 'pcs';
+      migratedCount++;
+    } else if (updated.unit === 'grupp') {
+      updated.unit = 'set';
+      migratedCount++;
+    } else if (updated.unit === 'pkt') {
+      updated.unit = 'pack';
+      migratedCount++;
+    } else if (updated.unit === 'rulle') {
+      updated.unit = 'roll';
+      migratedCount++;
+    }
+
+    // Update Swedish store names to Polish Gdańsk/Gdynia branches
+    if (updated.storeOrUrl) {
+      if (updated.storeOrUrl === 'Bauhaus') {
+        updated.storeOrUrl = 'Castorama Gdańsk Osowa / OBI Matarnia';
+        migratedCount++;
+      } else if (updated.storeOrUrl === 'Castorama / Leroy Merlin') {
+        updated.storeOrUrl = 'Castorama Gdańsk Oliwa / Leroy Merlin Karczemki';
+        migratedCount++;
+      } else if (updated.storeOrUrl === 'Castorama') {
+        updated.storeOrUrl = 'Castorama Gdańsk Oliwa';
+        migratedCount++;
+      } else if (updated.storeOrUrl === 'Jula / IKEA') {
+        updated.storeOrUrl = 'IKEA Gdańsk Matarnia / Jula Matarnia';
+        migratedCount++;
+      } else if (updated.storeOrUrl === 'IKEA') {
+        updated.storeOrUrl = 'IKEA Gdańsk Matarnia';
+        migratedCount++;
+      } else if (updated.storeOrUrl === 'IKEA / MediaMarkt') {
+        updated.storeOrUrl = 'IKEA Gdańsk Matarnia / Media Expert Gdańsk';
+        migratedCount++;
+      }
+    }
+
+    return updated;
+  });
+
+  return { items: migrated, migratedCount };
 }
 
 export function loadShoppingList(houseKey = expenseHouseKey()): ShoppingState {
   const bucket = readBucket();
   const current = bucket[houseKey];
   if (current && Array.isArray(current.items)) {
+    // Automatically migrate legacy Swedish items or units to English & Gdańsk stores
+    const { items: migratedItems, migratedCount } = migrateShoppingItemsToEnglish(current.items);
+    if (migratedCount > 0) {
+      current.items = migratedItems;
+      current.updatedAt = new Date().toISOString();
+      bucket[houseKey] = current;
+      writeBucket(bucket);
+    }
     return {
       houseKey,
       items: current.items,
@@ -488,7 +818,7 @@ export function loadShoppingList(houseKey = expenseHouseKey()): ShoppingState {
     };
   }
 
-  // Pre-seed with curated starter items if completely new
+  // Pre-seed with curated English starter items focused on Gdańsk & Gdynia stores
   const now = new Date().toISOString();
   const seededItems: ShoppingItem[] = getCuratedSeedItems().map((item) => ({
     ...item,
@@ -504,6 +834,25 @@ export function loadShoppingList(houseKey = expenseHouseKey()): ShoppingState {
   bucket[houseKey] = defaultState;
   writeBucket(bucket);
   return defaultState;
+}
+
+export function resetShoppingListToSeeds(houseKey = expenseHouseKey()): ShoppingState {
+  const bucket = readBucket();
+  const now = new Date().toISOString();
+  const seededItems: ShoppingItem[] = getCuratedSeedItems().map((item) => ({
+    ...item,
+    id: shoppingItemId(),
+    createdAt: now
+  }));
+
+  const resetState: ShoppingState = {
+    houseKey,
+    items: seededItems,
+    updatedAt: now
+  };
+  bucket[houseKey] = resetState;
+  writeBucket(bucket);
+  return resetState;
 }
 
 export function saveShoppingList(state: ShoppingState, houseKey = expenseHouseKey()): void {
@@ -724,48 +1073,48 @@ export function calculateShoppingSummary(
 
 export function generateShoppingSummaryText(
   items: ShoppingItem[],
-  title = 'Inköpslista & Planerade Inköp'
+  title = 'Shopping List & Planned Purchases'
 ): string {
   const summary = calculateShoppingSummary(items);
   const lines: string[] = [];
   lines.push(`=== ${title} ===`);
-  lines.push(`Revolut-kurs: 1 PLN = ${summary.exchangeRate} SEK`);
-  lines.push(`Planerad budget: ${formatPLN(summary.totalPlannedPln)} (≈ ${formatSEK(summary.totalPlannedSek)}) · ${summary.totalCount} st artiklar`);
-  lines.push(`Redan inköpt: ${formatPLN(summary.totalPurchasedPln)} (≈ ${formatSEK(summary.totalPurchasedSek)}) (${summary.purchasedCount} st)`);
-  lines.push(`Kvar att köpa: ${formatPLN(summary.remainingToBuyPln)} (≈ ${formatSEK(summary.remainingToBuySek)}) (${summary.toBuyCount} st)`);
+  lines.push(`Revolut Rate: 1 PLN = ${summary.exchangeRate} SEK`);
+  lines.push(`Planned budget: ${formatPLN(summary.totalPlannedPln)} (≈ ${formatSEK(summary.totalPlannedSek)}) · ${summary.totalCount} items`);
+  lines.push(`Already purchased: ${formatPLN(summary.totalPurchasedPln)} (≈ ${formatSEK(summary.totalPurchasedSek)}) (${summary.purchasedCount} items)`);
+  lines.push(`Remaining to buy: ${formatPLN(summary.remainingToBuyPln)} (≈ ${formatSEK(summary.remainingToBuySek)}) (${summary.toBuyCount} items)`);
   lines.push('');
-  lines.push('--- KATEGORIER ---');
+  lines.push('--- CATEGORIES ---');
   for (const cat of summary.categories) {
-    lines.push(`• ${cat.labelSv}: ${formatPLN(cat.totalPlannedPln)} (≈ ${formatSEK(cat.totalPlannedSek)}) (${cat.toBuyCount} kvar av ${cat.totalCount})`);
+    lines.push(`• ${cat.labelEn || cat.labelSv}: ${formatPLN(cat.totalPlannedPln)} (≈ ${formatSEK(cat.totalPlannedSek)}) (${cat.toBuyCount} left of ${cat.totalCount})`);
   }
   lines.push('');
-  lines.push('--- ARTIKLAR ---');
+  lines.push('--- ITEMS ---');
   for (const item of items) {
     const meta = getShoppingCategoryMeta(item.category);
-    const status = item.isPurchased ? '[X] INKÖPT' : '[ ] ATT KÖPA';
+    const status = item.isPurchased ? '[X] PURCHASED' : '[ ] TO BUY';
     const sekAmt = convertPlnToSek(item.estimatedPricePln, summary.exchangeRate);
     const storeStr = item.storeOrUrl ? ` @ ${item.storeOrUrl}` : '';
     const noteStr = item.notes ? ` (${item.notes})` : '';
-    lines.push(`${status} ${item.title} (${item.quantity} ${item.unit || 'st'}) | ${meta.labelSv} | ${formatPLN(item.estimatedPricePln)} (≈ ${formatSEK(sekAmt)})${storeStr}${noteStr}`);
+    lines.push(`${status} ${item.title} (${item.quantity} ${item.unit || 'pcs'}) | ${meta.labelEn || meta.labelSv} | ${formatPLN(item.estimatedPricePln)} (≈ ${formatSEK(sekAmt)})${storeStr}${noteStr}`);
   }
   lines.push('');
-  lines.push(`Genererad: ${new Date().toLocaleDateString('sv-SE')} via Builder`);
+  lines.push(`Generated: ${new Date().toISOString().slice(0, 10)} via Builder`);
   return lines.join('\n');
 }
 
 export function generateShoppingCsv(items: ShoppingItem[]): string {
   const rate = getStoredCurrencyRate().ratePlnToSek;
-  const header = ['Status', 'Artikel', 'Kategori', 'Prioritet', 'Antal', 'Enhet', 'Estimerat pris (PLN)', 'Estimerat pris (SEK)', 'Inköpt pris (PLN)', 'Butik/Länk', 'Anteckningar'];
+  const header = ['Status', 'Item', 'Category', 'Priority', 'Quantity', 'Unit', 'Estimated Price (PLN)', 'Estimated Price (SEK)', 'Purchased Price (PLN)', 'Store/Link', 'Notes'];
   const rows = items.map((item) => {
     const meta = getShoppingCategoryMeta(item.category);
     const sekAmt = convertPlnToSek(item.estimatedPricePln, rate);
     return [
-      item.isPurchased ? 'Inköpt' : 'Att köpa',
+      item.isPurchased ? 'Purchased' : 'To Buy',
       `"${(item.title || '').replace(/"/g, '""')}"`,
-      `"${meta.labelSv}"`,
+      `"${meta.labelEn || meta.labelSv}"`,
       item.priority,
       String(item.quantity || 1),
-      `"${(item.unit || 'st').replace(/"/g, '""')}"`,
+      `"${(item.unit || 'pcs').replace(/"/g, '""')}"`,
       String(item.estimatedPricePln || 0),
       String(sekAmt),
       String(item.purchasedPricePln ?? ''),

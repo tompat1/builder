@@ -641,10 +641,10 @@
                   · {{ item.notes }}
                 </span>
 
-                <span v-if="item.paidBy?.name" class="inline-flex items-center gap-1 font-medium text-stone-600">
+                <span v-if="item.paidBy?.name" class="inline-flex items-center gap-1 font-medium text-stone-500">
                   <span>·</span>
-                  <span class="w-4 h-4 rounded-full overflow-hidden shrink-0 inline-block align-middle" v-html="item.paidBy.avatar"></span>
-                  <span>{{ item.paidBy.name }}</span>
+                  <span>{{ isEn ? 'added by' : 'tillagd av' }}</span>
+                  <span class="text-stone-700 font-medium">{{ item.paidBy.name }}</span>
                 </span>
               </div>
             </div>

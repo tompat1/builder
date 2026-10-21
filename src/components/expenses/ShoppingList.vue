@@ -187,6 +187,18 @@
           <option value="newest">{{ isEn ? 'Newest first' : 'Nyast först' }}</option>
         </select>
 
+        <!-- Polish Stores in Gdańsk & Gdynia Directory button -->
+        <button
+          type="button"
+          id="btn-open-tricity-stores"
+          class="inline-flex items-center gap-1.5 rounded-xl border border-emerald-600/30 bg-emerald-50 px-3 py-2 text-xs font-bold text-[#173D35] shadow-sm transition hover:bg-emerald-100/70 active:scale-95"
+          :title="isEn ? 'Browse Polish stores in Gdańsk & Gdynia area' : 'Polska varuhus i Gdańsk & Gdynia'"
+          @click="showStoresModal = true"
+        >
+          <span>🇵🇱</span>
+          <span class="hidden md:inline">{{ isEn ? 'Gdańsk & Gdynia Stores' : 'Gdańsk / Gdynia butiker' }}</span>
+        </button>
+
         <!-- Curated suggestions button -->
         <button
           type="button"
@@ -352,7 +364,7 @@
 
               <!-- Quantity Pill -->
               <span class="inline-flex items-center rounded-md bg-stone-100 px-2 py-0.5 text-[10px] font-bold text-stone-700">
-                {{ item.quantity }} {{ item.unit || 'st' }}
+                {{ item.quantity }} {{ item.unit || 'pcs' }}
               </span>
 
               <!-- Category Badge -->
@@ -593,12 +605,12 @@
                 v-model="formUnit"
                 class="w-full rounded-xl border border-[#d7d1c4] bg-[#FDFBF7] px-3 py-2 text-sm text-[#222925] font-semibold focus:border-[#173D35] focus:outline-none"
               >
-                <option value="st">st (pcs)</option>
+                <option value="pcs">pcs (pieces)</option>
                 <option value="set">set</option>
                 <option value="m">m (meters)</option>
                 <option value="m²">m²</option>
-                <option value="pkt">pkt (pack)</option>
-                <option value="rulle">rulle</option>
+                <option value="pack">pack</option>
+                <option value="roll">roll</option>
               </select>
             </div>
 
@@ -617,17 +629,41 @@
             </div>
           </div>
 
-          <!-- Store / URL -->
-          <div class="space-y-1">
-            <label class="block text-xs font-bold uppercase tracking-wider text-stone-600">
-              {{ isEn ? 'Store or Link' : 'Butik eller webblänk' }}
-            </label>
+          <!-- Store / URL with focus on Polish stores in Gdańsk & Gdynia -->
+          <div class="space-y-1.5">
+            <div class="flex items-center justify-between">
+              <label class="block text-xs font-bold uppercase tracking-wider text-stone-600">
+                {{ isEn ? 'Polish Store in Gdańsk / Gdynia or Link' : 'Polskt varuhus i Gdańsk / Gdynia eller länk' }}
+              </label>
+              <button
+                type="button"
+                class="text-[11px] font-bold text-[#173D35] hover:underline"
+                @click="showStoresModal = true"
+              >
+                {{ isEn ? 'Browse all stores ↗' : 'Visa alla butiker ↗' }}
+              </button>
+            </div>
             <input
               v-model="formStore"
               type="text"
-              :placeholder="isEn ? 'e.g. Castorama, Leroy Merlin, Bauhaus, IKEA...' : 't.ex. Castorama, Leroy Merlin, Bauhaus, IKEA eller URL...'"
+              :placeholder="isEn ? 'e.g. Castorama Gdańsk Oliwa, Leroy Merlin Karczemki, OBI Matarnia, Bricoman...' : 't.ex. Castorama Gdańsk Oliwa, Leroy Merlin Karczemki, OBI, IKEA...'"
               class="w-full rounded-xl border border-[#d7d1c4] bg-[#FDFBF7] px-3.5 py-2 text-sm text-[#222925] focus:border-[#173D35] focus:outline-none"
             />
+            <!-- Quick Polish Store Chips -->
+            <div class="flex flex-wrap items-center gap-1.5 pt-0.5">
+              <span class="text-[10px] font-bold text-stone-400 uppercase tracking-wider">
+                {{ isEn ? 'Tricity stores:' : 'Snabbval:' }}
+              </span>
+              <button
+                v-for="store in POLISH_TRICITY_STORES.slice(0, 6)"
+                :key="store.id"
+                type="button"
+                class="rounded-lg border border-stone-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-stone-700 hover:bg-[#173D35]/10 hover:border-[#173D35] transition"
+                @click="formStore = store.name"
+              >
+                {{ store.name }}
+              </button>
+            </div>
           </div>
 
           <!-- Notes -->
@@ -675,6 +711,109 @@
         </form>
       </div>
     </div>
+
+    <!-- Modal: Polish Stores Directory (Gdańsk & Gdynia Area) -->
+    <div
+      v-if="showStoresModal"
+      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      @click.self="showStoresModal = false"
+    >
+      <div class="relative w-full max-w-2xl rounded-3xl border border-[#d7d1c4] bg-white p-6 sm:p-7 shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between border-b border-stone-100 pb-3.5">
+          <div class="flex items-center gap-2.5">
+            <span class="text-2xl">🏬</span>
+            <div>
+              <h3 class="text-lg font-bold text-[#173D35] flex items-center gap-2">
+                <span>{{ isEn ? 'Polish Stores (Gdańsk & Gdynia Area)' : 'Polska varuhus (Gdańsk & Gdynia)' }}</span>
+                <span class="rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-extrabold px-2 py-0.5 uppercase tracking-wider">Trójmiasto</span>
+              </h3>
+              <p class="text-xs text-stone-500">
+                {{ isEn ? 'Home improvement, power tools, timber, garden & kitchen retailers in Gdańsk & Gdynia' : 'Byggvaruhus, elverktyg, virke, trädgård och kök i Gdańsk och Gdynia' }}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            class="text-stone-400 hover:text-stone-700 text-lg font-bold p-1"
+            @click="showStoresModal = false"
+          >
+            ✕
+          </button>
+        </div>
+
+        <!-- Action Banner: Re-seed full English catalogue from Gdańsk stores -->
+        <div class="my-4 rounded-2xl border border-emerald-600/20 bg-emerald-50/60 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h4 class="text-xs font-bold text-[#173D35]">
+              {{ isEn ? 'Re-seed List with English Gdańsk / Gdynia Catalogue' : 'Läs in engelska Gdańsk/Gdynia-katalogen' }}
+            </h4>
+            <p class="text-[11px] text-stone-600 mt-0.5">
+              {{ isEn ? 'Instantly reset and fill your shopping list with 20 curated English items priced in PLN from Gdańsk stores.' : 'Återställ och fyll inköpslistan med 20 utvalda artiklar på engelska med PLN-priser från Gdańsk-butiker.' }}
+            </p>
+          </div>
+          <button
+            type="button"
+            class="shrink-0 rounded-xl bg-[#173D35] px-3.5 py-2 text-xs font-bold text-white shadow-md hover:bg-[#0f2b25] transition active:scale-95"
+            @click="resetToTricityCatalog"
+          >
+            {{ isEn ? 'Reset to Gdańsk Seeds' : 'Återställ till Gdańsk-urval' }}
+          </button>
+        </div>
+
+        <!-- Store Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+          <div
+            v-for="store in POLISH_TRICITY_STORES"
+            :key="store.id"
+            class="rounded-2xl border border-stone-200 bg-[#FAF8F5] p-3.5 flex flex-col justify-between hover:border-[#173D35]/40 transition hover:shadow-sm"
+          >
+            <div>
+              <div class="flex items-center justify-between">
+                <span class="text-xs font-bold text-[#173D35]">{{ store.name }}</span>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-stone-200/80 text-stone-700">
+                  {{ store.city }} · {{ store.location }}
+                </span>
+              </div>
+              <p class="text-[11px] text-stone-500 mt-1">
+                📍 {{ store.address }}
+              </p>
+              <p class="text-[11px] text-stone-600 font-medium mt-1.5">
+                {{ store.specialty }}
+              </p>
+            </div>
+
+            <div class="mt-3 pt-2.5 border-t border-stone-200 flex items-center justify-between">
+              <a
+                :href="store.searchUrl('budowa')"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="inline-flex items-center gap-1 text-xs font-bold text-[#173D35] hover:underline"
+              >
+                <span>{{ isEn ? 'Search Online Store' : 'Sök i butiken' }}</span>
+                <span>↗</span>
+              </a>
+              <button
+                type="button"
+                class="rounded-lg bg-white border border-stone-300 px-2.5 py-1 text-[11px] font-semibold text-stone-700 hover:bg-stone-50 transition"
+                @click="fillStoreAndOpenNewItem(store.name)"
+              >
+                + {{ isEn ? 'Add Item' : 'Lägg till' }}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-5 flex justify-end">
+          <button
+            type="button"
+            class="rounded-xl px-4 py-2 text-xs font-semibold text-stone-600 hover:bg-stone-100"
+            @click="showStoresModal = false"
+          >
+            {{ isEn ? 'Close' : 'Stäng' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -686,8 +825,10 @@ import {
   type ShoppingPriority,
   type ShoppingSummary,
   SHOPPING_CATEGORIES,
+  POLISH_TRICITY_STORES,
   getShoppingCategoryMeta,
   loadShoppingList,
+  resetShoppingListToSeeds,
   addShoppingItem,
   updateShoppingItem,
   toggleShoppingItemPurchased,
@@ -742,13 +883,14 @@ const sortOrder = ref<'priority_desc' | 'price_desc' | 'price_asc' | 'category' 
 
 // Modal state
 const showModal = ref(false);
+const showStoresModal = ref(false);
 const editingItemId = ref<string | null>(null);
 const formTitle = ref('');
 const formCategory = ref<ShoppingCategory>('power_tools');
 const formPricePln = ref<number | string>('');
 const formPriceSek = ref<number | string>('');
 const formQuantity = ref<number>(1);
-const formUnit = ref<string>('st');
+const formUnit = ref<string>('pcs');
 const formPriority = ref<ShoppingPriority>('high');
 const formStore = ref('');
 const formNotes = ref('');
@@ -873,7 +1015,20 @@ function handleDeleteItem(id: string) {
 function loadCuratedSuggestions() {
   seedCuratedItemsToShoppingList(props.houseKey);
   refresh();
-  emit('toast', isEn.value ? 'Loaded curated builder suggestions' : 'Laddade in förslag för bygget och trädgården');
+  emit('toast', isEn.value ? 'Loaded suggestions from Polish stores in Gdańsk & Gdynia' : 'Laddade in förslag från butiker i Gdańsk & Gdynia');
+}
+
+function fillStoreAndOpenNewItem(storeName: string) {
+  showStoresModal.value = false;
+  openNewItemModal();
+  formStore.value = storeName;
+}
+
+function resetToTricityCatalog() {
+  resetShoppingListToSeeds(props.houseKey);
+  refresh();
+  showStoresModal.value = false;
+  emit('toast', isEn.value ? 'Shopping list updated to English Gdańsk & Gdynia store catalogue' : 'Inköpslistan uppdaterad till Gdańsk/Gdynia-katalogen');
 }
 
 function openNewItemModal() {
@@ -883,7 +1038,7 @@ function openNewItemModal() {
   formPricePln.value = '';
   formPriceSek.value = '';
   formQuantity.value = 1;
-  formUnit.value = 'st';
+  formUnit.value = 'pcs';
   formPriority.value = 'high';
   formStore.value = '';
   formNotes.value = '';
@@ -898,7 +1053,7 @@ function openEditModal(item: ShoppingItem) {
   formPricePln.value = item.estimatedPricePln;
   formPriceSek.value = convertPlnToSek(item.estimatedPricePln, rateInfo.value.ratePlnToSek);
   formQuantity.value = item.quantity || 1;
-  formUnit.value = item.unit || 'st';
+  formUnit.value = item.unit || 'pcs';
   formPriority.value = item.priority || 'medium';
   formStore.value = item.storeOrUrl || '';
   formNotes.value = item.notes || '';
