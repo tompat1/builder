@@ -2376,7 +2376,7 @@
             <p class="mb-1 text-[11px] font-bold text-slate-700">
               <Cms k="category.terraceBuilding" />
             </p>
-            <div class="grid grid-cols-3 gap-1.5">
+            <div class="grid grid-cols-2 gap-1.5">
               <button
                 type="button"
                 :id="`terrace-${deck.side}-building-none`"
@@ -2405,6 +2405,16 @@
               >
                 <span class="block font-bold"><Cms k="category.terraceBuildingShed" /></span>
                 <span class="block text-[10px] font-normal opacity-75">{{ delta(SHED_BUILDING_PRICE) }}</span>
+              </button>
+              <button
+                type="button"
+                :id="`terrace-${deck.side}-building-hot-tub`"
+                :aria-pressed="deck.building === 'hot-tub'"
+                :class="terraceChoiceClass(deck.building === 'hot-tub')"
+                @click="store.setTerraceBuilding(deck.side, 'hot-tub')"
+              >
+                <span class="block font-bold"><Cms k="category.terraceBuildingHotTub" /></span>
+                <span class="block text-[10px] font-normal opacity-75">{{ delta(HOT_TUB_BUILDING_PRICE) }}</span>
               </button>
             </div>
             <div v-if="deck.building && deck.building !== 'none'" class="mt-2 pt-2 border-t border-slate-100">
@@ -2635,6 +2645,7 @@ import {
   terracePrice,
   SAUNA_BUILDING_PRICE,
   SHED_BUILDING_PRICE,
+  HOT_TUB_BUILDING_PRICE,
   TERRACE_BUILDING_ROOFS,
   SAUNA_TURNS,
   SAUNA_COLORS,

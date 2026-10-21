@@ -16,8 +16,8 @@ export type TerraceDepth = number;
 /** By the door, or along the whole wall. */
 export type TerraceSpan = 'door' | 'full';
 
-export type TerraceBuilding = 'none' | 'sauna' | 'shed';
-export const TERRACE_BUILDINGS = ['none', 'sauna', 'shed'] as const;
+export type TerraceBuilding = 'none' | 'sauna' | 'shed' | 'hot-tub';
+export const TERRACE_BUILDINGS = ['none', 'sauna', 'shed', 'hot-tub'] as const;
 
 export type TerraceBuildingPlacement = 'left' | 'right';
 export const TERRACE_BUILDING_PLACEMENTS = ['left', 'right'] as const;
@@ -141,6 +141,7 @@ const FULL_DECK = 58400;
 
 export const SAUNA_BUILDING_PRICE = 48000;
 export const SHED_BUILDING_PRICE = 32000;
+export const HOT_TUB_BUILDING_PRICE = 42000;
 
 export function terraceBuildingPrice(building?: TerraceBuilding, size?: SaunaSize): number {
   if (building === 'sauna') {
@@ -149,6 +150,7 @@ export function terraceBuildingPrice(building?: TerraceBuilding, size?: SaunaSiz
     return SAUNA_BUILDING_PRICE;
   }
   if (building === 'shed') return SHED_BUILDING_PRICE;
+  if (building === 'hot-tub') return HOT_TUB_BUILDING_PRICE;
   return 0;
 }
 
@@ -170,7 +172,7 @@ export function acceptTerraces(value: unknown): HouseTerrace[] {
     if (!TERRACE_SIDES.includes(row.side as TerraceSide) || seen.has(row.side as string)) continue;
     seen.add(row.side as string);
     const building: TerraceBuilding | undefined =
-      row.building === 'sauna' || row.building === 'shed'
+      row.building === 'sauna' || row.building === 'shed' || row.building === 'hot-tub'
         ? row.building
         : row.building === 'none'
           ? 'none'

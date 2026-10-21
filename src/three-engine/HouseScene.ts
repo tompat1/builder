@@ -4,6 +4,7 @@ import { PULPET_PITCH_DEG, type CameraView, type MaterialKey, type WallSlot, typ
 import { panelCountForWall } from '../store/wallSlots';
 import { normalizeBuildingRoof, terraceBoardLayout, type HouseTerrace, type TerraceSide } from '../outside/terrace';
 import { addTerraceCabin } from './terraceBuilding';
+import { addTerraceHotTub } from './terraceHotTub';
 import { computeDoorCanopyLayout, isDoorCoveredByAddition } from '../outside/canopy';
 import { headingForFacing, type CompassFacing } from './sunPosition';
 import { calculateCompassHeading, createSceneLighting, updateSunPosition } from './lighting';
@@ -3621,6 +3622,7 @@ export class HouseScene {
     }
 
     const hasBuilding = terrace.building === 'sauna' || terrace.building === 'shed';
+    const hasAddition = hasBuilding || terrace.building === 'hot-tub';
     const isLeft = terrace.buildingPlacement === 'left';
     let targetBW = 2.2;
     let targetBD = 2.0;
@@ -3636,10 +3638,13 @@ export class HouseScene {
         targetBW = 2.2;
         targetBD = 2.0;
       }
+    } else if (terrace.building === 'hot-tub') {
+      targetBW = 2.2;
+      targetBD = 2.2;
     }
-    const bW = hasBuilding ? Math.min(width * 0.85, Math.max(1.3, targetBW)) : 0;
-    const bD = hasBuilding ? Math.min(depth, Math.max(1.5, targetBD)) : 0;
-    const initialBX = hasBuilding
+    const bW = hasAddition ? Math.min(width * 0.85, Math.max(1.3, targetBW)) : 0;
+    const bD = hasAddition ? Math.min(depth, Math.max(1.5, targetBD)) : 0;
+    const initialBX = hasAddition
       ? isLeft
         ? along - width / 2 + bW / 2
         : along + width / 2 - bW / 2
@@ -3680,12 +3685,12 @@ export class HouseScene {
       }
     }
 
-    const roofW = hasBuilding
+    const roofW = hasAddition
       ? isLeft
         ? Math.max(0, along + width / 2 - (bX + bW / 2))
         : Math.max(0, bX - bW / 2 - (along - width / 2))
       : width;
-    const roofAlong = hasBuilding
+    const roofAlong = hasAddition
       ? isLeft
         ? (along + width / 2 + (bX + bW / 2)) / 2
         : (along - width / 2 + (bX - bW / 2)) / 2
@@ -3720,9 +3725,13 @@ export class HouseScene {
       });
     }
 
+    if (terrace.building === 'hot-tub') {
+      addTerraceHotTub(group, { bX, bW, bD, deckTop, outward, isLeft });
+    }
+
     group.userData.skipNote = true;
     group.userData.outsideAddition = true;
-    group.userData.keepInInterior = hasBuilding;
+    group.userData.keepInInterior = hasAddition;
     this.wallsGroup.add(group);
   }
 

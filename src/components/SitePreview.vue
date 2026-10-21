@@ -299,6 +299,8 @@ function houseFacts() {
       terraceParts.push(`wooden terrace deck with an attached compact ${colorWord} sauna box featuring a ${doorWord}, ${winWord}, a flat black roof and small chimney pipe`);
     } else if (t0.building === 'shed') {
       terraceParts.push('wooden terrace deck with attached timber shed');
+    } else if (t0.building === 'hot-tub') {
+      terraceParts.push('wooden terrace deck with a round cedar hot tub, stainless-steel hoops, built-in wood stove and tall metal flue');
     } else {
       terraceParts.push(`${store.terraces.length} terrace`);
     }

@@ -71,7 +71,8 @@ import {
   type SaunaWindowSize,
   SAUNA_WINDOW_SIZES,
   SAUNA_BUILDING_PRICE,
-  SHED_BUILDING_PRICE
+  SHED_BUILDING_PRICE,
+  HOT_TUB_BUILDING_PRICE
 } from '../outside/terrace';
 import {
   COMPASS_FACINGS,
@@ -536,7 +537,7 @@ export const OUTSIDE_PRICES = {
 } as const;
 
 export type { HouseTerrace, TerraceDepth, TerraceSide, TerraceSpan, TerraceBuilding, TerraceBuildingPlacement, TerraceBuildingRoof, SaunaTurn };
-export { TERRACE_BUILDINGS, TERRACE_BUILDING_PLACEMENTS, SAUNA_BUILDING_PRICE, SHED_BUILDING_PRICE };
+export { TERRACE_BUILDINGS, TERRACE_BUILDING_PLACEMENTS, SAUNA_BUILDING_PRICE, SHED_BUILDING_PRICE, HOT_TUB_BUILDING_PRICE };
 
 import {
   type WallSlot,
@@ -1765,8 +1766,13 @@ export const useConfigStore = defineStore('config', () => {
 
   const setTerraceBuilding = (side: TerraceSide, building: TerraceBuilding) => {
     const current = terraces.value.find((item) => item.side === side);
-    const depth = building === 'sauna' && current && current.depth < 2.0 ? 2.0 : undefined;
-    replaceTerrace(side, { building, ...(depth ? { depth } : {}) });
+    const minimumDepth = building === 'hot-tub' ? 2.2 : building === 'sauna' ? 2.0 : 0;
+    const depth = current && current.depth < minimumDepth ? minimumDepth : undefined;
+    replaceTerrace(side, {
+      building,
+      ...(depth ? { depth } : {}),
+      ...(building === 'hot-tub' ? { span: 'full' as const } : {})
+    });
   }
 
   const setTerraceBuildingPlacement = (side: TerraceSide, buildingPlacement: TerraceBuildingPlacement) => {
