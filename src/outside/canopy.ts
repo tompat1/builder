@@ -1,3 +1,5 @@
+import type { HouseTerrace } from './terrace';
+
 export interface DoorCanopyInput {
   doorX: number;
   doorWidth: number;
@@ -73,11 +75,11 @@ export interface DoorCoverageCheck {
   doorAlong: number;
   doorWidth: number;
   wallSpan: number;
-  terraces: Array<{
+  terraces: Array<HouseTerrace | {
     side: 'front' | 'back' | 'left' | 'right';
     span: 'door' | 'full';
     roof: boolean;
-    building?: 'sauna' | 'shed';
+    building?: 'none' | 'sauna' | 'shed';
     buildingPlacement?: 'left' | 'right';
     buildingSize?: 'compact' | 'standard' | 'large';
   }>;

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { computeDoorCanopyLayout } from '../src/outside/canopy.ts';
+import { computeDoorCanopyLayout, isDoorCoveredByAddition } from '../src/outside/canopy.ts';
 
 test('a door canopy on an interior bay has symmetric overhang and brackets', () => {
   const layout = computeDoorCanopyLayout({
@@ -73,4 +73,79 @@ test('a door canopy on a right corner bay stays centered on the door with symmet
   assert.equal(layout.leftBracketX, -0.635);
   assert.equal(layout.rightBracketX, 0.51);
   assert.ok(Math.abs((layout.canopyX - layout.leftBracketX) - (layout.rightBracketX - layout.canopyX)) < 1e-4);
+});
+
+test('a door covered by a sauna or terrace roof skips the door canopy', () => {
+  // Front wall has a door at -1.2m on a 6.0m house, and a sauna is placed on the left
+  const coveredBySauna = isDoorCoveredByAddition({
+    doorWall: 'front',
+    doorAlong: -1.2,
+    doorWidth: 1.0,
+    wallSpan: 6.0,
+    terraces: [
+      {
+        side: 'front',
+        span: 'full',
+        roof: false,
+        building: 'sauna',
+        buildingPlacement: 'left',
+        buildingSize: 'standard'
+      }
+    ],
+    wallDoorsAlong: [-1.2]
+  });
+  assert.equal(coveredBySauna, true);
+
+  // Door terrace with sauna directly covers the door
+  const doorTerraceSauna = isDoorCoveredByAddition({
+    doorWall: 'front',
+    doorAlong: 0,
+    doorWidth: 1.0,
+    wallSpan: 5.0,
+    terraces: [
+      {
+        side: 'front',
+        span: 'door',
+        roof: false,
+        building: 'sauna'
+      }
+    ]
+  });
+  assert.equal(doorTerraceSauna, true);
+
+  // Terrace with roof covers the door
+  const coveredByRoof = isDoorCoveredByAddition({
+    doorWall: 'front',
+    doorAlong: 1.0,
+    doorWidth: 1.0,
+    wallSpan: 5.0,
+    terraces: [
+      {
+        side: 'front',
+        span: 'full',
+        roof: true
+      }
+    ]
+  });
+  assert.equal(coveredByRoof, true);
+
+  // Door on a different side or well clear of a compact sauna on an open terrace keeps its canopy
+  const openDeckDoor = isDoorCoveredByAddition({
+    doorWall: 'front',
+    doorAlong: 2.2,
+    doorWidth: 1.0,
+    wallSpan: 6.0,
+    terraces: [
+      {
+        side: 'front',
+        span: 'full',
+        roof: false,
+        building: 'sauna',
+        buildingPlacement: 'left',
+        buildingSize: 'compact'
+      }
+    ],
+    wallDoorsAlong: [-2.0, 2.2]
+  });
+  assert.equal(openDeckDoor, false);
 });

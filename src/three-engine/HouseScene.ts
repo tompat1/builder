@@ -3847,12 +3847,37 @@ export class HouseScene {
     const roofMat = new THREE.MeshStandardMaterial({ color: '#4a534f', roughness: 0.42, metalness: 0.38 });
     const deckMat = new THREE.MeshStandardMaterial({ color: '#b7b2a8', roughness: 0.78, metalness: 0.02 });
     const deckAlt = new THREE.MeshStandardMaterial({ color: '#a39e94', roughness: 0.82, metalness: 0.02 });
-    const covered = new Set(terraces.filter((item) => item.roof).map((item) => item.side));
-
     if (canopyOn) {
       for (const door of doors) {
-        if (covered.has(door.wall)) continue;
         if (door.itemId === 'SKJUTDORR' || door.itemId === 'SKJUTDORR3') continue;
+        const wallAnchor = this.sideAnchor(door.wall, w, d, h);
+        const cosR = Math.cos(-wallAnchor.rotY);
+        const sinR = Math.sin(-wallAnchor.rotY);
+        const dx = door.px + (door.doorX ?? 0) - wallAnchor.px;
+        const dz = door.pz - wallAnchor.pz;
+        const doorAlong = dx * cosR - dz * sinR;
+        const wallSpan = door.wall === 'front' || door.wall === 'back' ? w : d;
+        const wallDoorsAlong = doors
+          .filter((dItem) => dItem.wall === door.wall)
+          .map((dItem) => {
+            const dX = dItem.px + (dItem.doorX ?? 0) - wallAnchor.px;
+            const dZ = dItem.pz - wallAnchor.pz;
+            return dX * cosR - dZ * sinR;
+          });
+
+        if (
+          isDoorCoveredByAddition({
+            doorWall: door.wall,
+            doorAlong,
+            doorWidth: door.width,
+            wallSpan,
+            terraces,
+            wallDoorsAlong
+          })
+        ) {
+          continue;
+        }
+
         this.addDoorCanopy(door, timber, roofMat);
       }
     }
