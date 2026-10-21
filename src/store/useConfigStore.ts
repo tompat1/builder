@@ -910,15 +910,13 @@ export const useConfigStore = defineStore('config', () => {
       }
       cornerBoards.value = data.cornerBoards !== false;
       wallSlots.value = mergeWallSlots(data.wallSlots, data.selectedSizeId ?? selectedSizeId.value);
-      if (data.selectedSizeId === 'size-paabyggnad') {
-        if (!wallSlots.value['back-2'] || wallSlots.value['back-2'].type === 'empty') {
-          wallSlots.value['back-2'] = {
-            ...(wallSlots.value['back-2'] ?? { id: 'back-2', wall: 'back', index: 2 }),
-            type: 'door',
-            itemId: 'STEHAG',
-            canAcceptDoor: true
-          };
-        }
+      if (data.selectedSizeId === 'size-paabyggnad' && (!wallSlots.value['back-2'] || wallSlots.value['back-2'].type === 'empty')) {
+            wallSlots.value['back-2'] = {
+              ...(wallSlots.value['back-2'] ?? { id: 'back-2', wall: 'back', index: 2 }),
+              type: 'door',
+              itemId: 'STEHAG',
+              canAcceptDoor: true
+            };
       }
       placedRooms.value = acceptPlacedRooms(data.placedRooms);
       if (data.selectedSizeId === 'size-paabyggnad') {

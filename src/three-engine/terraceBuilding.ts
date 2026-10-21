@@ -319,9 +319,7 @@ function windowOnWall(
 
   const mid = (lo + hi) / 2;
   const clearance = Math.min(wall.top(mid - width / 2), wall.top(mid + width / 2));
-  if (head > clearance - 0.06) {
-    head = clearance - 0.06;
-  }
+  head = Math.min(head, clearance - 0.06);
   if (head - sill < 0.3) return null;
   return { from: mid - width / 2, to: mid + width / 2, sill, head };
 }
