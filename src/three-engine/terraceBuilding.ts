@@ -610,6 +610,208 @@ function addCornerPosts(
   }
 }
 
+function addMonoPitchRoof(
+  group: THREE.Group,
+  spec: {
+    bX: number;
+    bW: number;
+    bD: number;
+    outward: number;
+    deckTop: number;
+    topAt: (t: number) => number;
+    roofMat: THREE.Material;
+    innerMat: THREE.Material;
+    trimMat: THREE.Material;
+  }
+) {
+  const { bX, bW, outward, topAt, roofMat, innerMat, trimMat } = spec;
+  const z0 = 0;
+  const y0 = topAt(0);
+  const z1 = outward * spec.bD;
+  const y1 = topAt(1);
+
+  const dz = z1 - z0;
+  const dy = y1 - y0;
+  const span = Math.hypot(dz, dy) || 0.001;
+  const tz = dz / span;
+  const ty = dy / span;
+
+  // Normal vector pointing upward/outward from roof surface
+  const ny = Math.abs(tz);
+  const nz = -ty * Math.sign(tz);
+
+  const overhangSide = 0.06;
+  const roofW = bW + overhangSide * 2;
+  const overhangHouse = 0.005;
+  const overhangYard = 0.12;
+
+  const zStart = z0 - tz * overhangHouse;
+  const yStart = y0 - ty * overhangHouse;
+  const zEnd = z1 + tz * overhangYard;
+  const yEnd = y1 + ty * overhangYard;
+  const slopeLen = span + overhangHouse + overhangYard;
+
+  const roofThick = 0.06;
+  const bargeT = 0.024;
+  const fasciaT = 0.024;
+  const fasciaH = 0.11;
+  const copingH = 0.012;
+  const copingOverhang = 0.035;
+
+  // Powder-coated metal sheet material matching the big house standing-seam / flashing style
+  const metalFlashingMat = new THREE.MeshStandardMaterial({
+    color: '#2a3036',
+    roughness: 0.38,
+    metalness: 0.72
+  });
+
+  // 1. Ceiling underside inside cabin
+  addRotatedRoofBeam(
+    group,
+    bX,
+    bW - 0.08,
+    0.016,
+    z0 + tz * 0.04,
+    y0 + ty * 0.04,
+    z1 - tz * 0.04,
+    y1 - ty * 0.04,
+    -(roofThick / 2 + 0.008) * ny,
+    -(roofThick / 2 + 0.008) * nz,
+    innerMat,
+    false
+  );
+
+  // 2. Main roof slab with metal cladding texture / roof material
+  addRotatedRoofBeam(
+    group,
+    bX,
+    roofW,
+    roofThick,
+    zStart,
+    yStart,
+    zEnd,
+    yEnd,
+    (roofThick / 2) * ny,
+    (roofThick / 2) * nz,
+    roofMat,
+    true
+  );
+
+  // 3. Side bargeboards (vindskivor) - run flush from house wall to front fascia with even edges
+  const liftY = (roofThick / 2 - fasciaH / 2 + 0.01) * ny;
+  const liftZ = (roofThick / 2 - fasciaH / 2 + 0.01) * nz;
+
+  for (const sign of [-1, 1]) {
+    addRotatedRoofBeam(
+      group,
+      bX + sign * (roofW / 2 + bargeT / 2),
+      bargeT,
+      fasciaH,
+      zStart,
+      yStart,
+      zEnd,
+      yEnd,
+      liftY,
+      liftZ,
+      trimMat,
+      true
+    );
+  }
+
+  // 4. Front fascia (takfotsbräda) - width caps roof and both bargeboards with even edges
+  const fasciaWidth = roofW + bargeT * 2 + 0.004;
+  const frontZStart = zEnd;
+  const frontYStart = yEnd;
+  const frontZEnd = zEnd + tz * fasciaT;
+  const frontYEnd = yEnd + ty * fasciaT;
+
+  addRotatedRoofBeam(
+    group,
+    bX,
+    fasciaWidth,
+    fasciaH,
+    frontZStart,
+    frontYStart,
+    frontZEnd,
+    frontYEnd,
+    liftY,
+    liftZ,
+    trimMat,
+    true
+  );
+
+  // 5. Metal verge trims (krönplåt / vindskivebeslag) along left and right edges
+  const copingLiftY = (roofThick + copingH / 2 + 0.002) * ny;
+  const copingLiftZ = (roofThick + copingH / 2 + 0.002) * nz;
+
+  for (const sign of [-1, 1]) {
+    addRotatedRoofBeam(
+      group,
+      bX + sign * (roofW / 2 + bargeT / 2 - copingOverhang / 2),
+      bargeT + copingOverhang,
+      copingH,
+      zStart,
+      yStart,
+      frontZEnd,
+      frontYEnd,
+      copingLiftY,
+      copingLiftZ,
+      metalFlashingMat,
+      true
+    );
+  }
+
+  // 6. Front metal eave drip edge / coping (takfotsbeslag / dropplåt)
+  addRotatedRoofBeam(
+    group,
+    bX,
+    roofW + bargeT * 2 + 0.01,
+    copingH,
+    zEnd - tz * copingOverhang,
+    yEnd - ty * copingOverhang,
+    frontZEnd + tz * 0.01,
+    frontYEnd + ty * 0.01,
+    copingLiftY,
+    copingLiftZ,
+    metalFlashingMat,
+    true
+  );
+
+  // 7. Metal wall apron flashing (vägganslutningsplåt) sealing the roof/walls section
+  const wallFlashing = new THREE.Mesh(
+    new THREE.BoxGeometry(roofW + bargeT * 2 + 0.04, 0.16, 0.14),
+    metalFlashingMat
+  );
+  wallFlashing.position.set(bX, y0 + 0.05, z0 + outward * 0.05);
+  wallFlashing.rotation.x = -Math.atan2(yEnd - yStart, zEnd - zStart);
+  wallFlashing.castShadow = true;
+  group.add(wallFlashing);
+}
+
+function addRotatedRoofBeam(
+  group: THREE.Group,
+  x: number,
+  width: number,
+  thick: number,
+  zStart: number,
+  yStart: number,
+  zEnd: number,
+  yEnd: number,
+  liftY: number,
+  liftZ: number,
+  mat: THREE.Material,
+  shadow = true
+) {
+  const len = Math.hypot(zEnd - zStart, yEnd - yStart);
+  const mesh = new THREE.Mesh(new THREE.BoxGeometry(Math.max(width, 0.01), thick, len), mat);
+  mesh.position.set(x, (yStart + yEnd) / 2 + liftY, (zStart + zEnd) / 2 + liftZ);
+  mesh.rotation.x = -Math.atan2(yEnd - yStart, zEnd - zStart);
+  mesh.castShadow = shadow;
+  mesh.receiveShadow = true;
+  group.add(mesh);
+  return mesh;
+}
+
 function addRoof(
   group: THREE.Group,
   spec: {
@@ -625,15 +827,17 @@ function addRoof(
     trimMat: THREE.Material;
   }
 ) {
+  if (spec.roof !== 'gable') {
+    addMonoPitchRoof(group, spec);
+    return;
+  }
+
   const { bX, bW, outward, topAt, roofMat, innerMat, trimMat } = spec;
   const yardZ = outward * spec.bD;
-  const gable = spec.roof === 'gable';
-  const planes: [number, number, number, number, number, number][] = gable
-    ? [
-        [0, topAt(0), yardZ / 2, topAt(0.5), 0.04, 0.06],
-        [yardZ / 2, topAt(0.5), yardZ, topAt(1), 0.06, 0.16]
-      ]
-    : [[0, topAt(0), yardZ, topAt(1), 0.04, 0.16]];
+  const planes: [number, number, number, number, number, number][] = [
+    [0, topAt(0), yardZ / 2, topAt(0.5), 0.04, 0.06],
+    [yardZ / 2, topAt(0.5), yardZ, topAt(1), 0.06, 0.16]
+  ];
   for (const [z0, y0, z1, y1, extraHouse, extraYard] of planes) {
     addRoofSlab(group, bX, bW - 0.1, z0, y0, z1, y1, 0.02, 0.02, 0.018, 0.012, innerMat);
     addRoofSlab(group, bX, bW + 0.18, z0, y0, z1, y1, extraHouse + 0.01, extraYard + 0.02, 0.026, -0.006, roofMat);
@@ -642,16 +846,12 @@ function addRoof(
     addRoofSlab(group, bX - bW / 2 - 0.02, 0.06, z0, y0, z1, y1, extra0, extra1, 0.14, 0.07, trimMat);
     addRoofSlab(group, bX + bW / 2 + 0.02, 0.06, z0, y0, z1, y1, extra0, extra1, 0.14, 0.07, trimMat);
   };
-  if (gable) {
-    barge(0, topAt(0), yardZ / 2, topAt(0.5), 0.04, 0.04);
-    barge(yardZ / 2, topAt(0.5), yardZ, topAt(1), 0.04, 0.16);
-    const ridge = new THREE.Mesh(new THREE.BoxGeometry(bW + 0.28, 0.055, 0.18), trimMat);
-    ridge.position.set(bX, topAt(0.5) + 0.02, yardZ / 2);
-    ridge.castShadow = true;
-    group.add(ridge);
-  } else {
-    barge(0, topAt(0), yardZ, topAt(1), 0.04, 0.16);
-  }
+  barge(0, topAt(0), yardZ / 2, topAt(0.5), 0.04, 0.04);
+  barge(yardZ / 2, topAt(0.5), yardZ, topAt(1), 0.04, 0.16);
+  const ridge = new THREE.Mesh(new THREE.BoxGeometry(bW + 0.28, 0.055, 0.18), trimMat);
+  ridge.position.set(bX, topAt(0.5) + 0.02, yardZ / 2);
+  ridge.castShadow = true;
+  group.add(ridge);
   const fascia = new THREE.Mesh(new THREE.BoxGeometry(bW + 0.22, 0.16, 0.028), trimMat);
   fascia.position.set(bX, topAt(1) + 0.02, yardZ + outward * 0.015);
   fascia.castShadow = true;

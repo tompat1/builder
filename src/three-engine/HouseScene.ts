@@ -3844,7 +3844,7 @@ export class HouseScene {
     const found = this.outsideAnchors(w, d, h);
     const doors = found.length ? found : [this.fallbackDoor(d)];
     const timber = new THREE.MeshStandardMaterial({ color: '#e7d3b0', roughness: 0.62, metalness: 0.02 });
-    const roofMat = new THREE.MeshStandardMaterial({ color: '#4a534f', roughness: 0.42, metalness: 0.38 });
+    const roofMat = this.roofSurfaceMaterial();
     const deckMat = new THREE.MeshStandardMaterial({ color: '#b7b2a8', roughness: 0.78, metalness: 0.02 });
     const deckAlt = new THREE.MeshStandardMaterial({ color: '#a39e94', roughness: 0.82, metalness: 0.02 });
     if (canopyOn) {
