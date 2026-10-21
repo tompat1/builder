@@ -31,6 +31,7 @@ import {
   clampConcretePlan,
   clampConcreteWall,
   clampPaabyggnadPlan,
+  isConcreteFoundationOnly,
   paabyggnadLoftAreas,
   paabyggnadWallSlots,
   CONCRETE_WALL_LIMIT,
@@ -1544,6 +1545,7 @@ export const useConfigStore = defineStore('config', () => {
 
   const addConcreteWall = () => {
     if (selectedSizeId.value !== 'size-paabyggnad') return;
+    if (isConcreteFoundationOnly(concreteHeight.value)) return;
     if (concreteWalls.value.length >= CONCRETE_WALL_LIMIT) return;
     const axis: ConcreteWall['axis'] = concreteWalls.value.length % 2 === 0 ? 'x' : 'z';
     const same = concreteWalls.value.filter((wall) => wall.axis === axis).length;

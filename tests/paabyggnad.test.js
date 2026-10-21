@@ -3,12 +3,15 @@ import assert from 'node:assert/strict';
 import { floorAreaSqMeters } from '../src/store/area.ts';
 import {
   CONCRETE_STOREY_TOP_M,
+  CONCRETE_FOUNDATION_HEIGHT_MM,
   CONCRETE_WALL_THICK_M,
   CONCRETE_WALL_THICK_MM,
   acceptConcreteWalls,
   clampConcretePlan,
   clampConcreteWall,
   clampPaabyggnadPlan,
+  concreteCrownHeightM,
+  isConcreteFoundationOnly,
   paabyggnadLoftAreas,
   panelOnConcrete,
   timberShellOnConcrete
@@ -17,6 +20,18 @@ import { fittedDoorOpening } from '../src/three-engine/windowFit.ts';
 
 test('the concrete house stops at 2.5 m so the timber loft starts above it', () => {
   assert.equal(CONCRETE_STOREY_TOP_M, 2.5);
+});
+
+test('concrete walls can be removed down to a visible 10 cm foundation curb', () => {
+  const concrete = { width: 5200, depth: 5200, height: 2500 };
+  assert.equal(CONCRETE_FOUNDATION_HEIGHT_MM, 100);
+  assert.equal(clampConcretePlan('height', { ...concrete, height: 0 }).height, 100);
+  assert.equal(clampConcretePlan('height', { ...concrete, height: 100 }).height, 100);
+  assert.equal(clampConcretePlan('height', { ...concrete, height: 150 }).height, 150);
+  assert.equal(isConcreteFoundationOnly(100), true);
+  assert.equal(isConcreteFoundationOnly(101), false);
+  assert.equal(concreteCrownHeightM(100), 0.35);
+  assert.equal(concreteCrownHeightM(2500), 2.5);
 });
 
 test('the concrete house is 27 m² and can grow beyond 35 m² without shrinking the old plan', () => {

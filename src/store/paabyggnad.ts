@@ -7,10 +7,25 @@ export const CONCRETE_MIN_DEPTH_MM = 2500;
 export const CONCRETE_MAX_WIDTH_MM = 12000;
 export const CONCRETE_MAX_DEPTH_MM = 10000;
 
-/** Concrete walls stay a single open storey, with no roof of their own. */
-export const CONCRETE_MIN_HEIGHT_MM = 2000;
+/** A demolished concrete shell may remain only as a 10 cm foundation curb. */
+export const CONCRETE_FOUNDATION_HEIGHT_MM = 100;
+export const CONCRETE_MIN_HEIGHT_MM = CONCRETE_FOUNDATION_HEIGHT_MM;
 export const CONCRETE_MAX_HEIGHT_MM = 4000;
 export const CONCRETE_DEFAULT_HEIGHT_MM = 2500;
+
+/** At the minimum height the old walls are gone; only their foundation curb remains. */
+export function isConcreteFoundationOnly(heightMm: number): boolean {
+  return Number.isFinite(heightMm) && heightMm <= CONCRETE_FOUNDATION_HEIGHT_MM;
+}
+
+/**
+ * Full walls use their configured top above ground. The 10 cm foundation curb
+ * instead sits on top of the 25 cm slab so it remains visible in the model.
+ */
+export function concreteCrownHeightM(heightMm: number): number {
+  const accepted = Math.max(CONCRETE_MIN_HEIGHT_MM, heightMm) / 1000;
+  return isConcreteFoundationOnly(accepted * 1000) ? 0.25 + accepted : accepted;
+}
 
 /** Timber addition: plan may grow from the concrete house up to this floor area. */
 export const PAABYGGNAD_MAX_AREA = 120;

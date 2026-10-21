@@ -232,6 +232,9 @@
               />
             </label>
           </div>
+          <p class="mt-1.5 text-[11px] leading-snug text-slate-500">
+            <Cms k="category.concreteFoundationHint" />
+          </p>
         </div>
       </div>
 
@@ -1390,7 +1393,7 @@
 
         <!-- Concrete house inner partition walls (Påbyggnad betong only) -->
         <div
-          v-if="store.selectedSizeId === 'size-paabyggnad'"
+          v-if="store.selectedSizeId === 'size-paabyggnad' && store.concreteHeight > CONCRETE_FOUNDATION_HEIGHT_MM"
           class="rounded-xl border border-slate-200 bg-white p-3 shadow-xs"
         >
           <div class="flex items-center justify-between gap-3">
@@ -1467,6 +1470,12 @@
             </button>
           </div>
         </div>
+        <p
+          v-else-if="store.selectedSizeId === 'size-paabyggnad'"
+          class="rounded-xl border border-slate-200 bg-slate-50 p-3 text-[11px] leading-snug text-slate-600"
+        >
+          <Cms k="category.concreteWallsRemoved" />
+        </p>
 
         <!-- Interior Sub-tabs -->
         <div class="flex border-b border-slate-200 gap-4 mb-2">
@@ -2670,6 +2679,7 @@ import { useLabels } from '../i18n';
 import CustomPaint from './CustomPaint.vue';
 import { paintTitle, readableInk } from '../color/paint';
 import { searchAction, searchRequest } from '../search/run';
+import { CONCRETE_FOUNDATION_HEIGHT_MM } from '../store/paabyggnad';
 
 const store = useConfigStore();
 const loftPlaces: { id: LoftPlacement; label: string }[] = [
@@ -2987,7 +2997,7 @@ function planLimit(axis: 'width' | 'depth' | 'height', edge: 'min' | 'max') {
 }
 
 function concreteLimit(axis: 'width' | 'depth' | 'height', edge: 'min' | 'max') {
-  if (axis === 'height') return edge === 'min' ? 200 : 400;
+  if (axis === 'height') return edge === 'min' ? CONCRETE_FOUNDATION_HEIGHT_MM / 10 : 400;
   return BUILDING_LIMITS[axis][edge] / 10;
 }
 

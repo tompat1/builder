@@ -15,7 +15,12 @@ import { INTERIOR_FLOOR_TOP, LOFT_FLOORBOARD, curvedLoftStair, loftEndRotation, 
 import { ceilingStations, loftCeilingY, sliceStations, type CeilingStation, type RoofSlope } from './roofClearance';
 import { NARROW_TALL, OVERLIGHT, PORTRAIT_PANORAMA, containWindowInPanel, fittedDoorOpening, fittedWindowOpening, narrowTallPane, openingClearOfRoof, overlightHeight, portraitPane, windowOpeningChanged } from './windowFit';
 import { fitRoom, innerHalf, roomFootprint, roomWallRuns, shellSides, SHELL_TOUCH, bedroomBedPlacement, type RoomBox, type ShellSides, type RoomBounds } from './roomWalls';
-import { CONCRETE_WALL_THICK_M, timberShellOnConcrete } from '../store/paabyggnad';
+import {
+  CONCRETE_WALL_THICK_M,
+  concreteCrownHeightM,
+  isConcreteFoundationOnly,
+  timberShellOnConcrete
+} from '../store/paabyggnad';
 import { MEASURE_CURSOR } from '../measure/length';
 import {
   applyCladdingRepeat,
@@ -92,12 +97,12 @@ export interface SceneConfig {
   cornerColor?: string | null;
   /** Whether exterior corner boards (knutbrädor) are visible. */
   cornerBoards?: boolean;
-  /** Lower storey is the existing concrete house. Timber starts above it. */
+  /** Existing concrete footprint; at 10 cm only its foundation curb remains. */
   concreteBase?: boolean;
   /** Concrete house plan, millimetres. Centered inside the timber shell. */
   concreteWidthMm?: number;
   concreteDepthMm?: number;
-  /** Top of the concrete walls, millimetres above the ground. */
+  /** Concrete wall height, or a 100 mm foundation-only curb. */
   concreteHeightMm?: number;
   /** Extra concrete walls inside the open shell. */
   concreteWalls?: { id: string; axis: 'x' | 'z'; offsetMm: number }[];
@@ -1685,11 +1690,21 @@ export class HouseScene {
    * On the concrete house the rail is the top of the concrete walls, so the
    * timber storey starts where that wall ends.
    */
+  private concreteFoundationOnly() {
+    return Boolean(
+      this.currentConfig.concreteBase
+      && isConcreteFoundationOnly(this.currentConfig.concreteHeightMm ?? 2500)
+    );
+  }
+
+  private concreteCrownM() {
+    return concreteCrownHeightM(this.currentConfig.concreteHeightMm ?? 2500);
+  }
+
   private beltRise(wallTop: number) {
     const wallBase = 0.25;
-    if (this.currentConfig.concreteBase) {
-      const crown = (this.currentConfig.concreteHeightMm ?? 2500) / 1000;
-      return Math.max(0.4, crown - wallBase);
+    if (this.currentConfig.concreteBase && !this.concreteFoundationOnly()) {
+      return Math.max(0.4, this.concreteCrownM() - wallBase);
     }
     if (wallTop >= 4.5) return 2.7 - wallBase;
     return 2.15;
@@ -1748,7 +1763,7 @@ export class HouseScene {
 
   /** This timber face is the concrete outer facade, so the wood above continues it. */
   private concreteFacade(wallSide: 'front' | 'back' | 'left' | 'right') {
-    if (!this.currentConfig.concreteBase) return false;
+    if (!this.currentConfig.concreteBase || this.concreteFoundationOnly()) return false;
     // Front wall of concrete house is removed to open up the whole house
     if (wallSide === 'front') return false;
     const shell = this.timberShell();
@@ -1767,9 +1782,10 @@ export class HouseScene {
     if (!this.currentConfig.concreteBase) return;
     const cw = (this.currentConfig.concreteWidthMm ?? 5200) / 1000;
     const cd = (this.currentConfig.concreteDepthMm ?? 5200) / 1000;
-    const top = (this.currentConfig.concreteHeightMm ?? 2500) / 1000;
     const base = 0.25;
-    const height = Math.max(0.4, top - base);
+    const foundationOnly = this.concreteFoundationOnly();
+    const top = this.concreteCrownM();
+    const height = Math.max(0.01, top - base);
     const thick = CONCRETE_WALL_THICK_M;
     const y = base + height / 2;
 
@@ -1802,6 +1818,9 @@ export class HouseScene {
       .filter(isLower)
       .map((o) => ({ center: shell.z + o.x, winW: o.winW, winH: o.winH, sill: o.sill, head: o.head }));
     this.addConcreteSideWall(cw / 2 - thick / 2, cd, height, thick, y, base, top, material, whiteInsideMat, rightOps);
+
+    // Foundation-only mode keeps the perimeter curb but removes every partition wall.
+    if (foundationOnly) return;
 
     // 4. Interior concrete walls (white inside)
     const add = (size: [number, number, number], pos: [number, number, number]) => {
@@ -2006,7 +2025,7 @@ export class HouseScene {
     const rise = this.beltRise(wallTop);
     // The plate hangs from the concrete crown and laps the wall end.
     // Other houses keep the rail centred on the storey line.
-    const y = this.currentConfig.concreteBase
+    const y = this.currentConfig.concreteBase && !this.concreteFoundationOnly()
       ? 0.25 + rise - faceH / 2
       : 0.25 + rise;
     const proj = 0.036;
@@ -2341,8 +2360,8 @@ export class HouseScene {
       ? Math.max(h - Math.tan(PULPET_PITCH_RAD) * d, 2.4)
       : (isFlackt ? h - flacktDrop : h);
 
-    const isConcrete = Boolean(this.currentConfig.concreteBase);
-    const concreteH = isConcrete ? (this.currentConfig.concreteHeightMm ?? 2500) / 1000 : baseElevation;
+    const isConcrete = Boolean(this.currentConfig.concreteBase && !this.concreteFoundationOnly());
+    const concreteH = isConcrete ? this.concreteCrownM() : baseElevation;
 
     const framingFrontZ = d / 2 - 0.025 - studDepth / 2;
     const framingBackZ = -d / 2 + 0.025 + studDepth / 2;
@@ -3025,8 +3044,8 @@ export class HouseScene {
     openings: { x: number; winW: number; sill: number; head: number }[] = []
   ) {
     const rowPitch = 1.2;
-    const isConcrete = Boolean(this.currentConfig.concreteBase);
-    const concreteH = isConcrete ? (this.currentConfig.concreteHeightMm ?? 2500) / 1000 : baseElevation;
+    const isConcrete = Boolean(this.currentConfig.concreteBase && !this.concreteFoundationOnly());
+    const concreteH = isConcrete ? this.concreteCrownM() : baseElevation;
     const cd = (this.currentConfig.concreteDepthMm ?? 5200) / 1000;
     const shell = this.timberShell();
 
@@ -5537,8 +5556,8 @@ export class HouseScene {
       this.loftBuildParent = host;
     }
 
-    const isConcrete = Boolean(this.currentConfig.concreteBase);
-    const concreteH = (this.currentConfig.concreteHeightMm ?? 2500) / 1000;
+    const isConcrete = Boolean(this.currentConfig.concreteBase && !this.concreteFoundationOnly());
+    const concreteH = isConcrete ? this.concreteCrownM() : 0.25;
 
     // Total house footprint reference for size-30 is 27.38 m2; for concrete base use actual plan area
     const houseAreaRef = isConcrete
@@ -5553,7 +5572,7 @@ export class HouseScene {
     const interiorD = d - wt * 2;
 
     const loftD = interiorD;
-    // Deck sits on concrete wall top (2.5m) when concreteBase, else standard loft height
+    // A full concrete storey carries the deck; foundation-only mode uses the normal timber loft level.
     const joistH = 0.195; // 195 mm floor joists (45x195 mm bjälklag)
     const joistW = 0.045; // 45 mm joist thickness
     const floorboardThick = 0.028; // 28 mm massive granplank
@@ -7858,10 +7877,10 @@ export class HouseScene {
     const cx = shell.x;
     const cz = shell.z;
 
-    const isConcrete = Boolean(this.currentConfig.concreteBase);
+    const isConcrete = Boolean(this.currentConfig.concreteBase && !this.concreteFoundationOnly());
     const cd = (this.currentConfig.concreteDepthMm ?? 5200) / 1000;
     const concreteFrontZ = cd - d / 2;
-    const concreteH = isConcrete ? (this.currentConfig.concreteHeightMm ?? 2500) / 1000 : 0.25;
+    const concreteH = isConcrete ? this.concreteCrownM() : 0.25;
 
     let target = new THREE.Vector3(cx, h * 0.45, cz);
     let pos = new THREE.Vector3(cx + w * 1.15, h * 1.15, cz + d * 1.35);
