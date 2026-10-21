@@ -45,7 +45,8 @@ export function getStoredParticipant(): MoodParticipant | null {
       email: typeof rec.email === 'string' ? rec.email : undefined,
       themes: Array.isArray(rec.themes) ? (rec.themes as string[]) : undefined,
       joinedAt: typeof rec.joinedAt === 'string' ? rec.joinedAt : new Date().toISOString(),
-      ...(rec.hasExpenseAccess ? { hasExpenseAccess: true } : {})
+      ...(rec.hasExpenseAccess ? { hasExpenseAccess: true } : {}),
+      ...(rec.canInviteParticipants ? { canInviteParticipants: true } : {})
     };
   } catch {
     return null;

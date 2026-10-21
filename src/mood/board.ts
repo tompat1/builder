@@ -22,6 +22,7 @@ export interface MoodParticipant {
   themes?: string[];
   joinedAt: string;
   hasExpenseAccess?: boolean;
+  canInviteParticipants?: boolean;
 }
 
 export interface MoodComment {
@@ -214,7 +215,8 @@ function acceptParticipants(value: unknown): MoodParticipant[] | undefined {
       email: typeof rec.email === 'string' ? rec.email.trim().slice(0, 120) : undefined,
       themes: Array.isArray(rec.themes) ? rec.themes.filter((t) => typeof t === 'string').slice(0, 3) : undefined,
       joinedAt: typeof rec.joinedAt === 'string' ? rec.joinedAt.slice(0, 50) : new Date().toISOString(),
-      ...(rec.hasExpenseAccess ? { hasExpenseAccess: true } : {})
+      ...(rec.hasExpenseAccess ? { hasExpenseAccess: true } : {}),
+      ...(rec.canInviteParticipants ? { canInviteParticipants: true } : {})
     });
   }
   return list.length > 0 ? list : undefined;

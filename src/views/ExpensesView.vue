@@ -87,9 +87,10 @@ import ExpenseTracker from '../components/expenses/ExpenseTracker.vue';
 import {
   hasExpenseAccess,
   grantExpenseAccess,
+  setExpenseAccess,
   expenseHouseKey
 } from '../services/expenseSave';
-import { getStoredParticipant } from '../services/moodSave';
+import { getStoredParticipant, saveStoredParticipant, syncMoodWithCloudflare } from '../services/moodSave';
 import { useSessionStore } from '../store/useSessionStore';
 import { useLabels } from '../i18n';
 import type { MoodParticipant } from '../mood/board';
@@ -115,6 +116,27 @@ const houseKey = computed(() => {
 
 onMounted(async () => {
   await sessionStore.ensureAccountState();
+
+  const storedParticipant = getStoredParticipant();
+  if (storedParticipant && !sessionStore.user) {
+    const remote = await syncMoodWithCloudflare(houseKey.value);
+    const boardParticipant = remote?.participants?.find((participant) => (
+      participant.id === storedParticipant.id
+      || Boolean(
+        storedParticipant.email
+        && participant.email
+        && storedParticipant.email.toLowerCase().trim() === participant.email.toLowerCase().trim()
+      )
+    ));
+    if (boardParticipant) {
+      if (boardParticipant.hasExpenseAccess === true) storedParticipant.hasExpenseAccess = true;
+      else delete storedParticipant.hasExpenseAccess;
+      if (boardParticipant.canInviteParticipants === true) storedParticipant.canInviteParticipants = true;
+      else delete storedParticipant.canInviteParticipants;
+      saveStoredParticipant(storedParticipant);
+      setExpenseAccess(boardParticipant.hasExpenseAccess === true, houseKey.value);
+    }
+  }
 
   // If URL contains an invite token, grant access immediately!
   const inviteParam = typeof route?.query?.invite === 'string' ? route.query.invite.trim() : '';

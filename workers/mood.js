@@ -106,6 +106,31 @@ async function resolveBoard(db, boardId, userId) {
   return row;
 }
 
+function protectedParticipants(existingText, incoming, canManageAccess) {
+  if (canManageAccess) return incoming;
+  let previous = {};
+  try {
+    previous = existingText ? JSON.parse(existingText) : {};
+  } catch {
+    previous = {};
+  }
+  const existing = new Map(
+    (Array.isArray(previous.participants) ? previous.participants : [])
+      .filter((person) => person && person.id)
+      .map((person) => [person.id, person])
+  );
+  return incoming.map((person) => {
+    if (!person || typeof person !== 'object') return person;
+    const prior = existing.get(person.id);
+    const safe = { ...person };
+    delete safe.hasExpenseAccess;
+    delete safe.canInviteParticipants;
+    if (prior?.hasExpenseAccess === true) safe.hasExpenseAccess = true;
+    if (prior?.canInviteParticipants === true) safe.canInviteParticipants = true;
+    return safe;
+  });
+}
+
 function mergeBoardData(existingText, incoming) {
   let prev = {};
   try {
@@ -244,10 +269,15 @@ export async function handleMood(request, env, headers, sessionUser) {
       pieces: Array.isArray(body.pieces) ? body.pieces : [],
       participants: Array.isArray(body.participants) ? body.participants : []
     };
+    const existing = await boardById(env.DB, boardId);
+    incoming.participants = protectedParticipants(
+      existing?.data,
+      incoming.participants,
+      user?.role === 'admin'
+    );
     let stored = incoming;
-    if (body.authoritative !== true) {
-      const existing = await boardById(env.DB, boardId);
-      if (existing) stored = mergeBoardData(existing.data, incoming);
+    if (body.authoritative !== true && existing) {
+      stored = mergeBoardData(existing.data, incoming);
     }
     stored = {
       ...stored,

@@ -427,12 +427,18 @@ export function hasExpenseAccess(houseKey = expenseHouseKey()): boolean {
 }
 
 export function grantExpenseAccess(houseKey = expenseHouseKey()): void {
+  setExpenseAccess(true, houseKey);
+}
+
+export function setExpenseAccess(granted: boolean, houseKey = expenseHouseKey()): void {
   if (typeof localStorage === 'undefined') return;
   try {
-    localStorage.setItem(`${ACCESS_PREFIX}${houseKey}`, 'granted');
+    if (granted) localStorage.setItem(`${ACCESS_PREFIX}${houseKey}`, 'granted');
+    else localStorage.removeItem(`${ACCESS_PREFIX}${houseKey}`);
     const participant = readStoredParticipant();
     if (participant) {
-      participant.hasExpenseAccess = true;
+      if (granted) participant.hasExpenseAccess = true;
+      else delete participant.hasExpenseAccess;
       writeStoredParticipant(participant);
     }
   } catch {

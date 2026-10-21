@@ -163,7 +163,9 @@ test('a mood board accepts participants list', () => {
     avatar: 'data:image/svg+xml;utf8,<svg></svg>',
     email: 'alex@example.com',
     themes: ['Foresty', 'Chill'],
-    joinedAt: '2026-10-12T19:00:00.000Z'
+    joinedAt: '2026-10-12T19:00:00.000Z',
+    hasExpenseAccess: true,
+    canInviteParticipants: true
   };
   const board = acceptMoodBoard({
     title: 'Familjens Moodboard',
@@ -173,6 +175,8 @@ test('a mood board accepts participants list', () => {
   assert.equal(board.participants?.length, 1);
   assert.equal(board.participants?.[0].name, 'Alex');
   assert.deepEqual(board.participants?.[0].themes, ['Foresty', 'Chill']);
+  assert.equal(board.participants?.[0].hasExpenseAccess, true);
+  assert.equal(board.participants?.[0].canInviteParticipants, true);
 });
 
 test('ai avatar generator blends up to three themes into an svg avatar', () => {
@@ -662,6 +666,58 @@ test('handleMood persists participants to Cloudflare D1 and returns them for cro
   assert.ok(restored);
   assert.equal(restored.name, 'Maria');
   assert.deepEqual(restored.themes, ['Dreamy', 'Chill']);
+});
+
+test('only an admin can change mood board member access', async () => {
+  const env = createMockD1();
+  const participant = {
+    id: 'part_access',
+    name: 'Sam',
+    avatar: 'data:image/svg+xml;utf8,<svg>Sam</svg>',
+    email: 'sam@example.com',
+    joinedAt: '2026-10-21T08:00:00.000Z'
+  };
+
+  const save = (person, sessionUser) => handleMood(new Request('https://example.com/api/mood/hus_access', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: 'Access board', pieces: [], participants: [person] })
+  }), env, {}, sessionUser);
+  const read = async () => {
+    const response = await handleMood(
+      new Request('https://example.com/api/mood/hus_access'),
+      env,
+      {},
+      async () => null
+    );
+    return (await response.json()).mood.participants[0];
+  };
+
+  await save({ ...participant, hasExpenseAccess: true, canInviteParticipants: true }, async () => null);
+  let stored = await read();
+  assert.equal(stored.hasExpenseAccess, undefined);
+  assert.equal(stored.canInviteParticipants, undefined);
+
+  await save(
+    { ...participant, hasExpenseAccess: true, canInviteParticipants: true },
+    async () => ({ id: 'admin_1', role: 'admin' })
+  );
+  stored = await read();
+  assert.equal(stored.hasExpenseAccess, true);
+  assert.equal(stored.canInviteParticipants, true);
+
+  await save({ ...participant, hasExpenseAccess: false, canInviteParticipants: false }, async () => null);
+  stored = await read();
+  assert.equal(stored.hasExpenseAccess, true);
+  assert.equal(stored.canInviteParticipants, true);
+
+  await save(
+    { ...participant, hasExpenseAccess: false, canInviteParticipants: false },
+    async () => ({ id: 'admin_1', role: 'admin' })
+  );
+  stored = await read();
+  assert.equal(stored.hasExpenseAccess, false);
+  assert.equal(stored.canInviteParticipants, false);
 });
 
 test('autoArrangePieces distributes pictures evenly into columns without overlap', () => {

@@ -19,6 +19,7 @@ import {
   generateCsv,
   hasExpenseAccess,
   grantExpenseAccess,
+  setExpenseAccess,
   generateExpenseToken,
   convertPlnToSek,
   convertSekToPln,
@@ -250,6 +251,11 @@ test('expense access control enforces invitation requirement while granting mood
   // Users with expense access can naturally access the mood board
   assert.ok(stored.name === 'Mood Guest');
   assert.ok(stored.hasExpenseAccess === true);
+
+  setExpenseAccess(false, houseId);
+  assert.equal(hasExpenseAccess(houseId), false);
+  const revoked = JSON.parse(globalThis.localStorage.getItem('builder.mood.participant'));
+  assert.equal(revoked.hasExpenseAccess, undefined);
 
   // 4. Authenticated account owners always have expense access
   globalThis.localStorage.clear();

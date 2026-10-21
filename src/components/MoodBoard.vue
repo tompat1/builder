@@ -161,6 +161,7 @@
           </button>
 
           <button
+            v-if="canInviteParticipants"
             type="button"
             id="btn-mood-share"
             class="flex h-9 sm:h-10 items-center gap-1.5 rounded-xl bg-[#173D35] px-2.5 sm:px-3.5 text-xs font-bold text-[#F5F3EC] shadow-sm transition hover:bg-[#0f2b25] active:scale-95"
@@ -943,7 +944,10 @@
         :aria-label="t('mood.myProfile')"
         @click.self="showProfileModal = false"
       >
-        <div class="relative w-full max-w-md rounded-3xl border border-[#d7d1c4] bg-[#FDFBF7] p-6 shadow-2xl sm:p-8">
+        <div
+          class="relative max-h-[calc(100dvh-2rem)] w-full overflow-y-auto rounded-3xl border border-[#d7d1c4] bg-[#FDFBF7] p-6 shadow-2xl sm:p-8"
+          :class="isAdmin ? 'max-w-2xl' : 'max-w-md'"
+        >
           <div class="flex items-center justify-between pb-2">
             <div class="flex items-center gap-2.5">
               <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-[#173D35] text-lg text-white">👤</span>
@@ -1006,6 +1010,87 @@
               {{ t('mood.emailHint') }}
             </p>
           </form>
+
+          <section v-if="isAdmin" class="mt-7 border-t border-stone-200 pt-6" aria-labelledby="member-access-title">
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <h4 id="member-access-title" class="text-base font-bold text-[#173D35]">
+                  {{ t('mood.memberAccess') }}
+                </h4>
+                <p class="mt-1 max-w-lg text-xs leading-relaxed text-stone-600">
+                  {{ t('mood.memberAccessLead') }}
+                </p>
+              </div>
+              <span class="shrink-0 rounded-full bg-[#173D35]/8 px-2.5 py-1 text-xs font-bold tabular-nums text-[#173D35]">
+                {{ participants.length }}
+              </span>
+            </div>
+
+            <div v-if="participants.length" class="mt-4 divide-y divide-stone-200 border-y border-stone-200">
+              <article
+                v-for="participant in participants"
+                :key="participant.id"
+                class="grid gap-3 py-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+              >
+                <div class="flex min-w-0 items-center gap-3">
+                  <img
+                    v-if="participant.avatar"
+                    :src="participant.avatar"
+                    :alt="participant.name"
+                    class="h-10 w-10 shrink-0 rounded-xl object-cover ring-1 ring-[#173D35]/15"
+                  />
+                  <div class="min-w-0">
+                    <p class="truncate text-sm font-bold text-[#173D35]">{{ participant.name }}</p>
+                    <p class="truncate text-xs text-stone-500">
+                      {{ participant.email || t('mood.noMemberEmail') }}
+                    </p>
+                  </div>
+                </div>
+
+                <div class="flex flex-wrap gap-2 sm:justify-end">
+                  <button
+                    type="button"
+                    role="switch"
+                    :aria-checked="participant.hasExpenseAccess === true"
+                    :disabled="accessSaving === `${participant.id}:hasExpenseAccess`"
+                    class="flex min-h-10 items-center gap-2 rounded-xl border px-3 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#173D35] focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60"
+                    :class="participant.hasExpenseAccess
+                      ? 'border-amber-600/30 bg-amber-500/12 text-amber-900'
+                      : 'border-stone-300 bg-white text-stone-600 hover:border-[#173D35]/40'"
+                    @click="toggleMemberAccess(participant, 'hasExpenseAccess')"
+                  >
+                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M7 3v4m10-4v4M6 11h4v4H6zM14 11h4M14 15h4M5 21h14a1 1 0 001-1V7H4v13a1 1 0 001 1z" />
+                    </svg>
+                    <span>{{ locale === 'en' ? 'Expenses' : 'Kostnader' }}</span>
+                    <span class="sr-only">{{ participant.hasExpenseAccess ? t('mood.accessOn') : t('mood.accessOff') }}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    role="switch"
+                    :aria-checked="participant.canInviteParticipants === true"
+                    :disabled="accessSaving === `${participant.id}:canInviteParticipants`"
+                    class="flex min-h-10 items-center gap-2 rounded-xl border px-3 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#173D35] focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60"
+                    :class="participant.canInviteParticipants
+                      ? 'border-[#173D35]/30 bg-[#173D35]/10 text-[#173D35]'
+                      : 'border-stone-300 bg-white text-stone-600 hover:border-[#173D35]/40'"
+                    @click="toggleMemberAccess(participant, 'canInviteParticipants')"
+                  >
+                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM19 8v6m3-3h-6" />
+                    </svg>
+                    <span>{{ t('mood.share') }}</span>
+                    <span class="sr-only">{{ participant.canInviteParticipants ? t('mood.accessOn') : t('mood.accessOff') }}</span>
+                  </button>
+                </div>
+              </article>
+            </div>
+
+            <p v-else class="mt-4 rounded-xl bg-white px-4 py-5 text-center text-xs text-stone-500">
+              {{ t('mood.noMembers') }}
+            </p>
+          </section>
         </div>
       </div>
     </Teleport>
@@ -1199,12 +1284,13 @@ import {
   putClip,
   registerBoardParticipant,
   saveMood,
+  saveMoodToCloudflare,
   saveStoredParticipant,
   syncMoodWithCloudflare,
   togglePieceLikeCloudflare,
   addPieceCommentCloudflare
 } from '../services/moodSave';
-import { hasExpenseAccess } from '../services/expenseSave';
+import { hasExpenseAccess, setExpenseAccess } from '../services/expenseSave';
 import { watchActiveHouseId } from '../services/houseSave';
 import { fetchLinkPreview } from '../services/linkPreview';
 
@@ -1295,11 +1381,30 @@ const qrSvg = ref('');
 const copiedNotice = ref(false);
 const profileEmail = ref('');
 const profileEmailSavedNotice = ref(false);
+const accessSaving = ref('');
 
 let houseKey = (typeof route?.query?.board === 'string' && route.query.board) ? route.query.board : moodHouseKey();
 
+function matchingParticipant(stored: MoodParticipant | null) {
+  if (!stored) return null;
+  return participants.value.find((participant) => (
+    participant.id === stored.id
+    || Boolean(stored.email && participant.email && stored.email.toLowerCase().trim() === participant.email.toLowerCase().trim())
+  )) ?? null;
+}
+
+const currentBoardParticipant = computed(() => matchingParticipant(getStoredParticipant()));
+
 const canAccessExpenses = computed(() => {
+  if (sessionStore.user) return true;
+  if (currentBoardParticipant.value) return currentBoardParticipant.value.hasExpenseAccess === true;
   return hasExpenseAccess(houseKey);
+});
+
+const canInviteParticipants = computed(() => {
+  if (sessionStore.user) return true;
+  const participant = currentBoardParticipant.value ?? getStoredParticipant();
+  return participant?.canInviteParticipants === true;
 });
 
 function openExpenses() {
@@ -1412,6 +1517,44 @@ function saveProfileEmail() {
   }, 3000);
 }
 
+function syncStoredParticipantPermissions() {
+  const stored = getStoredParticipant();
+  const boardParticipant = matchingParticipant(stored);
+  if (!stored || !boardParticipant) return;
+  const next = { ...stored };
+  if (boardParticipant.hasExpenseAccess === true) next.hasExpenseAccess = true;
+  else delete next.hasExpenseAccess;
+  if (boardParticipant.canInviteParticipants === true) next.canInviteParticipants = true;
+  else delete next.canInviteParticipants;
+  saveStoredParticipant(next);
+  setExpenseAccess(boardParticipant.hasExpenseAccess === true, houseKey);
+}
+
+async function toggleMemberAccess(
+  participant: MoodParticipant,
+  permission: 'hasExpenseAccess' | 'canInviteParticipants'
+) {
+  if (!isAdmin.value || accessSaving.value) return;
+  const previous = participant[permission] === true;
+  participant[permission] = !previous;
+  accessSaving.value = `${participant.id}:${permission}`;
+  persist();
+  const saved = await saveMoodToCloudflare({
+    title: title.value,
+    createdAt: createdAt.value,
+    pieces: pieces.value,
+    participants: participants.value
+  }, houseKey, false);
+  if (!saved) {
+    participant[permission] = previous;
+    persist();
+    showToast(t('mood.accessSaveFailed'), 'error');
+  } else {
+    showToast(t('mood.accessSaved'), 'success');
+  }
+  accessSaving.value = '';
+}
+
 function reopenJoinPage() {
   showProfileModal.value = false;
   emit('reopen-profile');
@@ -1499,6 +1642,7 @@ onMounted(() => {
   const data = loadMood(houseKey);
   pieces.value = data.pieces;
   participants.value = data.participants || [];
+  syncStoredParticipantPermissions();
   title.value = data.title;
   createdAt.value = data.createdAt || (data.pieces.length > 0 ? new Date().toISOString() : '');
   backfillExistingPiecesAuthor();
@@ -1536,6 +1680,7 @@ onMounted(() => {
     const nextData = loadMood(houseKey);
     pieces.value = nextData.pieces;
     participants.value = nextData.participants || [];
+    syncStoredParticipantPermissions();
     title.value = nextData.title;
     createdAt.value = nextData.createdAt || (nextData.pieces.length > 0 ? new Date().toISOString() : '');
     backfillExistingPiecesAuthor();
@@ -1725,9 +1870,20 @@ function applyRemote(remote: { title: string; createdAt: string; pieces: MoodPie
   if (remote.participants?.length) {
     const mergedPart = [...participants.value];
     for (const person of remote.participants) {
-      if (!mergedPart.some((existing) => existing.id === person.id)) mergedPart.push(person);
+      const index = mergedPart.findIndex((existing) => existing.id === person.id);
+      if (index < 0) {
+        mergedPart.push(person);
+      } else {
+        mergedPart[index] = {
+          ...mergedPart[index],
+          ...person,
+          hasExpenseAccess: person.hasExpenseAccess === true,
+          canInviteParticipants: person.canInviteParticipants === true
+        };
+      }
     }
     participants.value = mergedPart;
+    syncStoredParticipantPermissions();
   }
   if (!remote.pieces?.length) return;
   const localMap = new Map(pieces.value.map((piece) => [piece.id, piece]));
