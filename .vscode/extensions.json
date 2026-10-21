@@ -1,6 +1,10 @@
 {
   "recommendations": [
     "cloudflare.cloudflare-workers",
-    "dbaeumer.vscode-eslint"
+    "dbaeumer.vscode-eslint",
+    "vue.volar"
+  ],
+  "unwantedRecommendations": [
+    "octref.vetur"
   ]
 }
