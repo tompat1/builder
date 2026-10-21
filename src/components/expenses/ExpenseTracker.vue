@@ -89,8 +89,9 @@
       </div>
     </header>
 
-    <!-- Main Content Area -->
-    <main class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto w-full">
+    <!-- Main Scroll Container -->
+    <div class="relative flex-1 min-h-0 w-full overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]">
+      <main class="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto w-full pb-28">
       <!-- Top Co-existing Tabs: Expenses vs. Shopping List -->
       <nav class="flex items-center justify-between flex-wrap gap-3 pb-1" aria-label="Expenses and Shopping Tabs">
         <div class="inline-flex p-1 bg-[#eae6dc] rounded-2xl border border-[#d7d1c4] shadow-inner" role="tablist">
@@ -702,7 +703,8 @@
         @toast="showToast"
       />
     </template>
-  </main>
+      </main>
+    </div>
 
   <!-- Sticky Manual Summary Drawer at Bottom (when items selected) -->
   <transition

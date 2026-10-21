@@ -3,7 +3,7 @@
     <!-- 1. Gated: Invitation Required Screen (for unauthorized or mood-only guests) -->
     <div
       v-if="gateReady && !hasAccess"
-      class="relative flex h-full w-full items-center justify-center p-4 bg-[#F5F3EC]"
+      class="relative flex h-full w-full items-center justify-center p-4 bg-[#F5F3EC] overflow-y-auto"
     >
       <div class="relative z-10 w-full max-w-md rounded-3xl border border-[#d7d1c4] bg-white p-6 sm:p-8 shadow-2xl text-center">
         <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-500/10 text-2xl mb-3 text-amber-700">
