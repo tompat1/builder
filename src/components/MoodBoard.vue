@@ -471,22 +471,31 @@
               class="mt-2.5 flex items-center justify-between gap-2 select-none pt-2 border-t border-black/8"
               :class="isMobile ? '' : 'pr-8'"
             >
-              <!-- Author badge -->
-              <div
-                v-if="piece.author?.avatar"
-                class="flex items-center gap-1.5 rounded-full bg-black/6 px-2 py-0.5 select-none"
-                :title="piece.author.name ? `Tillagd av ${piece.author.name}` : ''"
-              >
-                <img
-                  :src="piece.author.avatar"
-                  :alt="piece.author.name"
-                  class="h-4 w-4 rounded-full object-cover ring-1 ring-black/10"
-                />
-                <span class="max-w-[80px] sm:max-w-[65px] truncate text-[10px] font-bold text-black/70">
-                  {{ piece.author.name }}
-                </span>
+              <!-- Author badge & timestamp -->
+              <div class="flex items-center gap-1.5 min-w-0">
+                <div
+                  v-if="piece.author?.avatar"
+                  class="flex items-center gap-1.5 rounded-full bg-black/6 px-2 py-0.5 select-none shrink-0"
+                  :title="piece.author.name ? `Tillagd av ${piece.author.name}` : ''"
+                >
+                  <img
+                    :src="piece.author.avatar"
+                    :alt="piece.author.name"
+                    class="h-4 w-4 rounded-full object-cover ring-1 ring-black/10"
+                  />
+                  <span class="max-w-[80px] sm:max-w-[65px] truncate text-[10px] font-bold text-black/70">
+                    {{ piece.author.name }}
+                  </span>
+                </div>
+                <time
+                  v-if="piece.createdAt"
+                  class="text-[9px] opacity-60 font-medium shrink-0 tabular-nums"
+                  :title="formatFullDate(piece.createdAt)"
+                  :datetime="piece.createdAt"
+                >
+                  {{ formatPostTime(piece.createdAt) }}
+                </time>
               </div>
-              <div v-else></div>
 
               <!-- Like & Comment Actions -->
               <div class="flex items-center gap-1.5">
@@ -681,22 +690,31 @@
               class="mt-1 flex items-center justify-between gap-1.5 px-1.5 pb-0.5 select-none"
               :class="isMobile ? '' : 'pr-8'"
             >
-              <!-- Author badge -->
-              <div
-                v-if="piece.author?.avatar"
-                class="flex items-center gap-1.5 rounded-full bg-[#173D35]/6 px-2.5 py-1 select-none"
-                :title="piece.author.name ? `Tillagd av ${piece.author.name}` : ''"
-              >
-                <img
-                  :src="piece.author.avatar"
-                  :alt="piece.author.name"
-                  class="h-4 w-4 rounded-full object-cover ring-1 ring-[#173D35]/20"
-                />
-                <span class="max-w-[90px] sm:max-w-[70px] truncate text-xs sm:text-[10px] font-semibold text-[#173D35]">
-                  {{ piece.author.name }}
-                </span>
+              <!-- Author badge & timestamp -->
+              <div class="flex items-center gap-1.5 min-w-0">
+                <div
+                  v-if="piece.author?.avatar"
+                  class="flex items-center gap-1.5 rounded-full bg-[#173D35]/6 px-2.5 py-1 select-none shrink-0"
+                  :title="piece.author.name ? `Tillagd av ${piece.author.name}` : ''"
+                >
+                  <img
+                    :src="piece.author.avatar"
+                    :alt="piece.author.name"
+                    class="h-4 w-4 rounded-full object-cover ring-1 ring-[#173D35]/20"
+                  />
+                  <span class="max-w-[90px] sm:max-w-[70px] truncate text-xs sm:text-[10px] font-semibold text-[#173D35]">
+                    {{ piece.author.name }}
+                  </span>
+                </div>
+                <time
+                  v-if="piece.createdAt"
+                  class="text-[10px] text-[#173D35]/50 font-medium shrink-0 tabular-nums"
+                  :title="formatFullDate(piece.createdAt)"
+                  :datetime="piece.createdAt"
+                >
+                  {{ formatPostTime(piece.createdAt) }}
+                </time>
               </div>
-              <div v-else></div>
 
               <!-- Like & Comment Actions -->
               <div class="flex items-center gap-2">
@@ -1625,9 +1643,17 @@ const displayPieces = computed(() => {
   const filtered = pieces.value.filter((piece) => pieceMatchesFilter(piece, boardFilter.value));
   const newestFirst = boardFilter.value === 'latest';
   if (!newestFirst) return filtered;
-  // Newer pieces are appended, so reverse array order for “latest” to show newest first.
   const order = new Map(pieces.value.map((piece, index) => [piece.id, index]));
-  return [...filtered].sort((a, b) => (order.get(b.id) ?? 0) - (order.get(a.id) ?? 0));
+  return [...filtered].sort((a, b) => {
+    if (a.createdAt && b.createdAt) {
+      const timeA = new Date(a.createdAt).getTime();
+      const timeB = new Date(b.createdAt).getTime();
+      if (!isNaN(timeA) && !isNaN(timeB) && timeA !== timeB) {
+        return timeB - timeA;
+      }
+    }
+    return (order.get(b.id) ?? 0) - (order.get(a.id) ?? 0);
+  });
 });
 
 const groupedLayout = computed(() => {
@@ -1890,11 +1916,38 @@ function formatCommentTime(iso: string) {
   if (isNaN(d.getTime())) return '';
   const now = Date.now();
   const diffSec = Math.floor((now - d.getTime()) / 1000);
-  if (diffSec < 60) return 'Just nu';
+  const isEn = locale.value === 'en';
+  if (diffSec < 60) return isEn ? 'Just now' : 'Just nu';
   if (diffSec < 3600) return `${Math.floor(diffSec / 60)} min`;
   if (diffSec < 86400) return `${Math.floor(diffSec / 3600)} h`;
-  const loc = locale.value === 'en' ? 'en-US' : 'sv-SE';
+  const loc = isEn ? 'en-US' : 'sv-SE';
   return d.toLocaleDateString(loc, { month: 'short', day: 'numeric' });
+}
+
+function formatPostTime(iso?: string) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const now = Date.now();
+  const diffSec = Math.floor((now - d.getTime()) / 1000);
+  const isEn = locale.value === 'en';
+  if (diffSec < 60) return isEn ? 'Just now' : 'Just nu';
+  if (diffSec < 3600) return `${Math.floor(diffSec / 60)} min`;
+  if (diffSec < 86400) return `${Math.floor(diffSec / 3600)} h`;
+  const loc = isEn ? 'en-US' : 'sv-SE';
+  const currentYear = new Date().getFullYear();
+  if (d.getFullYear() === currentYear) {
+    return d.toLocaleDateString(loc, { month: 'short', day: 'numeric' });
+  }
+  return d.toLocaleDateString(loc, { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+function formatFullDate(iso?: string) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const loc = locale.value === 'en' ? 'en-US' : 'sv-SE';
+  return d.toLocaleString(loc, { dateStyle: 'medium', timeStyle: 'short' });
 }
 
 function noteClasses(color?: MoodColor) {
@@ -2137,6 +2190,7 @@ function addPostIt(color: MoodColor = 'yellow') {
     w: 22,
     tilt: Math.random() * 4 - 2,
     caption: '',
+    createdAt: new Date().toISOString(),
     author: { ...currentAuthor.value }
   };
   arrangeNewPieces(pieces.value, [note]);
@@ -2193,6 +2247,7 @@ async function addFiles(files: File[]) {
           w: 29.5,
           tilt: 0,
           caption: '',
+          createdAt: new Date().toISOString(),
           author: { ...currentAuthor.value }
         });
         added++;

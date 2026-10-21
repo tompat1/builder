@@ -44,6 +44,7 @@ export interface MoodPiece {
   w: number;
   tilt: number;
   caption: string;
+  createdAt?: string;
   /** Preview picture for a page link. Empty until the page has been read. */
   thumb?: string;
   color?: MoodColor;
@@ -96,6 +97,7 @@ export function pieceFrom(link: MoodLink, index: number, caption = '', author?: 
     ...link,
     ...placeFor(index),
     caption: caption.slice(0, CAPTION_LIMIT),
+    createdAt: new Date().toISOString(),
     ...(author ? { author } : {})
   };
 }
@@ -264,6 +266,7 @@ function acceptPiece(value: unknown): MoodPiece | null {
   if (!id) return null;
   const author = acceptAuthor(record.author);
   const comments = acceptComments(record.comments);
+  const createdAt = typeof record.createdAt === 'string' ? record.createdAt.slice(0, 50) : '';
   const rawLikedBy = Array.isArray(record.likedBy)
     ? record.likedBy.filter((s): s is string => typeof s === 'string' && s.length <= 100).slice(0, 500)
     : undefined;
@@ -288,6 +291,7 @@ function acceptPiece(value: unknown): MoodPiece | null {
       w: clamp(Number(record.w), 14, 72),
       tilt: clamp(Number(record.tilt), -8, 8),
       caption: typeof record.caption === 'string' ? record.caption.trim().slice(0, CAPTION_LIMIT) : '',
+      ...(createdAt ? { createdAt } : {}),
       ...(author ? { author } : {}),
       ...(likes !== undefined ? { likes } : {}),
       ...(rawLikedBy && rawLikedBy.length > 0 ? { likedBy: rawLikedBy } : {}),
@@ -316,6 +320,7 @@ function acceptPiece(value: unknown): MoodPiece | null {
     w: clamp(Number(record.w), 16, 72),
     tilt: clamp(Number(record.tilt), -8, 8),
     caption: typeof record.caption === 'string' ? record.caption.trim().slice(0, CAPTION_LIMIT) : '',
+    ...(createdAt ? { createdAt } : {}),
     ...(thumb && link.kind === 'link' ? { thumb } : {}),
     ...(author ? { author } : {}),
     ...(likes !== undefined ? { likes } : {}),
