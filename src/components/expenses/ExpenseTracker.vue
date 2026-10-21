@@ -539,26 +539,39 @@
         <!-- Empty state -->
         <div
           v-if="filteredExpenses.length === 0"
-          class="flex flex-col items-center justify-center p-12 text-center rounded-2xl border-2 border-dashed border-[#d7d1c4] bg-white/60"
+          class="flex flex-col items-center justify-center p-10 sm:p-14 text-center rounded-3xl border-2 border-dashed border-[#d7d1c4] bg-white/70 shadow-xs backdrop-blur-xs"
         >
-          <div class="h-16 w-16 rounded-full bg-[#173D35]/10 flex items-center justify-center text-3xl mb-3">
+          <div class="h-16 w-16 rounded-2xl bg-[#173D35]/10 flex items-center justify-center text-3xl mb-4 shadow-xs">
             🧾
           </div>
-          <h3 class="text-base font-bold text-[#173D35]">
+          <h3 class="text-lg sm:text-xl font-extrabold text-[#173D35]">
             {{ isEn ? 'No expenses found' : 'Inga utlägg hittades' }}
           </h3>
-          <p class="mt-1 text-xs text-stone-500 max-w-sm">
+          <p class="mt-1.5 text-xs sm:text-sm text-stone-500 max-w-md leading-relaxed">
             {{ searchQuery || selectedCategoryFilter !== 'all'
-              ? (isEn ? 'Try adjusting your search query or category filters.' : 'Prova att ändra sökorden eller kategoriurvalet.')
-              : (isEn ? 'Click "New Expense" above to record your first receipt or material purchase.' : 'Klicka på "Nytt utlägg" ovan för att lägga till ditt första inköp eller kvitto.') }}
+              ? (isEn ? 'Try adjusting your search query or category filters, or record an expense below.' : 'Prova att ändra sökorden eller kategoriurvalet, eller lägg till ett utlägg nedan.')
+              : (isEn ? 'Record your first receipt, material purchase, tool, or contractor invoice.' : 'Bokför ditt första inköp, kvitto, verktyg eller hantverksfaktura.') }}
           </p>
+
           <button
-            v-if="!searchQuery && selectedCategoryFilter === 'all'"
             type="button"
-            class="mt-4 rounded-xl bg-[#173D35] px-4 py-2 text-xs font-bold text-white shadow-md transition hover:bg-[#0f2b25]"
+            id="btn-add-first-expense"
+            class="mt-6 inline-flex items-center justify-center gap-2.5 rounded-2xl bg-[#173D35] px-8 py-3.5 sm:px-10 sm:py-4 text-base sm:text-lg font-extrabold text-white shadow-lg hover:shadow-xl hover:bg-[#0f2b25] hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#173D35] focus-visible:ring-offset-2"
             @click="openNewExpenseModal"
           >
-            {{ isEn ? '+ Add First Expense' : '+ Lägg till första utlägget' }}
+            <svg class="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            <span>{{ expenses.length === 0 ? (isEn ? 'Add First Expense' : 'Lägg till första utlägget') : (isEn ? 'Add Expense' : 'Lägg till utlägg') }}</span>
+          </button>
+
+          <button
+            v-if="searchQuery || selectedCategoryFilter !== 'all'"
+            type="button"
+            class="mt-3 text-xs font-semibold text-stone-500 hover:text-[#173D35] underline underline-offset-2 transition-colors cursor-pointer"
+            @click="searchQuery = ''; selectedCategoryFilter = 'all'"
+          >
+            {{ isEn ? 'Reset filters' : 'Återställ filter' }}
           </button>
         </div>
 
@@ -1537,7 +1550,7 @@ function openNewExpenseModal() {
   editingExpenseId.value = null;
   formTitle.value = '';
   formAmount.value = '';
-  formCategory.value = 'materials';
+  formCategory.value = selectedCategoryFilter.value !== 'all' ? (selectedCategoryFilter.value as ExpenseCategory) : 'materials';
   formDate.value = new Date().toISOString().slice(0, 10);
   formNotes.value = '';
   formReceipt.value = undefined;
