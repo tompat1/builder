@@ -2,7 +2,7 @@
   <section
     id="mood-board"
     class="mood-board pointer-events-auto absolute inset-0 z-50 flex flex-col bg-[#F5F3EC] text-[#222925]"
-    :class="{ 'is-arranging': isArranging }"
+    :class="{ 'is-arranging': isArranging || isFilterTransitioning }"
     role="region"
     :aria-label="t('mood.tool')"
     @dragenter.prevent="onDragEnter"
@@ -393,7 +393,7 @@
             piece.kind === 'note'
               ? ['mood-note border p-3.5 pb-4 shadow-[0_8px_20px_-6px_rgba(34,41,37,0.22)] rounded-2xl', noteClasses(piece.color)]
               : 'bg-white p-2 sm:p-2.5 pb-3 shadow-[0_12px_28px_-8px_rgba(34,41,37,0.28)] rounded-2xl',
-            (!isMobile && piece.kind !== 'note') ? 'cursor-grab active:cursor-grabbing' : ''
+            (!isMobile && boardFilter === 'all' && piece.kind !== 'note') ? 'cursor-grab active:cursor-grabbing' : ''
           ]"
           :style="isMobile ? {} : frame(piece)"
           tabindex="0"
@@ -411,7 +411,7 @@
             <div class="mb-2 flex items-center justify-between gap-1.5">
               <!-- Drag handle on desktop -->
               <div
-                v-if="!isMobile"
+                v-if="!isMobile && boardFilter === 'all'"
                 class="flex h-7 items-center justify-center px-2.5 rounded-lg bg-black/8 hover:bg-black/15 text-stone-700 active:bg-black/20 transition-colors cursor-grab active:cursor-grabbing select-none"
                 :title="t('mood.move')"
                 :aria-label="t('mood.move')"
@@ -1598,9 +1598,10 @@ const isInvited = computed(() => {
 });
 
 const isMobile = ref(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
-type BoardFilter = 'latest' | 'image' | 'note' | 'link';
-const boardFilter = ref<BoardFilter>('latest');
+type BoardFilter = 'all' | 'latest' | 'image' | 'note' | 'link';
+const boardFilter = ref<BoardFilter>('all');
 const filterOptions: { id: BoardFilter; label: string }[] = [
+  { id: 'all', label: 'mood.filterAll' },
   { id: 'latest', label: 'mood.filterLatest' },
   { id: 'image', label: 'mood.filterImages' },
   { id: 'note', label: 'mood.filterPostit' },
@@ -1613,22 +1614,91 @@ function onWindowResize() {
 }
 
 function pieceMatchesFilter(piece: MoodPiece, filter: BoardFilter) {
-  if (filter === 'latest') return true;
+  if (filter === 'all' || filter === 'latest') return true;
   if (filter === 'image') return piece.kind === 'image' || piece.kind === 'clip';
   if (filter === 'note') return piece.kind === 'note';
-  return piece.kind === 'link';
+  if (filter === 'link') return piece.kind === 'link';
+  return true;
 }
 
 const displayPieces = computed(() => {
   const filtered = pieces.value.filter((piece) => pieceMatchesFilter(piece, boardFilter.value));
-  const newestFirst = boardFilter.value === 'latest' || isMobile.value;
+  const newestFirst = boardFilter.value === 'latest';
   if (!newestFirst) return filtered;
-  // Newer pieces are appended, so reverse array order for “latest”.
+  // Newer pieces are appended, so reverse array order for “latest” to show newest first.
   const order = new Map(pieces.value.map((piece, index) => [piece.id, index]));
   return [...filtered].sort((a, b) => (order.get(b.id) ?? 0) - (order.get(a.id) ?? 0));
 });
 
+const groupedLayout = computed(() => {
+  if (boardFilter.value === 'all' || isMobile.value) {
+    return null;
+  }
+  const list = displayPieces.value;
+  const map = new Map<string, { x: number; y: number; w: number; tilt: number }>();
+  if (list.length === 0) return map;
+
+  if (list.length === 1) {
+    map.set(list[0].id, { x: 35, y: 4, w: 30, tilt: 0 });
+    return map;
+  }
+
+  if (list.length === 2) {
+    map.set(list[0].id, { x: 18, y: 4, w: 30, tilt: -0.6 });
+    map.set(list[1].id, { x: 52, y: 4, w: 30, tilt: 0.6 });
+    return map;
+  }
+
+  const cols = [3, 36, 69];
+  const widths = [29.5, 29.5, 28];
+  const colHeights = [4, 4, 4];
+  const tilts = [-0.8, 0.7, -0.5, 0.6, -0.6, 0.5];
+
+  list.forEach((piece, index) => {
+    let targetCol = 0;
+    let minH = colHeights[0];
+    for (let c = 1; c < colHeights.length; c++) {
+      if (colHeights[c] < minH) {
+        minH = colHeights[c];
+        targetCol = c;
+      }
+    }
+
+    const x = cols[targetCol];
+    const w = widths[targetCol];
+    const y = colHeights[targetCol];
+    const tilt = tilts[index % tilts.length];
+
+    const el = typeof document !== 'undefined' ? document.getElementById(`mood-${piece.id}`) : null;
+    let hUnits = 36;
+    if (el && el.offsetHeight > 40) {
+      hUnits = Math.round(el.offsetHeight / SCALE_Y) + 3;
+    } else if (piece.kind === 'note') {
+      hUnits = 24;
+    } else if (piece.kind === 'clip') {
+      hUnits = 34;
+    } else if (piece.caption) {
+      hUnits = 40;
+    }
+
+    colHeights[targetCol] += hUnits;
+    map.set(piece.id, { x, y, w, tilt });
+  });
+
+  return map;
+});
+
+const isFilterTransitioning = ref(false);
+let filterTransitionTimeout: ReturnType<typeof setTimeout> | null = null;
 watch(boardFilter, () => {
+  isFilterTransitioning.value = true;
+  if (filterTransitionTimeout) clearTimeout(filterTransitionTimeout);
+  filterTransitionTimeout = setTimeout(() => {
+    isFilterTransitioning.value = false;
+  }, 450);
+  if (stage.value) {
+    stage.value.scrollTo({ top: 0, behavior: 'smooth' });
+  }
   nextTick(() => updateScrollState());
 });
 
@@ -1864,8 +1934,16 @@ const sheetStyle = computed(() => {
     return {};
   }
   let maxY = 60;
-  for (const piece of pieces.value) {
-    if (piece.y > maxY) maxY = piece.y;
+  if (groupedLayout.value) {
+    for (const [id, layout] of groupedLayout.value.entries()) {
+      const piece = pieces.value.find((p) => p.id === id);
+      const hUnits = piece?.kind === 'note' ? 24 : 36;
+      if (layout.y + hUnits > maxY) maxY = layout.y + hUnits;
+    }
+  } else {
+    for (const piece of displayPieces.value) {
+      if (piece.y > maxY) maxY = piece.y;
+    }
   }
   const minHeightPx = Math.max(800, Math.round((maxY + 55) * SCALE_Y));
   return {
@@ -1877,11 +1955,16 @@ function frame(piece: MoodPiece) {
   if (isMobile.value) {
     return {};
   }
+  const layout = groupedLayout.value?.get(piece.id);
+  const x = layout ? layout.x : piece.x;
+  const y = layout ? layout.y : piece.y;
+  const w = layout ? layout.w : piece.w;
+  const tilt = layout ? layout.tilt : piece.tilt;
   return {
-    left: `${piece.x}%`,
-    top: `${Math.round(piece.y * SCALE_Y)}px`,
-    width: `${piece.w}%`,
-    transform: `rotate(${piece.tilt}deg)`,
+    left: `${x}%`,
+    top: `${Math.round(y * SCALE_Y)}px`,
+    width: `${w}%`,
+    transform: `rotate(${tilt}deg)`,
     zIndex: drag?.id === piece.id ? 25 : (activeId.value === piece.id ? 10 : 1)
   };
 }
@@ -2272,6 +2355,7 @@ function hasFiles(event: DragEvent) {
 
 function onDown(event: PointerEvent, piece: MoodPiece, mode: 'move' | 'size') {
   if (isMobile.value && mode === 'move') return;
+  if (boardFilter.value !== 'all' && mode === 'move') return;
   if (event.button !== 0) return;
   const target = event.target as HTMLElement | null;
   if (mode === 'move' && target?.closest('input, button, textarea, iframe, video, select, a')) return;
