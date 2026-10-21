@@ -1097,41 +1097,107 @@
                   </div>
                 </div>
 
-                <div class="flex flex-wrap gap-2 sm:justify-end">
+                <div class="flex flex-wrap items-center gap-2 sm:justify-end">
+                  <!-- 1. Expenses Access Toggle -->
                   <button
                     type="button"
                     role="switch"
                     :aria-checked="participant.hasExpenseAccess === true"
                     :disabled="accessSaving === `${participant.id}:hasExpenseAccess`"
-                    class="flex min-h-10 items-center gap-2 rounded-xl border px-3 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#173D35] focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60"
+                    class="group flex min-h-10 items-center justify-between gap-3 rounded-xl border px-3 py-2 text-xs font-semibold transition active:scale-95 disabled:cursor-wait disabled:opacity-60"
                     :class="participant.hasExpenseAccess
-                      ? 'border-amber-600/30 bg-amber-500/12 text-amber-900'
-                      : 'border-stone-300 bg-white text-stone-600 hover:border-[#173D35]/40'"
+                      ? 'border-emerald-300 bg-emerald-50/80 text-emerald-900 shadow-sm'
+                      : 'border-stone-200 bg-stone-50 text-stone-500 hover:border-stone-300 hover:bg-stone-100/60'"
+                    :title="participant.hasExpenseAccess
+                      ? (locale === 'en' ? 'Click to revoke expense tracker access' : 'Klicka för att ta bort åtkomst till kostnader')
+                      : (locale === 'en' ? 'Click to grant expense tracker access' : 'Klicka för att bevilja åtkomst till kostnader')"
                     @click="toggleMemberAccess(participant, 'hasExpenseAccess')"
                   >
-                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M7 3v4m10-4v4M6 11h4v4H6zM14 11h4M14 15h4M5 21h14a1 1 0 001-1V7H4v13a1 1 0 001 1z" />
-                    </svg>
-                    <span>{{ locale === 'en' ? 'Expenses' : 'Kostnader' }}</span>
-                    <span class="sr-only">{{ participant.hasExpenseAccess ? t('mood.accessOn') : t('mood.accessOff') }}</span>
+                    <div class="flex items-center gap-1.5">
+                      <svg class="h-4 w-4" :class="participant.hasExpenseAccess ? 'text-emerald-700' : 'text-stone-400'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M7 3v4m10-4v4M6 11h4v4H6zM14 11h4M14 15h4M5 21h14a1 1 0 001-1V7H4v13a1 1 0 001 1z" />
+                      </svg>
+                      <span class="font-bold">{{ locale === 'en' ? 'Expenses' : 'Kostnader' }}</span>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                      <!-- Visual Switch toggle track & knob -->
+                      <span
+                        class="relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border border-transparent transition-colors duration-200 ease-in-out"
+                        :class="participant.hasExpenseAccess ? 'bg-emerald-600' : 'bg-stone-300'"
+                        aria-hidden="true"
+                      >
+                        <span
+                          class="pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition duration-200 ease-in-out"
+                          :class="participant.hasExpenseAccess ? 'translate-x-3' : 'translate-x-0'"
+                        />
+                      </span>
+
+                      <!-- Explicit text badge for clear status -->
+                      <span
+                        class="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+                        :class="participant.hasExpenseAccess
+                          ? 'bg-emerald-200/70 text-emerald-900'
+                          : 'bg-stone-200 text-stone-600'"
+                      >
+                        <span v-if="accessSaving === `${participant.id}:hasExpenseAccess`" class="animate-spin text-xs">⟳</span>
+                        <span v-else>{{ participant.hasExpenseAccess ? '✓' : '✕' }}</span>
+                        <span>{{ participant.hasExpenseAccess
+                          ? (locale === 'en' ? 'Access granted' : 'Åtkomst beviljad')
+                          : (locale === 'en' ? 'No access' : 'Ingen åtkomst') }}</span>
+                      </span>
+                    </div>
                   </button>
 
+                  <!-- 2. Invite Access Toggle -->
                   <button
                     type="button"
                     role="switch"
                     :aria-checked="participant.canInviteParticipants === true"
                     :disabled="accessSaving === `${participant.id}:canInviteParticipants`"
-                    class="flex min-h-10 items-center gap-2 rounded-xl border px-3 text-xs font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#173D35] focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60"
+                    class="group flex min-h-10 items-center justify-between gap-3 rounded-xl border px-3 py-2 text-xs font-semibold transition active:scale-95 disabled:cursor-wait disabled:opacity-60"
                     :class="participant.canInviteParticipants
-                      ? 'border-[#173D35]/30 bg-[#173D35]/10 text-[#173D35]'
-                      : 'border-stone-300 bg-white text-stone-600 hover:border-[#173D35]/40'"
+                      ? 'border-[#173D35]/30 bg-[#173D35]/10 text-[#173D35] shadow-sm'
+                      : 'border-stone-200 bg-stone-50 text-stone-500 hover:border-stone-300 hover:bg-stone-100/60'"
+                    :title="participant.canInviteParticipants
+                      ? (locale === 'en' ? 'Click to revoke ability to invite participants' : 'Klicka för att ta bort behörighet att bjuda in')
+                      : (locale === 'en' ? 'Click to allow participant to invite others' : 'Klicka för att tillåta deltagaren att bjuda in andra')"
                     @click="toggleMemberAccess(participant, 'canInviteParticipants')"
                   >
-                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                      <path stroke-linecap="round" stroke-linejoin="round" d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM19 8v6m3-3h-6" />
-                    </svg>
-                    <span>{{ t('mood.share') }}</span>
-                    <span class="sr-only">{{ participant.canInviteParticipants ? t('mood.accessOn') : t('mood.accessOff') }}</span>
+                    <div class="flex items-center gap-1.5">
+                      <svg class="h-4 w-4" :class="participant.canInviteParticipants ? 'text-[#173D35]' : 'text-stone-400'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM19 8v6m3-3h-6" />
+                      </svg>
+                      <span class="font-bold">{{ locale === 'en' ? 'Invite' : 'Bjud in' }}</span>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                      <!-- Visual Switch toggle track & knob -->
+                      <span
+                        class="relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border border-transparent transition-colors duration-200 ease-in-out"
+                        :class="participant.canInviteParticipants ? 'bg-[#173D35]' : 'bg-stone-300'"
+                        aria-hidden="true"
+                      >
+                        <span
+                          class="pointer-events-none inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition duration-200 ease-in-out"
+                          :class="participant.canInviteParticipants ? 'translate-x-3' : 'translate-x-0'"
+                        />
+                      </span>
+
+                      <!-- Explicit text badge for clear status -->
+                      <span
+                        class="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+                        :class="participant.canInviteParticipants
+                          ? 'bg-[#173D35]/20 text-[#173D35]'
+                          : 'bg-stone-200 text-stone-600'"
+                      >
+                        <span v-if="accessSaving === `${participant.id}:canInviteParticipants`" class="animate-spin text-xs">⟳</span>
+                        <span v-else>{{ participant.canInviteParticipants ? '✓' : '✕' }}</span>
+                        <span>{{ participant.canInviteParticipants
+                          ? (locale === 'en' ? 'Can invite' : 'Får bjuda in')
+                          : (locale === 'en' ? 'Cannot invite' : 'Får ej bjuda in') }}</span>
+                      </span>
+                    </div>
                   </button>
                 </div>
               </article>
