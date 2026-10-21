@@ -1,9 +1,9 @@
 <template>
-  <div class="space-y-6">
+  <div class="space-y-4 sm:space-y-6">
     <!-- 1. Budget & Progress Summary Dashboard -->
-    <section class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <section class="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
       <!-- Total Planned Budget -->
-      <div class="relative overflow-hidden rounded-2xl border border-[#d7d1c4] bg-white p-5 shadow-sm">
+      <div class="relative overflow-hidden rounded-2xl border border-[#d7d1c4] bg-white p-4 sm:p-5 shadow-sm">
         <div class="flex items-center justify-between">
           <span class="text-xs font-bold uppercase tracking-wider text-stone-500">
             {{ isEn ? 'Estimated Budget (PLN)' : 'Planerad Budget (PLN)' }}
@@ -27,7 +27,7 @@
       </div>
 
       <!-- Remaining To Buy -->
-      <div class="relative overflow-hidden rounded-2xl border border-[#d7d1c4] bg-white p-5 shadow-sm">
+      <div class="relative overflow-hidden rounded-2xl border border-[#d7d1c4] bg-white p-4 sm:p-5 shadow-sm">
         <div class="flex items-center justify-between">
           <span class="text-xs font-bold uppercase tracking-wider text-stone-500">
             {{ isEn ? 'Remaining to Buy' : 'Kvar att köpa' }}
@@ -51,7 +51,7 @@
       </div>
 
       <!-- Already Purchased / Finished -->
-      <div class="relative overflow-hidden rounded-2xl border border-[#d7d1c4] bg-white p-5 shadow-sm">
+      <div class="relative overflow-hidden rounded-2xl border border-[#d7d1c4] bg-white p-4 sm:p-5 shadow-sm">
         <div class="flex items-center justify-between">
           <span class="text-xs font-bold uppercase tracking-wider text-stone-500">
             {{ isEn ? 'Purchased & Acquired' : 'Redan Inköpt' }}
@@ -79,8 +79,8 @@
     </section>
 
     <!-- 2. Category Distribution Bar -->
-    <section v-if="summary.categories.length > 0" class="rounded-2xl border border-[#d7d1c4] bg-white p-5 shadow-sm">
-      <div class="flex items-center justify-between mb-3">
+    <section v-if="summary.categories.length > 0" class="rounded-2xl border border-[#d7d1c4] bg-white p-3.5 sm:p-5 shadow-sm">
+      <div class="flex items-center justify-between mb-2.5 sm:mb-3">
         <h4 class="text-xs font-bold uppercase tracking-wider text-stone-500">
           {{ isEn ? 'Shopping Budget by Category' : 'Budgetfördelning per kategori' }}
         </h4>
@@ -90,7 +90,7 @@
       </div>
 
       <!-- Visual Multi-segment Progress Bar -->
-      <div class="h-3 w-full rounded-full bg-stone-100 overflow-hidden flex mb-4">
+      <div class="h-3 w-full rounded-full bg-stone-100 overflow-hidden flex mb-3 sm:mb-4">
         <div
           v-for="cat in summary.categories"
           :key="cat.category"
@@ -103,13 +103,13 @@
         ></div>
       </div>
 
-      <!-- Category Badges / Breakdown Pills -->
-      <div class="flex flex-wrap gap-2">
+      <!-- Category Badges (Swipeable carousel on mobile) -->
+      <div class="flex items-center gap-2 overflow-x-auto pb-1.5 -mx-3.5 px-3.5 sm:mx-0 sm:px-0 sm:flex-wrap no-scrollbar touch-pan-x">
         <button
           v-for="cat in summary.categories"
           :key="cat.category"
           type="button"
-          class="inline-flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs border transition hover:opacity-90 active:scale-95 text-left"
+          class="inline-flex shrink-0 items-center gap-1.5 sm:gap-2 rounded-xl px-2.5 sm:px-3 py-1.5 text-xs border transition hover:opacity-90 active:scale-95 text-left min-h-8"
           :class="selectedCategoryFilter === cat.category ? 'ring-2 ring-[#173D35]' : ''"
           :style="{ backgroundColor: getShoppingCategoryMeta(cat.category).badgeBg, borderColor: getShoppingCategoryMeta(cat.category).badgeBorder }"
           @click="selectedCategoryFilter = selectedCategoryFilter === cat.category ? 'all' : cat.category"
@@ -117,15 +117,15 @@
           <span class="text-sm">{{ getShoppingCategoryMeta(cat.category).icon }}</span>
           <span class="font-semibold text-stone-800">{{ isEn ? cat.labelEn : cat.labelSv }}</span>
           <span class="font-bold text-[#173D35]">{{ formatPLN(cat.totalPlannedPln) }}</span>
-          <span class="text-[11px] font-medium text-stone-500">({{ cat.toBuyCount }} {{ isEn ? 'left' : 'kvar' }})</span>
+          <span class="text-[10px] sm:text-[11px] font-medium text-stone-500">({{ cat.toBuyCount }} {{ isEn ? 'left' : 'kvar' }})</span>
         </button>
       </div>
     </section>
 
     <!-- 3. Toolbar: Search, Status Filter, Sort, Add Item, Curated Seed -->
-    <section class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+    <section class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-3">
       <!-- Search Input -->
-      <div class="relative flex-1 max-w-md">
+      <div class="relative flex-1 max-w-full sm:max-w-md">
         <svg class="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
         </svg>
@@ -133,12 +133,12 @@
           v-model="searchQuery"
           type="text"
           :placeholder="isEn ? 'Search items, power tools, garden, kitchen...' : 'Sök artiklar, elverktyg, trädgård, kök, möbler...'"
-          class="w-full rounded-xl border border-[#d7d1c4] bg-white pl-10 pr-8 py-2 text-sm text-[#222925] transition focus:border-[#173D35] focus:outline-none focus:ring-2 focus:ring-[#173D35]/20"
+          class="w-full rounded-xl border border-[#d7d1c4] bg-white pl-10 pr-8 py-2 text-base sm:text-sm text-[#222925] transition focus:border-[#173D35] focus:outline-none focus:ring-2 focus:ring-[#173D35]/20"
         />
         <button
           v-if="searchQuery"
           type="button"
-          class="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 text-xs font-bold"
+          class="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 text-xs font-bold p-1"
           @click="searchQuery = ''"
         >
           ✕
@@ -146,12 +146,12 @@
       </div>
 
       <!-- Controls: Status Toggle & Actions -->
-      <div class="flex flex-wrap items-center gap-2 self-end sm:self-auto">
-        <!-- Status Filter -->
-        <div class="inline-flex rounded-xl border border-[#d7d1c4] bg-white p-0.5 shadow-sm">
+      <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
+        <!-- Status Filter (Full width on mobile, inline on desktop) -->
+        <div class="grid grid-cols-3 w-full sm:w-auto sm:inline-flex rounded-xl border border-[#d7d1c4] bg-white p-0.5 shadow-sm">
           <button
             type="button"
-            class="px-2.5 py-1 text-xs font-semibold rounded-lg transition"
+            class="px-2 sm:px-2.5 py-1.5 text-xs font-semibold rounded-lg transition text-center min-h-8"
             :class="statusFilter === 'all' ? 'bg-[#173D35] text-white shadow-sm' : 'text-stone-600 hover:text-stone-900'"
             @click="statusFilter = 'all'"
           >
@@ -159,100 +159,103 @@
           </button>
           <button
             type="button"
-            class="px-2.5 py-1 text-xs font-semibold rounded-lg transition"
+            class="px-2 sm:px-2.5 py-1.5 text-xs font-semibold rounded-lg transition text-center min-h-8"
             :class="statusFilter === 'tobuy' ? 'bg-[#173D35] text-white shadow-sm' : 'text-stone-600 hover:text-stone-900'"
             @click="statusFilter = 'tobuy'"
           >
-            {{ isEn ? 'To Buy' : 'Att köpa' }} ({{ summary.toBuyCount }})
+            {{ isEn ? 'To Buy' : 'Kvar' }} ({{ summary.toBuyCount }})
           </button>
           <button
             type="button"
-            class="px-2.5 py-1 text-xs font-semibold rounded-lg transition"
+            class="px-2 sm:px-2.5 py-1.5 text-xs font-semibold rounded-lg transition text-center min-h-8"
             :class="statusFilter === 'purchased' ? 'bg-[#173D35] text-white shadow-sm' : 'text-stone-600 hover:text-stone-900'"
             @click="statusFilter = 'purchased'"
           >
-            {{ isEn ? 'Purchased' : 'Inköpt' }} ({{ summary.purchasedCount }})
+            {{ isEn ? 'Done' : 'Klara' }} ({{ summary.purchasedCount }})
           </button>
         </div>
 
-        <!-- Sort dropdown -->
-        <select
-          v-model="sortOrder"
-          class="rounded-xl border border-[#d7d1c4] bg-white px-3 py-2 text-xs font-semibold text-stone-700 shadow-sm focus:border-[#173D35] focus:outline-none"
-        >
-          <option value="priority_desc">{{ isEn ? 'Priority (High first)' : 'Prioritet (Högst först)' }}</option>
-          <option value="price_desc">{{ isEn ? 'Highest price' : 'Högst pris' }}</option>
-          <option value="price_asc">{{ isEn ? 'Lowest price' : 'Lägst pris' }}</option>
-          <option value="category">{{ isEn ? 'Category' : 'Kategori' }}</option>
-          <option value="newest">{{ isEn ? 'Newest first' : 'Nyast först' }}</option>
-        </select>
+        <div class="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto justify-between sm:justify-start">
+          <!-- Sort dropdown -->
+          <select
+            v-model="sortOrder"
+            class="flex-1 sm:flex-initial rounded-xl border border-[#d7d1c4] bg-white px-2.5 sm:px-3 py-2 text-base sm:text-xs font-semibold text-stone-700 shadow-sm focus:border-[#173D35] focus:outline-none min-h-9"
+          >
+            <option value="priority_desc">{{ isEn ? 'Priority' : 'Prioritet' }}</option>
+            <option value="price_desc">{{ isEn ? 'Highest price' : 'Högst pris' }}</option>
+            <option value="price_asc">{{ isEn ? 'Lowest price' : 'Lägst pris' }}</option>
+            <option value="category">{{ isEn ? 'Category' : 'Kategori' }}</option>
+            <option value="newest">{{ isEn ? 'Newest' : 'Nyast' }}</option>
+          </select>
 
-        <!-- Polish Stores in Gdańsk & Gdynia Directory button -->
-        <button
-          type="button"
-          id="btn-open-tricity-stores"
-          class="inline-flex items-center gap-1.5 rounded-xl border border-emerald-600/30 bg-emerald-50 px-3 py-2 text-xs font-bold text-[#173D35] shadow-sm transition hover:bg-emerald-100/70 active:scale-95"
-          :title="isEn ? 'Browse Polish stores in Gdańsk & Gdynia area' : 'Polska varuhus i Gdańsk & Gdynia'"
-          @click="showStoresModal = true"
-        >
-          <span>🇵🇱</span>
-          <span class="hidden md:inline">{{ isEn ? 'Gdańsk & Gdynia Stores' : 'Gdańsk / Gdynia butiker' }}</span>
-        </button>
+          <!-- Polish Stores in Gdańsk & Gdynia Directory button -->
+          <button
+            type="button"
+            id="btn-open-tricity-stores"
+            class="inline-flex items-center justify-center gap-1 rounded-xl border border-emerald-600/30 bg-emerald-50 px-2.5 sm:px-3 py-2 text-xs font-bold text-[#173D35] shadow-sm transition hover:bg-emerald-100/70 active:scale-95 min-h-9"
+            :title="isEn ? 'Browse Polish stores in Gdańsk & Gdynia area' : 'Polska varuhus i Gdańsk & Gdynia'"
+            @click="showStoresModal = true"
+          >
+            <span>🇵🇱</span>
+            <span class="hidden sm:inline">{{ isEn ? 'Gdańsk Stores' : 'Gdańsk butiker' }}</span>
+          </button>
 
-        <!-- Curated suggestions button -->
-        <button
-          type="button"
-          class="inline-flex items-center gap-1 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-900 shadow-sm transition hover:bg-amber-500/20 active:scale-95"
-          :title="isEn ? 'Load curated house building & garden suggestions' : 'Läs in förslag för trädgård, verktyg och inredning'"
-          @click="loadCuratedSuggestions"
-        >
-          <span>💡</span>
-          <span class="hidden md:inline">{{ isEn ? 'Add Suggestions' : 'Läs in förslag' }}</span>
-        </button>
+          <!-- Curated suggestions button -->
+          <button
+            type="button"
+            class="inline-flex items-center justify-center gap-1 rounded-xl border border-amber-500/30 bg-amber-50/80 px-2.5 sm:px-3 py-2 text-xs font-semibold text-amber-900 shadow-sm transition hover:bg-amber-100 active:scale-95 min-h-9"
+            :title="isEn ? 'Load curated house building & garden suggestions' : 'Läs in förslag för trädgård, verktyg och inredning'"
+            @click="loadCuratedSuggestions"
+          >
+            <span>💡</span>
+            <span class="hidden md:inline">{{ isEn ? 'Suggestions' : 'Förslag' }}</span>
+          </button>
 
-        <!-- Export tools -->
-        <button
-          type="button"
-          class="inline-flex items-center gap-1 rounded-xl border border-stone-300 bg-white px-3 py-2 text-xs font-semibold text-stone-700 shadow-sm transition hover:bg-stone-50 active:scale-95"
-          :title="isEn ? 'Copy shopping list text' : 'Kopiera inköpslistan'"
-          @click="copyShoppingSummary"
-        >
-          <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
-          </svg>
-          <span class="hidden sm:inline">{{ isEn ? 'Copy' : 'Kopiera' }}</span>
-        </button>
+          <!-- Export tools -->
+          <button
+            type="button"
+            class="inline-flex items-center justify-center gap-1 rounded-xl border border-stone-300 bg-white px-2.5 sm:px-3 py-2 text-xs font-semibold text-stone-700 shadow-sm transition hover:bg-stone-50 active:scale-95 min-h-9"
+            :title="isEn ? 'Copy shopping list text' : 'Kopiera inköpslistan'"
+            @click="copyShoppingSummary"
+          >
+            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
+            </svg>
+            <span class="hidden sm:inline">{{ isEn ? 'Copy' : 'Kopiera' }}</span>
+          </button>
 
-        <button
-          type="button"
-          class="inline-flex items-center gap-1 rounded-xl border border-stone-300 bg-white px-3 py-2 text-xs font-semibold text-stone-700 shadow-sm transition hover:bg-stone-50 active:scale-95"
-          :title="isEn ? 'Download CSV file' : 'Ladda ner CSV-fil'"
-          @click="downloadCsvFile"
-        >
-          <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-          </svg>
-          <span class="hidden sm:inline">CSV</span>
-        </button>
+          <button
+            type="button"
+            class="inline-flex items-center justify-center gap-1 rounded-xl border border-stone-300 bg-white px-2.5 sm:px-3 py-2 text-xs font-semibold text-stone-700 shadow-sm transition hover:bg-stone-50 active:scale-95 min-h-9"
+            :title="isEn ? 'Download CSV file' : 'Ladda ner CSV-fil'"
+            @click="downloadCsvFile"
+          >
+            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            <span class="hidden sm:inline">CSV</span>
+          </button>
 
-        <!-- New Item Button -->
-        <button
-          type="button"
-          id="btn-add-shopping-item"
-          class="inline-flex items-center gap-1.5 rounded-xl bg-[#173D35] px-3.5 py-2 text-xs font-bold text-white shadow-md shadow-[#173D35]/20 transition hover:bg-[#0f2b25] active:scale-95"
-          @click="openNewItemModal"
-        >
-          <span class="text-base leading-none font-bold">+</span>
-          <span>{{ isEn ? 'New Item' : 'Ny artikel' }}</span>
-        </button>
+          <!-- New Item Button -->
+          <button
+            type="button"
+            id="btn-add-shopping-item"
+            class="inline-flex items-center justify-center gap-1 rounded-xl bg-[#173D35] px-3 sm:px-3.5 py-2 text-xs font-bold text-white shadow-md shadow-[#173D35]/20 transition hover:bg-[#0f2b25] active:scale-95 min-h-9"
+            @click="openNewItemModal"
+          >
+            <span class="text-base leading-none font-bold">+</span>
+            <span class="hidden sm:inline">{{ isEn ? 'New Item' : 'Ny artikel' }}</span>
+            <span class="sm:hidden">{{ isEn ? 'Add' : 'Ny' }}</span>
+          </button>
+        </div>
       </div>
     </section>
 
-    <!-- 4. Category Filter Chips -->
-    <section class="flex flex-wrap items-center gap-1.5">
+    <!-- 4. Category Filter Chips (Swipeable carousel on mobile) -->
+    <section class="flex items-center gap-1.5 overflow-x-auto pb-1.5 pt-0.5 -mx-3.5 px-3.5 sm:mx-0 sm:px-0 sm:flex-wrap no-scrollbar touch-pan-x">
       <button
         type="button"
-        class="rounded-full px-3 py-1 text-xs font-semibold transition"
+        class="shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition min-h-8"
         :class="selectedCategoryFilter === 'all'
           ? 'bg-[#173D35] text-white shadow-sm'
           : 'bg-white border border-[#d7d1c4] text-stone-700 hover:bg-stone-50'"
@@ -265,7 +268,7 @@
         v-for="cat in SHOPPING_CATEGORIES"
         :key="cat.id"
         type="button"
-        class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition"
+        class="shrink-0 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition min-h-8"
         :class="selectedCategoryFilter === cat.id
           ? 'bg-[#173D35] text-white shadow-sm'
           : 'bg-white border border-[#d7d1c4] text-stone-700 hover:bg-stone-50'"
@@ -284,9 +287,9 @@
       <!-- Empty state -->
       <div
         v-if="filteredItems.length === 0"
-        class="flex flex-col items-center justify-center p-12 text-center rounded-2xl border-2 border-dashed border-[#d7d1c4] bg-white/60"
+        class="flex flex-col items-center justify-center p-8 sm:p-12 text-center rounded-2xl border-2 border-dashed border-[#d7d1c4] bg-white/60"
       >
-        <div class="h-16 w-16 rounded-full bg-amber-500/10 flex items-center justify-center text-3xl mb-3">
+        <div class="h-14 w-14 sm:h-16 sm:w-16 rounded-full bg-amber-500/10 flex items-center justify-center text-3xl mb-3">
           🛒
         </div>
         <h3 class="text-base font-bold text-[#173D35]">
@@ -297,20 +300,20 @@
             ? (isEn ? 'Try adjusting your search query or filters.' : 'Prova att ändra sökorden eller filtret.')
             : (isEn ? 'Add items you plan to buy for the garden, power tools, kitchen or furniture, or click below to load our curated builder starter list.' : 'Lägg till vad ni behöver köpa för trädgården, verktyg, köket eller möbler, eller läs in vår förslagslista.') }}
         </p>
-        <div class="mt-4 flex flex-wrap gap-2">
+        <div class="mt-4 flex flex-wrap gap-2 justify-center">
           <button
             type="button"
-            class="rounded-xl bg-[#173D35] px-4 py-2 text-xs font-bold text-white shadow-md transition hover:bg-[#0f2b25]"
+            class="rounded-xl bg-[#173D35] px-4 py-2 text-xs font-bold text-white shadow-md transition hover:bg-[#0f2b25] min-h-9"
             @click="openNewItemModal"
           >
             {{ isEn ? '+ Add First Item' : '+ Lägg till första artikeln' }}
           </button>
           <button
             type="button"
-            class="rounded-xl border border-amber-600/30 bg-amber-50 px-4 py-2 text-xs font-bold text-amber-900 shadow-sm transition hover:bg-amber-100"
+            class="rounded-xl border border-amber-600/30 bg-amber-50 px-4 py-2 text-xs font-bold text-amber-900 shadow-sm transition hover:bg-amber-100 min-h-9"
             @click="loadCuratedSuggestions"
           >
-            💡 {{ isEn ? 'Load Curated Suggestions' : 'Läs in förslag för bygget' }}
+            💡 {{ isEn ? 'Load Suggestions' : 'Läs in förslag' }}
           </button>
         </div>
       </div>
@@ -319,17 +322,17 @@
       <div
         v-for="item in filteredItems"
         :key="item.id"
-        class="group relative flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border bg-white p-4 shadow-sm transition hover:shadow-md"
+        class="group relative flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 rounded-2xl border bg-white p-3.5 sm:p-4 shadow-sm transition hover:shadow-md"
         :class="item.isPurchased
           ? 'border-emerald-200/80 bg-emerald-50/20 opacity-80'
           : 'border-[#d7d1c4] hover:border-[#173D35]/40'"
       >
         <!-- Left: Checkbox, Icon, Title, Details -->
-        <div class="flex items-start sm:items-center gap-3">
+        <div class="flex items-start sm:items-center gap-2.5 sm:gap-3 min-w-0">
           <!-- Interactive Purchased Checkbox -->
           <button
             type="button"
-            class="mt-0.5 sm:mt-0 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg border transition active:scale-90"
+            class="mt-0.5 sm:mt-0 flex h-7 w-7 min-h-7 min-w-7 shrink-0 items-center justify-center rounded-lg border transition active:scale-90"
             :class="item.isPurchased
               ? 'border-emerald-600 bg-emerald-600 text-white'
               : 'border-stone-300 bg-white hover:border-[#173D35] text-transparent'"
@@ -343,7 +346,7 @@
 
           <!-- Category Icon Avatar -->
           <div
-            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-lg border"
+            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-lg border"
             :style="{
               backgroundColor: getShoppingCategoryMeta(item.category).badgeBg,
               borderColor: getShoppingCategoryMeta(item.category).badgeBorder
@@ -353,23 +356,23 @@
           </div>
 
           <!-- Main Info -->
-          <div>
-            <div class="flex flex-wrap items-center gap-2">
+          <div class="min-w-0 flex-1">
+            <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
               <h4
-                class="text-sm font-bold text-[#173D35] tracking-tight"
+                class="text-sm font-bold text-[#173D35] tracking-tight break-words"
                 :class="{ 'line-through text-stone-500': item.isPurchased }"
               >
                 {{ item.title }}
               </h4>
 
               <!-- Quantity Pill -->
-              <span class="inline-flex items-center rounded-md bg-stone-100 px-2 py-0.5 text-[10px] font-bold text-stone-700">
+              <span class="inline-flex items-center rounded-md bg-stone-100 px-2 py-0.5 text-[10px] font-bold text-stone-700 shrink-0">
                 {{ item.quantity }} {{ item.unit || 'pcs' }}
               </span>
 
               <!-- Category Badge -->
               <span
-                class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold border"
+                class="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-semibold border shrink-0"
                 :style="{
                   backgroundColor: getShoppingCategoryMeta(item.category).badgeBg,
                   borderColor: getShoppingCategoryMeta(item.category).badgeBorder,
@@ -381,7 +384,7 @@
 
               <!-- Priority Badge -->
               <span
-                class="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold"
+                class="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold shrink-0"
                 :class="item.priority === 'high'
                   ? 'bg-rose-50 text-rose-700 border border-rose-200'
                   : item.priority === 'medium'
@@ -394,7 +397,7 @@
               <!-- Status Tag -->
               <span
                 v-if="item.isPurchased"
-                class="inline-flex items-center gap-1 rounded-full bg-emerald-100/70 px-2 py-0.5 text-[10px] font-bold text-emerald-800"
+                class="inline-flex items-center gap-1 rounded-full bg-emerald-100/70 px-2 py-0.5 text-[10px] font-bold text-emerald-800 shrink-0"
               >
                 <span>✓</span>
                 <span>{{ isEn ? 'Purchased' : 'Inköpt' }}</span>
@@ -402,7 +405,7 @@
             </div>
 
             <!-- Notes & Store link -->
-            <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-stone-500">
+            <div class="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs text-stone-500">
               <span v-if="item.storeOrUrl" class="inline-flex items-center gap-1 text-stone-600 font-medium">
                 <span>🏬</span>
                 <span v-if="isHttpUrl(item.storeOrUrl)">
@@ -420,14 +423,14 @@
           </div>
         </div>
 
-        <!-- Right: Pricing & Actions -->
-        <div class="flex items-center justify-between sm:justify-end gap-3 self-end sm:self-center w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-stone-100">
+        <!-- Right: Pricing & Actions (Responsive layout on mobile) -->
+        <div class="flex items-center justify-between sm:justify-end gap-3 self-stretch sm:self-center w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-stone-100">
           <!-- Price Display -->
-          <div class="text-right">
-            <div class="text-base sm:text-lg font-black text-[#173D35] tracking-tight">
+          <div class="text-left sm:text-right">
+            <div class="text-base sm:text-lg font-black text-[#173D35] tracking-tight tabular-nums">
               {{ formatPLN(item.isPurchased && item.purchasedPricePln !== undefined ? item.purchasedPricePln * item.quantity : item.estimatedPricePln * item.quantity) }}
             </div>
-            <div class="text-xs font-semibold text-amber-800">
+            <div class="text-xs font-semibold text-amber-800 tabular-nums">
               ≈ {{ formatSEK(convertPlnToSek((item.isPurchased && item.purchasedPricePln !== undefined ? item.purchasedPricePln : item.estimatedPricePln) * item.quantity, rateInfo.ratePlnToSek)) }}
             </div>
             <div v-if="item.quantity > 1" class="text-[10px] text-stone-400">
@@ -436,11 +439,11 @@
           </div>
 
           <!-- Action Buttons -->
-          <div class="flex items-center gap-1">
+          <div class="flex items-center gap-1 shrink-0">
             <!-- "Log as Expense" Button: Connects Shopping List to Expenses! -->
             <button
               type="button"
-              class="inline-flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-xs font-bold shadow-sm transition active:scale-95"
+              class="inline-flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-xs font-bold shadow-sm transition active:scale-95 min-h-9"
               :class="item.loggedExpenseId
                 ? 'bg-stone-100 text-stone-500 border border-stone-200'
                 : 'bg-emerald-600 hover:bg-emerald-700 text-white'"
@@ -448,13 +451,13 @@
               @click="handleLogAsExpense(item)"
             >
               <span>💸</span>
-              <span class="hidden md:inline">{{ item.loggedExpenseId ? (isEn ? 'Logged' : 'Bokfört') : (isEn ? 'Log Expense' : 'Till utlägg') }}</span>
+              <span class="hidden sm:inline">{{ item.loggedExpenseId ? (isEn ? 'Logged' : 'Bokfört') : (isEn ? 'Log Expense' : 'Till utlägg') }}</span>
             </button>
 
             <!-- Edit Item -->
             <button
               type="button"
-              class="inline-flex items-center justify-center h-8 w-8 rounded-xl border border-stone-200 bg-white text-stone-600 hover:text-stone-900 hover:bg-stone-50 transition"
+              class="inline-flex items-center justify-center h-9 w-9 rounded-xl border border-stone-200 bg-white text-stone-600 hover:text-stone-900 hover:bg-stone-50 transition active:scale-95"
               :title="isEn ? 'Edit item' : 'Redigera artikel'"
               @click="openEditModal(item)"
             >
@@ -464,7 +467,7 @@
             <!-- Delete Item -->
             <button
               type="button"
-              class="inline-flex items-center justify-center h-8 w-8 rounded-xl border border-stone-200 bg-white text-stone-400 hover:text-rose-600 hover:bg-rose-50 transition"
+              class="inline-flex items-center justify-center h-9 w-9 rounded-xl border border-stone-200 bg-white text-stone-400 hover:text-rose-600 hover:bg-rose-50 transition active:scale-95"
               :title="isEn ? 'Delete item' : 'Ta bort artikel'"
               @click="handleDeleteItem(item.id)"
             >
@@ -478,10 +481,10 @@
     <!-- Modal: Add / Edit Shopping Item -->
     <div
       v-if="showModal"
-      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm"
       @click.self="showModal = false"
     >
-      <div class="relative w-full max-w-lg rounded-3xl border border-[#d7d1c4] bg-white p-6 shadow-2xl">
+      <div class="relative w-full max-w-lg rounded-2xl sm:rounded-3xl border border-[#d7d1c4] bg-white p-4 sm:p-6 shadow-2xl max-h-[92dvh] overflow-y-auto">
         <div class="flex items-center justify-between border-b border-stone-100 pb-3">
           <div class="flex items-center gap-2">
             <span class="text-xl">🛒</span>
@@ -491,14 +494,14 @@
           </div>
           <button
             type="button"
-            class="text-stone-400 hover:text-stone-700 text-lg font-bold p-1"
+            class="text-stone-400 hover:text-stone-700 text-lg font-bold p-1.5 min-h-8 min-w-8 flex items-center justify-center rounded-lg"
             @click="showModal = false"
           >
             ✕
           </button>
         </div>
 
-        <form class="mt-4 space-y-4" @submit.prevent="saveItem">
+        <form class="mt-3.5 sm:mt-4 space-y-3.5 sm:space-y-4" @submit.prevent="saveItem">
           <!-- Title / Item Name -->
           <div class="space-y-1">
             <label class="block text-xs font-bold uppercase tracking-wider text-stone-600">
@@ -509,7 +512,7 @@
               type="text"
               required
               :placeholder="isEn ? 'e.g. Plunge saw with guide rail, Garden hose reel...' : 't.ex. Sänksåg med styrskena, Robotgräsklippare, Induktionshäll...'"
-              class="w-full rounded-xl border border-[#d7d1c4] bg-[#FDFBF7] px-3.5 py-2 text-sm text-[#222925] font-medium focus:border-[#173D35] focus:outline-none"
+              class="w-full rounded-xl border border-[#d7d1c4] bg-[#FDFBF7] px-3.5 py-2.5 text-base sm:text-sm text-[#222925] font-medium focus:border-[#173D35] focus:outline-none"
             />
           </div>
 
@@ -523,7 +526,7 @@
                 v-for="cat in SHOPPING_CATEGORIES"
                 :key="cat.id"
                 type="button"
-                class="flex items-center gap-2 p-2 rounded-xl border text-xs font-semibold text-left transition"
+                class="flex items-center gap-2 p-2 rounded-xl border text-xs font-semibold text-left transition min-h-9"
                 :class="formCategory === cat.id
                   ? 'border-[#173D35] bg-[#173D35]/10 text-[#173D35] ring-1 ring-[#173D35]'
                   : 'border-stone-200 bg-white text-stone-700 hover:bg-stone-50'"
@@ -536,7 +539,7 @@
           </div>
 
           <!-- Price & Currency Dual Inputs -->
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
             <!-- Price in PLN -->
             <div class="space-y-1">
               <label class="block text-xs font-bold uppercase tracking-wider text-stone-600">
@@ -550,7 +553,7 @@
                   step="any"
                   required
                   placeholder="0"
-                  class="w-full rounded-xl border border-[#d7d1c4] bg-[#FDFBF7] pl-3.5 pr-12 py-2 text-sm font-bold text-[#173D35] focus:border-[#173D35] focus:outline-none"
+                  class="w-full rounded-xl border border-[#d7d1c4] bg-[#FDFBF7] pl-3.5 pr-12 py-2 text-base sm:text-sm font-bold text-[#173D35] focus:border-[#173D35] focus:outline-none"
                   @input="onPlnInput"
                 />
                 <span class="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-stone-400">
@@ -571,7 +574,7 @@
                   min="0"
                   step="any"
                   placeholder="0"
-                  class="w-full rounded-xl border border-[#d7d1c4] bg-[#FDFBF7] pl-3.5 pr-12 py-2 text-sm font-bold text-amber-800 focus:border-[#173D35] focus:outline-none"
+                  class="w-full rounded-xl border border-[#d7d1c4] bg-[#FDFBF7] pl-3.5 pr-12 py-2 text-base sm:text-sm font-bold text-amber-800 focus:border-[#173D35] focus:outline-none"
                   @input="onSekInput"
                 />
                 <span class="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-stone-400">
@@ -582,7 +585,7 @@
           </div>
 
           <!-- Quantity, Unit, Priority -->
-          <div class="grid grid-cols-3 gap-3">
+          <div class="grid grid-cols-3 gap-2 sm:gap-3">
             <div class="space-y-1">
               <label class="block text-xs font-bold uppercase tracking-wider text-stone-600">
                 {{ isEn ? 'Quantity' : 'Antal' }}
@@ -593,7 +596,7 @@
                 min="1"
                 step="1"
                 required
-                class="w-full rounded-xl border border-[#d7d1c4] bg-[#FDFBF7] px-3.5 py-2 text-sm text-[#222925] font-semibold focus:border-[#173D35] focus:outline-none"
+                class="w-full rounded-xl border border-[#d7d1c4] bg-[#FDFBF7] px-3 py-2 text-base sm:text-sm text-[#222925] font-semibold focus:border-[#173D35] focus:outline-none"
               />
             </div>
 
@@ -603,7 +606,7 @@
               </label>
               <select
                 v-model="formUnit"
-                class="w-full rounded-xl border border-[#d7d1c4] bg-[#FDFBF7] px-3 py-2 text-sm text-[#222925] font-semibold focus:border-[#173D35] focus:outline-none"
+                class="w-full rounded-xl border border-[#d7d1c4] bg-[#FDFBF7] px-2 sm:px-3 py-2 text-base sm:text-sm text-[#222925] font-semibold focus:border-[#173D35] focus:outline-none min-h-9"
               >
                 <option value="pcs">pcs (pieces)</option>
                 <option value="set">set</option>
@@ -620,7 +623,7 @@
               </label>
               <select
                 v-model="formPriority"
-                class="w-full rounded-xl border border-[#d7d1c4] bg-[#FDFBF7] px-3 py-2 text-sm text-[#222925] font-semibold focus:border-[#173D35] focus:outline-none"
+                class="w-full rounded-xl border border-[#d7d1c4] bg-[#FDFBF7] px-2 sm:px-3 py-2 text-base sm:text-sm text-[#222925] font-semibold focus:border-[#173D35] focus:outline-none min-h-9"
               >
                 <option value="high">🔴 {{ isEn ? 'High' : 'Hög' }}</option>
                 <option value="medium">🟡 {{ isEn ? 'Medium' : 'Medel' }}</option>
@@ -633,32 +636,32 @@
           <div class="space-y-1.5">
             <div class="flex items-center justify-between">
               <label class="block text-xs font-bold uppercase tracking-wider text-stone-600">
-                {{ isEn ? 'Polish Store in Gdańsk / Gdynia or Link' : 'Polskt varuhus i Gdańsk / Gdynia eller länk' }}
+                {{ isEn ? 'Store in Gdańsk / Gdynia or Link' : 'Varuhus i Gdańsk / Gdynia eller länk' }}
               </label>
               <button
                 type="button"
-                class="text-[11px] font-bold text-[#173D35] hover:underline"
+                class="text-[11px] font-bold text-[#173D35] hover:underline p-0.5"
                 @click="showStoresModal = true"
               >
-                {{ isEn ? 'Browse all stores ↗' : 'Visa alla butiker ↗' }}
+                {{ isEn ? 'Browse stores ↗' : 'Visa butiker ↗' }}
               </button>
             </div>
             <input
               v-model="formStore"
               type="text"
-              :placeholder="isEn ? 'e.g. Castorama Gdańsk Oliwa, Leroy Merlin Karczemki, OBI Matarnia, Bricoman...' : 't.ex. Castorama Gdańsk Oliwa, Leroy Merlin Karczemki, OBI, IKEA...'"
-              class="w-full rounded-xl border border-[#d7d1c4] bg-[#FDFBF7] px-3.5 py-2 text-sm text-[#222925] focus:border-[#173D35] focus:outline-none"
+              :placeholder="isEn ? 'e.g. Castorama Gdańsk Oliwa, Leroy Merlin, OBI...' : 't.ex. Castorama Gdańsk Oliwa, Leroy Merlin, OBI...'"
+              class="w-full rounded-xl border border-[#d7d1c4] bg-[#FDFBF7] px-3.5 py-2 text-base sm:text-sm text-[#222925] focus:border-[#173D35] focus:outline-none"
             />
             <!-- Quick Polish Store Chips -->
-            <div class="flex flex-wrap items-center gap-1.5 pt-0.5">
-              <span class="text-[10px] font-bold text-stone-400 uppercase tracking-wider">
-                {{ isEn ? 'Tricity stores:' : 'Snabbval:' }}
+            <div class="flex items-center gap-1.5 pt-0.5 overflow-x-auto pb-1 max-w-full no-scrollbar">
+              <span class="text-[10px] font-bold text-stone-400 uppercase tracking-wider shrink-0">
+                {{ isEn ? 'Stores:' : 'Snabbval:' }}
               </span>
               <button
                 v-for="store in POLISH_TRICITY_STORES.slice(0, 6)"
                 :key="store.id"
                 type="button"
-                class="rounded-lg border border-stone-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-stone-700 hover:bg-[#173D35]/10 hover:border-[#173D35] transition"
+                class="shrink-0 rounded-lg border border-stone-200 bg-white px-2 py-1 text-[11px] font-semibold text-stone-700 hover:bg-[#173D35]/10 hover:border-[#173D35] transition min-h-7"
                 @click="formStore = store.name"
               >
                 {{ store.name }}
@@ -675,7 +678,7 @@
               v-model="formNotes"
               rows="2"
               :placeholder="isEn ? 'Dimensions, specific model numbers, color, etc.' : 'Mått, modellnummer, färg eller specifika krav...'"
-              class="w-full rounded-xl border border-[#d7d1c4] bg-[#FDFBF7] px-3.5 py-2 text-xs text-[#222925] focus:border-[#173D35] focus:outline-none resize-none"
+              class="w-full rounded-xl border border-[#d7d1c4] bg-[#FDFBF7] px-3.5 py-2 text-base sm:text-xs text-[#222925] focus:border-[#173D35] focus:outline-none resize-none"
             ></textarea>
           </div>
 
@@ -685,7 +688,7 @@
               id="checkbox-is-purchased"
               v-model="formIsPurchased"
               type="checkbox"
-              class="h-4 w-4 rounded border-stone-300 text-[#173D35] focus:ring-[#173D35]"
+              class="h-5 w-5 rounded border-stone-300 text-[#173D35] focus:ring-[#173D35] shrink-0"
             />
             <label for="checkbox-is-purchased" class="text-xs font-bold text-stone-700 cursor-pointer">
               {{ isEn ? 'Mark as already purchased / acquired' : 'Markera som redan inköpt / fixad' }}
@@ -693,17 +696,17 @@
           </div>
 
           <!-- Form Buttons -->
-          <div class="flex items-center justify-end gap-2 pt-3 border-t border-stone-100">
+          <div class="flex items-center justify-end gap-2.5 sm:gap-3 pt-3 sm:pt-4 border-t border-stone-100">
             <button
               type="button"
-              class="rounded-xl px-4 py-2 text-xs font-semibold text-stone-600 hover:bg-stone-100"
+              class="flex-1 sm:flex-initial rounded-xl px-4 py-2.5 text-xs font-semibold text-stone-600 hover:bg-stone-100 min-h-10 text-center"
               @click="showModal = false"
             >
               {{ isEn ? 'Cancel' : 'Avbryt' }}
             </button>
             <button
               type="submit"
-              class="rounded-xl bg-[#173D35] px-5 py-2 text-xs font-bold text-white shadow-md hover:bg-[#0f2b25]"
+              class="flex-1 sm:flex-initial rounded-xl bg-[#173D35] px-5 py-2.5 text-xs font-bold text-white shadow-md hover:bg-[#0f2b25] min-h-10 text-center"
             >
               {{ editingItemId ? (isEn ? 'Save Changes' : 'Spara ändringar') : (isEn ? 'Add Item' : 'Lägg till artikel') }}
             </button>
@@ -715,26 +718,26 @@
     <!-- Modal: Polish Stores Directory (Gdańsk & Gdynia Area) -->
     <div
       v-if="showStoresModal"
-      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm"
       @click.self="showStoresModal = false"
     >
-      <div class="relative w-full max-w-2xl rounded-3xl border border-[#d7d1c4] bg-white p-6 sm:p-7 shadow-2xl max-h-[90vh] overflow-y-auto">
-        <div class="flex items-center justify-between border-b border-stone-100 pb-3.5">
-          <div class="flex items-center gap-2.5">
-            <span class="text-2xl">🏬</span>
-            <div>
-              <h3 class="text-lg font-bold text-[#173D35] flex items-center gap-2">
-                <span>{{ isEn ? 'Polish Stores (Gdańsk & Gdynia Area)' : 'Polska varuhus (Gdańsk & Gdynia)' }}</span>
-                <span class="rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-extrabold px-2 py-0.5 uppercase tracking-wider">Trójmiasto</span>
+      <div class="relative w-full max-w-2xl rounded-2xl sm:rounded-3xl border border-[#d7d1c4] bg-white p-4 sm:p-7 shadow-2xl max-h-[92dvh] overflow-y-auto">
+        <div class="flex items-center justify-between border-b border-stone-100 pb-3 sm:pb-3.5">
+          <div class="flex items-center gap-2.5 min-w-0">
+            <span class="text-2xl shrink-0">🏬</span>
+            <div class="min-w-0">
+              <h3 class="text-base sm:text-lg font-bold text-[#173D35] flex items-center gap-2 flex-wrap">
+                <span class="truncate">{{ isEn ? 'Polish Stores (Gdańsk & Gdynia)' : 'Polska varuhus (Gdańsk & Gdynia)' }}</span>
+                <span class="rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-extrabold px-2 py-0.5 uppercase tracking-wider shrink-0">Trójmiasto</span>
               </h3>
-              <p class="text-xs text-stone-500">
+              <p class="text-xs text-stone-500 truncate hidden sm:block">
                 {{ isEn ? 'Home improvement, power tools, timber, garden & kitchen retailers in Gdańsk & Gdynia' : 'Byggvaruhus, elverktyg, virke, trädgård och kök i Gdańsk och Gdynia' }}
               </p>
             </div>
           </div>
           <button
             type="button"
-            class="text-stone-400 hover:text-stone-700 text-lg font-bold p-1"
+            class="text-stone-400 hover:text-stone-700 text-lg font-bold p-1.5 min-h-8 min-w-8 flex items-center justify-center rounded-lg"
             @click="showStoresModal = false"
           >
             ✕
@@ -742,7 +745,7 @@
         </div>
 
         <!-- Action Banner: Re-seed full English catalogue from Gdańsk stores -->
-        <div class="my-4 rounded-2xl border border-emerald-600/20 bg-emerald-50/60 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div class="my-3.5 sm:my-4 rounded-2xl border border-emerald-600/20 bg-emerald-50/60 p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h4 class="text-xs font-bold text-[#173D35]">
               {{ isEn ? 'Re-seed List with English Gdańsk / Gdynia Catalogue' : 'Läs in engelska Gdańsk/Gdynia-katalogen' }}
@@ -753,7 +756,7 @@
           </div>
           <button
             type="button"
-            class="shrink-0 rounded-xl bg-[#173D35] px-3.5 py-2 text-xs font-bold text-white shadow-md hover:bg-[#0f2b25] transition active:scale-95"
+            class="w-full sm:w-auto shrink-0 rounded-xl bg-[#173D35] px-3.5 py-2 text-xs font-bold text-white shadow-md hover:bg-[#0f2b25] transition active:scale-95 min-h-9 text-center"
             @click="resetToTricityCatalog"
           >
             {{ isEn ? 'Reset to Gdańsk Seeds' : 'Återställ till Gdańsk-urval' }}
@@ -761,40 +764,40 @@
         </div>
 
         <!-- Store Grid -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 mt-3 sm:mt-4">
           <div
             v-for="store in POLISH_TRICITY_STORES"
             :key="store.id"
-            class="rounded-2xl border border-stone-200 bg-[#FAF8F5] p-3.5 flex flex-col justify-between hover:border-[#173D35]/40 transition hover:shadow-sm"
+            class="rounded-2xl border border-stone-200 bg-[#FAF8F5] p-3 sm:p-3.5 flex flex-col justify-between hover:border-[#173D35]/40 transition hover:shadow-sm"
           >
             <div>
-              <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-[#173D35]">{{ store.name }}</span>
-                <span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-stone-200/80 text-stone-700">
-                  {{ store.city }} · {{ store.location }}
+              <div class="flex items-center justify-between gap-2">
+                <span class="text-xs font-bold text-[#173D35] truncate">{{ store.name }}</span>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded-md bg-stone-200/80 text-stone-700 shrink-0">
+                  {{ store.city }}
                 </span>
               </div>
-              <p class="text-[11px] text-stone-500 mt-1">
+              <p class="text-[11px] text-stone-500 mt-1 truncate">
                 📍 {{ store.address }}
               </p>
-              <p class="text-[11px] text-stone-600 font-medium mt-1.5">
+              <p class="text-[11px] text-stone-600 font-medium mt-1 text-xs">
                 {{ store.specialty }}
               </p>
             </div>
 
-            <div class="mt-3 pt-2.5 border-t border-stone-200 flex items-center justify-between">
+            <div class="mt-3 pt-2.5 border-t border-stone-200 flex items-center justify-between gap-2">
               <a
                 :href="store.searchUrl('budowa')"
                 target="_blank"
                 rel="noopener noreferrer"
-                class="inline-flex items-center gap-1 text-xs font-bold text-[#173D35] hover:underline"
+                class="inline-flex items-center gap-1 text-xs font-bold text-[#173D35] hover:underline min-h-8"
               >
                 <span>{{ isEn ? 'Search Online Store' : 'Sök i butiken' }}</span>
                 <span>↗</span>
               </a>
               <button
                 type="button"
-                class="rounded-lg bg-white border border-stone-300 px-2.5 py-1 text-[11px] font-semibold text-stone-700 hover:bg-stone-50 transition"
+                class="rounded-lg bg-white border border-stone-300 px-2.5 py-1 text-[11px] font-semibold text-stone-700 hover:bg-stone-50 transition min-h-8"
                 @click="fillStoreAndOpenNewItem(store.name)"
               >
                 + {{ isEn ? 'Add Item' : 'Lägg till' }}
@@ -803,10 +806,10 @@
           </div>
         </div>
 
-        <div class="mt-5 flex justify-end">
+        <div class="mt-4 sm:mt-5 flex justify-end">
           <button
             type="button"
-            class="rounded-xl px-4 py-2 text-xs font-semibold text-stone-600 hover:bg-stone-100"
+            class="w-full sm:w-auto rounded-xl px-4 py-2 text-xs font-semibold text-stone-600 hover:bg-stone-100 min-h-9 text-center"
             @click="showStoresModal = false"
           >
             {{ isEn ? 'Close' : 'Stäng' }}

@@ -27,7 +27,7 @@
             type="text"
             required
             :placeholder="isEn ? 'Paste invitation code or link' : 'Klistra in inbjudningskod eller länk'"
-            class="w-full rounded-xl border border-[#d7d1c4] bg-[#FDFBF7] px-3.5 py-2.5 text-xs sm:text-sm text-stone-800 focus:border-[#173D35] focus:outline-none"
+            class="w-full rounded-xl border border-[#d7d1c4] bg-[#FDFBF7] px-3.5 py-2.5 text-base sm:text-sm text-stone-800 focus:border-[#173D35] focus:outline-none"
           />
 
           <p v-if="inviteCodeError" class="text-xs font-semibold text-rose-600">

@@ -4,7 +4,7 @@ import { PULPET_PITCH_DEG, type CameraView, type MaterialKey, type WallSlot, typ
 import { panelCountForWall } from '../store/wallSlots';
 import { normalizeBuildingRoof, terraceBoardLayout, type HouseTerrace, type TerraceSide } from '../outside/terrace';
 import { addTerraceCabin } from './terraceBuilding';
-import { computeDoorCanopyLayout } from '../outside/canopy';
+import { computeDoorCanopyLayout, isDoorCoveredByAddition } from '../outside/canopy';
 import { headingForFacing, type CompassFacing } from './sunPosition';
 import { calculateCompassHeading, createSceneLighting, updateSunPosition } from './lighting';
 import { eaveLiftMm, gablePitchDegrees, isGableRoof, wallPlateHeightM, type RoofId } from '../store/roof';

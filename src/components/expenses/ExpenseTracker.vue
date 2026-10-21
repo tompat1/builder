@@ -1,26 +1,26 @@
 <template>
   <div class="relative flex flex-col h-full w-full bg-[#F5F3EC] text-[#222925] selection:bg-[#173D35] selection:text-white overflow-hidden">
     <!-- Top Header Bar -->
-    <header class="shrink-0 z-20 flex flex-wrap items-center justify-between gap-3 border-b border-[#d7d1c4]/80 bg-[#FAF8F5]/95 px-4 py-3 sm:px-6 sm:py-3.5 backdrop-blur-md">
-      <div class="flex items-center gap-3">
-        <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#173D35] text-white shadow-md shadow-[#173D35]/20">
-          <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+    <header class="shrink-0 z-20 flex flex-wrap items-center justify-between gap-2.5 sm:gap-3 border-b border-[#d7d1c4]/80 bg-[#FAF8F5]/95 px-3 py-2.5 sm:px-6 sm:py-3.5 backdrop-blur-md">
+      <div class="flex items-center gap-2.5 sm:gap-3 min-w-0">
+        <div class="flex h-9 w-9 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl bg-[#173D35] text-white shadow-md shadow-[#173D35]/20">
+          <svg class="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v12m-3-2.818l.879.659c1.171.879 3.07.879 4.242 0 1.172-.879 1.172-2.303 0-3.182C13.536 12.219 12.768 12 12 12c-.725 0-1.45-.22-2.003-.659-1.106-.879-1.106-2.303 0-3.182s2.9-.879 4.006 0l.415.33M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         </div>
-        <div>
-          <div class="flex items-center gap-2">
-            <h1 class="text-base sm:text-lg font-bold text-[#173D35] tracking-tight">
+        <div class="min-w-0">
+          <div class="flex items-center gap-1.5 sm:gap-2">
+            <h1 class="text-sm sm:text-lg font-bold text-[#173D35] tracking-tight truncate">
               {{ activeTab === 'expenses'
                 ? (isEn ? 'Expense Tracker' : 'Kostnadsuppföljning')
                 : (isEn ? 'Shopping List' : 'Inköpslista') }}
             </h1>
-            <span class="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold tracking-wider uppercase text-amber-800 border border-amber-500/30">
+            <span class="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-500/15 px-1.5 sm:px-2 py-0.5 text-[9px] sm:text-[10px] font-semibold tracking-wider uppercase text-amber-800 border border-amber-500/30">
               <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
-              {{ isEn ? 'Invite-only' : 'Endast inbjudan' }}
+              {{ isEn ? 'Private' : 'Privat' }}
             </span>
           </div>
-          <p class="text-xs text-stone-500">
+          <p class="hidden sm:block text-xs text-stone-500 truncate max-w-md">
             {{ activeTab === 'expenses'
               ? (isEn ? 'Project building costs in Polish Złoty (PLN) with live Revolut SEK comparison' : 'Projektets byggkostnader i Polska Złoty (zł) med Revolut-kurs mot SEK')
               : (isEn ? 'Planned purchases for garden, power tools, kitchen & furniture' : 'Planerade inköp för trädgård, elverktyg, kök & möbler') }}
@@ -29,29 +29,29 @@
       </div>
 
       <!-- Header actions -->
-      <div class="flex items-center gap-2">
+      <div class="flex items-center gap-1.5 sm:gap-2">
         <!-- Switch to Mood Board -->
         <button
           type="button"
-          class="inline-flex items-center gap-1.5 rounded-xl border border-stone-300 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 shadow-sm transition hover:bg-stone-50 active:scale-95"
+          class="inline-flex items-center gap-1 sm:gap-1.5 rounded-xl border border-stone-300 bg-white px-2.5 py-1.5 sm:px-3 text-xs font-semibold text-stone-700 shadow-sm transition hover:bg-stone-50 active:scale-95 min-h-8"
           :title="isEn ? 'Open Mood Board' : 'Öppna moodboarden'"
           @click="openMoodBoard"
         >
           <span>🎨</span>
-          <span class="hidden sm:inline">{{ isEn ? 'Mood Board' : 'Moodboard' }}</span>
+          <span class="hidden md:inline">{{ isEn ? 'Mood Board' : 'Moodboard' }}</span>
         </button>
 
         <!-- Invite collaborators button -->
         <button
           type="button"
           id="btn-open-expense-invite"
-          class="inline-flex items-center gap-1.5 rounded-xl border border-[#173D35]/30 bg-[#173D35]/10 px-3 py-1.5 text-xs font-semibold text-[#173D35] shadow-sm transition hover:bg-[#173D35]/15 active:scale-95"
+          class="inline-flex items-center gap-1 sm:gap-1.5 rounded-xl border border-[#173D35]/30 bg-[#173D35]/10 px-2.5 py-1.5 sm:px-3 text-xs font-semibold text-[#173D35] shadow-sm transition hover:bg-[#173D35]/15 active:scale-95 min-h-8"
           @click="showInviteModal = true"
         >
           <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
           </svg>
-          <span>{{ isEn ? 'Invite' : 'Bjud in' }}</span>
+          <span class="hidden sm:inline">{{ isEn ? 'Invite' : 'Bjud in' }}</span>
         </button>
 
         <!-- Primary Action Button: New Expense or New Shopping Item -->
@@ -59,28 +59,28 @@
           v-if="activeTab === 'expenses'"
           type="button"
           id="btn-add-expense"
-          class="inline-flex items-center gap-1.5 rounded-xl bg-[#173D35] px-3.5 py-1.5 text-xs font-bold text-white shadow-md shadow-[#173D35]/20 transition hover:bg-[#0f2b25] active:scale-95"
+          class="inline-flex items-center gap-1 sm:gap-1.5 rounded-xl bg-[#173D35] px-3 sm:px-3.5 py-1.5 text-xs font-bold text-white shadow-md shadow-[#173D35]/20 transition hover:bg-[#0f2b25] active:scale-95 min-h-8"
           @click="openNewExpenseModal"
         >
           <span class="text-base leading-none font-bold">+</span>
-          <span>{{ isEn ? 'New Expense' : 'Nytt utlägg' }}</span>
+          <span>{{ isEn ? 'Expense' : 'Utlägg' }}</span>
         </button>
         <button
           v-else
           type="button"
           id="btn-add-shopping-item-header"
-          class="inline-flex items-center gap-1.5 rounded-xl bg-[#173D35] px-3.5 py-1.5 text-xs font-bold text-white shadow-md shadow-[#173D35]/20 transition hover:bg-[#0f2b25] active:scale-95"
+          class="inline-flex items-center gap-1 sm:gap-1.5 rounded-xl bg-[#173D35] px-3 sm:px-3.5 py-1.5 text-xs font-bold text-white shadow-md shadow-[#173D35]/20 transition hover:bg-[#0f2b25] active:scale-95 min-h-8"
           @click="shoppingListRef?.openNewItemModal()"
         >
           <span class="text-base leading-none font-bold">+</span>
-          <span>{{ isEn ? 'New Item' : 'Ny artikel' }}</span>
+          <span>{{ isEn ? 'Item' : 'Artikel' }}</span>
         </button>
 
         <!-- Close / Return if standalone or embedded -->
         <button
           v-if="standalone"
           type="button"
-          class="inline-flex items-center justify-center h-8 w-8 rounded-xl border border-stone-200 bg-white text-stone-500 hover:text-stone-800 hover:bg-stone-100 transition"
+          class="inline-flex items-center justify-center h-8 w-8 sm:h-9 sm:w-9 rounded-xl border border-stone-200 bg-white text-stone-500 hover:text-stone-800 hover:bg-stone-100 transition active:scale-95"
           :title="isEn ? 'Back to house' : 'Tillbaka till huset'"
           @click="closeTracker"
         >
@@ -91,25 +91,25 @@
 
     <!-- Main Scroll Container -->
     <div class="relative flex-1 min-h-0 w-full overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch]">
-      <main class="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto w-full pb-28">
+      <main class="p-3.5 sm:p-6 lg:p-8 space-y-4 sm:space-y-6 max-w-7xl mx-auto w-full pb-[max(7rem,env(safe-area-inset-bottom))]">
       <!-- Top Co-existing Tabs: Expenses vs. Shopping List -->
-      <nav class="flex items-center justify-between flex-wrap gap-3 pb-1" aria-label="Expenses and Shopping Tabs">
-        <div class="inline-flex p-1 bg-[#eae6dc] rounded-2xl border border-[#d7d1c4] shadow-inner" role="tablist">
+      <nav class="flex items-center justify-between flex-wrap gap-2.5 pb-1" aria-label="Expenses and Shopping Tabs">
+        <div class="grid grid-cols-2 w-full sm:w-auto sm:inline-flex p-1 bg-[#eae6dc] rounded-2xl border border-[#d7d1c4] shadow-inner" role="tablist">
           <button
             type="button"
             id="tab-btn-expenses"
             role="tab"
             :aria-selected="activeTab === 'expenses'"
-            class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200"
+            class="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 min-h-9"
             :class="activeTab === 'expenses'
               ? 'bg-white text-[#173D35] shadow-md shadow-stone-400/20'
               : 'text-stone-600 hover:text-stone-900 hover:bg-white/50'"
             @click="switchTab('expenses')"
           >
-            <span class="text-base">🧾</span>
-            <span>{{ isEn ? 'Logged Expenses' : 'Utlägg & Kvitton' }}</span>
+            <span class="text-sm sm:text-base">🧾</span>
+            <span class="truncate">{{ isEn ? 'Expenses' : 'Utlägg' }}</span>
             <span
-              class="ml-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold tracking-wide"
+              class="px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] font-extrabold tracking-wide"
               :class="activeTab === 'expenses' ? 'bg-[#173D35]/10 text-[#173D35]' : 'bg-stone-300/80 text-stone-700'"
             >
               {{ expenses.length }}
@@ -121,19 +121,19 @@
             id="tab-btn-shopping"
             role="tab"
             :aria-selected="activeTab === 'shopping'"
-            class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200"
+            class="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all duration-200 min-h-9"
             :class="activeTab === 'shopping'
               ? 'bg-white text-[#173D35] shadow-md shadow-stone-400/20'
               : 'text-stone-600 hover:text-stone-900 hover:bg-white/50'"
             @click="switchTab('shopping')"
           >
-            <span class="text-base">🛒</span>
-            <span>{{ isEn ? 'Shopping List' : 'Inköpslista' }}</span>
+            <span class="text-sm sm:text-base">🛒</span>
+            <span class="truncate">{{ isEn ? 'Shopping' : 'Inköp' }}</span>
             <span
-              class="ml-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold tracking-wide"
+              class="px-1.5 sm:px-2 py-0.5 rounded-full text-[10px] font-extrabold tracking-wide"
               :class="activeTab === 'shopping' ? 'bg-amber-500/20 text-amber-900' : 'bg-stone-300/80 text-stone-700'"
             >
-              {{ shoppingSummary.toBuyCount }} {{ isEn ? 'to buy' : 'kvar' }}
+              {{ shoppingSummary.toBuyCount }}
             </span>
           </button>
         </div>
@@ -148,65 +148,65 @@
       </nav>
 
       <!-- 0. Live Revolut Currency Checker & SEK Comparison Bar -->
-      <section class="rounded-2xl border border-[#d7d1c4] bg-[#FAF8F5] p-4 sm:p-5 shadow-sm transition hover:shadow-md">
-        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <section class="rounded-2xl border border-[#d7d1c4] bg-[#FAF8F5] p-3.5 sm:p-5 shadow-sm transition hover:shadow-md">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
           <!-- Rate Header & Status -->
-          <div class="flex items-center gap-3.5">
-            <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#173D35]/10 text-xl border border-[#173D35]/20">
+          <div class="flex items-center gap-3">
+            <div class="flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-xl sm:rounded-2xl bg-[#173D35]/10 text-xl border border-[#173D35]/20">
               🇵🇱
             </div>
-            <div>
-              <div class="flex flex-wrap items-center gap-2">
-                <span class="text-xs font-bold uppercase tracking-wider text-stone-500">
-                  {{ isEn ? 'Main Currency: Polish Złoty (PLN / zł)' : 'Huvudvaluta: Polska złoty (PLN / zł)' }}
+            <div class="min-w-0">
+              <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                <span class="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-stone-500 truncate">
+                  {{ isEn ? 'Currency: Polish Złoty (PLN)' : 'Valuta: Polska złoty (PLN)' }}
                 </span>
                 <span
-                  class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold border"
+                  class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[9px] sm:text-[10px] font-bold border"
                   :class="currencyRate.isCustom
                     ? 'bg-amber-50 text-amber-800 border-amber-200'
                     : 'bg-emerald-50 text-emerald-800 border-emerald-200'"
                 >
                   <span class="w-1.5 h-1.5 rounded-full" :class="currencyRate.isCustom ? 'bg-amber-500' : 'bg-emerald-500 animate-pulse'"></span>
-                  {{ currencyRate.isCustom ? (isEn ? 'Custom Rate' : 'Egen kurs') : 'Revolut Kurs' }}
+                  {{ currencyRate.isCustom ? (isEn ? 'Custom' : 'Egen') : 'Revolut' }}
                 </span>
               </div>
 
               <!-- Main Exchange Rate Display -->
-              <div class="flex flex-wrap items-baseline gap-2 mt-0.5">
-                <h3 class="text-xl sm:text-2xl font-black text-[#173D35] tracking-tight">
-                  1 PLN (zł) = {{ currencyRate.ratePlnToSek.toFixed(2) }} SEK (kr)
+              <div class="flex flex-wrap items-baseline gap-1.5 sm:gap-2 mt-0.5">
+                <h3 class="text-lg sm:text-2xl font-black text-[#173D35] tracking-tight">
+                  1 PLN = {{ currencyRate.ratePlnToSek.toFixed(2) }} SEK
                 </h3>
-                <span class="text-xs font-semibold text-stone-500">
+                <span class="text-[11px] sm:text-xs font-semibold text-stone-500">
                   (1 SEK ≈ {{ currencyRate.rateSekToPln.toFixed(2) }} zł)
                 </span>
               </div>
 
-              <p class="text-[11px] text-stone-500 mt-0.5">
+              <p class="text-[10px] sm:text-[11px] text-stone-500 mt-0.5 truncate">
                 {{ currencyRate.sourceLabel }} · {{ isEn ? 'Updated' : 'Uppdaterad' }} {{ formatRateTime(currencyRate.lastUpdated) }}
               </p>
             </div>
           </div>
 
           <!-- Quick Action Buttons -->
-          <div class="flex flex-wrap items-center gap-2">
+          <div class="flex items-center gap-2 w-full md:w-auto justify-between sm:justify-start pt-1 sm:pt-0 border-t md:border-t-0 border-stone-200/60">
             <!-- Toggle Converter -->
             <button
               type="button"
               id="btn-toggle-currency-converter"
-              class="inline-flex items-center gap-1.5 rounded-xl border border-[#173D35]/30 bg-white px-3.5 py-2 text-xs font-bold text-[#173D35] shadow-sm transition hover:bg-[#173D35]/10 active:scale-95"
+              class="flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 rounded-xl border border-[#173D35]/30 bg-white px-3 py-2 text-xs font-bold text-[#173D35] shadow-sm transition hover:bg-[#173D35]/10 active:scale-95 min-h-9"
               @click="showCalculator = !showCalculator"
             >
-              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
               </svg>
-              <span>{{ showCalculator ? (isEn ? 'Hide Converter' : 'Dölj omräknare') : (isEn ? 'PLN ⇄ SEK Converter' : 'Omräknare PLN ⇄ SEK') }}</span>
+              <span>{{ showCalculator ? (isEn ? 'Hide' : 'Dölj') : (isEn ? 'Converter' : 'Omräknare') }}</span>
             </button>
 
             <!-- Refresh Live Rate -->
             <button
               type="button"
               id="btn-refresh-exchange-rate"
-              class="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 shadow-sm transition hover:bg-stone-50 active:scale-95 disabled:opacity-50"
+              class="inline-flex items-center justify-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-700 shadow-sm transition hover:bg-stone-50 active:scale-95 disabled:opacity-50 min-h-9"
               :disabled="isFetchingRate"
               :title="isEn ? 'Fetch live Revolut market rate' : 'Hämta senaste Revolut-marknadskurs'"
               @click="handleFetchRate"
@@ -221,7 +221,7 @@
             <button
               type="button"
               id="btn-adjust-exchange-rate"
-              class="inline-flex items-center gap-1 rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-600 shadow-sm transition hover:bg-stone-50 active:scale-95"
+              class="inline-flex items-center justify-center gap-1 rounded-xl border border-stone-200 bg-white px-3 py-2 text-xs font-semibold text-stone-600 shadow-sm transition hover:bg-stone-50 active:scale-95 min-h-9"
               :title="isEn ? 'Adjust exchange rate' : 'Justera växelkurs'"
               @click="openRateModal"
             >
@@ -232,8 +232,8 @@
         </div>
 
         <!-- Interactive Two-Way Currency Converter Widget -->
-        <div v-if="showCalculator" class="mt-4 pt-4 border-t border-stone-200">
-          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3 items-end">
+        <div v-if="showCalculator" class="mt-3 pt-3 sm:mt-4 sm:pt-4 border-t border-stone-200">
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-2.5 sm:gap-3 items-end">
             <!-- PLN Input -->
             <div class="md:col-span-2 space-y-1">
               <label class="block text-[11px] font-bold uppercase tracking-wider text-stone-600">
@@ -245,7 +245,7 @@
                   type="number"
                   min="0"
                   step="any"
-                  class="w-full rounded-xl border border-[#d7d1c4] bg-white pl-3.5 pr-12 py-2 text-sm font-bold text-[#173D35] focus:border-[#173D35] focus:outline-none focus:ring-2 focus:ring-[#173D35]/20"
+                  class="w-full rounded-xl border border-[#d7d1c4] bg-white pl-3.5 pr-12 py-2 text-base sm:text-sm font-bold text-[#173D35] focus:border-[#173D35] focus:outline-none focus:ring-2 focus:ring-[#173D35]/20"
                   placeholder="0 zł"
                   @input="onCheckerPlnChange"
                 />
@@ -256,7 +256,7 @@
             </div>
 
             <!-- Conversion direction indicator -->
-            <div class="hidden md:flex justify-center items-center pb-2 text-stone-400 font-bold text-base">
+            <div class="flex justify-center items-center py-0.5 md:pb-2 text-stone-400 font-bold text-base">
               ⇄
             </div>
 
@@ -271,7 +271,7 @@
                   type="number"
                   min="0"
                   step="any"
-                  class="w-full rounded-xl border border-[#d7d1c4] bg-white pl-3.5 pr-12 py-2 text-sm font-bold text-[#173D35] focus:border-[#173D35] focus:outline-none focus:ring-2 focus:ring-[#173D35]/20"
+                  class="w-full rounded-xl border border-[#d7d1c4] bg-white pl-3.5 pr-12 py-2 text-base sm:text-sm font-bold text-[#173D35] focus:border-[#173D35] focus:outline-none focus:ring-2 focus:ring-[#173D35]/20"
                   placeholder="0 kr"
                   @input="onCheckerSekChange"
                 />
@@ -284,26 +284,26 @@
 
           <!-- Quick presets & helper note -->
           <div class="mt-3 flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-stone-200/60">
-            <div class="flex flex-wrap items-center gap-1.5 text-xs">
-              <span class="text-stone-400 font-medium mr-1">{{ isEn ? 'Quick presets:' : 'Snabbjämförelse:' }}</span>
+            <div class="flex items-center gap-1.5 text-xs overflow-x-auto pb-1 max-w-full no-scrollbar">
+              <span class="text-stone-400 font-medium shrink-0">{{ isEn ? 'Presets:' : 'Snabbval:' }}</span>
               <button
                 v-for="preset in [50, 100, 500, 1000, 5000]"
                 :key="preset"
                 type="button"
-                class="rounded-lg border border-stone-200 bg-white hover:bg-stone-50 px-2 py-0.5 text-[11px] font-semibold text-stone-700 transition active:scale-95"
+                class="shrink-0 rounded-lg border border-stone-200 bg-white hover:bg-stone-50 px-2 py-1 text-[11px] font-semibold text-stone-700 transition active:scale-95"
                 @click="selectPresetPln(preset)"
               >
-                {{ preset }} zł = {{ convertPlnToSek(preset, currencyRate.ratePlnToSek) }} kr
+                {{ preset }} zł ≈ {{ convertPlnToSek(preset, currencyRate.ratePlnToSek) }} kr
               </button>
             </div>
 
             <button
               type="button"
-              class="inline-flex items-center gap-1 text-xs font-bold text-[#173D35] hover:underline"
+              class="inline-flex items-center gap-1 text-xs font-bold text-[#173D35] hover:underline py-1"
               @click="useCheckerAmountInNewExpense"
             >
               <span>+</span>
-              <span>{{ isEn ? 'Create expense with this amount' : 'Skapa utlägg med detta belopp' }}</span>
+              <span>{{ isEn ? 'Use amount in new expense' : 'Skapa utlägg med detta belopp' }}</span>
             </button>
           </div>
         </div>
@@ -312,9 +312,9 @@
       <!-- Tab 1: Logged Expenses View -->
       <template v-if="activeTab === 'expenses'">
         <!-- 1. Automatic Summary Dashboard in PLN with SEK Comparison -->
-        <section class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <section class="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
         <!-- Total Spent Card -->
-        <div class="relative overflow-hidden rounded-2xl border border-[#d7d1c4] bg-white p-5 shadow-sm">
+        <div class="relative overflow-hidden rounded-2xl border border-[#d7d1c4] bg-white p-4 sm:p-5 shadow-sm">
           <div class="flex items-center justify-between">
             <span class="text-xs font-bold uppercase tracking-wider text-stone-500">
               {{ isEn ? 'Total Spending (PLN)' : 'Totala Utlägg (PLN)' }}
@@ -338,7 +338,7 @@
         </div>
 
         <!-- Average Expense Card -->
-        <div class="relative overflow-hidden rounded-2xl border border-[#d7d1c4] bg-white p-5 shadow-sm">
+        <div class="relative overflow-hidden rounded-2xl border border-[#d7d1c4] bg-white p-4 sm:p-5 shadow-sm">
           <span class="text-xs font-bold uppercase tracking-wider text-stone-500">
             {{ isEn ? 'Average Expense (PLN)' : 'Genomsnittligt Utlägg (PLN)' }}
           </span>
@@ -357,7 +357,7 @@
         </div>
 
         <!-- Manual Selection Summary Toggle Card -->
-        <div class="relative overflow-hidden rounded-2xl border border-[#d7d1c4] bg-white p-5 shadow-sm flex flex-col justify-between">
+        <div class="relative overflow-hidden rounded-2xl border border-[#d7d1c4] bg-white p-4 sm:p-5 shadow-sm flex flex-col justify-between">
           <div>
             <div class="flex items-center justify-between">
               <span class="text-xs font-bold uppercase tracking-wider text-stone-500">
@@ -365,7 +365,7 @@
               </span>
               <button
                 type="button"
-                class="text-xs font-bold px-2 py-0.5 rounded-lg transition"
+                class="text-xs font-bold px-2.5 py-1 rounded-lg transition min-h-7"
                 :class="manualSelectionMode ? 'bg-[#173D35] text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'"
                 @click="manualSelectionMode = !manualSelectionMode"
               >
@@ -390,7 +390,7 @@
             <div class="flex items-center gap-1.5">
               <button
                 type="button"
-                class="text-[11px] font-semibold text-[#173D35] hover:underline"
+                class="text-xs font-semibold text-[#173D35] hover:underline p-1"
                 @click="selectAllFiltered"
               >
                 {{ isEn ? 'All' : 'Alla' }}
@@ -398,7 +398,7 @@
               <span class="text-stone-300">·</span>
               <button
                 type="button"
-                class="text-[11px] font-semibold text-stone-500 hover:underline"
+                class="text-xs font-semibold text-stone-500 hover:underline p-1"
                 @click="clearSelection"
               >
                 {{ isEn ? 'Clear' : 'Rensa' }}
@@ -409,13 +409,13 @@
       </section>
 
       <!-- Category Breakdown Bar -->
-      <section v-if="summary.categories.length > 0" class="rounded-2xl border border-[#d7d1c4] bg-white p-5 shadow-sm">
-        <h4 class="text-xs font-bold uppercase tracking-wider text-stone-500 mb-3">
+      <section v-if="summary.categories.length > 0" class="rounded-2xl border border-[#d7d1c4] bg-white p-3.5 sm:p-5 shadow-sm">
+        <h4 class="text-xs font-bold uppercase tracking-wider text-stone-500 mb-2.5 sm:mb-3">
           {{ isEn ? 'Cost Distribution by Category (PLN / SEK)' : 'Kostnadsfördelning per kategori (PLN / SEK)' }}
         </h4>
 
         <!-- Visual Multi-segment Progress Bar -->
-        <div class="h-3 w-full rounded-full bg-stone-100 overflow-hidden flex mb-4">
+        <div class="h-3 w-full rounded-full bg-stone-100 overflow-hidden flex mb-3 sm:mb-4">
           <div
             v-for="cat in summary.categories"
             :key="cat.category"
@@ -425,26 +425,26 @@
           ></div>
         </div>
 
-        <!-- Category Pills -->
-        <div class="flex flex-wrap gap-2">
+        <!-- Category Pills (Horizontal swipeable on mobile) -->
+        <div class="flex items-center gap-2 overflow-x-auto pb-1.5 -mx-3.5 px-3.5 sm:mx-0 sm:px-0 sm:flex-wrap no-scrollbar touch-pan-x">
           <div
             v-for="cat in summary.categories"
             :key="cat.category"
-            class="inline-flex items-center gap-2 rounded-xl px-3 py-1 text-xs border"
+            class="inline-flex shrink-0 items-center gap-1.5 sm:gap-2 rounded-xl px-2.5 sm:px-3 py-1 text-xs border"
             :style="{ backgroundColor: getCategoryMeta(cat.category).badgeBg, borderColor: getCategoryMeta(cat.category).badgeBorder }"
           >
             <span class="text-sm">{{ getCategoryMeta(cat.category).icon }}</span>
             <span class="font-semibold text-stone-800">{{ isEn ? cat.labelEn : cat.labelSv }}</span>
             <span class="font-bold text-[#173D35]">{{ formatPLN(cat.total) }}</span>
-            <span class="text-[11px] font-medium text-stone-500">(≈ {{ formatSEK(cat.totalSek) }} · {{ cat.percentage }}%)</span>
+            <span class="text-[10px] sm:text-[11px] font-medium text-stone-500">(≈ {{ formatSEK(cat.totalSek) }} · {{ cat.percentage }}%)</span>
           </div>
         </div>
       </section>
 
       <!-- 2. Controls Toolbar: Search, Filter, Sort -->
-      <section class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+      <section class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-3">
         <!-- Search bar -->
-        <div class="relative flex-1 max-w-md">
+        <div class="relative flex-1 max-w-full sm:max-w-md">
           <svg class="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
@@ -452,12 +452,12 @@
             v-model="searchQuery"
             type="text"
             :placeholder="isEn ? 'Search title, vendor, notes, buyer...' : 'Sök utlägg, butik, kvitto, köpare...'"
-            class="w-full rounded-xl border border-[#d7d1c4] bg-white pl-10 pr-8 py-2 text-sm text-[#222925] transition focus:border-[#173D35] focus:outline-none focus:ring-2 focus:ring-[#173D35]/20"
+            class="w-full rounded-xl border border-[#d7d1c4] bg-white pl-10 pr-8 py-2 text-base sm:text-sm text-[#222925] transition focus:border-[#173D35] focus:outline-none focus:ring-2 focus:ring-[#173D35]/20"
           />
           <button
             v-if="searchQuery"
             type="button"
-            class="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 text-xs font-bold"
+            class="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 text-xs font-bold p-1"
             @click="searchQuery = ''"
           >
             ✕
@@ -465,11 +465,11 @@
         </div>
 
         <!-- Sort dropdown & actions -->
-        <div class="flex items-center gap-2 self-end sm:self-auto">
+        <div class="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
           <!-- Sort -->
           <select
             v-model="sortOrder"
-            class="rounded-xl border border-[#d7d1c4] bg-white px-3 py-2 text-xs font-semibold text-stone-700 shadow-sm focus:border-[#173D35] focus:outline-none"
+            class="flex-1 sm:flex-initial rounded-xl border border-[#d7d1c4] bg-white px-3 py-2 text-base sm:text-xs font-semibold text-stone-700 shadow-sm focus:border-[#173D35] focus:outline-none min-h-9"
           >
             <option value="date_desc">{{ isEn ? 'Newest first' : 'Nyast först' }}</option>
             <option value="date_asc">{{ isEn ? 'Oldest first' : 'Äldst först' }}</option>
@@ -480,7 +480,7 @@
           <!-- Export buttons -->
           <button
             type="button"
-            class="inline-flex items-center gap-1 rounded-xl border border-stone-300 bg-white px-3 py-2 text-xs font-semibold text-stone-700 shadow-sm transition hover:bg-stone-50 active:scale-95"
+            class="inline-flex items-center justify-center gap-1 rounded-xl border border-stone-300 bg-white px-3 py-2 text-xs font-semibold text-stone-700 shadow-sm transition hover:bg-stone-50 active:scale-95 min-h-9"
             :title="isEn ? 'Copy summary text' : 'Kopiera sammanställning'"
             @click="copySummary"
           >
@@ -492,7 +492,7 @@
 
           <button
             type="button"
-            class="inline-flex items-center gap-1 rounded-xl border border-stone-300 bg-white px-3 py-2 text-xs font-semibold text-stone-700 shadow-sm transition hover:bg-stone-50 active:scale-95"
+            class="inline-flex items-center justify-center gap-1 rounded-xl border border-stone-300 bg-white px-3 py-2 text-xs font-semibold text-stone-700 shadow-sm transition hover:bg-stone-50 active:scale-95 min-h-9"
             :title="isEn ? 'Download CSV file' : 'Ladda ner CSV-fil'"
             @click="downloadCsvFile"
           >
@@ -504,11 +504,11 @@
         </div>
       </section>
 
-      <!-- Category Filter Chips -->
-      <section class="flex flex-wrap items-center gap-1.5">
+      <!-- Category Filter Chips (Swipeable carousel on mobile) -->
+      <section class="flex items-center gap-1.5 overflow-x-auto pb-1.5 pt-0.5 -mx-3.5 px-3.5 sm:mx-0 sm:px-0 sm:flex-wrap no-scrollbar touch-pan-x">
         <button
           type="button"
-          class="rounded-full px-3 py-1 text-xs font-semibold transition"
+          class="shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold transition min-h-8"
           :class="selectedCategoryFilter === 'all'
             ? 'bg-[#173D35] text-white shadow-sm'
             : 'bg-white border border-[#d7d1c4] text-stone-700 hover:bg-stone-50'"
@@ -521,7 +521,7 @@
           v-for="cat in EXPENSE_CATEGORIES"
           :key="cat.id"
           type="button"
-          class="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold transition"
+          class="shrink-0 inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition min-h-8"
           :class="selectedCategoryFilter === cat.id
             ? 'bg-[#173D35] text-white shadow-sm'
             : 'bg-white border border-[#d7d1c4] text-stone-700 hover:bg-stone-50'"
@@ -540,12 +540,12 @@
         <!-- Empty state -->
         <div
           v-if="filteredExpenses.length === 0"
-          class="flex flex-col items-center justify-center p-10 sm:p-14 text-center rounded-3xl border-2 border-dashed border-[#d7d1c4] bg-white/70 shadow-xs backdrop-blur-xs"
+          class="flex flex-col items-center justify-center p-8 sm:p-14 text-center rounded-3xl border-2 border-dashed border-[#d7d1c4] bg-white/70 shadow-xs backdrop-blur-xs"
         >
-          <div class="h-16 w-16 rounded-2xl bg-[#173D35]/10 flex items-center justify-center text-3xl mb-4 shadow-xs">
+          <div class="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl bg-[#173D35]/10 flex items-center justify-center text-3xl mb-3 sm:mb-4 shadow-xs">
             🧾
           </div>
-          <h3 class="text-lg sm:text-xl font-extrabold text-[#173D35]">
+          <h3 class="text-base sm:text-xl font-extrabold text-[#173D35]">
             {{ isEn ? 'No expenses found' : 'Inga utlägg hittades' }}
           </h3>
           <p class="mt-1.5 text-xs sm:text-sm text-stone-500 max-w-md leading-relaxed">
@@ -557,7 +557,7 @@
           <button
             type="button"
             id="btn-add-first-expense"
-            class="mt-6 inline-flex items-center justify-center gap-2.5 rounded-2xl bg-[#173D35] px-8 py-3.5 sm:px-10 sm:py-4 text-base sm:text-lg font-extrabold text-white shadow-lg hover:shadow-xl hover:bg-[#0f2b25] hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#173D35] focus-visible:ring-offset-2"
+            class="mt-5 sm:mt-6 inline-flex items-center justify-center gap-2 rounded-2xl bg-[#173D35] px-6 py-3 sm:px-10 sm:py-4 text-sm sm:text-lg font-extrabold text-white shadow-lg hover:shadow-xl hover:bg-[#0f2b25] hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#173D35] focus-visible:ring-offset-2"
             @click="openNewExpenseModal"
           >
             <svg class="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
@@ -569,7 +569,7 @@
           <button
             v-if="searchQuery || selectedCategoryFilter !== 'all'"
             type="button"
-            class="mt-3 text-xs font-semibold text-stone-500 hover:text-[#173D35] underline underline-offset-2 transition-colors cursor-pointer"
+            class="mt-3 text-xs font-semibold text-stone-500 hover:text-[#173D35] underline underline-offset-2 transition-colors cursor-pointer p-1"
             @click="searchQuery = ''; selectedCategoryFilter = 'all'"
           >
             {{ isEn ? 'Reset filters' : 'Återställ filter' }}
@@ -580,16 +580,16 @@
         <div
           v-for="item in filteredExpenses"
           :key="item.id"
-          class="group relative flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-[#d7d1c4] bg-white p-4 shadow-sm transition hover:shadow-md hover:border-[#173D35]/40"
+          class="group relative flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 rounded-2xl border border-[#d7d1c4] bg-white p-3.5 sm:p-4 shadow-sm transition hover:shadow-md hover:border-[#173D35]/40"
           :class="{ 'ring-2 ring-[#173D35]/30 bg-amber-50/20': selectedIds.has(item.id) }"
         >
-          <div class="flex items-start sm:items-center gap-3">
+          <div class="flex items-start sm:items-center gap-2.5 sm:gap-3 min-w-0">
             <!-- Checkbox for manual selection mode -->
             <input
               v-if="manualSelectionMode"
               type="checkbox"
               :checked="selectedIds.has(item.id)"
-              class="h-4 w-4 mt-1 sm:mt-0 rounded text-[#173D35] focus:ring-[#173D35] border-stone-300 cursor-pointer"
+              class="h-5 w-5 mt-1 sm:mt-0 rounded text-[#173D35] focus:ring-[#173D35] border-stone-300 cursor-pointer shrink-0"
               @change="toggleSelect(item.id)"
             />
 
@@ -603,13 +603,13 @@
             </div>
 
             <!-- Title, timestamp, notes -->
-            <div>
-              <div class="flex flex-wrap items-center gap-2">
-                <h4 class="text-sm font-bold text-[#222925] tracking-tight">
+            <div class="min-w-0 flex-1">
+              <div class="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                <h4 class="text-sm font-bold text-[#222925] tracking-tight break-words">
                   {{ item.title }}
                 </h4>
                 <span
-                  class="rounded-md px-1.5 py-0.5 text-[10px] font-semibold border"
+                  class="rounded-md px-1.5 py-0.5 text-[10px] font-semibold border shrink-0"
                   :style="{ backgroundColor: getCategoryMeta(item.category).badgeBg, borderColor: getCategoryMeta(item.category).badgeBorder, color: getCategoryMeta(item.category).color }"
                 >
                   {{ isEn ? getCategoryMeta(item.category).labelEn : getCategoryMeta(item.category).labelSv }}
@@ -618,7 +618,7 @@
                 <button
                   v-if="item.receipt?.dataUrl"
                   type="button"
-                  class="inline-flex items-center gap-1 rounded-md bg-stone-100 hover:bg-stone-200 px-1.5 py-0.5 text-[10px] font-bold text-stone-700 transition"
+                  class="inline-flex items-center gap-1 rounded-md bg-stone-100 hover:bg-stone-200 px-1.5 py-0.5 text-[10px] font-bold text-stone-700 transition shrink-0 min-h-6"
                   :title="isEn ? 'View attached receipt' : 'Visa bifogat kvitto'"
                   @click="viewReceipt(item)"
                 >
@@ -628,8 +628,8 @@
               </div>
 
               <!-- Meta info: Auto-timestamp, notes, purchaser -->
-              <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-stone-500">
-                <span class="inline-flex items-center gap-1" :title="`Registrerad: ${item.createdAt}`">
+              <div class="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-xs text-stone-500">
+                <span class="inline-flex items-center gap-1 shrink-0" :title="`Registrerad: ${item.createdAt}`">
                   <svg class="h-3 w-3 text-stone-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="12" cy="12" r="10" />
                     <polyline points="12 6 12 12 16 14" />
@@ -641,7 +641,7 @@
                   · {{ item.notes }}
                 </span>
 
-                <span v-if="item.paidBy?.name" class="inline-flex items-center gap-1 font-medium text-stone-500">
+                <span v-if="item.paidBy?.name" class="inline-flex items-center gap-1 font-medium text-stone-500 shrink-0">
                   <span>·</span>
                   <span>{{ isEn ? 'added by' : 'tillagd av' }}</span>
                   <span class="text-stone-700 font-medium">{{ item.paidBy.name }}</span>
@@ -650,9 +650,9 @@
             </div>
           </div>
 
-          <!-- Amount and Action buttons -->
+          <!-- Amount and Action buttons (Responsive layout on mobile) -->
           <div class="flex items-center justify-between sm:justify-end gap-3 self-stretch sm:self-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-stone-100">
-            <div class="text-right">
+            <div class="text-left sm:text-right">
               <span class="text-base sm:text-lg font-bold text-[#173D35] tabular-nums block">
                 {{ formatPLN(item.amount) }}
               </span>
@@ -664,10 +664,10 @@
               </span>
             </div>
 
-            <div class="flex items-center gap-1">
+            <div class="flex items-center gap-1 shrink-0">
               <button
                 type="button"
-                class="rounded-lg p-1.5 text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition"
+                class="rounded-xl p-2 text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition min-h-9 min-w-9 flex items-center justify-center active:scale-95"
                 :title="isEn ? 'Edit expense' : 'Redigera utlägg'"
                 @click="openEditExpenseModal(item)"
               >
@@ -679,7 +679,7 @@
 
               <button
                 type="button"
-                class="rounded-lg p-1.5 text-stone-400 hover:text-rose-600 hover:bg-rose-50 transition"
+                class="rounded-xl p-2 text-stone-400 hover:text-rose-600 hover:bg-rose-50 transition min-h-9 min-w-9 flex items-center justify-center active:scale-95"
                 :title="isEn ? 'Delete expense' : 'Ta bort utlägg'"
                 @click="confirmDelete(item)"
               >
@@ -717,21 +717,21 @@
   >
     <aside
       v-if="activeTab === 'expenses' && manualSelectionMode && selectedIds.size > 0"
-        class="fixed bottom-4 left-1/2 -translate-x-1/2 z-30 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-stone-800 bg-[#173D35] px-6 py-3.5 text-white shadow-2xl w-[92%] max-w-2xl"
+        class="fixed bottom-[max(1rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2 z-30 flex flex-wrap items-center justify-between gap-3 sm:gap-4 rounded-2xl border border-stone-800 bg-[#173D35] px-4 py-3 sm:px-6 sm:py-3.5 text-white shadow-2xl w-[94%] sm:w-[92%] max-w-2xl"
       >
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2.5 sm:gap-3">
           <div class="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-400/20 text-amber-300 font-bold text-xs">
             {{ selectedIds.size }}
           </div>
           <div>
-            <p class="text-xs text-stone-300">
+            <p class="text-[11px] sm:text-xs text-stone-300">
               {{ isEn ? 'Selected Subtotal' : 'Delsumma för markerade' }}
             </p>
-            <div class="flex items-baseline gap-2">
-              <p class="text-lg font-bold text-white tracking-tight">
+            <div class="flex items-baseline gap-1.5 sm:gap-2">
+              <p class="text-base sm:text-lg font-bold text-white tracking-tight">
                 {{ formatPLN(selectedSubtotal) }}
               </p>
-              <p class="text-xs font-semibold text-amber-300">
+              <p class="text-[11px] sm:text-xs font-semibold text-amber-300">
                 ≈ {{ formatSEK(convertPlnToSek(selectedSubtotal, currencyRate.ratePlnToSek)) }}
               </p>
             </div>
@@ -741,14 +741,14 @@
         <div class="flex items-center gap-2">
           <button
             type="button"
-            class="rounded-xl bg-white/10 hover:bg-white/20 px-3 py-1.5 text-xs font-semibold text-white transition active:scale-95"
+            class="rounded-xl bg-white/10 hover:bg-white/20 px-3 py-1.5 text-xs font-semibold text-white transition active:scale-95 min-h-8"
             @click="copySelectedSummary"
           >
             {{ isEn ? 'Copy' : 'Kopiera' }}
           </button>
           <button
             type="button"
-            class="rounded-xl bg-white text-[#173D35] hover:bg-stone-100 px-3 py-1.5 text-xs font-bold transition active:scale-95 shadow"
+            class="rounded-xl bg-white text-[#173D35] hover:bg-stone-100 px-3 py-1.5 text-xs font-bold transition active:scale-95 shadow min-h-8"
             @click="clearSelection"
           >
             {{ isEn ? 'Clear' : 'Rensa' }}
@@ -760,29 +760,29 @@
     <!-- Modal: Add / Edit Expense with PLN as Primary and SEK Helper -->
     <div
       v-if="showExpenseModal"
-      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+      class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm"
       @click.self="showExpenseModal = false"
     >
-      <div class="relative w-full max-w-lg rounded-3xl border border-[#d7d1c4] bg-white p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
-        <div class="flex items-center justify-between border-b border-stone-100 pb-4">
+      <div class="relative w-full max-w-lg rounded-2xl sm:rounded-3xl border border-[#d7d1c4] bg-white p-4 sm:p-6 shadow-2xl max-h-[92dvh] overflow-y-auto">
+        <div class="flex items-center justify-between border-b border-stone-100 pb-3 sm:pb-4">
           <div>
-            <h3 class="text-lg font-bold text-[#173D35]">
+            <h3 class="text-base sm:text-lg font-bold text-[#173D35]">
               {{ editingExpenseId ? (isEn ? 'Edit Expense' : 'Redigera utlägg') : (isEn ? 'Add New Expense' : 'Nytt utlägg') }}
             </h3>
-            <p class="text-xs text-stone-500">
+            <p class="text-[11px] sm:text-xs text-stone-500">
               {{ isEn ? 'Main currency is Polish Złoty (PLN / zł)' : 'Huvudvaluta är Polska Złoty (zł / PLN)' }}
             </p>
           </div>
           <button
             type="button"
-            class="text-stone-400 hover:text-stone-700 text-lg font-bold p-1"
+            class="text-stone-400 hover:text-stone-700 text-lg font-bold p-2 min-h-8 min-w-8 flex items-center justify-center rounded-lg active:scale-95"
             @click="showExpenseModal = false"
           >
             ✕
           </button>
         </div>
 
-        <form class="mt-4 space-y-4" @submit.prevent="saveExpenseForm">
+        <form class="mt-3.5 sm:mt-4 space-y-3.5 sm:space-y-4" @submit.prevent="saveExpenseForm">
           <!-- Title -->
           <div class="space-y-1">
             <label class="block text-xs font-bold uppercase tracking-wider text-stone-600">
@@ -794,7 +794,7 @@
               required
               maxlength="80"
               :placeholder="isEn ? 'E.g. Timber 45x145 C24' : 'T.ex. Reglar 45×145 C24'"
-              class="w-full rounded-xl border border-[#d7d1c4] bg-[#FDFBF7] px-3.5 py-2.5 text-sm text-[#222925] focus:border-[#173D35] focus:outline-none focus:ring-2 focus:ring-[#173D35]/20"
+              class="w-full rounded-xl border border-[#d7d1c4] bg-[#FDFBF7] px-3.5 py-2.5 text-base sm:text-sm text-[#222925] focus:border-[#173D35] focus:outline-none focus:ring-2 focus:ring-[#173D35]/20"
             />
           </div>
 
@@ -806,10 +806,10 @@
               </label>
               <button
                 type="button"
-                class="text-[11px] font-semibold text-[#173D35] hover:underline"
+                class="text-[11px] font-semibold text-[#173D35] hover:underline p-0.5"
                 @click="showSekInputHelper = !showSekInputHelper"
               >
-                {{ showSekInputHelper ? (isEn ? 'Hide SEK calculator' : 'Dölj SEK-omräknare') : (isEn ? 'Paid in SEK? Click here' : 'Betalade du i SEK? Klicka här') }}
+                {{ showSekInputHelper ? (isEn ? 'Hide SEK helper' : 'Dölj SEK-räknare') : (isEn ? 'Paid in SEK? Click here' : 'Betalat i SEK? Klicka här') }}
               </button>
             </div>
             <div class="relative">
@@ -820,7 +820,7 @@
                 step="any"
                 required
                 :placeholder="isEn ? '0 zł' : '0 zł'"
-                class="w-full rounded-xl border border-[#d7d1c4] bg-[#FDFBF7] pl-3.5 pr-14 py-2.5 text-base font-bold text-[#173D35] focus:border-[#173D35] focus:outline-none focus:ring-2 focus:ring-[#173D35]/20"
+                class="w-full rounded-xl border border-[#d7d1c4] bg-[#FDFBF7] pl-3.5 pr-14 py-2.5 text-base sm:text-base font-bold text-[#173D35] focus:border-[#173D35] focus:outline-none focus:ring-2 focus:ring-[#173D35]/20"
                 @input="formCurrency = 'PLN'"
               />
               <span class="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs font-bold text-stone-500">
@@ -836,7 +836,7 @@
                   ≈ {{ formatSEK(convertPlnToSek(Number(formAmount) || 0, currencyRate.ratePlnToSek)) }}
                 </strong>
               </span>
-              <span class="text-[11px] text-stone-400">
+              <span class="text-[10px] sm:text-[11px] text-stone-400">
                 1 zł = {{ currencyRate.ratePlnToSek }} kr
               </span>
             </div>
@@ -859,13 +859,13 @@
                     min="0"
                     step="any"
                     :placeholder="isEn ? 'Amount in SEK' : 'Belopp i SEK (kr)'"
-                    class="w-full rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-xs font-bold text-stone-800 focus:outline-none focus:ring-1 focus:ring-[#173D35]"
+                    class="w-full rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-base sm:text-xs font-bold text-stone-800 focus:outline-none focus:ring-1 focus:ring-[#173D35]"
                   />
                   <span class="absolute right-2.5 top-1/2 -translate-y-1/2 text-[10px] font-bold text-stone-400">kr</span>
                 </div>
                 <button
                   type="button"
-                  class="rounded-lg bg-[#173D35] px-3 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-[#0f2b25]"
+                  class="rounded-lg bg-[#173D35] px-3 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-[#0f2b25] min-h-8"
                   @click="applySekHelperToPln"
                 >
                   {{ isEn ? 'Apply to PLN' : 'Infoga i zł' }}
@@ -881,7 +881,7 @@
             </label>
             <select
               v-model="formCategory"
-              class="w-full rounded-xl border border-[#d7d1c4] bg-[#FDFBF7] px-3.5 py-2.5 text-sm font-medium text-[#222925] focus:border-[#173D35] focus:outline-none"
+              class="w-full rounded-xl border border-[#d7d1c4] bg-[#FDFBF7] px-3.5 py-2.5 text-base sm:text-sm font-medium text-[#222925] focus:border-[#173D35] focus:outline-none"
             >
               <option v-for="cat in EXPENSE_CATEGORIES" :key="cat.id" :value="cat.id">
                 {{ cat.icon }} {{ isEn ? cat.labelEn : cat.labelSv }}
@@ -895,14 +895,14 @@
               <label class="block text-xs font-bold uppercase tracking-wider text-stone-600">
                 {{ isEn ? 'Date' : 'Datum' }}
               </label>
-              <span class="text-[11px] text-stone-400">
+              <span class="text-[10px] sm:text-[11px] text-stone-400">
                 {{ isEn ? 'Automatic timestamp is logged' : 'Automatisk tidsstämpel sparas' }}
               </span>
             </div>
             <input
               v-model="formDate"
               type="date"
-              class="w-full rounded-xl border border-[#d7d1c4] bg-[#FDFBF7] px-3.5 py-2 text-sm text-[#222925] focus:border-[#173D35] focus:outline-none"
+              class="w-full rounded-xl border border-[#d7d1c4] bg-[#FDFBF7] px-3.5 py-2 text-base sm:text-sm text-[#222925] focus:border-[#173D35] focus:outline-none"
             />
           </div>
 
@@ -916,7 +916,7 @@
               type="text"
               maxlength="120"
               :placeholder="isEn ? 'E.g. Castorama, Leroy Merlin, invoice #1042' : 'T.ex. Castorama, Leroy Merlin, Bauhaus, faktura 1042'"
-              class="w-full rounded-xl border border-[#d7d1c4] bg-[#FDFBF7] px-3.5 py-2 text-sm text-[#222925] focus:border-[#173D35] focus:outline-none"
+              class="w-full rounded-xl border border-[#d7d1c4] bg-[#FDFBF7] px-3.5 py-2 text-base sm:text-sm text-[#222925] focus:border-[#173D35] focus:outline-none"
             />
           </div>
 
@@ -928,18 +928,18 @@
 
             <!-- If receipt already uploaded -->
             <div v-if="formReceipt?.dataUrl" class="flex items-center justify-between p-3 rounded-xl border border-stone-200 bg-stone-50">
-              <div class="flex items-center gap-3">
+              <div class="flex items-center gap-3 min-w-0">
                 <img
                   v-if="formReceipt.type.startsWith('image/')"
                   :src="formReceipt.dataUrl"
                   alt="Receipt thumbnail"
-                  class="h-12 w-12 rounded-lg object-cover border border-stone-200 shadow-sm"
+                  class="h-12 w-12 rounded-lg object-cover border border-stone-200 shadow-sm shrink-0"
                 />
-                <div v-else class="h-12 w-12 rounded-lg bg-stone-200 flex items-center justify-center text-lg">
+                <div v-else class="h-12 w-12 rounded-lg bg-stone-200 flex items-center justify-center text-lg shrink-0">
                   📄
                 </div>
-                <div>
-                  <p class="text-xs font-bold text-stone-800 truncate max-w-[200px]">
+                <div class="min-w-0">
+                  <p class="text-xs font-bold text-stone-800 truncate max-w-[160px] sm:max-w-[200px]">
                     {{ formReceipt.name }}
                   </p>
                   <p class="text-[11px] text-stone-500">
@@ -950,7 +950,7 @@
 
               <button
                 type="button"
-                class="rounded-lg p-1.5 text-rose-600 hover:bg-rose-50 text-xs font-bold"
+                class="rounded-lg p-2 text-rose-600 hover:bg-rose-50 text-xs font-bold min-h-8"
                 @click="formReceipt = undefined"
               >
                 {{ isEn ? 'Remove' : 'Ta bort' }}
@@ -960,7 +960,7 @@
             <!-- Upload drop zone -->
             <label
               v-else
-              class="flex flex-col items-center justify-center p-4 border-2 border-dashed border-stone-300 rounded-xl bg-stone-50/60 hover:bg-stone-50 cursor-pointer transition text-center"
+              class="flex flex-col items-center justify-center p-4 border-2 border-dashed border-stone-300 rounded-xl bg-stone-50/60 hover:bg-stone-50 cursor-pointer transition text-center min-h-[90px]"
             >
               <svg class="h-6 w-6 text-stone-400 mb-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -981,17 +981,17 @@
           </div>
 
           <!-- Submit and cancel -->
-          <div class="flex items-center justify-end gap-3 pt-4 border-t border-stone-100">
+          <div class="flex items-center justify-end gap-2.5 sm:gap-3 pt-3 sm:pt-4 border-t border-stone-100">
             <button
               type="button"
-              class="rounded-xl px-4 py-2 text-xs font-semibold text-stone-600 hover:bg-stone-100 transition"
+              class="flex-1 sm:flex-initial rounded-xl px-4 py-2.5 text-xs font-semibold text-stone-600 hover:bg-stone-100 transition min-h-10 text-center"
               @click="showExpenseModal = false"
             >
               {{ isEn ? 'Cancel' : 'Avbryt' }}
             </button>
             <button
               type="submit"
-              class="rounded-xl bg-[#173D35] px-5 py-2 text-xs font-bold text-white shadow-md shadow-[#173D35]/20 transition hover:bg-[#0f2b25]"
+              class="flex-1 sm:flex-initial rounded-xl bg-[#173D35] px-5 py-2.5 text-xs font-bold text-white shadow-md shadow-[#173D35]/20 transition hover:bg-[#0f2b25] min-h-10 text-center"
             >
               {{ editingExpenseId ? (isEn ? 'Save Changes' : 'Spara ändringar') : (isEn ? 'Add Expense' : 'Lägg till utlägg') }}
             </button>
@@ -1003,10 +1003,10 @@
     <!-- Modal: Adjust Exchange Rate -->
     <div
       v-if="showRateModal"
-      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm"
       @click.self="showRateModal = false"
     >
-      <div class="relative w-full max-w-sm rounded-3xl border border-[#d7d1c4] bg-white p-6 shadow-2xl">
+      <div class="relative w-full max-w-sm rounded-2xl sm:rounded-3xl border border-[#d7d1c4] bg-white p-4 sm:p-6 shadow-2xl">
         <div class="flex items-center justify-between border-b border-stone-100 pb-3">
           <h3 class="text-base font-bold text-[#173D35] flex items-center gap-2">
             <span>⚙️</span>
@@ -1014,7 +1014,7 @@
           </h3>
           <button
             type="button"
-            class="text-stone-400 hover:text-stone-700 text-lg font-bold p-1"
+            class="text-stone-400 hover:text-stone-700 text-lg font-bold p-1.5 min-h-8 min-w-8 flex items-center justify-center rounded-lg"
             @click="showRateModal = false"
           >
             ✕
@@ -1051,7 +1051,7 @@
           <div class="flex items-center justify-between pt-2">
             <button
               type="button"
-              class="text-xs font-semibold text-stone-500 hover:underline"
+              class="text-xs font-semibold text-stone-500 hover:underline p-1"
               @click="handleResetRate"
             >
               {{ isEn ? 'Reset to default' : 'Återställ standard' }}
@@ -1060,14 +1060,14 @@
             <div class="flex items-center gap-2">
               <button
                 type="button"
-                class="rounded-xl px-3 py-1.5 text-xs font-semibold text-stone-600 hover:bg-stone-100"
+                class="rounded-xl px-3 py-2 text-xs font-semibold text-stone-600 hover:bg-stone-100 min-h-9"
                 @click="showRateModal = false"
               >
                 {{ isEn ? 'Cancel' : 'Avbryt' }}
               </button>
               <button
                 type="submit"
-                class="rounded-xl bg-[#173D35] px-4 py-1.5 text-xs font-bold text-white shadow-md hover:bg-[#0f2b25]"
+                class="rounded-xl bg-[#173D35] px-4 py-2 text-xs font-bold text-white shadow-md hover:bg-[#0f2b25] min-h-9"
               >
                 {{ isEn ? 'Save Rate' : 'Spara kurs' }}
               </button>
@@ -1080,13 +1080,13 @@
     <!-- Modal: Receipt Lightbox Viewer -->
     <div
       v-if="activeReceiptModal"
-      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
+      class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md"
       @click.self="activeReceiptModal = null"
     >
-      <div class="relative max-w-3xl w-full max-h-[90vh] flex flex-col items-center">
+      <div class="relative max-w-3xl w-full max-h-[92dvh] flex flex-col items-center">
         <button
           type="button"
-          class="absolute -top-10 right-0 text-white hover:text-stone-300 text-sm font-bold flex items-center gap-1"
+          class="self-end mb-2 text-white hover:text-stone-300 text-xs sm:text-sm font-bold flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 active:scale-95"
           @click="activeReceiptModal = null"
         >
           <span>✕</span>
@@ -1096,15 +1096,15 @@
         <img
           :src="activeReceiptModal.dataUrl"
           :alt="activeReceiptModal.name"
-          class="rounded-2xl max-h-[80vh] w-auto object-contain shadow-2xl border border-white/20"
+          class="rounded-2xl max-h-[75dvh] w-auto max-w-full object-contain shadow-2xl border border-white/20"
         />
 
         <div class="mt-3 flex items-center justify-between w-full text-white text-xs px-2">
-          <span class="truncate max-w-xs font-medium">{{ activeReceiptModal.name }}</span>
+          <span class="truncate max-w-[180px] sm:max-w-xs font-medium">{{ activeReceiptModal.name }}</span>
           <a
             :href="activeReceiptModal.dataUrl"
             :download="activeReceiptModal.name || 'kvitto.jpg'"
-            class="underline font-bold text-amber-300 hover:text-amber-200"
+            class="underline font-bold text-amber-300 hover:text-amber-200 py-1"
           >
             {{ isEn ? 'Download Receipt' : 'Ladda ner kvitto' }}
           </a>
@@ -1115,35 +1115,35 @@
     <!-- Modal: Invite Collaborators (Same design as MoodBoard) -->
     <div
       v-if="showInviteModal"
-      class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
+      class="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm"
       @click.self="showInviteModal = false"
     >
-      <div class="relative w-full max-w-md rounded-3xl border border-[#d7d1c4] bg-white p-6 sm:p-8 shadow-2xl text-center">
+      <div class="relative w-full max-w-md rounded-2xl sm:rounded-3xl border border-[#d7d1c4] bg-white p-5 sm:p-8 shadow-2xl text-center max-h-[92dvh] overflow-y-auto">
         <button
           type="button"
-          class="absolute right-4 top-4 text-stone-400 hover:text-stone-700 text-lg font-bold"
+          class="absolute right-3.5 top-3.5 text-stone-400 hover:text-stone-700 text-lg font-bold p-1 min-h-8 min-w-8 flex items-center justify-center rounded-lg"
           @click="showInviteModal = false"
         >
           ✕
         </button>
 
-        <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#173D35]/10 text-2xl mb-3">
+        <div class="mx-auto flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-2xl bg-[#173D35]/10 text-2xl mb-2 sm:mb-3">
           🤝
         </div>
 
-        <h3 class="text-xl font-bold text-[#173D35] tracking-tight">
+        <h3 class="text-lg sm:text-xl font-bold text-[#173D35] tracking-tight">
           {{ isEn ? 'Invite to Expense Tracker' : 'Bjud in till kostnadsuppföljning' }}
         </h3>
-        <p class="mt-1.5 text-xs text-stone-600">
+        <p class="mt-1 text-xs text-stone-600">
           {{ isEn
             ? 'Invited participants get access to both the Expense Tracker and the Mood Board.'
             : 'Inbjudna deltagare får behörighet till både kostnadsuppföljningen och moodboarden.' }}
         </p>
 
         <!-- QR Code -->
-        <div class="my-5 flex justify-center">
+        <div class="my-4 sm:my-5 flex justify-center">
           <div
-            class="rounded-2xl border border-stone-200 bg-white p-3 shadow-inner"
+            class="rounded-2xl border border-stone-200 bg-white p-2.5 sm:p-3 shadow-inner max-w-[200px]"
             v-html="qrSvg"
           ></div>
         </div>
@@ -1159,7 +1159,7 @@
 
           <button
             type="button"
-            class="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#173D35] px-4 text-sm font-bold text-white shadow-md transition hover:bg-[#0f2b25] active:scale-95"
+            class="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#173D35] px-4 text-xs sm:text-sm font-bold text-white shadow-md transition hover:bg-[#0f2b25] active:scale-95"
             @click="copyInviteLink"
           >
             <span>{{ copiedInvite ? '✓ ' + (isEn ? 'Copied!' : 'Kopierad!') : (isEn ? 'Copy Invitation Link' : 'Kopiera inbjudningslänk') }}</span>

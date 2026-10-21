@@ -792,12 +792,15 @@ function addSaunaInterior(
   group.add(stones);
 
   const roofY = topAt(stoveAt.v);
-  const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, roofY - deckTop + 0.35, 16), metalMat);
-  pipe.position.set(stoveAt.x, (deckTop + 0.55 + roofY + 0.35) / 2, stoveAt.z);
+  const pipeTop = roofY + 0.4;
+  const pipeBase = deckTop + 0.55;
+  const pipeLen = Math.max(0.4, pipeTop - pipeBase);
+  const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, pipeLen, 16), metalMat);
+  pipe.position.set(stoveAt.x, (pipeBase + pipeTop) / 2, stoveAt.z);
   pipe.castShadow = true;
   group.add(pipe);
   const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.03, 0.05, 16), metalMat);
-  cap.position.set(stoveAt.x, roofY + 0.4, stoveAt.z);
+  cap.position.set(stoveAt.x, pipeTop, stoveAt.z);
   cap.castShadow = true;
   group.add(cap);
   const collar = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.02, 16), metalMat);
