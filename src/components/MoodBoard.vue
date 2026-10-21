@@ -1794,9 +1794,7 @@ function addLink(raw: string) {
     return;
   }
   const piece = pieceFrom(parsed, pieces.value.length, '', { ...currentAuthor.value });
-  if (isMobile.value && pieces.value.length > 0) {
-    piece.y = Math.max(...pieces.value.map((p) => p.y)) + 25;
-  }
+  arrangeNewPieces(pieces.value, [piece]);
   pieces.value.push(piece);
   persist();
   attachPreview(piece);
@@ -1843,12 +1841,13 @@ function addPostIt(color: MoodColor = 'yellow') {
     ref: '',
     color,
     x: spot.x,
-    y: isMobile.value && pieces.value.length > 0 ? Math.max(...pieces.value.map((p) => p.y)) + 15 : spot.y,
+    y: spot.y,
     w: 22,
     tilt: Math.random() * 4 - 2,
     caption: '',
     author: { ...currentAuthor.value }
   };
+  arrangeNewPieces(pieces.value, [note]);
   pieces.value.push(note);
   persist();
   showToast('Post-it tillagd', 'success');
@@ -1927,17 +1926,8 @@ async function addFiles(files: File[]) {
     }
 
     if (newPieces.length > 0) {
-      if (isMobile.value) {
-        let currentMaxY = pieces.value.length > 0 ? Math.max(...pieces.value.map((p) => p.y)) : 0;
-        for (const p of newPieces) {
-          currentMaxY += 25;
-          p.y = currentMaxY;
-          pieces.value.push(p);
-        }
-      } else {
-        arrangeNewPieces(pieces.value, newPieces);
-        pieces.value.push(...newPieces);
-      }
+      arrangeNewPieces(pieces.value, newPieces);
+      pieces.value.push(...newPieces);
     }
 
     persist();

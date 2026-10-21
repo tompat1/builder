@@ -443,10 +443,11 @@ export function arrangeNewPieces(existingPieces: MoodPiece[], newPieces: MoodPie
 
   const cols = [3, 36, 69];
   const widths = [29.5, 29.5, 28];
-  const colHeights: [number, number, number] = [4, 4, 4];
   const tilts = [-0.8, 0.7, -0.5, 0.6, -0.6, 0.5];
-
-  for (const piece of existingPieces) {
+  const latest = existingPieces[existingPieces.length - 1];
+  const latestCenter = latest.x + latest.w / 2;
+  let nextCol = latestCenter < 33 ? 1 : latestCenter < 66 ? 2 : 0;
+  const latestRowY = existingPieces.reduce((bottom, piece) => {
     const el = typeof document !== 'undefined' ? document.getElementById(`mood-${piece.id}`) : null;
     let hUnits = 36;
     if (el && el.offsetHeight > 40) {
@@ -458,34 +459,27 @@ export function arrangeNewPieces(existingPieces: MoodPiece[], newPieces: MoodPie
     } else if (piece.caption) {
       hUnits = 40;
     }
-
-    const pieceBottom = piece.y + hUnits;
-    const pieceCenter = piece.x + piece.w / 2;
-    if (pieceCenter < 33) {
-      colHeights[0] = Math.max(colHeights[0], pieceBottom);
-    } else if (pieceCenter < 66) {
-      colHeights[1] = Math.max(colHeights[1], pieceBottom);
-    } else {
-      colHeights[2] = Math.max(colHeights[2], pieceBottom);
-    }
-  }
+    return Math.max(bottom, piece.y + hUnits);
+  }, 4);
+  const colHeights: [number, number, number] = [latestRowY, latestRowY, latestRowY];
 
   newPieces.forEach((piece, idx) => {
-    let targetCol = 0;
-    let minH = colHeights[0];
-    for (let c = 1; c < colHeights.length; c++) {
-      if (colHeights[c] < minH) {
-        minH = colHeights[c];
-        targetCol = c;
+    let targetCol = nextCol;
+    for (let offset = 1; offset < colHeights.length; offset++) {
+      const candidate = (nextCol + offset) % colHeights.length;
+      if (colHeights[candidate] < colHeights[targetCol]) {
+        targetCol = candidate;
       }
     }
 
-    piece.x = cols[targetCol];
-    piece.w = widths[targetCol];
+    const width = piece.kind === 'note' ? Math.min(piece.w, widths[targetCol]) : widths[targetCol];
+    piece.x = cols[targetCol] + (widths[targetCol] - width) / 2;
+    piece.w = width;
     piece.y = colHeights[targetCol];
     piece.tilt = tilts[(existingPieces.length + idx) % tilts.length];
 
     const hUnits = piece.kind === 'note' ? 24 : (piece.kind === 'clip' ? 34 : 36);
     colHeights[targetCol] += hUnits;
+    nextCol = (targetCol + 1) % colHeights.length;
   });
 }

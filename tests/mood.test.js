@@ -692,23 +692,31 @@ test('autoArrangePieces distributes pictures evenly into columns without overlap
   assert.ok([3, 36, 69].includes(p5.x));
 });
 
-test('arrangeNewPieces places dropped pieces into the shortest columns below existing items', () => {
+test('arrangeNewPieces keeps every new post together below the latest board row', () => {
   const existing = [
     pieceFrom(readLink('/homes/home-cube.webp'), 0),
     pieceFrom(readLink('/homes/home-cube.webp'), 1),
     pieceFrom(readLink('/homes/home-cube.webp'), 2)
   ];
   existing[0].x = 3; existing[0].y = 4;
-  existing[1].x = 36; existing[1].y = 4;
+  existing[1].x = 36; existing[1].y = 80;
   existing[2].x = 69; existing[2].y = 4;
 
   const newDrop1 = pieceFrom(readLink('/homes/home-cube.webp'), 3);
   const newDrop2 = pieceFrom(readLink('/homes/home-cube.webp'), 4);
+  const newNote = {
+    ...pieceFrom(readLink('/homes/home-cube.webp'), 5),
+    kind: 'note',
+    src: '',
+    w: 22
+  };
 
-  arrangeNewPieces(existing, [newDrop1, newDrop2]);
+  arrangeNewPieces(existing, [newDrop1, newDrop2, newNote]);
 
-  assert.ok(newDrop1.y >= 35);
+  assert.ok(newDrop1.y >= 116);
   assert.ok([3, 36, 69].includes(newDrop1.x));
-  assert.ok(newDrop2.y >= 35);
+  assert.ok(newDrop2.y >= 116);
   assert.ok([3, 36, 69].includes(newDrop2.x));
+  assert.ok(newNote.y >= 116);
+  assert.equal(newNote.w, 22);
 });
