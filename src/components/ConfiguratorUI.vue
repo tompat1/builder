@@ -5,8 +5,7 @@
 
     <div
       v-if="sunShown"
-      class="pointer-events-none absolute inset-y-0 left-0 z-30 min-[1180px]:right-[434px]"
-      :style="store.isFullscreen ? { right: '0px' } : undefined"
+      class="pointer-events-none absolute inset-y-0 left-0 right-0 z-30"
       aria-hidden="true"
     >
       <div
@@ -19,8 +18,7 @@
 
     <!-- 3D Scene In-Canvas Overlays (Aligned with the 3D Canvas Area) -->
     <div
-      class="pointer-events-none absolute inset-0 z-10 overflow-hidden transition-all duration-300 min-[1180px]:right-[434px]"
-      :style="{ right: (store.isFullscreen || store.framingWalkthrough) ? '0px' : undefined }"
+      class="pointer-events-none absolute inset-0 z-10 overflow-hidden"
     >
       <!-- 3D Dimension Overlay -->
       <DimensionOverlay />

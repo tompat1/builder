@@ -334,12 +334,6 @@ onMounted(async () => {
   if (!landed.token) return;
   try {
     user.value = await accountMe();
-    if (landed.token && user.value) {
-      open.value = true;
-      await nextTick();
-      const rect = buttonEl.value?.getBoundingClientRect();
-      if (rect) panelStyle.value = { top: `${rect.bottom + 8}px`, left: `${Math.max(12, rect.right - 320)}px` };
-    }
   } catch {
     user.value = null;
   }

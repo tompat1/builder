@@ -2,8 +2,7 @@
   <main class="relative h-dvh w-full select-none overflow-hidden bg-slate-50">
     <div
       id="house-stage"
-      class="absolute inset-0 z-0 transition-all duration-300 min-[1180px]:right-[434px]"
-      :style="{ right: store.isFullscreen ? '0px' : undefined }"
+      class="absolute inset-0 z-0"
     >
       <HouseCanvas ref="canvasRef" />
     </div>
