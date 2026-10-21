@@ -785,7 +785,8 @@ async function adoptWorkingHouse() {
     const choice = chooseWorkingHouse({
       hasAccountHouse: cloudConfig != null,
       localAt: stamps.localAt,
-      syncedAt: stamps.syncedAt
+      syncedAt: stamps.syncedAt,
+      accountUpdatedAt: typeof activeCloud?.updatedAt === 'string' ? activeCloud.updatedAt : ''
     });
     if (choice === 'account' && cloudConfig) {
       const same = stored != null && JSON.stringify(stored) === JSON.stringify(cloudConfig);
@@ -870,6 +871,19 @@ function queueDraft(json: string) {
   triggerSessionAutosaveBadge('3d');
   window.clearTimeout(saveTimer);
   saveTimer = window.setTimeout(() => rememberDraft(json), 800);
+}
+
+/** Push the open house before the tab sleeps so another device does not open a stale account copy. */
+function flushDraftNow() {
+  if (adopting || !session.user) return;
+  window.clearTimeout(saveTimer);
+  const json = JSON.stringify(store.exportHouse());
+  if (!draft || json === draft) return;
+  rememberDraft(json);
+}
+
+function onVisibilityFlush() {
+  if (document.visibilityState === 'hidden') flushDraftNow();
 }
 
 async function save() {
@@ -1172,9 +1186,14 @@ watch(() => session.user, () => {
 }, { immediate: true });
 
 document.addEventListener('keydown', onKey);
+document.addEventListener('visibilitychange', onVisibilityFlush);
+window.addEventListener('pagehide', flushDraftNow);
 onBeforeUnmount(() => {
   stopActiveHouseWatch();
   document.removeEventListener('keydown', onKey);
+  document.removeEventListener('visibilitychange', onVisibilityFlush);
+  window.removeEventListener('pagehide', flushDraftNow);
+  flushDraftNow();
   window.clearTimeout(saveTimer);
   window.clearTimeout(titleSaveTimer);
   window.clearTimeout(savedTitleTimer);

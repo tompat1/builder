@@ -536,6 +536,93 @@ test('a sync with empty picture stubs does not erase stored asset markers', asyn
   assert.equal(kept.caption, 'note');
 });
 
+test('reading a moved house board reclaims picture bytes left on the old board id', async () => {
+  const { handleMood } = await import('../workers/mood.js');
+  const assets = new Map();
+  const boards = new Map();
+  const env = {
+    DB: {
+      prepare(sql) {
+        return {
+          bind(...args) {
+            return {
+              async run() {
+                if (sql.includes('INSERT INTO mood_assets')) {
+                  assets.set(args[0], { id: args[0], board_id: args[1], data: args[2] });
+                } else if (sql.includes('UPDATE mood_assets SET board_id')) {
+                  const row = assets.get(args[1]);
+                  if (row) row.board_id = args[0];
+                } else if (sql.includes('INSERT INTO mood_boards')) {
+                  boards.set(args[0], {
+                    id: args[0],
+                    user_id: args[1],
+                    title: args[2],
+                    data: args[3],
+                    created_at: args[4],
+                    updated_at: args[5]
+                  });
+                } else if (sql.includes('DELETE FROM mood_assets')) {
+                  assets.delete(args[0]);
+                }
+                return { meta: { changes: 1 } };
+              },
+              async first() {
+                if (sql.includes('FROM mood_assets WHERE id = ?')) {
+                  return assets.get(args[0]) || null;
+                }
+                if (sql.includes('FROM mood_boards WHERE id = ?')) {
+                  return boards.get(args[0]) || null;
+                }
+                return null;
+              },
+              async all() {
+                if (sql.includes('FROM mood_assets WHERE board_id = ?')) {
+                  return {
+                    results: [...assets.values()].filter((row) => row.board_id === args[0])
+                  };
+                }
+                return { results: [] };
+              }
+            };
+          }
+        };
+      }
+    }
+  };
+  const sessionUser = async () => ({ id: 'usr_1', login: 'tompat1', role: 'admin' });
+  const jpeg = 'data:image/jpeg;base64,orphan';
+  const oldId = 'hus_oldboard0123456789abcdef012345';
+  const newId = 'hus_newboard0123456789abcdef012345';
+  assert.equal((await handleMood(new Request(`https://example.com/api/mood/${oldId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      title: 'Old',
+      authoritative: true,
+      pieces: [{ id: 'mood_orphan1', kind: 'image', src: jpeg, x: 4, y: 8, w: 30, tilt: 0, caption: '' }]
+    })
+  }), env, {}, sessionUser)).status, 200);
+  assert.equal(assets.get('mood_orphan1').board_id, oldId);
+
+  // Board JSON moved to a new house id; bytes stayed on the old board_id.
+  boards.set(newId, {
+    id: newId,
+    user_id: 'usr_1',
+    title: 'New',
+    data: JSON.stringify({
+      title: 'New',
+      pieces: [{ id: 'mood_orphan1', kind: 'image', src: 'asset:mood_orphan1', x: 4, y: 8, w: 30, tilt: 0, caption: '' }]
+    }),
+    created_at: '2026-10-21T00:00:00.000Z',
+    updated_at: '2026-10-21T00:00:00.000Z'
+  });
+
+  const got = await handleMood(new Request(`https://example.com/api/mood/${newId}`, { method: 'GET' }), env, {}, sessionUser);
+  const body = await got.json();
+  assert.equal(body.mood.pieces[0].src, jpeg);
+  assert.equal(assets.get('mood_orphan1').board_id, newId);
+});
+
 test('invited guests without account token are isolated from builder 3d', () => {
   // Test navigation guard condition
   function canAccessBuilder(hasParticipant, hasAccountToken) {

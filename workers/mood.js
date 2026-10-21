@@ -168,6 +168,25 @@ async function assetRows(db, boardId) {
   return Array.isArray(result?.results) ? result.results : [];
 }
 
+/** Find picture bytes by piece id even if they still point at an older board id. */
+async function assetsByIds(db, ids) {
+  const found = [];
+  for (const id of ids) {
+    if (!id) continue;
+    const row = await db.prepare(`SELECT id, board_id, data FROM mood_assets WHERE id = ?`).bind(id).first();
+    if (row && typeof row.data === 'string') found.push(row);
+  }
+  return found;
+}
+
+/** Point orphaned asset rows at the board that still references them. */
+async function claimAssetBoard(db, boardId, ids) {
+  for (const id of ids) {
+    if (!id) continue;
+    await db.prepare(`UPDATE mood_assets SET board_id = ? WHERE id = ?`).bind(boardId, id).run();
+  }
+}
+
 /** Picture bytes live in their own rows so a full collage fits in D1. */
 async function externalizePieceImages(db, boardId, pieces, dropMissing) {
   const stored = [];
@@ -185,8 +204,10 @@ async function externalizePieceImages(db, boardId, pieces, dropMissing) {
       continue;
     }
     // Keep bytes for image cards even when a client briefly sends an empty src.
+    // Also reclaim rows left on a previous house id after a board move.
     if (piece.id && (src.startsWith('asset:') || (piece.kind === 'image' && !src))) {
       keep.add(piece.id);
+      await claimAssetBoard(db, boardId, [piece.id]);
       stored.push(src ? piece : { ...piece, src: `asset:${piece.id}` });
       continue;
     }
@@ -223,6 +244,23 @@ export function preferMoodPiece(prior, incoming) {
 async function inflatePieceImages(db, boardId, pieces) {
   const rows = await assetRows(db, boardId);
   const images = new Map(rows.map((row) => [row.id, row.data]));
+  const missingIds = [];
+  for (const piece of pieces) {
+    if (!piece || typeof piece !== 'object' || !piece.id) continue;
+    if (images.has(piece.id)) continue;
+    const src = typeof piece.src === 'string' ? piece.src : '';
+    if (src.startsWith('data:image/')) continue;
+    if (piece.kind === 'image' || src.startsWith('asset:') || !src) missingIds.push(piece.id);
+  }
+  if (missingIds.length) {
+    const orphans = await assetsByIds(db, missingIds);
+    const claimed = [];
+    for (const row of orphans) {
+      images.set(row.id, row.data);
+      if (row.board_id !== boardId) claimed.push(row.id);
+    }
+    if (claimed.length) await claimAssetBoard(db, boardId, claimed);
+  }
   return pieces.map((piece) => {
     if (!piece || typeof piece !== 'object') return piece;
     const src = typeof piece.src === 'string' ? piece.src : '';

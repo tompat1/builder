@@ -189,6 +189,20 @@ test('sign-in on another device opens the account house', () => {
     localAt: '',
     syncedAt: ''
   }), 'account');
+  // Stale leftover storage on a phone must not hide a newer account save.
+  assert.equal(chooseWorkingHouse({
+    hasAccountHouse: true,
+    localAt: '2026-10-13T10:00:00.000Z',
+    syncedAt: '2026-10-13T10:00:00.000Z',
+    accountUpdatedAt: '2026-10-21T20:00:00.000Z'
+  }), 'account');
+  // Unsynced edits on this device that are newer than the account stay local.
+  assert.equal(chooseWorkingHouse({
+    hasAccountHouse: true,
+    localAt: '2026-10-21T21:00:00.000Z',
+    syncedAt: '2026-10-21T19:00:00.000Z',
+    accountUpdatedAt: '2026-10-21T20:00:00.000Z'
+  }), 'local');
 });
 
 test('an active house can be the wrapped copy or the older bare config', () => {

@@ -105,7 +105,12 @@ export async function handleHouse(request, env, headers, sessionUser) {
         data = null;
       }
       if (data && typeof data === 'object') {
-        return json({ active: data }, 200, headers);
+        return json({
+          active: {
+            ...data,
+            updatedAt: typeof row.updated_at === 'string' ? row.updated_at : undefined
+          }
+        }, 200, headers);
       }
     }
     const latestSaved = await env.DB.prepare(
