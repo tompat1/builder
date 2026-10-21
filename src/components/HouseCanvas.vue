@@ -250,7 +250,13 @@ onMounted(() => {
       concreteWalls: store.concreteWalls.map((wall) => ({ ...wall })),
       concreteColor: store.concreteColor,
       framingWalkthrough: store.framingWalkthrough,
-      framingStep: store.framingStep
+      framingStep: store.framingStep,
+      roofFallAxis: store.selectedSizeId === 'size-stugan-v4' ? 'width' : 'depth',
+      pulpetPitchDeg: store.selectedSizeId === 'size-stugan-v4' ? 10 : undefined,
+      roofOverhangs:
+        store.selectedSizeId === 'size-stugan-v4'
+          ? { front: 2.0, back: 0.4, left: 0.35, right: 0.35 }
+          : undefined
     });
 
     (window as any).__houseScene = engine;
@@ -515,7 +521,13 @@ watch(
       concreteDepthMm: depth,
       concreteHeightMm: height,
       concreteWalls: store.concreteWalls.map((wall) => ({ ...wall })),
-      concreteColor: store.concreteColor
+      concreteColor: store.concreteColor,
+      roofFallAxis: id === 'size-stugan-v4' ? 'width' : 'depth',
+      pulpetPitchDeg: id === 'size-stugan-v4' ? 10 : undefined,
+      roofOverhangs:
+        id === 'size-stugan-v4'
+          ? { front: 2.0, back: 0.4, left: 0.35, right: 0.35 }
+          : undefined
     });
   }
 );

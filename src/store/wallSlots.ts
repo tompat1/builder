@@ -131,8 +131,28 @@ export function garageWallSlots(): Record<string, WallSlot> {
   return slots;
 }
 
+/**
+ * Stugan V4 south wall: hinged entry then operable glazing. Loft windows on
+ * north/south upper bands stay optional until bedroom walls lock.
+ */
+export function stuganV4WallSlots(): Record<string, WallSlot> {
+  const slots = clearedWallSlots(6000, 6600);
+  // Looking at the south (front): left ≈ west. Entry x≈350–1250, glass x≈1550–5550.
+  if (slots['front-0']) slots['front-0'] = { ...slots['front-0'], type: 'door', itemId: 'LERVIK' };
+  if (slots['front-1']) slots['front-1'] = { ...slots['front-1'], type: 'window', itemId: 'panorama' };
+  if (slots['front-2']) slots['front-2'] = { ...slots['front-2'], type: 'door', itemId: 'SKJUTDORR' };
+  if (slots['front-3']) {
+    slots['front-3'] = { ...slots['front-3'], type: 'empty', itemId: undefined, coveredBy: 'front-2' };
+  }
+  if (slots['back-1']) slots['back-1'] = { ...slots['back-1'], type: 'window', itemId: 'standard-single' };
+  if (slots['left-1']) slots['left-1'] = { ...slots['left-1'], type: 'window', itemId: 'standard-single' };
+  if (slots['right-1']) slots['right-1'] = { ...slots['right-1'], type: 'window', itemId: 'panorama' };
+  return slots;
+}
+
 export function defaultDimensionsForSize(sizeId?: string): { widthMm: number; depthMm: number } {
   if (sizeId === 'size-paabyggnad') return { widthMm: 5200, depthMm: 6731 };
+  if (sizeId === 'size-stugan-v4') return { widthMm: 6000, depthMm: 6600 };
   if (sizeId === 'size-sauna') return { widthMm: 5200, depthMm: 2800 };
   if (sizeId === 'size-shed') return { widthMm: 4000, depthMm: 2500 };
   if (sizeId === 'size-garage') return { widthMm: 6000, depthMm: 6000 };

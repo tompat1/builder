@@ -37,6 +37,22 @@ import {
   CONCRETE_WALL_LIMIT,
   type ConcreteWall
 } from './paabyggnad';
+import {
+  STUGAN_V4_CLADDING_HEX,
+  STUGAN_V4_DECK_DEPTH_MM,
+  STUGAN_V4_DEPTH_MM,
+  STUGAN_V4_FOOTPRINT_M2,
+  STUGAN_V4_HIGH_EAVE_MM,
+  STUGAN_V4_ROOF_PITCH_DEG,
+  STUGAN_V4_SIZE_ID,
+  STUGAN_V4_WIDTH_MM,
+  isStuganV4,
+  solveStuganV4Stair,
+  stuganV4Conflicts,
+  stuganV4LoftAreaSqMeters,
+  type StuganConflict,
+  type StuganStairSolution
+} from './stuganV4';
 import { overlightItem } from '../three-engine/windowFit';
 import { acceptPlacedRooms, type PlacedRoom } from '../three-engine/roomWalls';
 import {
@@ -259,6 +275,17 @@ export const SIZE_OPTIONS: SizeOption[] = [
     desc: '5200 × 5200 mm betonghus, 2,5 m högt. Gamla taket tas bort. Träloft och påbyggnad ovanför, höjd upp till 500 cm, flexibel yta.'
   },
   {
+    id: STUGAN_V4_SIZE_ID,
+    name: 'Stugan V4',
+    badge: 'Koncept',
+    width: STUGAN_V4_WIDTH_MM,
+    depth: STUGAN_V4_DEPTH_MM,
+    height: STUGAN_V4_HIGH_EAVE_MM,
+    areaSqMeters: STUGAN_V4_FOOTPRINT_M2,
+    basePrice: 168000,
+    desc: '6000 × 6600 mm. Pulpet 10° väst→öst, loft längs väst, söderglas, trädäck 3 m. Koncept — se konflikter.'
+  },
+  {
     id: 'size-garage',
     name: 'Garage & carport',
     badge: 'Garage',
@@ -297,11 +324,17 @@ function presetSize(id: string | undefined) {
   return SIZE_OPTIONS.find((size) => size.id === id) ?? SIZE_OPTIONS.find((size) => size.id === 'size-30') ?? SIZE_OPTIONS[0];
 }
 
-/** High-end wall height cannot exceed 5 m. Width and length stay within a buildable range. */
+/** High-end wall height cannot exceed 5 m (Stugan V4 may reach the concept eave at 6.4 m). */
 export const BUILDING_LIMITS = {
   width: { min: 3600, max: 12000 },
   depth: { min: 2500, max: 10000 },
   height: { min: 2400, max: 5000 }
+} as const;
+
+/** Concept eave for Stugan V4 — above the general 5 m cap. */
+export const STUGAN_V4_HEIGHT_LIMIT = {
+  min: 4500,
+  max: STUGAN_V4_HIGH_EAVE_MM
 } as const;
 
 export type BuildingAxis = keyof typeof BUILDING_LIMITS;
@@ -550,6 +583,7 @@ import {
   saunaWallSlots,
   shedWallSlots,
   garageWallSlots,
+  stuganV4WallSlots,
   mergeWallSlots
 } from './wallSlots';
 
@@ -563,9 +597,18 @@ export {
   saunaWallSlots,
   shedWallSlots,
   garageWallSlots,
+  stuganV4WallSlots,
   mergeWallSlots,
   paabyggnadWallSlots
 };
+export {
+  STUGAN_V4_SIZE_ID,
+  isStuganV4,
+  solveStuganV4Stair,
+  stuganV4Conflicts,
+  stuganV4LoftAreaSqMeters
+} from './stuganV4';
+export type { StuganConflict, StuganStairSolution } from './stuganV4';
 
 export const useConfigStore = defineStore('config', () => {
   const displayPrefs = loadDisplayPrefs();
@@ -649,6 +692,8 @@ export const useConfigStore = defineStore('config', () => {
 
   // Interior rooms
   const placedRooms = ref<Record<string, PlacedRoom>>({});
+  /** Stugan V4: bedroom partitions stay unlocked until the stair solution is accepted. */
+  const stuganBedroomWallsLocked = ref(false);
   const selectedRoomId = ref<string | null>(null);
   const floorPlanDone = ref(false);
 
@@ -800,6 +845,7 @@ export const useConfigStore = defineStore('config', () => {
       wallSlots: wallSlots.value,
       notes: notes.value,
       placedRooms: placedRooms.value,
+      stuganBedroomWallsLocked: stuganBedroomWallsLocked.value,
       floorPlanDone: floorPlanDone.value,
       showInnerWalls: showInnerWalls.value
     };
@@ -921,6 +967,8 @@ export const useConfigStore = defineStore('config', () => {
             };
       }
       placedRooms.value = acceptPlacedRooms(data.placedRooms);
+      stuganBedroomWallsLocked.value =
+        isStuganV4(data.selectedSizeId) && data.stuganBedroomWallsLocked === true;
       if (data.selectedSizeId === 'size-paabyggnad') {
         if (placedRooms.value.bathroom_1) {
           const b = placedRooms.value.bathroom_1;
@@ -1040,6 +1088,9 @@ export const useConfigStore = defineStore('config', () => {
   });
 
   const roofPitchAngle = computed(() => {
+    if (isStuganV4(selectedSizeId.value) && activeRoof.value === 'pulpettak') {
+      return STUGAN_V4_ROOF_PITCH_DEG;
+    }
     switch (activeRoof.value) {
       case 'pulpettak':
         return PULPET_PITCH_DEG;
@@ -1055,6 +1106,9 @@ export const useConfigStore = defineStore('config', () => {
 
   /** Wall plate the roof sits on. Derived so that total height from ground to highest roof point matches dimensions.height. */
   const eaveHeight = computed(() => {
+    if (isStuganV4(selectedSizeId.value) && activeRoof.value === 'pulpettak') {
+      return dimensions.value.height;
+    }
     return Math.round(
       wallPlateHeightM(
         activeRoof.value,
@@ -1067,11 +1121,27 @@ export const useConfigStore = defineStore('config', () => {
 
   const rearHeight = computed(() => {
     if (activeRoof.value === 'pulpettak') {
-      const drop = Math.round(dimensions.value.depth * Math.tan((roofPitchAngle.value * Math.PI) / 180));
+      const span = isStuganV4(selectedSizeId.value) ? dimensions.value.width : dimensions.value.depth;
+      const drop = Math.round(span * Math.tan((roofPitchAngle.value * Math.PI) / 180));
       return Math.max(Math.round(eaveHeight.value - drop), 1800);
     }
     return eaveHeight.value;
   });
+
+  const stuganConflicts = computed(() =>
+    isStuganV4(selectedSizeId.value) ? stuganV4Conflicts(solveStuganV4Stair()) : ([] as StuganConflict[])
+  );
+
+  const stuganStair = computed(() =>
+    isStuganV4(selectedSizeId.value) ? solveStuganV4Stair() : null
+  );
+
+  const lockStuganBedroomWalls = (locked: boolean) => {
+    if (!isStuganV4(selectedSizeId.value)) return;
+    if (locked && stuganStair.value && !stuganStair.value.fitsInCentralZone) return;
+    stuganBedroomWallsLocked.value = locked;
+    saveSnapshot();
+  };
 
   const innerCeilingHeight = computed(() => {
     return Math.max(2100, eaveHeight.value - 300);
@@ -1098,6 +1168,17 @@ export const useConfigStore = defineStore('config', () => {
         { areaSqMeters: 8.2, label: '8,2 m²', descId: 'standard', desc: 'Standardloft', priceDelta: 16800 },
         { areaSqMeters: 11.0, label: '11,0 m²', descId: 'large', desc: 'Stort sovloft', priceDelta: 20500 },
         { areaSqMeters: 13.7, label: '13,7 m²', descId: 'whole-floor', desc: 'Hela golvytan', priceDelta: 24800 }
+      ];
+    } else if (isStuganV4(selectedSizeId.value)) {
+      const area = stuganV4LoftAreaSqMeters();
+      return [
+        {
+          areaSqMeters: area,
+          label: `${area.toString().replace('.', ',')} m²`,
+          descId: 'stugan-west-strip',
+          desc: 'Västloft 3500×6600 mm brutto (trappöppning dras av)',
+          priceDelta: 42000
+        }
       ];
     } else if (selectedSizeId.value === 'size-paabyggnad') {
       const areas = paabyggnadLoftAreas(buildingWidth.value, buildingDepth.value);
@@ -1247,7 +1328,10 @@ export const useConfigStore = defineStore('config', () => {
   }
 
   const clampMeasure = (axis: BuildingAxis, value: number) => {
-    const limit = BUILDING_LIMITS[axis];
+    const limit =
+      axis === 'height' && isStuganV4(selectedSizeId.value)
+        ? STUGAN_V4_HEIGHT_LIMIT
+        : BUILDING_LIMITS[axis];
     if (!Number.isFinite(value)) {
       if (axis === 'width') return buildingWidth.value;
       if (axis === 'depth') return buildingDepth.value;
@@ -1368,15 +1452,80 @@ export const useConfigStore = defineStore('config', () => {
     selectedSlotId.value = null;
   }
 
+  /**
+   * Stugan V4 massing: west→east 10° pulpet, west loft, south deck + glazing.
+   * Bedroom partitions stay unlocked until the central U-stair is accepted.
+   */
+  const applyStuganV4Shell = () => {
+    panelOrientation.value = 'liggande';
+    verticalDoorBay.value = true;
+    doorCanopy.value = false;
+    flushRoof.value = false;
+    claddingSizeId.value = '22x170';
+    terraces.value = [
+      {
+        side: 'front',
+        depth: STUGAN_V4_DECK_DEPTH_MM / 1000,
+        span: 'full',
+        roof: false
+      }
+    ];
+    activeRoof.value = 'pulpettak';
+    roofCovering.value = 'metal';
+    activeMaterial.value = 'wood';
+    // Screen stand-in for Nordsjö H7.15.53 — listed as uncertain in conflicts.
+    const paint = parseCustomPaint({ hex: STUGAN_V4_CLADDING_HEX, system: 'hex' });
+    if (paint) {
+      const id = `paint_stugan_v4_${STUGAN_V4_CLADDING_HEX.replace('#', '')}`;
+      const existing = savedPaints.value.find((item) => item.hex.toLowerCase() === paint.hex.toLowerCase());
+      if (existing) activePaintId.value = existing.id;
+      else {
+        savedPaints.value = [{ id, ...paint }, ...savedPaints.value].slice(0, SAVED_PAINT_LIMIT);
+        activePaintId.value = id;
+      }
+    } else {
+      activePaintId.value = null;
+    }
+    activeLoft.value = 'sleeping';
+    loftCount.value = 'ett';
+    loftPlacement.value = 'vanster';
+    hasLoftStair.value = true;
+    loftStairType.value = 'curved';
+    loftStairPosition.value = 'front';
+    selectedLoftSize.value = stuganV4LoftAreaSqMeters();
+    facing.value = 'south';
+    wallSlots.value = stuganV4WallSlots();
+    activeDoor.value = 'LERVIK';
+    activeWindow.value = 'panorama';
+    selectedSlotId.value = null;
+    // No locked bedroom rooms yet — stair first per BUILDER_BRIEF.
+    placedRooms.value = {};
+    stuganBedroomWallsLocked.value = false;
+  };
+
   const selectSize = (id: string) => {
-    const shelled = id === 'size-cube' || id === 'size-sauna' || id === 'size-shed' || id === 'size-garage' || id === 'size-paabyggnad';
-    const leavingShell = !shelled && (selectedSizeId.value === 'size-cube' || selectedSizeId.value === 'size-sauna' || selectedSizeId.value === 'size-shed' || selectedSizeId.value === 'size-garage' || selectedSizeId.value === 'size-paabyggnad');
+    const shelled =
+      id === 'size-cube' ||
+      id === 'size-sauna' ||
+      id === 'size-shed' ||
+      id === 'size-garage' ||
+      id === 'size-paabyggnad' ||
+      isStuganV4(id);
+    const leavingShell =
+      !shelled &&
+      (selectedSizeId.value === 'size-cube' ||
+        selectedSizeId.value === 'size-sauna' ||
+        selectedSizeId.value === 'size-shed' ||
+        selectedSizeId.value === 'size-garage' ||
+        selectedSizeId.value === 'size-paabyggnad' ||
+        isStuganV4(selectedSizeId.value));
     selectedSizeId.value = id;
     applyPresetSize(id);
     if (id === 'size-cube') applyCubeShell();
     else if (id === 'size-sauna') applySaunaShell();
     else if (id === 'size-shed') applyShedShell();
     else if (id === 'size-garage') applyGarageShell();
+    else if (isStuganV4(id)) applyStuganV4Shell();
     else if (leavingShell) applyPlainShell();
     if (id === 'size-paabyggnad') {
       activeRoof.value = 'pulpettak';
@@ -2413,6 +2562,10 @@ export const useConfigStore = defineStore('config', () => {
     loftStairPosition,
     loftTab,
     placedRooms,
+    stuganBedroomWallsLocked,
+    stuganConflicts,
+    stuganStair,
+    lockStuganBedroomWalls,
     floorPlanDone,
     setFloorPlanDone,
     selectedRoomId,

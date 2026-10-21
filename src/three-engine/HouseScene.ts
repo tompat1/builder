@@ -1,6 +1,18 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { PULPET_PITCH_DEG, type CameraView, type MaterialKey, type WallSlot, type LoftPlacement, type LoftCount, type LoftStairPosition, type LoftStairType, type PanelOrientation, type RoofCovering } from '../store/useConfigStore';
+import {
+  PULPET_PITCH_DEG,
+  type CameraView,
+  type MaterialKey,
+  type WallSlot,
+  type LoftPlacement,
+  type LoftCount,
+  type LoftStairPosition,
+  type LoftStairType,
+  type PanelOrientation,
+  type RoofCovering
+} from '../store/useConfigStore';
+import { STUGAN_V4_ROOF_PITCH_DEG } from '../store/stuganV4';
 import { panelCountForWall } from '../store/wallSlots';
 import {
   normalizeBuildingRoof,
@@ -48,6 +60,7 @@ import {
   type CameraFlight
 } from './cameraFlight';
 const PULPET_PITCH_RAD = (PULPET_PITCH_DEG * Math.PI) / 180;
+const STUGAN_PULPET_PITCH_RAD = (STUGAN_V4_ROOF_PITCH_DEG * Math.PI) / 180;
 export { MEASURE_CURSOR };
 
 interface LoftStairPlan {
@@ -118,6 +131,15 @@ export interface SceneConfig {
   framingWalkthrough?: boolean;
   /** Current builder walkthrough step (1 to 7) */
   framingStep?: number;
+  /**
+   * Stugan V4: pulpet falls west→east (along width). High eave on the left (−X)
+   * when the south facade faces +Z.
+   */
+  roofFallAxis?: 'depth' | 'width';
+  /** Override mono-pitch degrees (Stugan V4 uses 10°). */
+  pulpetPitchDeg?: number;
+  /** Per-edge overhangs in metres. Defaults to the usual 0.4 m / flush 0.02 m. */
+  roofOverhangs?: { front: number; back: number; left: number; right: number };
 }
 
 interface OutsideAnchor {
@@ -1374,9 +1396,13 @@ export class HouseScene {
       const isFlackt = this.currentConfig.roofType === 'flackt';
       const flacktDrop = isFlackt ? (d / 2) * Math.tan((2 * Math.PI) / 180) : 0;
       const roofTrimDrop = isPulpet ? 0.08 : (isFlackt ? 0.13 : 0.06);
+      const pitch = this.pulpetPitchRad();
       const frontTop = (isFlackt ? h + flacktDrop : h) - roofTrimDrop;
       const rearTop = (isPulpet
-        ? Math.max(h - Math.tan(PULPET_PITCH_RAD) * d, 2.4)
+        ? Math.max(
+            h - Math.tan(pitch) * (this.roofFallsAlongWidth() ? w : d),
+            2.4
+          )
         : (isFlackt ? h - flacktDrop : h)) - roofTrimDrop;
       const cornerColor = this.currentConfig.cornerColor ?? 'same';
       const cornerMat = new THREE.MeshStandardMaterial({
@@ -1563,14 +1589,18 @@ export class HouseScene {
     concreteWallMat: THREE.Material
   ) {
     const isPulpettak = this.currentConfig.roofType === 'pulpettak';
-    const angleRad = PULPET_PITCH_RAD;
+    const angleRad = this.pulpetPitchRad();
+    const widthFall = this.roofFallsAlongWidth();
     const isFlackt = this.currentConfig.roofType === 'flackt';
     const flacktDrop = isFlackt ? (d / 2) * Math.tan((2 * Math.PI) / 180) : 0;
-    const frontH = isFlackt ? h + flacktDrop : h;
-    const rearH = isPulpettak
-      ? Math.max(h - Math.tan(angleRad) * d, 2.4)
+    // Default pulpet: high front, low back. Stugan V4: high left (west), low right (east).
+    const highH = isFlackt ? h + flacktDrop : h;
+    const lowH = isPulpettak
+      ? Math.max(h - Math.tan(angleRad) * (widthFall ? w : d), 2.4)
       : (isFlackt ? h - flacktDrop : h);
-    const yMid = (frontH + rearH) / 2;
+    const frontH = widthFall ? (highH + lowH) / 2 : highH;
+    const rearH = widthFall ? (highH + lowH) / 2 : lowH;
+    const yMid = (highH + lowH) / 2;
     const baseElev = 0.25;
 
     const isFrontOrBack = wallSide === 'front' || wallSide === 'back';
@@ -1595,22 +1625,30 @@ export class HouseScene {
         rotY = 0;
         // In insida view, cut front wall to waist height (1.35m) matching Reference Image 4 & 5
         // so interior floor, loft, stairs, and framing are completely visible without obstruction
-        panelWallH = this.interiorCut() ? 1.35 : (frontH - baseElev);
+        if (this.interiorCut()) panelWallH = 1.35;
+        else if (widthFall) panelWallH = this.sidePanelHeight(w, h, lowH, yMid, angleRad, -px, baseElev);
+        else panelWallH = frontH - baseElev;
       } else if (wallSide === 'back') {
         px = w / 2 - panelWidth / 2 - i * panelWidth;
         pz = -d / 2 + claddingThick / 2;
         rotY = Math.PI;
-        panelWallH = rearH - baseElev;
+        panelWallH = widthFall
+          ? this.sidePanelHeight(w, h, lowH, yMid, angleRad, -px, baseElev)
+          : rearH - baseElev;
       } else if (wallSide === 'left') {
         px = -w / 2 + claddingThick / 2;
         pz = d / 2 - endInset - panelWidth / 2 - i * panelWidth;
         rotY = -Math.PI / 2;
-        panelWallH = this.sidePanelHeight(d, h, rearH, yMid, angleRad, pz, baseElev);
+        panelWallH = widthFall
+          ? highH - baseElev
+          : this.sidePanelHeight(d, h, rearH, yMid, angleRad, pz, baseElev);
       } else {
         px = w / 2 - claddingThick / 2;
         pz = -d / 2 + endInset + panelWidth / 2 + i * panelWidth;
         rotY = Math.PI / 2;
-        panelWallH = this.sidePanelHeight(d, h, rearH, yMid, angleRad, pz, baseElev);
+        panelWallH = widthFall
+          ? lowH - baseElev
+          : this.sidePanelHeight(d, h, rearH, yMid, angleRad, pz, baseElev);
       }
 
       if (!this.interiorCut()) panelWallH += 0.04;
@@ -2159,13 +2197,42 @@ export class HouseScene {
     this.onWindowFitOffers?.(this.windowFitOfferIds);
   }
 
+  private pulpetPitchRad() {
+    const deg = this.currentConfig.pulpetPitchDeg;
+    if (typeof deg === 'number' && Number.isFinite(deg)) {
+      return (deg * Math.PI) / 180;
+    }
+    return this.currentConfig.roofFallAxis === 'width' ? STUGAN_PULPET_PITCH_RAD : PULPET_PITCH_RAD;
+  }
+
+  private roofFallsAlongWidth() {
+    return this.currentConfig.roofFallAxis === 'width' && this.currentConfig.roofType === 'pulpettak';
+  }
+
+  private roofEdgeOverhangs(w: number, d: number) {
+    const custom = this.currentConfig.roofOverhangs;
+    if (custom) return custom;
+    const o = this.currentConfig.flushRoof ? 0.02 : 0.4;
+    return { front: o, back: o, left: o, right: o };
+  }
+
   /** Rise of the roof along a side wall, in metres of height per metre of local panel X. */
   private alongWallSlope(wallSide: 'front' | 'back' | 'left' | 'right') {
-    if (this.interiorCut() || (wallSide !== 'left' && wallSide !== 'right')) return 0;
+    if (this.interiorCut()) return 0;
     const roof = this.currentConfig.roofType;
     if (roof !== 'pulpettak' && roof !== 'flackt') return 0;
-    const degrees = roof === 'pulpettak' ? PULPET_PITCH_DEG : 2;
+    const degrees =
+      roof === 'pulpettak'
+        ? (this.currentConfig.pulpetPitchDeg ?? (this.roofFallsAlongWidth() ? STUGAN_V4_ROOF_PITCH_DEG : PULPET_PITCH_DEG))
+        : 2;
     const tan = Math.tan((degrees * Math.PI) / 180);
+    if (this.roofFallsAlongWidth()) {
+      // High at west (−X / left when facing south). Front/back panels drop toward +X (right).
+      if (wallSide === 'front') return -tan;
+      if (wallSide === 'back') return tan;
+      return 0;
+    }
+    if (wallSide !== 'left' && wallSide !== 'right') return 0;
     return wallSide === 'left' ? tan : -tan;
   }
 
@@ -5046,7 +5113,8 @@ export class HouseScene {
 
   private buildRoof(w: number, d: number, h: number) {
     const { roofType } = this.currentConfig;
-    const overhang = this.currentConfig.flushRoof ? 0.02 : 0.4;
+    const edges = this.roofEdgeOverhangs(w, d);
+    const overhang = Math.max(edges.front, edges.back, edges.left, edges.right);
     const roofMat = this.roofSurfaceMaterial();
 
     const whiteTrimMat = new THREE.MeshStandardMaterial({
@@ -5061,15 +5129,65 @@ export class HouseScene {
         ? new THREE.MeshStandardMaterial({ color: '#d5d8dc', roughness: 0.32, metalness: 0.72 })
         : whiteTrimMat;
       this.addShallowRoof(w, d, h, overhang, 2, roofMat, frameMat);
+    } else if (this.roofFallsAlongWidth()) {
+      // Stugan V4: 10° fall west→east. High left (−X), low right (+X), long south overhang.
+      const angleRad = this.pulpetPitchRad();
+      const lowH = Math.max(h - Math.tan(angleRad) * w, 1.8);
+      const yMid = (h + lowH) / 2;
+      const roofThick = 0.1;
+      const slopeLen = (w + edges.left + edges.right) / Math.cos(angleRad);
+      const roofDepth = d + edges.front + edges.back;
+      const roofCenterY = yMid + (roofThick / 2) / Math.cos(angleRad);
+      const zShift = (edges.front - edges.back) / 2;
+
+      const assembly = new THREE.Group();
+      assembly.position.set(0, roofCenterY, zShift);
+      // Positive Z rotation drops toward +X (east).
+      assembly.rotation.z = angleRad;
+
+      const roofMesh = new THREE.Mesh(new THREE.BoxGeometry(slopeLen, roofThick, roofDepth), roofMat);
+      roofMesh.castShadow = true;
+      roofMesh.receiveShadow = true;
+      assembly.add(roofMesh);
+
+      const fasciaT = 0.022;
+      const eavesDrop = 0.08;
+      const fasciaBottom = -roofThick / 2 - eavesDrop;
+      const fasciaTop = roofThick / 2 + 0.008;
+      const fasciaH = fasciaTop - fasciaBottom;
+      const fasciaY = (fasciaBottom + fasciaTop) / 2;
+      const bargeT = 0.032;
+
+      const bargeGeo = new THREE.BoxGeometry(slopeLen + fasciaT * 2, fasciaH, bargeT);
+      const frontBarge = new THREE.Mesh(bargeGeo, whiteTrimMat);
+      frontBarge.position.set(0, fasciaY, roofDepth / 2 + bargeT / 2);
+      frontBarge.castShadow = true;
+      assembly.add(frontBarge);
+      const backBarge = new THREE.Mesh(bargeGeo, whiteTrimMat);
+      backBarge.position.set(0, fasciaY, -(roofDepth / 2 + bargeT / 2));
+      backBarge.castShadow = true;
+      assembly.add(backBarge);
+
+      const fasciaGeo = new THREE.BoxGeometry(fasciaT, fasciaH, roofDepth + bargeT * 2);
+      const westFascia = new THREE.Mesh(fasciaGeo, whiteTrimMat);
+      westFascia.position.set(-(slopeLen / 2 + fasciaT / 2), fasciaY, 0);
+      westFascia.castShadow = true;
+      assembly.add(westFascia);
+      const eastFascia = new THREE.Mesh(fasciaGeo, whiteTrimMat);
+      eastFascia.position.set(slopeLen / 2 + fasciaT / 2, fasciaY, 0);
+      eastFascia.castShadow = true;
+      assembly.add(eastFascia);
+
+      this.roofGroup.add(assembly);
     } else {
       // Pulpettak. The slab, barge boards, and fascia share one rotated assembly
       // so each board meets the next at an edge instead of occupying the same face.
-      const angleRad = PULPET_PITCH_RAD;
+      const angleRad = this.pulpetPitchRad();
       const rearH = Math.max(h - Math.tan(angleRad) * d, 1.8);
       const yMid = (h + rearH) / 2;
       const roofThick = 0.1;
-      const slopeLen = (d + overhang * 2) / Math.cos(angleRad);
-      const roofW = w + overhang * 2;
+      const slopeLen = (d + edges.front + edges.back) / Math.cos(angleRad);
+      const roofW = w + edges.left + edges.right;
       const roofCenterY = yMid + (roofThick / 2) / Math.cos(angleRad);
 
       const assembly = new THREE.Group();
@@ -5139,7 +5257,7 @@ export class HouseScene {
       rearSoffit.receiveShadow = true;
       assembly.add(rearSoffit);
 
-      const sideReach = overhang;
+      const sideReach = Math.max(edges.left, edges.right);
       if (sideReach > 0.03) {
         const sideSoffitGeo = new THREE.BoxGeometry(sideReach, soffitT, slopeLen);
         for (const sign of [-1, 1]) {

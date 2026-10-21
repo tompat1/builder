@@ -1,0 +1,169 @@
+{
+  "project": "Stugan V4",
+  "status": "concept_only_not_for_construction",
+  "units": "mm",
+  "coordinate_system": {
+    "origin": "southwest exterior corner at finished ground z=0",
+    "x": "east",
+    "y": "north",
+    "z": "up"
+  },
+  "geometry": {
+    "width_x": 6000,
+    "length_y": 6600,
+    "footprint_m2": 39.6,
+    "deck_south": {
+      "width": 6000,
+      "depth": 3000
+    },
+    "roof": {
+      "type": "mono_pitch",
+      "high_edge": "west",
+      "low_edge": "east",
+      "slope_deg": 10,
+      "south_overhang": 2000,
+      "north_overhang": 400,
+      "east_overhang": 350,
+      "west_overhang": 350,
+      "high_eave_z": 6400,
+      "low_eave_z": 5342
+    },
+    "wall_thickness_concept": 300
+  },
+  "levels": {
+    "ground": 0,
+    "existing_slab_top_assumed": 200,
+    "crawlspace_clearance_concept": 400,
+    "finished_floor_z": 950,
+    "loft_finished_floor_z": 3650,
+    "loft_structure_depth": 300,
+    "roof_assembly_depth_concept": 400
+  },
+  "program": {
+    "ground_floor": [
+      "south entrance",
+      "south operable glazing",
+      "east living room open to roof",
+      "north kitchen",
+      "northwest bathroom",
+      "central stair with under-stair storage"
+    ],
+    "loft": [
+      "north enclosed master bedroom",
+      "central stair landing",
+      "south open guest sleeping zone for two",
+      "east guardrail overlooking living room"
+    ]
+  },
+  "proposed_zones": [
+    {
+      "name": "loft_strip",
+      "x_range": [
+        0,
+        3500
+      ],
+      "y_range": [
+        0,
+        6600
+      ],
+      "note": "concept gross zone, usable clear width smaller; stair opening subtracts area"
+    },
+    {
+      "name": "master_north",
+      "x_range": [
+        0,
+        3500
+      ],
+      "y_range": [
+        4400,
+        6600
+      ]
+    },
+    {
+      "name": "stair_central",
+      "x_range": [
+        0,
+        3500
+      ],
+      "y_range": [
+        2200,
+        4400
+      ],
+      "note": "placeholder footprint only; must be solved with landing/headroom"
+    },
+    {
+      "name": "guest_south",
+      "x_range": [
+        0,
+        3500
+      ],
+      "y_range": [
+        0,
+        2200
+      ]
+    },
+    {
+      "name": "living_east",
+      "x_range": [
+        3500,
+        6000
+      ],
+      "y_range": [
+        0,
+        6600
+      ]
+    }
+  ],
+  "openings_concept": [
+    {
+      "name": "south_glazing",
+      "wall": "south",
+      "x_range": [
+        1550,
+        5550
+      ],
+      "clear_height": 2300,
+      "type": "folding_or_sliding",
+      "note": "final mullions and structure TBD"
+    },
+    {
+      "name": "south_entry",
+      "wall": "south",
+      "x_range": [
+        350,
+        1250
+      ],
+      "clear_height": 2100,
+      "type": "hinged"
+    },
+    {
+      "name": "master_north_window",
+      "wall": "north",
+      "width": 1200,
+      "height": 1100
+    },
+    {
+      "name": "guest_south_high_window",
+      "wall": "south",
+      "width": 1100,
+      "height": 900
+    }
+  ],
+  "materials": {
+    "cladding": "horizontal timber siding moss green inspired by Nordsjo H7.15.53 (verify physical swatch)",
+    "window_sashes": "Scandinavian red",
+    "trim": "warm off-white",
+    "recessed_entry": "natural wood",
+    "roof": "dark standing seam metal or product approved for 10 degree slope"
+  },
+  "engineering_holds": [
+    "Verify allowable height and local permit / area definitions",
+    "Survey existing slab levels, reinforcement, edge beams and bearing capacity",
+    "Investigate source of moisture damage and design verified crawlspace humidity strategy",
+    "Design structural support for 2 m canopy under local snow and wind loads; columns likely",
+    "Resolve stair dimensions, landing and headroom with actual floor-to-floor height",
+    "Verify room clear heights, fire egress, glazing safety, thermal performance and guardrails",
+    "Ensure loft enclosure and stair do not conflict with roof slope or south glazing"
+  ],
+  "accuracy_note": "Dimensions are model inputs for massing, not approved architectural/structural construction drawings."
+}

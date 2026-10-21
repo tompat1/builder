@@ -159,6 +159,61 @@
         <p v-if="store.selectedSizeId === 'size-paabyggnad'" class="text-[11px] text-slate-600 mt-1.5 leading-snug">
           <Cms k="category.paabyggnadHint" />
         </p>
+        <p v-if="store.selectedSizeId === 'size-stugan-v4'" class="text-[11px] text-slate-600 mt-1.5 leading-snug">
+          <Cms k="category.stuganV4Hint" />
+        </p>
+
+        <div
+          v-if="store.selectedSizeId === 'size-stugan-v4'"
+          class="mt-4 space-y-2 rounded-xl border border-amber-200/80 bg-amber-50/60 p-3"
+        >
+          <h4 class="text-xs font-bold uppercase tracking-wider text-amber-950">
+            <Cms k="category.stuganV4Conflicts" />
+          </h4>
+          <ul class="space-y-2">
+            <li
+              v-for="item in store.stuganConflicts"
+              :key="item.id"
+              class="rounded-lg border px-2.5 py-2 text-[11px] leading-snug"
+              :class="stuganConflictClass(item.severity)"
+            >
+              <p class="font-bold">{{ locale === 'en' ? item.titleEn : item.titleSv }}</p>
+              <p class="mt-0.5 opacity-90">{{ locale === 'en' ? item.detailEn : item.detailSv }}</p>
+            </li>
+          </ul>
+          <div
+            v-if="store.stuganStair"
+            class="rounded-lg border border-slate-200 bg-white/80 px-2.5 py-2 text-[11px] text-slate-700"
+          >
+            <p class="font-bold text-slate-900">
+              <Cms k="category.stuganV4Stair" />
+            </p>
+            <p class="mt-1">
+              {{
+                locale === 'en'
+                  ? store.stuganStair.notesEn.join(' ')
+                  : store.stuganStair.notesSv.join(' ')
+              }}
+            </p>
+            <button
+              type="button"
+              class="mt-2 w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-[11px] font-bold text-slate-800 hover:bg-slate-50"
+              :disabled="!store.stuganStair.fitsInCentralZone"
+              @click="store.lockStuganBedroomWalls(!store.stuganBedroomWallsLocked)"
+            >
+              <Cms
+                :k="
+                  store.stuganBedroomWallsLocked
+                    ? 'category.stuganV4UnlockBedrooms'
+                    : 'category.stuganV4LockBedrooms'
+                "
+              />
+            </button>
+            <p class="mt-1 text-[10px] text-slate-500">
+              <Cms k="category.stuganV4BedroomGate" />
+            </p>
+          </div>
+        </div>
 
         <div v-if="store.selectedSizeId === 'size-paabyggnad'" class="mt-4">
           <div class="flex items-center justify-between gap-3 mb-1.5">
@@ -2994,9 +3049,18 @@ const panelOrientations = [
 const concreteArea = computed(() => Math.round((store.concreteWidth * store.concreteDepth) / 1e5) / 10);
 
 function planLimit(axis: 'width' | 'depth' | 'height', edge: 'min' | 'max') {
+  if (store.selectedSizeId === 'size-stugan-v4' && axis === 'height') {
+    return edge === 'min' ? 450 : 640;
+  }
   if (store.selectedSizeId !== 'size-paabyggnad') return BUILDING_LIMITS[axis][edge] / 10;
   if (axis === 'height') return edge === 'min' ? 450 : 500;
   return BUILDING_LIMITS[axis][edge] / 10;
+}
+
+function stuganConflictClass(severity: 'conflict' | 'uncertain' | 'hold') {
+  if (severity === 'conflict') return 'border-rose-300 bg-rose-50 text-rose-950';
+  if (severity === 'hold') return 'border-amber-300 bg-amber-50/80 text-amber-950';
+  return 'border-slate-200 bg-white/70 text-slate-800';
 }
 
 function concreteLimit(axis: 'width' | 'depth' | 'height', edge: 'min' | 'max') {
