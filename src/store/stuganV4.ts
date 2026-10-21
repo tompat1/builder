@@ -275,8 +275,8 @@ export function stuganV4Conflicts(stair = solveStuganV4Stair()): StuganConflict[
       severity: 'hold',
       titleSv: 'Sovrumsväggar olåsta',
       titleEn: 'Bedroom walls unlocked',
-      detailSv: 'Master norr och gäst söder är zoner tills trappan är låst i planen.',
-      detailEn: 'Master north and guest south stay as zones until the stair is locked in plan.'
+      detailSv: 'Master norr och gäst söder är lagda som loftväggar; öppna/lås via storlekspanelen vid behov.',
+      detailEn: 'Master north and guest south are placed as loft walls; unlock via the size panel if needed.'
     },
     {
       id: 'builder-height-cap',
@@ -295,7 +295,7 @@ export function stuganV4LoftAreaSqMeters(): number {
 }
 
 /** Proposed zones in SW-origin mm — bedroom partitions stay unlocked. */
-export function stuganV4ProposedZones() {
+export function stuganV4ProposedZones(locked = true) {
   return {
     loftStrip: { x0: 0, x1: STUGAN_V4_LOFT_DEPTH_MM, y0: 0, y1: STUGAN_V4_DEPTH_MM },
     masterNorth: {
@@ -303,27 +303,83 @@ export function stuganV4ProposedZones() {
       x1: STUGAN_V4_LOFT_DEPTH_MM,
       y0: STUGAN_V4_ZONE_Y_MM * 2,
       y1: STUGAN_V4_DEPTH_MM,
-      locked: false
+      locked
     },
     stairCentral: {
       x0: 0,
       x1: STUGAN_V4_LOFT_DEPTH_MM,
       y0: STUGAN_V4_ZONE_Y_MM,
       y1: STUGAN_V4_ZONE_Y_MM * 2,
-      locked: false
+      locked
     },
     guestSouth: {
       x0: 0,
       x1: STUGAN_V4_LOFT_DEPTH_MM,
       y0: 0,
       y1: STUGAN_V4_ZONE_Y_MM,
-      locked: false
+      locked
     },
     livingEast: {
       x0: STUGAN_V4_LOFT_DEPTH_MM,
       x1: STUGAN_V4_WIDTH_MM,
       y0: 0,
       y1: STUGAN_V4_DEPTH_MM
+    }
+  };
+}
+
+/** Standard clear stair width used on the loft edge (metres). */
+export const STUGAN_V4_STAIR_WIDTH_M = 0.9;
+
+/**
+ * Rooms from planer.svg. Builder origin is plan centre; +Z is south (front), −X is west.
+ * Ground y ≈ slab; loft y sits on the deck. Living stays open (no box).
+ */
+export function stuganV4PlacedRooms(): Record<
+  string,
+  { type: string; w: number; d: number; x: number; y: number; z: number; wallsVisible: boolean }
+> {
+  // Loft strip interior ≈ 3.2 m after shell; zones 2.2 m along depth with stair gap in the middle.
+  const loftX = -1.25;
+  const loftW = 3.2;
+  const zoneD = 2.0;
+  const loftY = 2.9;
+  return {
+    bathroom_1: {
+      type: 'bathroom',
+      w: 2.2,
+      d: 2.2,
+      x: -1.7,
+      y: 0.3,
+      z: -2.15,
+      wallsVisible: true
+    },
+    kitchen_1: {
+      type: 'kitchen',
+      w: 3.2,
+      d: 2.2,
+      x: 1.2,
+      y: 0.3,
+      z: -2.15,
+      wallsVisible: true
+    },
+    bedroom_1: {
+      type: 'bedroom',
+      w: loftW,
+      d: zoneD,
+      x: loftX,
+      y: loftY,
+      z: -2.15,
+      wallsVisible: true
+    },
+    bedroom_2: {
+      type: 'bedroom',
+      w: loftW,
+      d: zoneD,
+      x: loftX,
+      y: loftY,
+      z: 2.15,
+      wallsVisible: true
     }
   };
 }

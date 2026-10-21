@@ -50,6 +50,7 @@ import {
   solveStuganV4Stair,
   stuganV4Conflicts,
   stuganV4LoftAreaSqMeters,
+  stuganV4PlacedRooms,
   type StuganConflict,
   type StuganStairSolution
 } from './stuganV4';
@@ -387,7 +388,7 @@ export const LOFT_PLACEMENTS = ['vanster', 'hoger', 'fram', 'bak'] as const;
 export type LoftPlacement = (typeof LOFT_PLACEMENTS)[number];
 export type LoftTab = 'planlosning' | 'golv';
 export type LoftStairType = 'straight' | 'curved';
-export type LoftStairPosition = 'front' | 'back';
+export type LoftStairPosition = 'front' | 'back' | 'middle';
 
 export interface LoftSizeItem {
   areaSqMeters: number;
@@ -912,7 +913,12 @@ export const useConfigStore = defineStore('config', () => {
       if (data.selectedLoftSize) selectedLoftSize.value = data.selectedLoftSize;
       if (data.hasLoftStair !== undefined) hasLoftStair.value = data.hasLoftStair;
       loftStairType.value = data.loftStairType === 'curved' ? 'curved' : 'straight';
-      loftStairPosition.value = data.loftStairPosition === 'back' ? 'back' : 'front';
+      loftStairPosition.value =
+        data.loftStairPosition === 'back'
+          ? 'back'
+          : data.loftStairPosition === 'middle'
+            ? 'middle'
+            : 'front';
       if (data.activeDoor) activeDoor.value = data.activeDoor;
       if (data.activeWindow) activeWindow.value = data.activeWindow;
       if (data.activeGate) activeGate.value = data.activeGate;
@@ -1490,17 +1496,18 @@ export const useConfigStore = defineStore('config', () => {
     loftCount.value = 'ett';
     loftPlacement.value = 'vanster';
     hasLoftStair.value = true;
-    loftStairType.value = 'curved';
-    loftStairPosition.value = 'front';
+    loftStairType.value = 'straight';
+    loftStairPosition.value = 'middle';
     selectedLoftSize.value = stuganV4LoftAreaSqMeters();
     facing.value = 'south';
     wallSlots.value = stuganV4WallSlots();
     activeDoor.value = 'LERVIK';
     activeWindow.value = 'panorama';
     selectedSlotId.value = null;
-    // No locked bedroom rooms yet — stair first per BUILDER_BRIEF.
-    placedRooms.value = {};
-    stuganBedroomWallsLocked.value = false;
+    // Bottenplan + loftväggar enligt planer.svg; trappa centrerad med standardbredd 900 mm.
+    placedRooms.value = stuganV4PlacedRooms();
+    stuganBedroomWallsLocked.value = true;
+    floorPlanDone.value = true;
   };
 
   const selectSize = (id: string) => {
@@ -1809,6 +1816,7 @@ export const useConfigStore = defineStore('config', () => {
   }
 
   const setLoftStairPosition = (position: LoftStairPosition) => {
+    if (position !== 'front' && position !== 'back' && position !== 'middle') return;
     loftStairPosition.value = position;
     hasLoftStair.value = true;
     saveSnapshot();

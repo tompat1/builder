@@ -119,11 +119,12 @@ export function loftStairOpening(
       depth: Math.min(side, Math.max(0.95, loftDepth - 0.45))
     };
   }
-  const width = Math.min(0.92, Math.max(0.72, sectionWidth - 0.35));
-  const depth = Math.min(0.86, Math.max(0.72, loftDepth - 0.45));
+  // Depth along the loft edge is the clear stair width; 1.06 → ~0.9 m treads.
+  const width = Math.min(1.1, Math.max(0.85, sectionWidth - 0.35));
+  const depth = Math.min(1.06, Math.max(0.9, Math.min(1.06, loftDepth - 0.45)));
   return {
-    width: Math.min(width, Math.max(0.6, sectionWidth - sideClear)),
-    depth: Math.min(depth, Math.max(0.6, loftDepth - sideClear))
+    width: Math.min(width, Math.max(0.85, sectionWidth - sideClear)),
+    depth: Math.min(depth, Math.max(0.9, loftDepth - sideClear))
   };
 }
 
@@ -152,7 +153,8 @@ export function straightLoftStair(args: {
   run: number;
   rise: number;
 }): StraightLoftStair {
-  const width = Math.min(0.58, Math.max(0.48, args.opening.depth - 0.16));
+  // Standard clear width ≈ 900 mm when the loft opening allows it.
+  const width = Math.min(0.9, Math.max(0.48, args.opening.depth - 0.16));
   const xTop = args.edgeX - args.openSign * args.opening.width;
   return {
     xBottom: xTop + args.openSign * args.run,

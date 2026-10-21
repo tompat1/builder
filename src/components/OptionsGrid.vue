@@ -2750,6 +2750,7 @@ const loftStairPositions = computed<{ id: LoftStairPosition; label: string }[]>(
   if (store.loftCount === 'tva' || store.loftPlacement === 'vanster' || store.loftPlacement === 'hoger') {
     return [
       { id: 'front', label: 'category.front' },
+      { id: 'middle', label: 'category.middle' },
       { id: 'back', label: 'category.back' }
     ];
   }

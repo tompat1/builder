@@ -38,24 +38,37 @@ test('central U-stair is solved before bedroom walls lock', () => {
   assert.ok(stair.opening.depthMm > 0);
 });
 
-test('conflicts mark uncertain slab, crawlspace, and unlocked bedrooms', () => {
+test('conflicts mark uncertain slab, crawlspace, and loft headroom', () => {
   const conflicts = stuganV4Conflicts();
   const ids = new Set(conflicts.map((item) => item.id));
   assert.ok(ids.has('slab-level'));
   assert.ok(ids.has('crawlspace'));
   assert.ok(ids.has('bedroom-walls'));
   assert.ok(ids.has('loft-headroom'));
-  assert.equal(conflicts.find((item) => item.id === 'bedroom-walls')?.severity, 'hold');
   assert.equal(conflicts.find((item) => item.id === 'loft-headroom')?.severity, 'conflict');
 });
 
-test('proposed zones keep master and guest unlocked', () => {
-  const zones = stuganV4ProposedZones();
-  assert.equal(zones.masterNorth.locked, false);
-  assert.equal(zones.guestSouth.locked, false);
-  assert.equal(zones.stairCentral.locked, false);
+test('proposed zones can lock master and guest after the stair fits', () => {
+  const open = stuganV4ProposedZones(false);
+  assert.equal(open.masterNorth.locked, false);
+  const locked = stuganV4ProposedZones(true);
+  assert.equal(locked.masterNorth.locked, true);
+  assert.equal(locked.guestSouth.locked, true);
   assert.equal(isStuganV4(STUGAN_V4_SIZE_ID), true);
   assert.equal(isStuganV4('size-30'), false);
+});
+
+test('floor plan places bathroom, kitchen and loft bedrooms from the sketch', async () => {
+  const { stuganV4PlacedRooms } = await import('../src/store/stuganV4.ts');
+  const rooms = stuganV4PlacedRooms();
+  assert.equal(rooms.bathroom_1.type, 'bathroom');
+  assert.ok(rooms.bathroom_1.x < 0 && rooms.bathroom_1.z < 0);
+  assert.equal(rooms.kitchen_1.type, 'kitchen');
+  assert.ok(rooms.kitchen_1.x > 0 && rooms.kitchen_1.z < 0);
+  assert.equal(rooms.bedroom_1.type, 'bedroom');
+  assert.ok(rooms.bedroom_1.y > 1 && rooms.bedroom_1.z < 0);
+  assert.equal(rooms.bedroom_2.type, 'bedroom');
+  assert.ok(rooms.bedroom_2.y > 1 && rooms.bedroom_2.z > 0);
 });
 
 test('a straight 250 mm going flight does not fit the 2200 mm mid zone alone', () => {
