@@ -832,7 +832,14 @@ const sv = {
     endOfBoard: 'Du har nått slutet av moodboarden',
     autoArrange: 'Auto-arrangera',
     autoArrangeToast: 'Alla bilder har auto-arrangerats',
-    dropAutoArrange: 'Släpp bilder här för att lägga till & auto-arrangera'
+    dropAutoArrange: 'Släpp bilder här för att lägga till & auto-arrangera',
+    filterLabel: 'Visa på tavlan',
+    filterLatest: 'Senaste',
+    filterImages: 'Bilder',
+    filterPostit: 'Kom-ihåg-lappar',
+    filterLinks: 'Länkar',
+    filterEmptyTitle: 'Inget i det här urvalet',
+    filterEmptyLead: 'Byt filter eller lägg till något nytt ovan.'
   },
   dims: {
     pitch: 'Taklutning',
@@ -1792,7 +1799,14 @@ const en = {
     endOfBoard: 'You have reached the end of the mood board',
     autoArrange: 'Auto-arrange',
     autoArrangeToast: 'All pictures auto-arranged',
-    dropAutoArrange: 'Drop images here to add & auto-arrange'
+    dropAutoArrange: 'Drop images here to add & auto-arrange',
+    filterLabel: 'Show on the board',
+    filterLatest: 'Latest',
+    filterImages: 'Images',
+    filterPostit: 'Post-its',
+    filterLinks: 'Links',
+    filterEmptyTitle: 'Nothing in this selection',
+    filterEmptyLead: 'Switch filter or add something new above.'
   },
   dims: {
     pitch: 'Roof pitch',

@@ -261,6 +261,29 @@
       />
     </form>
 
+    <div
+      v-if="!isFeedFullscreen && pieces.length > 0"
+      class="flex items-center gap-1.5 overflow-x-auto px-3 pb-2.5 sm:px-6 md:px-8"
+      role="tablist"
+      :aria-label="t('mood.filterLabel')"
+    >
+      <button
+        v-for="option in filterOptions"
+        :id="`btn-mood-filter-${option.id}`"
+        :key="option.id"
+        type="button"
+        role="tab"
+        class="shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#173D35]"
+        :class="boardFilter === option.id
+          ? 'border-[#173D35] bg-[#173D35] text-[#F5F3EC]'
+          : 'border-[#d7d1c4] bg-white text-[#173D35] hover:border-[#173D35]/50'"
+        :aria-selected="boardFilter === option.id"
+        @click="boardFilter = option.id"
+      >
+        {{ t(option.label) }}
+      </button>
+    </div>
+
     <p v-if="notice && !isFeedFullscreen" class="px-4 pb-2 text-sm text-[#173D35] md:px-8" role="status">{{ t(notice) }}</p>
 
     <!-- Floating controls when in full-screen feed mode -->
@@ -331,7 +354,7 @@
           v-if="over"
           class="pointer-events-none sticky top-6 z-30 flex justify-center px-4"
         >
-          <div class="flex items-center gap-2 rounded-full bg-[#173D35] px-5 py-2.5 text-xs sm:text-sm font-semibold text-[#F5F3EC] shadow-2xl ring-4 ring-[#173D35]/20 animate-bounce">
+          <div class="mood-drop-hint flex items-center gap-2 rounded-full bg-[#173D35] px-5 py-2.5 text-xs sm:text-sm font-semibold text-[#F5F3EC] shadow-2xl ring-4 ring-[#173D35]/20">
             <svg class="h-4 w-4 sm:h-5 sm:w-5 text-[#F5F3EC] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
             </svg>
@@ -348,6 +371,15 @@
           <h3 class="text-base font-bold text-[#173D35]">{{ t('mood.emptyTitle') }}</h3>
           <p class="mt-1 max-w-xs text-xs text-[#4a5851]">
             {{ t('mood.emptyLead') }}
+          </p>
+        </div>
+        <div
+          v-else-if="displayPieces.length === 0"
+          class="flex flex-col items-center justify-center py-16 px-4 text-center text-[#173D35]/70"
+        >
+          <h3 class="text-base font-bold text-[#173D35]">{{ t('mood.filterEmptyTitle') }}</h3>
+          <p class="mt-1 max-w-xs text-xs text-[#4a5851]">
+            {{ t('mood.filterEmptyLead') }}
           </p>
         </div>
 
@@ -725,7 +757,7 @@
 
         <!-- Mobile end of moodboard indicator -->
         <div
-          v-if="isMobile && pieces.length > 0"
+          v-if="isMobile && displayPieces.length > 0"
           class="flex items-center justify-center py-4 text-xs font-medium text-[#173D35]/60 select-none"
         >
           <span>✨ {{ t('mood.endOfBoard') || 'Du har nått slutet av moodboarden' }}</span>
@@ -1566,17 +1598,38 @@ const isInvited = computed(() => {
 });
 
 const isMobile = ref(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
+type BoardFilter = 'latest' | 'image' | 'note' | 'link';
+const boardFilter = ref<BoardFilter>('latest');
+const filterOptions: { id: BoardFilter; label: string }[] = [
+  { id: 'latest', label: 'mood.filterLatest' },
+  { id: 'image', label: 'mood.filterImages' },
+  { id: 'note', label: 'mood.filterPostit' },
+  { id: 'link', label: 'mood.filterLinks' }
+];
 
 function onWindowResize() {
   isMobile.value = typeof window !== 'undefined' && window.innerWidth < 768;
   updateScrollState();
 }
 
+function pieceMatchesFilter(piece: MoodPiece, filter: BoardFilter) {
+  if (filter === 'latest') return true;
+  if (filter === 'image') return piece.kind === 'image' || piece.kind === 'clip';
+  if (filter === 'note') return piece.kind === 'note';
+  return piece.kind === 'link';
+}
+
 const displayPieces = computed(() => {
-  if (isMobile.value) {
-    return [...pieces.value].sort((a, b) => a.y - b.y);
-  }
-  return pieces.value;
+  const filtered = pieces.value.filter((piece) => pieceMatchesFilter(piece, boardFilter.value));
+  const newestFirst = boardFilter.value === 'latest' || isMobile.value;
+  if (!newestFirst) return filtered;
+  // Newer pieces are appended, so reverse array order for “latest”.
+  const order = new Map(pieces.value.map((piece, index) => [piece.id, index]));
+  return [...filtered].sort((a, b) => (order.get(b.id) ?? 0) - (order.get(a.id) ?? 0));
+});
+
+watch(boardFilter, () => {
+  nextTick(() => updateScrollState());
 });
 
 function handleClose() {
@@ -2349,6 +2402,19 @@ function clamp(value: number, min: number, max: number) {
     opacity: 1;
     filter: blur(0);
   }
+}
+@keyframes mood-drop-hint {
+  from {
+    opacity: 0.72;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.mood-drop-hint {
+  animation: mood-drop-hint 900ms cubic-bezier(0.16, 1, 0.3, 1) infinite alternate;
 }
 @keyframes fadeIn {
   from {
