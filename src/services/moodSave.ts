@@ -247,10 +247,19 @@ export async function syncMoodWithCloudflare(houseKey = moodHouseKey()): Promise
       ...(parsed.participants ? { participants: parsed.participants } : {})
     };
 
-    // Keep a fuller copy already on this device. An empty phone must not erase it.
+    // Keep a fuller copy already on this device. Empty picture stubs must not erase it.
     const all = bucket();
     const local = acceptMoodBoard(all[houseKey]);
-    if (boardState.pieces.length >= local.pieces.length) all[houseKey] = boardState;
+    const mergedPieces = mergeMoodPieces(local.pieces, boardState.pieces);
+    const merged: MoodBoardState = {
+      title: boardState.title || local.title,
+      createdAt: boardState.createdAt || local.createdAt,
+      pieces: mergedPieces,
+      ...(boardState.participants || local.participants
+        ? { participants: boardState.participants || local.participants }
+        : {})
+    };
+    all[houseKey] = merged;
     try {
       if (typeof localStorage !== 'undefined') {
         localStorage.setItem(KEY, JSON.stringify(fit(all, houseKey)));
@@ -259,7 +268,7 @@ export async function syncMoodWithCloudflare(houseKey = moodHouseKey()): Promise
       // ignore
     }
 
-    return boardState;
+    return merged;
   } catch {
     return null;
   }
@@ -392,6 +401,36 @@ function bucket(): Record<string, unknown> {
   } catch {
     return {};
   }
+}
+
+function pictureRank(src: string) {
+  if (!src) return 0;
+  if (src.startsWith('data:image/')) return 3;
+  if (src.startsWith('asset:')) return 2;
+  if (src.startsWith('https://') || src.startsWith('/') || src.startsWith('local:')) return 1;
+  return 0;
+}
+
+function mergeMoodPieces(local: MoodPiece[], remote: MoodPiece[]): MoodPiece[] {
+  const map = new Map(local.map((piece) => [piece.id, piece]));
+  for (const remotePiece of remote) {
+    const prior = map.get(remotePiece.id);
+    if (!prior) {
+      map.set(remotePiece.id, remotePiece);
+      continue;
+    }
+    const next = pictureRank(prior.src) > pictureRank(remotePiece.src)
+      ? { ...remotePiece, src: prior.src }
+      : remotePiece;
+    map.set(remotePiece.id, {
+      ...prior,
+      ...next,
+      likedBy: (next.likedBy?.length || 0) >= (prior.likedBy?.length || 0) ? next.likedBy : prior.likedBy,
+      likes: (next.likedBy?.length || 0) >= (prior.likedBy?.length || 0) ? next.likes : prior.likes,
+      comments: (next.comments?.length || 0) >= (prior.comments?.length || 0) ? next.comments : prior.comments
+    });
+  }
+  return Array.from(map.values());
 }
 
 function fit(all: Record<string, unknown>, keep: string): Record<string, MoodBoardState> {

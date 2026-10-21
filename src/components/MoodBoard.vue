@@ -2089,7 +2089,10 @@ function frame(piece: MoodPiece) {
 }
 
 function shown(piece: MoodPiece) {
-  return piece.src.startsWith('local:') ? urls.value[piece.id] ?? '' : piece.src;
+  if (piece.src.startsWith('local:')) return urls.value[piece.id] ?? '';
+  // asset: markers wait for cloud inflate; they are not displayable URLs.
+  if (piece.src.startsWith('asset:')) return '';
+  return piece.src;
 }
 
 function embed(piece: MoodPiece) {
@@ -2146,15 +2149,23 @@ function applyRemote(remote: { title: string; createdAt: string; pieces: MoodPie
     const localPiece = localMap.get(remotePiece.id);
     if (!localPiece) {
       localMap.set(remotePiece.id, remotePiece);
-    } else {
-      if (Array.isArray(remotePiece.likedBy) && remotePiece.likedBy.length >= (localPiece.likedBy?.length || 0)) {
-        localPiece.likedBy = remotePiece.likedBy;
-        localPiece.likes = remotePiece.likes;
-      }
-      if (Array.isArray(remotePiece.comments) && remotePiece.comments.length >= (localPiece.comments?.length || 0)) {
-        localPiece.comments = remotePiece.comments;
-      }
+      continue;
     }
+    const localRank = localPiece.src.startsWith('data:image/') ? 3
+      : localPiece.src.startsWith('asset:') ? 2
+        : localPiece.src ? 1 : 0;
+    const remoteRank = remotePiece.src.startsWith('data:image/') ? 3
+      : remotePiece.src.startsWith('asset:') ? 2
+        : remotePiece.src ? 1 : 0;
+    if (remoteRank > localRank) localPiece.src = remotePiece.src;
+    if (Array.isArray(remotePiece.likedBy) && remotePiece.likedBy.length >= (localPiece.likedBy?.length || 0)) {
+      localPiece.likedBy = remotePiece.likedBy;
+      localPiece.likes = remotePiece.likes;
+    }
+    if (Array.isArray(remotePiece.comments) && remotePiece.comments.length >= (localPiece.comments?.length || 0)) {
+      localPiece.comments = remotePiece.comments;
+    }
+    if (remotePiece.caption && !localPiece.caption) localPiece.caption = remotePiece.caption;
   }
   pieces.value = Array.from(localMap.values());
   for (const id of previewAsked) {

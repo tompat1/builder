@@ -79,7 +79,8 @@ export interface DoorCoverageCheck {
     side: 'front' | 'back' | 'left' | 'right';
     span: 'door' | 'full';
     roof: boolean;
-    building?: 'none' | 'sauna' | 'shed' | 'hot-tub';
+    building?: 'none' | 'sauna' | 'shed';
+    hotTub?: boolean;
     buildingPlacement?: 'left' | 'right';
     buildingSize?: 'compact' | 'standard' | 'large';
   }>;

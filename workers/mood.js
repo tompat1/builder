@@ -143,7 +143,8 @@ function mergeBoardData(existingText, incoming) {
     if (piece && piece.id) pieces.set(piece.id, piece);
   }
   for (const piece of incoming.pieces) {
-    if (piece && piece.id) pieces.set(piece.id, piece);
+    if (!piece || !piece.id) continue;
+    pieces.set(piece.id, preferMoodPiece(pieces.get(piece.id), piece));
   }
   const participants = new Map();
   for (const person of Array.isArray(prev.participants) ? prev.participants : []) {
@@ -181,10 +182,15 @@ async function externalizePieceImages(db, boardId, pieces, dropMissing) {
       ).bind(piece.id, boardId, src).run();
       keep.add(piece.id);
       stored.push({ ...piece, src: `asset:${piece.id}` });
-    } else {
-      if (src.startsWith('asset:') && piece.id) keep.add(piece.id);
-      stored.push(piece);
+      continue;
     }
+    // Keep bytes for image cards even when a client briefly sends an empty src.
+    if (piece.id && (src.startsWith('asset:') || (piece.kind === 'image' && !src))) {
+      keep.add(piece.id);
+      stored.push(src ? piece : { ...piece, src: `asset:${piece.id}` });
+      continue;
+    }
+    stored.push(piece);
   }
   if (dropMissing) {
     for (const row of await assetRows(db, boardId)) {
@@ -196,14 +202,43 @@ async function externalizePieceImages(db, boardId, pieces, dropMissing) {
   return stored;
 }
 
+function pieceImageRank(src) {
+  if (typeof src !== 'string' || !src) return 0;
+  if (src.startsWith('data:image/')) return 3;
+  if (src.startsWith('asset:')) return 2;
+  if (src.startsWith('https://') || src.startsWith('/') || src.startsWith('local:')) return 1;
+  return 0;
+}
+
+/** Prefer the copy that still points at picture bytes. */
+export function preferMoodPiece(prior, incoming) {
+  if (!prior) return incoming;
+  if (!incoming) return prior;
+  if (pieceImageRank(prior.src) > pieceImageRank(incoming.src)) {
+    return { ...incoming, src: prior.src };
+  }
+  return incoming;
+}
+
 async function inflatePieceImages(db, boardId, pieces) {
   const rows = await assetRows(db, boardId);
   const images = new Map(rows.map((row) => [row.id, row.data]));
   return pieces.map((piece) => {
-    if (!piece || typeof piece.src !== 'string' || !piece.src.startsWith('asset:')) return piece;
-    const data = images.get(piece.src.slice(6));
-    if (typeof data === 'string' && data.startsWith('data:image/')) return { ...piece, src: data };
-    return { ...piece, src: '' };
+    if (!piece || typeof piece !== 'object') return piece;
+    const src = typeof piece.src === 'string' ? piece.src : '';
+    if (src.startsWith('data:image/')) return piece;
+    const fromRef = src.startsWith('asset:') ? images.get(src.slice(6)) : null;
+    const fromId = piece.id ? images.get(piece.id) : null;
+    const data = fromRef || fromId;
+    if (typeof data === 'string' && data.startsWith('data:image/')) {
+      return { ...piece, src: data };
+    }
+    // Keep an asset: marker so a later read can still recover the bytes.
+    if (src.startsWith('asset:')) return piece;
+    if (!src && piece.id && images.has(piece.id)) {
+      return { ...piece, src: `asset:${piece.id}` };
+    }
+    return piece;
   });
 }
 

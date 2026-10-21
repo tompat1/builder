@@ -1696,6 +1696,7 @@ export const useConfigStore = defineStore('config', () => {
     const [next] = acceptTerraces([{ ...current, ...patch, side: patch.side ?? current.side }]);
     if (!next) return;
     const buildingChanged = (next.building ?? 'none') !== (current.building ?? 'none');
+    const hotTubChanged = Boolean(next.hotTub) !== Boolean(current.hotTub);
     const placementChanged = (next.buildingPlacement ?? 'right') !== (current.buildingPlacement ?? 'right');
     const buildingRoofChanged = (next.buildingRoof ?? 'pulpet') !== (current.buildingRoof ?? 'pulpet');
     const buildingTurnChanged = (next.buildingTurn ?? 0) !== (current.buildingTurn ?? 0);
@@ -1711,6 +1712,7 @@ export const useConfigStore = defineStore('config', () => {
       next.span === current.span &&
       next.roof === current.roof &&
       !buildingChanged &&
+      !hotTubChanged &&
       !placementChanged &&
       !buildingRoofChanged &&
       !buildingTurnChanged &&
@@ -1768,12 +1770,24 @@ export const useConfigStore = defineStore('config', () => {
 
   const setTerraceBuilding = (side: TerraceSide, building: TerraceBuilding) => {
     const current = terraces.value.find((item) => item.side === side);
-    const minimumDepth = building === 'hot-tub' ? 2.2 : building === 'sauna' ? 2.0 : 0;
-    const depth = current && current.depth < minimumDepth ? minimumDepth : undefined;
+    const hasCabin = building === 'sauna' || building === 'shed';
+    const minimumDepth = building === 'sauna' ? 2.0 : current?.hotTub ? 2.2 : 0;
+    const depth = current && minimumDepth > 0 && current.depth < minimumDepth ? minimumDepth : undefined;
     replaceTerrace(side, {
       building,
       ...(depth ? { depth } : {}),
-      ...(building === 'hot-tub' ? { span: 'full' as const } : {})
+      ...(hasCabin && current?.hotTub ? { span: 'full' as const } : {})
+    });
+  }
+
+  const setTerraceHotTub = (side: TerraceSide, hotTub: boolean) => {
+    const current = terraces.value.find((item) => item.side === side);
+    const minimumDepth = hotTub ? 2.2 : 0;
+    const depth = current && hotTub && current.depth < minimumDepth ? minimumDepth : undefined;
+    replaceTerrace(side, {
+      hotTub,
+      ...(depth ? { depth } : {}),
+      ...(hotTub ? { span: 'full' as const } : {})
     });
   }
 
@@ -2462,6 +2476,7 @@ export const useConfigStore = defineStore('config', () => {
     setTerraceSpan,
     setTerraceRoof,
     setTerraceBuilding,
+    setTerraceHotTub,
     setTerraceBuildingPlacement,
     setTerraceBuildingRoof,
     setTerraceBuildingTurn,

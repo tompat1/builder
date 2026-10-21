@@ -2385,7 +2385,7 @@
             <p class="mb-1 text-[11px] font-bold text-slate-700">
               <Cms k="category.terraceBuilding" />
             </p>
-            <div class="grid grid-cols-2 gap-1.5">
+            <div class="grid grid-cols-3 gap-1.5">
               <button
                 type="button"
                 :id="`terrace-${deck.side}-building-none`"
@@ -2415,18 +2415,21 @@
                 <span class="block font-bold"><Cms k="category.terraceBuildingShed" /></span>
                 <span class="block text-[10px] font-normal opacity-75">{{ delta(SHED_BUILDING_PRICE) }}</span>
               </button>
-              <button
-                type="button"
-                :id="`terrace-${deck.side}-building-hot-tub`"
-                :aria-pressed="deck.building === 'hot-tub'"
-                :class="terraceChoiceClass(deck.building === 'hot-tub')"
-                @click="store.setTerraceBuilding(deck.side, 'hot-tub')"
-              >
-                <span class="block font-bold"><Cms k="category.terraceBuildingHotTub" /></span>
-                <span class="block text-[10px] font-normal opacity-75">{{ delta(HOT_TUB_BUILDING_PRICE) }}</span>
-              </button>
             </div>
-            <div v-if="deck.building && deck.building !== 'none'" class="mt-2 pt-2 border-t border-slate-100">
+            <button
+              type="button"
+              :id="`terrace-${deck.side}-hot-tub`"
+              :aria-pressed="deck.hotTub === true"
+              :class="[terraceChoiceClass(deck.hotTub === true), 'mt-1.5 w-full']"
+              @click="store.setTerraceHotTub(deck.side, !deck.hotTub)"
+            >
+              <span class="block font-bold"><Cms k="category.terraceBuildingHotTub" /></span>
+              <span class="block text-[10px] font-normal opacity-75">{{ delta(HOT_TUB_BUILDING_PRICE) }}</span>
+            </button>
+            <div
+              v-if="(deck.building && deck.building !== 'none') || deck.hotTub"
+              class="mt-2 pt-2 border-t border-slate-100"
+            >
               <p class="mb-1 text-[11px] font-bold text-slate-700">
                 <Cms k="category.terraceBuildingPlacement" />
               </p>

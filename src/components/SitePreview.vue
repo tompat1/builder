@@ -280,6 +280,7 @@ function houseFacts() {
   const terraceParts: string[] = [];
   if (store.terraces.length > 0) {
     const t0 = store.terraces[0];
+    const deckBits: string[] = [];
     if (t0.building === 'sauna') {
       const colorWord = t0.buildingColor === 'svart' ? 'charcoal black'
         : t0.buildingColor === 'falurod' ? 'Falu red'
@@ -296,11 +297,15 @@ function houseFacts() {
         : t0.buildingWindow === 'sprojat' ? 'mullioned window'
         : t0.buildingWindow === 'frost' ? 'frosted ribbon window'
         : 'standard framed window';
-      terraceParts.push(`wooden terrace deck with an attached compact ${colorWord} sauna box featuring a ${doorWord}, ${winWord}, a flat black roof and small chimney pipe`);
+      deckBits.push(`an attached compact ${colorWord} sauna box featuring a ${doorWord}, ${winWord}, a flat black roof and small chimney pipe`);
     } else if (t0.building === 'shed') {
-      terraceParts.push('wooden terrace deck with attached timber shed');
-    } else if (t0.building === 'hot-tub') {
-      terraceParts.push('wooden terrace deck with a round cedar hot tub, stainless-steel hoops, built-in wood stove and tall metal flue');
+      deckBits.push('an attached timber shed');
+    }
+    if (t0.hotTub) {
+      deckBits.push('a round cedar hot tub with stainless-steel hoops, built-in wood stove and tall metal flue');
+    }
+    if (deckBits.length) {
+      terraceParts.push(`wooden terrace deck with ${deckBits.join(' and ')}`);
     } else {
       terraceParts.push(`${store.terraces.length} terrace`);
     }

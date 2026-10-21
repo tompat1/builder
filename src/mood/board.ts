@@ -300,8 +300,15 @@ function acceptPiece(value: unknown): MoodPiece | null {
   }
 
   const rawSrc = typeof record.src === 'string' ? record.src : '';
+  // Cloud storage keeps jpeg bytes in mood_assets and leaves asset:<id> on the piece.
+  // Keep that marker so a later sync can still rehydrate the picture.
   const link = record.kind === 'image' && (rawSrc === '' || rawSrc.startsWith('asset:'))
-    ? { kind: 'image' as const, src: '', clip: '' as const, ref: '' }
+    ? {
+        kind: 'image' as const,
+        src: rawSrc.startsWith('asset:') ? rawSrc.slice(0, 80) : '',
+        clip: '' as const,
+        ref: ''
+      }
     : readLink(rawSrc);
   if (!link) return null;
   const upgradedPage = record.kind === 'image' && link.kind === 'link';

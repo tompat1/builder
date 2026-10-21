@@ -462,7 +462,7 @@ test('a signed-in device loads the account mood board even under another house k
   assert.equal(keptBody.mood.pieces.length, 2);
 });
 
-test('a missing mood asset is cleared and the picture stays on the board', async () => {
+test('a missing mood asset keeps its marker and the picture card stays on the board', async () => {
   const env = createMockD1();
   const sessionUser = async () => ({ id: 'usr_1', login: 'tompat1' });
   const jpeg = 'data:image/jpeg;base64,aaaa';
@@ -485,13 +485,55 @@ test('a missing mood asset is cleared and the picture stays on the board', async
   const kept = body.mood.pieces.find((piece) => piece.id === 'mood_aabbccdd');
   const missing = body.mood.pieces.find((piece) => piece.id === 'mood_11223344');
   assert.equal(kept.src, jpeg);
-  assert.equal(missing.src, '');
+  assert.equal(missing.src, 'asset:mood_11223344');
   assert.equal(missing.caption, 'Missing');
 
   const accepted = acceptMood(body.mood.pieces);
   assert.equal(accepted.length, 2);
-  assert.equal(accepted.find((piece) => piece.id === 'mood_11223344').src, '');
+  assert.equal(accepted.find((piece) => piece.id === 'mood_11223344').src, 'asset:mood_11223344');
   assert.equal(accepted.find((piece) => piece.id === 'mood_11223344').caption, 'Missing');
+});
+
+test('an empty image src is restored from mood_assets by piece id', async () => {
+  const env = createMockD1();
+  const sessionUser = async () => ({ id: 'usr_1', login: 'tompat1' });
+  const jpeg = 'data:image/jpeg;base64,bbbb';
+  const put = await handleMood(new Request('https://example.com/api/mood/hus_recover', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      title: 'Recover',
+      authoritative: true,
+      pieces: [{ id: 'mood_recover1', kind: 'image', src: jpeg, x: 4, y: 8, w: 30, tilt: 0, caption: 'Home' }]
+    })
+  }), env, {}, sessionUser);
+  assert.equal(put.status, 200);
+
+  // Simulate a bad client sync that wiped the src while the asset row remains.
+  const wiped = await handleMood(new Request('https://example.com/api/mood/hus_recover', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      title: 'Recover',
+      authoritative: true,
+      pieces: [{ id: 'mood_recover1', kind: 'image', src: '', x: 4, y: 8, w: 30, tilt: 0, caption: 'Home' }]
+    })
+  }), env, {}, sessionUser);
+  assert.equal(wiped.status, 200);
+
+  const got = await handleMood(new Request('https://example.com/api/mood/hus_recover', { method: 'GET' }), env, {}, sessionUser);
+  const body = await got.json();
+  assert.equal(body.mood.pieces[0].src, jpeg);
+});
+
+test('a sync with empty picture stubs does not erase stored asset markers', async () => {
+  const { preferMoodPiece } = await import('../workers/mood.js');
+  const kept = preferMoodPiece(
+    { id: 'mood_aabbccdd', src: 'asset:mood_aabbccdd', kind: 'image' },
+    { id: 'mood_aabbccdd', src: '', kind: 'image', caption: 'note' }
+  );
+  assert.equal(kept.src, 'asset:mood_aabbccdd');
+  assert.equal(kept.caption, 'note');
 });
 
 test('invited guests without account token are isolated from builder 3d', () => {

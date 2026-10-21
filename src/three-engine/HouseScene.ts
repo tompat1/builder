@@ -2,7 +2,13 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { PULPET_PITCH_DEG, type CameraView, type MaterialKey, type WallSlot, type LoftPlacement, type LoftCount, type LoftStairPosition, type LoftStairType, type PanelOrientation, type RoofCovering } from '../store/useConfigStore';
 import { panelCountForWall } from '../store/wallSlots';
-import { normalizeBuildingRoof, terraceBoardLayout, type HouseTerrace, type TerraceSide } from '../outside/terrace';
+import {
+  normalizeBuildingRoof,
+  terraceAdditionLayout,
+  terraceBoardLayout,
+  type HouseTerrace,
+  type TerraceSide
+} from '../outside/terrace';
 import { addTerraceCabin } from './terraceBuilding';
 import { addTerraceHotTub } from './terraceHotTub';
 import { computeDoorCanopyLayout, isDoorCoveredByAddition } from '../outside/canopy';
@@ -3640,39 +3646,20 @@ export class HouseScene {
       group.add(rightRim);
     }
 
-    const hasBuilding = terrace.building === 'sauna' || terrace.building === 'shed';
-    const hasAddition = hasBuilding || terrace.building === 'hot-tub';
-    const isLeft = terrace.buildingPlacement === 'left';
-    let targetBW = 2.2;
-    let targetBD = 2.0;
-    if (terrace.building === 'sauna') {
-      const sz = terrace.buildingSize ?? 'standard';
-      if (sz === 'compact') {
-        targetBW = 1.8;
-        targetBD = 1.6;
-      } else if (sz === 'large') {
-        targetBW = 2.6;
-        targetBD = 2.2;
-      } else {
-        targetBW = 2.2;
-        targetBD = 2.0;
-      }
-    } else if (terrace.building === 'hot-tub') {
-      targetBW = 2.2;
-      targetBD = 2.2;
-    }
-    const bW = hasAddition ? Math.min(width * 0.85, Math.max(1.3, targetBW)) : 0;
-    const bD = hasAddition ? Math.min(depth, Math.max(1.5, targetBD)) : 0;
-    const initialBX = hasAddition
-      ? isLeft
-        ? along - width / 2 + bW / 2
-        : along + width / 2 - bW / 2
-      : 0;
-
-    let bX = initialBX;
+    const layout = terraceAdditionLayout({
+      along,
+      width,
+      depth,
+      building: terrace.building,
+      buildingSize: terrace.buildingSize,
+      buildingPlacement: terrace.buildingPlacement,
+      hotTub: terrace.hotTub
+    });
+    const { hasAddition } = layout;
+    let cabinSlot = layout.cabin;
     let houseDoorSpec: { along: number; width?: number; head?: number } | null = null;
 
-    if (hasBuilding && terrace.building === 'sauna') {
+    if (cabinSlot && terrace.building === 'sauna') {
       const h = this.wallTopM();
       const wallDoors = this.outsideAnchors(w, d, h).filter((a) => a.wall === door.wall);
       const cosR = Math.cos(-door.rotY);
@@ -3684,6 +3671,7 @@ export class HouseScene {
         return { anchor: a, localAlong };
       });
       if (doorsWithLocal.length > 0) {
+        const initialBX = cabinSlot.bX;
         const matchingDoor = doorsWithLocal.reduce((closest, item) => {
           if (!closest) return item;
           return Math.abs(item.localAlong - initialBX) < Math.abs(closest.localAlong - initialBX)
@@ -3692,9 +3680,10 @@ export class HouseScene {
         }, null as { anchor: OutsideAnchor; localAlong: number } | null);
 
         if (matchingDoor && Math.abs(matchingDoor.localAlong - initialBX) <= width * 0.6) {
-          const minBX = along - width / 2 + bW / 2;
-          const maxBX = along + width / 2 - bW / 2;
-          bX = Math.min(maxBX, Math.max(minBX, matchingDoor.localAlong));
+          const minBX = along - width / 2 + cabinSlot.bW / 2;
+          const maxBX = along + width / 2 - cabinSlot.bW / 2;
+          const bX = Math.min(maxBX, Math.max(minBX, matchingDoor.localAlong));
+          cabinSlot = { ...cabinSlot, bX };
           houseDoorSpec = {
             along: matchingDoor.localAlong,
             width: matchingDoor.anchor.width,
@@ -3704,30 +3693,31 @@ export class HouseScene {
       }
     }
 
-    const roofW = hasAddition
-      ? isLeft
-        ? Math.max(0, along + width / 2 - (bX + bW / 2))
-        : Math.max(0, bX - bW / 2 - (along - width / 2))
-      : width;
-    const roofAlong = hasAddition
-      ? isLeft
-        ? (along + width / 2 + (bX + bW / 2)) / 2
-        : (along - width / 2 + (bX - bW / 2)) / 2
-      : along;
+    // Recalculate open roof strip after sauna may have nudged along the wall.
+    let roofW = layout.roofW;
+    let roofAlong = layout.roofAlong;
+    if (cabinSlot || layout.hotTub) {
+      const leftRight = cabinSlot?.isLeft ? cabinSlot : layout.hotTub?.isLeft ? layout.hotTub : null;
+      const rightSlot = cabinSlot && !cabinSlot.isLeft ? cabinSlot : layout.hotTub && !layout.hotTub.isLeft ? layout.hotTub : null;
+      const freeLeft = leftRight ? leftRight.bX + leftRight.bW / 2 : along - width / 2;
+      const freeRight = rightSlot ? rightSlot.bX - rightSlot.bW / 2 : along + width / 2;
+      roofW = Math.max(0, freeRight - freeLeft);
+      roofAlong = (freeLeft + freeRight) / 2;
+    }
 
     if (terrace.roof && roofW >= 0.8) {
       this.addTerraceRoof(group, door, timber, roofMat, roofAlong, roofW, depth, deckTop, outward);
     }
 
-    if (hasBuilding && (terrace.building === 'sauna' || terrace.building === 'shed')) {
+    if (cabinSlot && (terrace.building === 'sauna' || terrace.building === 'shed')) {
       addTerraceCabin(group, {
-        bX,
-        bW,
-        bD,
+        bX: cabinSlot.bX,
+        bW: cabinSlot.bW,
+        bD: cabinSlot.bD,
         deckTop,
         outward,
         type: terrace.building,
-        isLeft,
+        isLeft: cabinSlot.isLeft,
         turn: terrace.building === 'sauna' ? terrace.buildingTurn ?? 0 : 0,
         roof: normalizeBuildingRoof(terrace.buildingRoof),
         roofMat,
@@ -3744,8 +3734,15 @@ export class HouseScene {
       });
     }
 
-    if (terrace.building === 'hot-tub') {
-      addTerraceHotTub(group, { bX, bW, bD, deckTop, outward, isLeft });
+    if (layout.hotTub) {
+      addTerraceHotTub(group, {
+        bX: layout.hotTub.bX,
+        bW: layout.hotTub.bW,
+        bD: layout.hotTub.bD,
+        deckTop,
+        outward,
+        isLeft: layout.hotTub.isLeft
+      });
     }
 
     group.userData.skipNote = true;

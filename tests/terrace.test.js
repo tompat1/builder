@@ -5,6 +5,7 @@ import {
   acceptTerraces,
   saunaFacing,
   buildingWallTop,
+  terraceAdditionLayout,
   terraceBoardLayout,
   terracePrice,
   terracesFromLegacy
@@ -68,14 +69,26 @@ test('terrace boards meet without gaps and finish flush at both edges', () => {
   }
 });
 
-test('a terrace can include a sauna, shed, or hot tub as an additional building', () => {
+test('a terrace can include a sauna, shed, and hot tub — cabin and tub can coexist', () => {
   const base = terracePrice({ side: 'front', depth: 1.8, span: 'door', roof: false });
   const withSauna = terracePrice({ side: 'front', depth: 1.8, span: 'door', roof: false, building: 'sauna' });
   const withShed = terracePrice({ side: 'front', depth: 1.8, span: 'door', roof: false, building: 'shed' });
-  const withHotTub = terracePrice({ side: 'front', depth: 2.2, span: 'door', roof: false, building: 'hot-tub' });
+  const withHotTub = terracePrice({ side: 'front', depth: 2.2, span: 'door', roof: false, hotTub: true });
+  const withBoth = terracePrice({
+    side: 'front',
+    depth: 2.2,
+    span: 'full',
+    roof: false,
+    building: 'sauna',
+    hotTub: true
+  });
   assert.equal(withSauna, base + 48000);
   assert.equal(withShed, base + 32000);
   assert.equal(withHotTub, terracePrice({ side: 'front', depth: 2.2, span: 'door', roof: false }) + 42000);
+  assert.equal(
+    withBoth,
+    terracePrice({ side: 'front', depth: 2.2, span: 'full', roof: false, building: 'sauna' }) + 42000
+  );
 
   const terraces = acceptTerraces([
     { side: 'front', depth: 1.8, span: 'door', roof: false, building: 'sauna', buildingPlacement: 'left' },
@@ -87,15 +100,49 @@ test('a terrace can include a sauna, shed, or hot tub as an additional building'
   assert.equal(terraces[0].buildingPlacement, 'left');
   assert.equal(terraces[1].building, 'shed');
   assert.equal(terraces[1].buildingPlacement, 'right');
-  assert.equal(terraces[2].building, 'hot-tub');
+  assert.equal(terraces[2].building, undefined);
+  assert.equal(terraces[2].hotTub, true);
   assert.equal(terraces[2].buildingPlacement, 'left');
   assert.equal(terraces[3].building, undefined);
   assert.equal(terraces[3].buildingPlacement, undefined);
+
+  const both = acceptTerraces([
+    { side: 'front', depth: 2.4, span: 'full', roof: false, building: 'sauna', hotTub: true, buildingPlacement: 'right' }
+  ]);
+  assert.equal(both[0].building, 'sauna');
+  assert.equal(both[0].hotTub, true);
 
   const resetTerraces = acceptTerraces([
     { side: 'back', depth: 3, span: 'full', roof: false, building: 'none' }
   ]);
   assert.equal(resetTerraces[0].building, 'none');
+});
+
+test('sauna and hot tub sit on opposite ends of the terrace', () => {
+  const both = terraceAdditionLayout({
+    along: 0,
+    width: 8,
+    depth: 2.4,
+    building: 'sauna',
+    buildingPlacement: 'left',
+    hotTub: true
+  });
+  assert.ok(both.cabin);
+  assert.ok(both.hotTub);
+  assert.equal(both.cabin.isLeft, true);
+  assert.equal(both.hotTub.isLeft, false);
+  assert.ok(both.cabin.bX + both.cabin.bW / 2 <= both.hotTub.bX - both.hotTub.bW / 2 + 1e-9);
+
+  const tubOnly = terraceAdditionLayout({
+    along: 0,
+    width: 6,
+    depth: 2.2,
+    buildingPlacement: 'right',
+    hotTub: true
+  });
+  assert.equal(tubOnly.cabin, null);
+  assert.ok(tubOnly.hotTub);
+  assert.equal(tubOnly.hotTub.isLeft, false);
 });
 
 test('a sauna interior turns a quarter at a time and stays one room', () => {

@@ -16,8 +16,9 @@ export type TerraceDepth = number;
 /** By the door, or along the whole wall. */
 export type TerraceSpan = 'door' | 'full';
 
-export type TerraceBuilding = 'none' | 'sauna' | 'shed' | 'hot-tub';
-export const TERRACE_BUILDINGS = ['none', 'sauna', 'shed', 'hot-tub'] as const;
+/** Cabin on the terrace. Hot tub is a separate `hotTub` flag so both can coexist. */
+export type TerraceBuilding = 'none' | 'sauna' | 'shed';
+export const TERRACE_BUILDINGS = ['none', 'sauna', 'shed'] as const;
 
 export type TerraceBuildingPlacement = 'left' | 'right';
 export const TERRACE_BUILDING_PLACEMENTS = ['left', 'right'] as const;
@@ -67,6 +68,8 @@ export interface HouseTerrace {
   span: TerraceSpan;
   roof: boolean;
   building?: TerraceBuilding;
+  /** Round cedar hot tub on the deck; independent of sauna/shed. */
+  hotTub?: boolean;
   buildingPlacement?: TerraceBuildingPlacement;
   buildingRoof?: TerraceBuildingRoof;
   /** Quarter turns of a sauna interior. Missing means the benches face the yard. */
@@ -83,6 +86,97 @@ export interface HouseTerrace {
   buildingSize?: SaunaSize;
   /** Size scaling of the sauna window */
   buildingWindowSize?: SaunaWindowSize;
+}
+
+export interface TerraceAdditionSlot {
+  bX: number;
+  bW: number;
+  bD: number;
+  isLeft: boolean;
+}
+
+export interface TerraceAdditionLayout {
+  cabin: TerraceAdditionSlot | null;
+  hotTub: TerraceAdditionSlot | null;
+  roofW: number;
+  roofAlong: number;
+  hasAddition: boolean;
+}
+
+function cabinTargetSize(building: TerraceBuilding | undefined, size?: SaunaSize): { w: number; d: number } | null {
+  if (building === 'sauna') {
+    if (size === 'compact') return { w: 1.8, d: 1.6 };
+    if (size === 'large') return { w: 2.6, d: 2.2 };
+    return { w: 2.2, d: 2.0 };
+  }
+  if (building === 'shed') return { w: 2.2, d: 2.0 };
+  return null;
+}
+
+const HOT_TUB_TARGET = { w: 2.2, d: 2.2 };
+
+function slotAlong(along: number, width: number, bW: number, isLeft: boolean): number {
+  return isLeft ? along - width / 2 + bW / 2 : along + width / 2 - bW / 2;
+}
+
+function fitFootprint(
+  width: number,
+  depth: number,
+  target: { w: number; d: number }
+): { bW: number; bD: number } {
+  return {
+    bW: Math.min(width * 0.85, Math.max(1.3, target.w)),
+    bD: Math.min(depth, Math.max(1.5, target.d))
+  };
+}
+
+/**
+ * Place cabin and/or hot tub on a terrace. Placement picks the cabin side when
+ * a cabin is present; the tub takes the opposite end. Alone, the tub uses placement.
+ */
+export function terraceAdditionLayout(options: {
+  along: number;
+  width: number;
+  depth: number;
+  building?: TerraceBuilding;
+  buildingSize?: SaunaSize;
+  buildingPlacement?: TerraceBuildingPlacement;
+  hotTub?: boolean;
+}): TerraceAdditionLayout {
+  const { along, width, depth } = options;
+  const cabinTarget = cabinTargetSize(options.building, options.buildingSize);
+  const hasCabin = cabinTarget != null;
+  const hasHotTub = options.hotTub === true;
+  const preferredLeft = options.buildingPlacement === 'left';
+
+  let cabin: TerraceAdditionSlot | null = null;
+  let hotTub: TerraceAdditionSlot | null = null;
+
+  if (hasCabin && cabinTarget) {
+    const cabinLeft = preferredLeft;
+    const { bW, bD } = fitFootprint(width, depth, cabinTarget);
+    cabin = { bX: slotAlong(along, width, bW, cabinLeft), bW, bD, isLeft: cabinLeft };
+  }
+
+  if (hasHotTub) {
+    const tubLeft = hasCabin ? !preferredLeft : preferredLeft;
+    const { bW, bD } = fitFootprint(width, depth, HOT_TUB_TARGET);
+    hotTub = { bX: slotAlong(along, width, bW, tubLeft), bW, bD, isLeft: tubLeft };
+  }
+
+  const hasAddition = cabin != null || hotTub != null;
+  if (!hasAddition) {
+    return { cabin: null, hotTub: null, roofW: width, roofAlong: along, hasAddition: false };
+  }
+
+  const leftRight = cabin?.isLeft ? cabin : hotTub?.isLeft ? hotTub : null;
+  const rightSlot = cabin && !cabin.isLeft ? cabin : hotTub && !hotTub.isLeft ? hotTub : null;
+  const freeLeft = leftRight ? leftRight.bX + leftRight.bW / 2 : along - width / 2;
+  const freeRight = rightSlot ? rightSlot.bX - rightSlot.bW / 2 : along + width / 2;
+  const roofW = Math.max(0, freeRight - freeLeft);
+  const roofAlong = (freeLeft + freeRight) / 2;
+
+  return { cabin, hotTub, roofW, roofAlong, hasAddition: true };
 }
 
 const SAUNA_EAVE_M = 2.05;
@@ -150,7 +244,6 @@ export function terraceBuildingPrice(building?: TerraceBuilding, size?: SaunaSiz
     return SAUNA_BUILDING_PRICE;
   }
   if (building === 'shed') return SHED_BUILDING_PRICE;
-  if (building === 'hot-tub') return HOT_TUB_BUILDING_PRICE;
   return 0;
 }
 
@@ -159,7 +252,8 @@ export function terracePrice(terrace: HouseTerrace): number {
   const deck = terrace.span === 'full' ? FULL_DECK : DOOR_DECK;
   const roof = terrace.roof ? ROOF : 0;
   const building = terraceBuildingPrice(terrace.building, terrace.buildingSize);
-  return Math.round(((deck + roof) * depthScale) / 100) * 100 + building;
+  const tub = terrace.hotTub ? HOT_TUB_BUILDING_PRICE : 0;
+  return Math.round(((deck + roof) * depthScale) / 100) * 100 + building + tub;
 }
 
 export function acceptTerraces(value: unknown): HouseTerrace[] {
@@ -171,8 +265,11 @@ export function acceptTerraces(value: unknown): HouseTerrace[] {
     const row = item as Partial<HouseTerrace>;
     if (!TERRACE_SIDES.includes(row.side as TerraceSide) || seen.has(row.side as string)) continue;
     seen.add(row.side as string);
+    // Legacy saves stored the tub as building: 'hot-tub'; migrate to hotTub.
+    const legacyHotTub = (row as { building?: string }).building === 'hot-tub';
+    const hotTub = row.hotTub === true || legacyHotTub;
     const building: TerraceBuilding | undefined =
-      row.building === 'sauna' || row.building === 'shed' || row.building === 'hot-tub'
+      row.building === 'sauna' || row.building === 'shed'
         ? row.building
         : row.building === 'none'
           ? 'none'
@@ -224,6 +321,7 @@ export function acceptTerraces(value: unknown): HouseTerrace[] {
       span: row.span === 'full' ? 'full' : 'door',
       roof: row.roof === true,
       ...(building ? { building } : {}),
+      ...(hotTub ? { hotTub: true } : {}),
       ...(buildingPlacement ? { buildingPlacement } : {}),
       ...(buildingRoof ? { buildingRoof } : {}),
       ...(buildingTurn ? { buildingTurn } : {}),
