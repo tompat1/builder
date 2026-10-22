@@ -5456,6 +5456,20 @@ export class HouseScene {
       this.roofGroup.add(mesh);
     };
 
+    /** Box along Z, then aim local +Z from `from` → `to` so ends meet both points. */
+    const addBrace = (from: THREE.Vector3, to: THREE.Vector3, mat: THREE.Material) => {
+      const delta = new THREE.Vector3().subVectors(to, from);
+      const len = delta.length();
+      if (len < 0.08) return;
+      const mesh = new THREE.Mesh(
+        new THREE.BoxGeometry(braceSection, braceDepth, len),
+        mat
+      );
+      mesh.position.copy(from).add(to).multiplyScalar(0.5);
+      mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), delta.normalize());
+      mark(mesh);
+    };
+
     // Posts along the eave — roughly cc 2.0 m, always at least three for a 3 m canopy.
     const postMargin = Math.max(postSize, 0.28);
     const clearW = Math.max(postSize * 2, w - postMargin * 2);
@@ -5478,6 +5492,9 @@ export class HouseScene {
     ledger.rotation.z = angleRad;
     mark(ledger);
 
+    // Underside of header / rafters at world X (width-fall plate).
+    const headerBottom = (wx: number) => plateY(wx) - beamSeat - beamH / 2;
+
     // Rafters N–S under the canopy, cc 600, bearing on ledger + header, past the eave.
     const rafterMargin = 0.12;
     const rafterSpan = Math.max(rafterW * 2, w - rafterMargin * 2);
@@ -5494,9 +5511,20 @@ export class HouseScene {
       mark(rafter);
     }
 
+    // Primary ties at each post — heavier N–S beam the depth braces seat into.
+    const tieW = 0.09;
+    const tieH = 0.22;
+    const tieLen = Math.max(0.5, postZ - wallLedgerZ + ledgerD / 2 + beamD / 2);
+    const tieMidZ = (wallLedgerZ + postZ) / 2;
     for (const x of postXs) {
-      const underBeam = plateY(x) - beamSeat - beamH / 2;
-      const postTop = underBeam;
+      const tie = new THREE.Mesh(new THREE.BoxGeometry(tieW, tieH, tieLen), darkTimber);
+      tie.position.set(x, plateY(x) - rafterClear - tieH / 2, tieMidZ);
+      mark(tie);
+    }
+    const tieBottom = (wx: number) => plateY(wx) - rafterClear - tieH;
+
+    for (const x of postXs) {
+      const postTop = headerBottom(x);
       const postBottom = deckTop + shoeH;
       const postH = Math.max(1.2, postTop - postBottom);
 
@@ -5511,40 +5539,26 @@ export class HouseScene {
       post.position.set(x, postBottom + postH / 2, postZ);
       mark(post);
 
-      // Knee braces in the eave plane (±X), ~45°, post → header.
-      const braceReach = 0.42;
-      const braceLen = braceReach * Math.SQRT2;
+      // Knee braces in the eave plane: post face → header underside, climbing up.
+      const eaveReach = 0.48;
       for (const dir of [-1, 1] as const) {
-        // Skip a brace that would run past the end of the header.
         if (dir < 0 && x <= postXs[0]! + 0.05) continue;
         if (dir > 0 && x >= postXs[postXs.length - 1]! - 0.05) continue;
-        const brace = new THREE.Mesh(
-          new THREE.BoxGeometry(braceLen, braceDepth, braceSection),
+        const upperX = x + dir * eaveReach;
+        addBrace(
+          new THREE.Vector3(x + dir * (postSize / 2), postTop - eaveReach, postZ),
+          new THREE.Vector3(upperX, headerBottom(upperX), postZ),
           timber
         );
-        const braceMidX = x + dir * (braceReach / 2);
-        const braceMidY = postTop - braceReach / 2;
-        brace.position.set(braceMidX, braceMidY, postZ);
-        brace.rotation.z = dir > 0 ? -Math.PI / 4 : Math.PI / 4;
-        mark(brace);
       }
 
-      // Depth brace toward the wall — stiffens the 3 m projection.
-      const depthReach = Math.min(0.55, (postZ - wallLedgerZ) * 0.35);
-      if (depthReach > 0.25) {
-        const depthLen = depthReach * Math.SQRT2;
-        const depthBrace = new THREE.Mesh(
-          new THREE.BoxGeometry(braceSection, braceDepth, depthLen),
-          timber
-        );
-        depthBrace.position.set(
-          x,
-          postTop - depthReach / 2,
-          postZ - depthReach / 2
-        );
-        depthBrace.rotation.x = Math.PI / 4;
-        mark(depthBrace);
-      }
+      // Depth brace: post face toward the house → underside of the primary tie / roof beams.
+      const depthReach = Math.min(0.7, Math.max(0.4, (postZ - wallLedgerZ) * 0.28));
+      addBrace(
+        new THREE.Vector3(x, postTop - depthReach, postZ - postSize / 2),
+        new THREE.Vector3(x, tieBottom(x), postZ - depthReach),
+        timber
+      );
     }
   }
 
