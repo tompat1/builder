@@ -285,3 +285,224 @@ export function loftDeckBounds(
     loftDepth: loftW
   };
 }
+
+export interface LoftRect {
+  minX: number;
+  maxX: number;
+  minZ: number;
+  maxZ: number;
+}
+
+export interface LoftRoomBox {
+  x: number;
+  z: number;
+  w: number;
+  d: number;
+  wallsVisible?: boolean;
+}
+
+/**
+ * Stair floor opening in house-local coordinates for a side loft (vanster / hoger).
+ * Front/back decks use the same numbers before the host rotation is applied.
+ */
+export function loftStairClearRect(args: {
+  edgeX: number;
+  openSign: 1 | -1;
+  stairZ: number;
+  opening: { width: number; depth: number };
+}): LoftRect {
+  const towardLoft = -args.openSign;
+  const x0 = args.edgeX;
+  const x1 = args.edgeX + towardLoft * args.opening.width;
+  return {
+    minX: Math.min(x0, x1),
+    maxX: Math.max(x0, x1),
+    minZ: args.stairZ - args.opening.depth / 2,
+    maxZ: args.stairZ + args.opening.depth / 2
+  };
+}
+
+/** Stair keep-out on the deck from loft bounds and stair options (no scene required). */
+export function loftStairClearOnDeck(args: {
+  loft: LoftBounds;
+  placement: 'fram' | 'bak' | 'vanster' | 'hoger';
+  stairPosition: 'front' | 'middle' | 'back';
+  stairType: 'straight' | 'curved';
+  hasStair: boolean;
+}): LoftRect | null {
+  if (!args.hasStair) return null;
+  const { loft, placement } = args;
+  const spanX = loft.maxX - loft.minX;
+  const spanZ = loft.maxZ - loft.minZ;
+  const sectionW = Math.min(spanX, spanZ);
+  const loftEdge = Math.max(spanX, spanZ);
+  const opening = loftStairOpening(args.stairType, sectionW, loftEdge);
+  const endSign = args.stairPosition === 'back' ? -1 : 1;
+  const sideLoft = placement === 'vanster' || placement === 'hoger';
+
+  if (sideLoft) {
+    const openSign: 1 | -1 = placement === 'vanster' ? 1 : -1;
+    const edgeX = placement === 'vanster' ? loft.maxX : loft.minX;
+    const stairZ = args.stairPosition === 'middle'
+      ? (loft.minZ + loft.maxZ) / 2
+      : endSign * ((loft.maxZ - loft.minZ) / 2 - opening.depth / 2);
+    return loftStairClearRect({ edgeX, openSign, stairZ, opening });
+  }
+
+  const openSign: 1 | -1 = placement === 'fram' ? -1 : 1;
+  const edgeZ = placement === 'fram' ? loft.minZ : loft.maxZ;
+  const stairX = args.stairPosition === 'middle'
+    ? (loft.minX + loft.maxX) / 2
+    : endSign * ((loft.maxX - loft.minX) / 2 - opening.depth / 2);
+  const towardLoft = -openSign;
+  const z0 = edgeZ;
+  const z1 = edgeZ + towardLoft * opening.width;
+  return {
+    minX: stairX - opening.depth / 2,
+    maxX: stairX + opening.depth / 2,
+    minZ: Math.min(z0, z1),
+    maxZ: Math.max(z0, z1)
+  };
+}
+
+/**
+ * Grow a loft bedroom to fill the deck zone that contains the click, keeping the
+ * stair opening clear. Walls replace the guard rail on the open edge.
+ */
+export function maximizeLoftBedroom(args: {
+  x: number;
+  z: number;
+  loft: LoftBounds;
+  stair?: LoftRect | null;
+}): { x: number; z: number; w: number; d: number } {
+  const { loft } = args;
+  const spanX = loft.maxX - loft.minX;
+  const spanZ = loft.maxZ - loft.minZ;
+  if (spanX < 0.4 || spanZ < 0.4) {
+    return { x: args.x, z: args.z, w: Math.max(spanX, 0.5), d: Math.max(spanZ, 0.5) };
+  }
+
+  const stair = args.stair;
+  const alongX = spanX >= spanZ;
+  const zones: LoftRect[] = [];
+
+  if (stair) {
+    if (alongX) {
+      // Long axis is X (front/back loft): split left/right of the stair.
+      if (stair.minX > loft.minX + 0.35) {
+        zones.push({ minX: loft.minX, maxX: stair.minX, minZ: loft.minZ, maxZ: loft.maxZ });
+      }
+      if (stair.maxX < loft.maxX - 0.35) {
+        zones.push({ minX: stair.maxX, maxX: loft.maxX, minZ: loft.minZ, maxZ: loft.maxZ });
+      }
+    } else {
+      // Long axis is Z (side loft): split front/back of the stair.
+      if (stair.minZ > loft.minZ + 0.35) {
+        zones.push({ minX: loft.minX, maxX: loft.maxX, minZ: loft.minZ, maxZ: stair.minZ });
+      }
+      if (stair.maxZ < loft.maxZ - 0.35) {
+        zones.push({ minX: loft.minX, maxX: loft.maxX, minZ: stair.maxZ, maxZ: loft.maxZ });
+      }
+    }
+  }
+
+  if (zones.length === 0) {
+    zones.push({ minX: loft.minX, maxX: loft.maxX, minZ: loft.minZ, maxZ: loft.maxZ });
+  }
+
+  const contains = (zone: LoftRect) =>
+    args.x >= zone.minX && args.x <= zone.maxX && args.z >= zone.minZ && args.z <= zone.maxZ;
+  let zone = zones.find(contains) ?? zones[0];
+  let best = Infinity;
+  for (const candidate of zones) {
+    const cx = (candidate.minX + candidate.maxX) / 2;
+    const cz = (candidate.minZ + candidate.maxZ) / 2;
+    const dist = (args.x - cx) ** 2 + (args.z - cz) ** 2;
+    if (dist < best) {
+      best = dist;
+      zone = candidate;
+    }
+  }
+
+  const w = Math.max(0.9, zone.maxX - zone.minX);
+  const d = Math.max(0.9, zone.maxZ - zone.minZ);
+  return {
+    w,
+    d,
+    x: (zone.minX + zone.maxX) / 2,
+    z: (zone.minZ + zone.maxZ) / 2
+  };
+}
+
+const OPEN_EDGE_TOL = 0.22;
+
+/**
+ * Along-edge spans where a walled loft bedroom replaces the guard rail.
+ * `along` is Z for side lofts and X for front/back lofts (house-local).
+ */
+export function loftRailBlockedSpans(
+  rooms: LoftRoomBox[],
+  loft: LoftBounds,
+  placement: 'fram' | 'bak' | 'vanster' | 'hoger'
+): { min: number; max: number }[] {
+  const spans: { min: number; max: number }[] = [];
+  const sideLoft = placement === 'vanster' || placement === 'hoger';
+  for (const room of rooms) {
+    if (room.wallsVisible === false) continue;
+    const left = room.x - room.w / 2;
+    const right = room.x + room.w / 2;
+    const back = room.z - room.d / 2;
+    const front = room.z + room.d / 2;
+    if (sideLoft) {
+      const onOpenEdge = placement === 'vanster'
+        ? right >= loft.maxX - OPEN_EDGE_TOL
+        : left <= loft.minX + OPEN_EDGE_TOL;
+      if (!onOpenEdge) continue;
+      if (front - back < 0.2) continue;
+      spans.push({ min: back, max: front });
+    } else {
+      const onOpenEdge = placement === 'fram'
+        ? back <= loft.minZ + OPEN_EDGE_TOL
+        : front >= loft.maxZ - OPEN_EDGE_TOL;
+      if (!onOpenEdge) continue;
+      if (right - left < 0.2) continue;
+      spans.push({ min: left, max: right });
+    }
+  }
+  return mergeSpans(spans);
+}
+
+/** Subtract blocked spans from a rail segment; returns remaining pieces. */
+export function subtractRailSpans(
+  railMin: number,
+  railMax: number,
+  blocked: { min: number; max: number }[]
+): { min: number; max: number }[] {
+  let pieces = [{ min: railMin, max: railMax }];
+  for (const gap of blocked) {
+    const next: { min: number; max: number }[] = [];
+    for (const piece of pieces) {
+      if (gap.max <= piece.min || gap.min >= piece.max) {
+        next.push(piece);
+        continue;
+      }
+      if (gap.min > piece.min + 0.05) next.push({ min: piece.min, max: gap.min });
+      if (gap.max < piece.max - 0.05) next.push({ min: gap.max, max: piece.max });
+    }
+    pieces = next;
+  }
+  return pieces.filter((p) => p.max - p.min > 0.08);
+}
+
+function mergeSpans(spans: { min: number; max: number }[]): { min: number; max: number }[] {
+  if (spans.length === 0) return [];
+  const sorted = [...spans].sort((a, b) => a.min - b.min);
+  const out: { min: number; max: number }[] = [{ ...sorted[0] }];
+  for (let i = 1; i < sorted.length; i += 1) {
+    const last = out[out.length - 1];
+    const cur = sorted[i];
+    if (cur.min <= last.max + 0.04) last.max = Math.max(last.max, cur.max);
+    else out.push({ ...cur });
+  }
+  return out;
+}

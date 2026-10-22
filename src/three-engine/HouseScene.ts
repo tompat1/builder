@@ -29,7 +29,27 @@ import { calculateCompassHeading, createSceneLighting, updateSunPosition } from 
 import { eaveLiftMm, gablePitchDegrees, isGableRoof, wallPlateHeightM, type RoofId } from '../store/roof';
 import { inferNoteNormal, noteAxes, noteCameraTransform, noteSheetTransform, noteTiltRadians, stickFacing, NOTE_SURFACE_SCALE } from '../notes/surface';
 import { paintBoards } from '../color/paint';
-import { INTERIOR_FLOOR_TOP, LOFT_FLOORBOARD, curvedLoftStair, loftEndRotation, loftIsGhosted, loftJoistTop, loftStairOpening, loftStairRun, loftStairTreads, straightLoftStair, isLoftRoom, loftWallStudsVisible, loftDeckBounds, type LoftBounds } from './loftLevel';
+import {
+  INTERIOR_FLOOR_TOP,
+  LOFT_FLOORBOARD,
+  curvedLoftStair,
+  loftEndPoint,
+  loftEndRotation,
+  loftIsGhosted,
+  loftJoistTop,
+  loftStairOpening,
+  loftStairRun,
+  loftStairTreads,
+  straightLoftStair,
+  isLoftRoom,
+  loftWallStudsVisible,
+  loftDeckBounds,
+  loftStairClearRect,
+  maximizeLoftBedroom,
+  loftRailBlockedSpans,
+  subtractRailSpans,
+  type LoftBounds
+} from './loftLevel';
 import { ceilingStations, loftCeilingY, sliceStations, type CeilingStation, type RoofSlope } from './roofClearance';
 import { NARROW_TALL, OVERLIGHT, PORTRAIT_PANORAMA, containWindowInPanel, fittedDoorOpening, fittedWindowOpening, narrowTallPane, openingClearOfRoof, overlightHeight, portraitPane, rhythmOpeningsInRun, windowOpeningChanged } from './windowFit';
 import { fitRoom, innerHalf, roomFootprint, roomWallRuns, shellSides, SHELL_TOUCH, bedroomBedPlacement, type RoomBox, type ShellSides, type RoomBounds } from './roomWalls';
@@ -577,6 +597,54 @@ export class HouseScene {
     );
   }
 
+  /** Stair floor opening in house-local coords (null when the loft has no stair). */
+  private loftStairClearInHouse() {
+    if (!this.currentConfig.hasLoft || !this.currentConfig.hasLoftStair) return null;
+    const shell = this.timberShell();
+    const w = shell.widthM;
+    const d = shell.depthM;
+    const wt = 0.18;
+    const placement = this.currentConfig.loftPlacement ?? 'vanster';
+    const isTwoLofts = this.currentConfig.loftCount === 'tva';
+    const endOn = !isTwoLofts && (placement === 'fram' || placement === 'bak');
+    const planW = endOn ? d : w;
+    const planD = endOn ? w : d;
+    const loftArea = this.currentConfig.loftAreaSqMeters ?? 10.95;
+    const isConcrete = Boolean(this.currentConfig.concreteBase && !this.concreteFoundationOnly());
+    const houseAreaRef = isConcrete
+      ? (this.currentConfig.widthMm / 1000) * (this.currentConfig.depthMm / 1000)
+      : (this.currentConfig.widthMm === 4800 ? 13.7
+        : this.currentConfig.widthMm === 5800 ? 22.8
+        : this.currentConfig.widthMm === 8000 ? 36.5
+        : 27.38);
+    const areaFraction = Math.min(1.0, Math.max(0.25, loftArea / houseAreaRef));
+    const loftElev = isConcrete
+      ? this.concreteCrownM() + 0.195
+      : loftJoistTop(this.wallTopM());
+    const side: LoftPlacement = endOn ? 'vanster' : placement;
+    const plan = this.loftStairPlan(planW, planD, wt, loftElev, side, isTwoLofts, areaFraction);
+    const clear = loftStairClearRect({
+      edgeX: plan.edgeX,
+      openSign: plan.openSign as 1 | -1,
+      stairZ: plan.stairZ,
+      opening: plan.opening
+    });
+    if (!endOn) return clear;
+    // Front/back deck is built in a rotated host; map the opening back to house axes.
+    const corners = [
+      { x: clear.minX, z: clear.minZ },
+      { x: clear.minX, z: clear.maxZ },
+      { x: clear.maxX, z: clear.minZ },
+      { x: clear.maxX, z: clear.maxZ }
+    ].map((p) => loftEndPoint(placement, p.x, p.z));
+    return {
+      minX: Math.min(...corners.map((c) => c.x)),
+      maxX: Math.max(...corners.map((c) => c.x)),
+      minZ: Math.min(...corners.map((c) => c.z)),
+      maxZ: Math.max(...corners.map((c) => c.z))
+    };
+  }
+
   private roomLimits(y?: number): { hx: number; hz: number; bounds?: RoomBounds } {
     const shell = this.shellLimits();
     const loft = y !== undefined && isLoftRoom(y) ? this.loftLimits() : null;
@@ -649,8 +717,24 @@ export class HouseScene {
     const localX = pt.x - shell.x;
     const localZ = pt.z - shell.z;
     const { hx, hz, bounds } = this.roomLimits(pt.y);
-    const fitted = fitRoom({ x: localX, z: localZ, w: footprint.w, d: footprint.d }, hx, hz, bounds);
+    let fitted = fitRoom({ x: localX, z: localZ, w: footprint.w, d: footprint.d }, hx, hz, bounds);
     const onLoft = isLoftRoom(pt.y);
+    if (onLoft && roomType === 'bedroom' && bounds) {
+      const loft = this.loftLimits();
+      if (loft) {
+        fitted = fitRoom(
+          maximizeLoftBedroom({
+            x: fitted.x,
+            z: fitted.z,
+            loft,
+            stair: this.loftStairClearInHouse()
+          }),
+          hx,
+          hz,
+          bounds
+        );
+      }
+    }
 
     if (onLoft) {
       this.clearRoomPreview();
@@ -1111,7 +1195,20 @@ export class HouseScene {
         const footprint = roomFootprint(roomType);
         const baseY = isLoftRoom(pt.y) ? pt.y : 0.3;
         const { hx, hz, bounds } = this.roomLimits(baseY);
-        const fitted = fitRoom({ x: vecPt.x, z: vecPt.z, w: footprint.w, d: footprint.d }, hx, hz, bounds);
+        let fitted = fitRoom({ x: vecPt.x, z: vecPt.z, w: footprint.w, d: footprint.d }, hx, hz, bounds);
+        // Loft bedrooms with walls fill the deck zone and leave the stair clear.
+        if (roomType === 'bedroom' && isLoftRoom(baseY) && bounds) {
+          const loft = this.loftLimits();
+          if (loft) {
+            const maximized = maximizeLoftBedroom({
+              x: fitted.x,
+              z: fitted.z,
+              loft,
+              stair: this.loftStairClearInHouse()
+            });
+            fitted = fitRoom(maximized, hx, hz, bounds);
+          }
+        }
         const roomGroup = this.createRoomGroup(
           roomType,
           fitted.w,
@@ -1459,6 +1556,26 @@ export class HouseScene {
 
     // View mode visibility
     this.applyViewMode();
+  }
+
+  /**
+   * Rebuild loft deck, stair, and rails from current loft rooms (e.g. after bedroom walls toggle).
+   * Interior rooms are preserved.
+   */
+  public rebuildLoftStructure() {
+    while (this.loftGroup.children.length > 0) {
+      const child = this.loftGroup.children[0];
+      this.loftGroup.remove(child);
+      this.disposeObject(child);
+    }
+    if (!this.currentConfig.hasLoft) {
+      this.syncLoftStuds();
+      this.syncLoftPresentation(true);
+      return;
+    }
+    const shell = this.timberShell();
+    this.buildLoft(shell.widthM, shell.depthM, this.wallTopM(), 0.18);
+    this.syncLoftPresentation(true);
   }
 
   /** Wall plate calculated so that the highest point on top of the roof equals heightMm. */
@@ -5972,6 +6089,50 @@ export class HouseScene {
       metalness: 0.02
     });
 
+    const walledLoftRooms = this.interiorGroup.children
+      .filter((child) => child.userData.type === 'room_zone' && isLoftRoom(child.position.y))
+      .map((child) => ({
+        x: child.position.x,
+        z: child.position.z,
+        w: Number(child.userData.w) || 1,
+        d: Number(child.userData.d) || 1,
+        wallsVisible: child.userData.wallsVisible !== false
+      }));
+    const { hx: railHx, hz: railHz } = innerHalf(width, depth);
+    const railBlockedHouse = (() => {
+      if (isTwoLofts) {
+        const eachW = Math.min(interiorW * 0.42, (interiorW * areaFraction) / 2);
+        const leftDeck: LoftBounds = {
+          minX: -railHx,
+          maxX: -railHx + eachW,
+          minZ: -railHz,
+          maxZ: railHz,
+          loftDepth: eachW
+        };
+        const rightDeck: LoftBounds = {
+          minX: railHx - eachW,
+          maxX: railHx,
+          minZ: -railHz,
+          maxZ: railHz,
+          loftDepth: eachW
+        };
+        return [
+          ...loftRailBlockedSpans(walledLoftRooms, leftDeck, 'vanster'),
+          ...loftRailBlockedSpans(walledLoftRooms, rightDeck, 'hoger')
+        ];
+      }
+      const deck = loftDeckBounds(width, depth, loftArea, placement, false, isConcrete);
+      return loftRailBlockedSpans(walledLoftRooms, deck, placement);
+    })();
+    // Section-local Z along the open edge. Side lofts share house Z; front/back decks are rotated.
+    const railBlockedAlong = (() => {
+      if (!endOn) return railBlockedHouse;
+      if (placement === 'fram') {
+        return railBlockedHouse.map((s) => ({ min: -s.max, max: -s.min }));
+      }
+      return railBlockedHouse;
+    })();
+
     const buildSingleLoftSection = (
       sectionW: number,
       startX: number,
@@ -6134,7 +6295,7 @@ export class HouseScene {
       }
 
       // 3. Safety Railing (Skyddsräcke 850 mm) along the open inner edge.
-      // The uprights follow the inner-wall switch: shown with the lining, hidden with it.
+      // Walled loft bedrooms replace the rail on their open-edge side; the stair gap stays open.
       if (sectionW < interiorW * 0.95) {
         const railH = 0.85;
         const stairGap = opening?.depth ?? 0;
@@ -6152,12 +6313,28 @@ export class HouseScene {
             studs.add(baluster);
           }
         };
+        const addRailSegment = (segMin: number, segMax: number) => {
+          const len = segMax - segMin;
+          if (len <= 0.05) return;
+          addRail(len, (segMin + segMax) / 2);
+        };
+        const railBlocked = railBlockedAlong;
+        const rawSegments: { min: number; max: number }[] = [];
         if (stairMiddle && stairGap > 0) {
           const half = (loftD - stairGap) / 2;
-          addRail(half, -(stairGap / 2 + half / 2));
-          addRail(half, stairGap / 2 + half / 2);
+          rawSegments.push(
+            { min: -(stairGap / 2 + half), max: -stairGap / 2 },
+            { min: stairGap / 2, max: stairGap / 2 + half }
+          );
         } else {
-          addRail(loftD - stairGap, -stairEndSign * stairGap / 2);
+          const center = -stairEndSign * stairGap / 2;
+          const len = loftD - stairGap;
+          rawSegments.push({ min: center - len / 2, max: center + len / 2 });
+        }
+        for (const seg of rawSegments) {
+          for (const kept of subtractRailSpans(seg.min, seg.max, railBlocked)) {
+            addRailSegment(kept.min, kept.max);
+          }
         }
         sectionGroup.add(studs);
       }

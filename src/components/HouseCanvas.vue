@@ -119,6 +119,8 @@ const canvasContainer = ref<HTMLElement | null>(null);
 const store = useConfigStore();
 const { t, locale } = useLabels();
 let engine: HouseScene | null = null;
+/** Fingerprint of loft rooms that affect open-edge rails (avoids rebuilding mid-drag). */
+let lastLoftRailKey = '';
 const showDragHint = ref(false);
 const compassDial = ref(0);
 const hoveredFramingItem = ref<FramingHoverItem | null>(null);
@@ -401,6 +403,18 @@ function syncPlacedRooms() {
       info.z = fitted.z;
     }
     engine.updateRoomSize(id, info.type, fitted.w, fitted.d, fitted.x, info.y, fitted.z, info.wallsVisible);
+  }
+  // Rails along the open loft edge follow walled bedrooms; refresh when those rooms change.
+  const loftRailKey = Object.entries(store.placedRooms)
+    .filter(([, room]) => isLoftRoom(room.y))
+    .map(([id, room]) =>
+      `${id}:${room.wallsVisible !== false}:${Math.round(room.x * 2)}:${Math.round(room.z * 2)}:${Math.round(room.w * 2)}:${Math.round(room.d * 2)}`
+    )
+    .sort()
+    .join('|');
+  if (loftRailKey !== lastLoftRailKey) {
+    lastLoftRailKey = loftRailKey;
+    engine.rebuildLoftStructure();
   }
 }
 

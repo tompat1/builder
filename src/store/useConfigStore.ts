@@ -22,7 +22,13 @@ import { eaveLiftMm, gablePitchDegrees, wallPlateHeightM } from './roof';
 import { floorAreaSqMeters } from './area';
 import { loadDisplayPrefs, saveDisplayPrefs, type DisplayPrefs } from '../services/displayPrefs';
 import { saveAccountDisplay, sessionToken } from '../services/account';
-import { isLoftRoom } from '../three-engine/loftLevel';
+import {
+  isLoftRoom,
+  loftDeckBounds,
+  loftStairClearOnDeck,
+  maximizeLoftBedroom
+} from '../three-engine/loftLevel';
+import { fitRoom, innerHalf } from '../three-engine/roomWalls';
 import {
   CONCRETE_DEFAULT_HEIGHT_MM,
   CONCRETE_PLAN_MM,
@@ -777,9 +783,49 @@ export const useConfigStore = defineStore('config', () => {
   const toggleRoomWalls = (id: string) => {
     const room = placedRooms.value[id];
     if (!room) return;
+    const wallsVisible = !room.wallsVisible;
+    let next = { ...room, wallsVisible };
+    // Turning walls on for a loft bedroom: fill the deck zone and keep the stair clear.
+    if (
+      wallsVisible
+      && room.type === 'bedroom'
+      && isLoftRoom(room.y)
+      && hasLoft.value
+    ) {
+      const widthM = buildingWidth.value / 1000;
+      const depthM = buildingDepth.value / 1000;
+      const loft = loftDeckBounds(
+        widthM,
+        depthM,
+        selectedLoftSize.value ?? 10.95,
+        loftPlacement.value,
+        loftCount.value === 'tva',
+        selectedSizeId.value === 'size-paabyggnad'
+      );
+      const maximized = maximizeLoftBedroom({
+        x: room.x,
+        z: room.z,
+        loft,
+        stair: loftStairClearOnDeck({
+          loft,
+          placement: loftPlacement.value,
+          stairPosition: loftStairPosition.value,
+          stairType: loftStairType.value,
+          hasStair: hasLoftStair.value
+        })
+      });
+      const { hx, hz } = innerHalf(widthM, depthM);
+      const fitted = fitRoom(maximized, hx, hz, {
+        minX: loft.minX,
+        maxX: loft.maxX,
+        minZ: loft.minZ,
+        maxZ: loft.maxZ
+      });
+      next = { ...next, ...fitted };
+    }
     placedRooms.value = {
       ...placedRooms.value,
-      [id]: { ...room, wallsVisible: !room.wallsVisible }
+      [id]: next
     };
     commitHouse();
   }
@@ -2585,6 +2631,42 @@ export const useConfigStore = defineStore('config', () => {
     saveSnapshot();
   }
 
+  /** Count lower-bay windows on a wall (a rhythm host counts as its pane count). */
+  const lowerWindowRowCount = (wall: WallSlot['wall']) => {
+    const panelCount = panelCountForWall(wall, buildingWidth.value, buildingDepth.value);
+    let count = 0;
+    let itemId: string | undefined;
+    let anchor = 0;
+    for (let i = 0; i < panelCount; i += 1) {
+      const s = wallSlots.value[`${wall}-${i}`];
+      if (!s) continue;
+      if (s.windowRhythm) {
+        return { count: s.windowRhythm, itemId: s.itemId, anchor: s.index };
+      }
+      if (s.type === 'window' && s.itemId) {
+        count += 1;
+        if (!itemId) {
+          itemId = s.itemId;
+          anchor = s.index;
+        }
+      }
+    }
+    return { count, itemId, anchor };
+  }
+
+  /**
+   * Evenly space every lower window on this wall row.
+   * Keeps the current window count and type; click any panel on the wall to use it.
+   */
+  const alignWallWindows = (slotId: string) => {
+    const slot = wallSlots.value[slotId];
+    if (!slot || slot.isUpper) return;
+    const row = lowerWindowRowCount(slot.wall);
+    if (row.count < 2 || !row.itemId) return;
+    const n = Math.min(4, Math.max(2, row.count)) as WindowRhythmCount;
+    setWallWindowRhythm(slot.wall, n, row.itemId, slot.index);
+  }
+
   const assignSlotItem = (slotId: string, type: 'empty' | 'door' | 'window' | 'gate', itemId?: string) => {
     const slot = wallSlots.value[slotId];
     if (!slot) return;
@@ -2976,6 +3058,8 @@ export const useConfigStore = defineStore('config', () => {
     removeSlotItem,
     setWallWindowRhythm,
     clearWallWindowRhythm,
+    alignWallWindows,
+    lowerWindowRowCount,
     moveSlotItem,
     toggleDimensions,
     setDisplay,

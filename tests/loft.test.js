@@ -15,7 +15,12 @@ import {
   loftStairTreads,
   straightLoftStair,
   isLoftRoom,
-  loftWallStudsVisible
+  loftWallStudsVisible,
+  loftDeckBounds,
+  maximizeLoftBedroom,
+  loftRailBlockedSpans,
+  subtractRailSpans,
+  loftStairClearOnDeck
 } from '../src/three-engine/loftLevel.ts';
 import {
   ceilingStations,
@@ -203,4 +208,40 @@ test('loft studs in walls are hidden by default and only show when viewing studs
   assert.equal(loftWallStudsVisible(false, 'utsida', true), true);
   assert.equal(loftWallStudsVisible(false, 'utsida', false), false);
   assert.equal(loftWallStudsVisible(false, 'blueprint', false), false);
+});
+
+test('a loft bedroom maximizes into the deck zone and leaves the stair clear', () => {
+  const loft = loftDeckBounds(6, 6.6, 16, 'hoger', false, false);
+  const stair = loftStairClearOnDeck({
+    loft,
+    placement: 'hoger',
+    stairPosition: 'middle',
+    stairType: 'straight',
+    hasStair: true
+  });
+  assert.ok(stair);
+  const north = maximizeLoftBedroom({ x: loft.maxX - 0.5, z: loft.maxZ - 0.5, loft, stair });
+  const south = maximizeLoftBedroom({ x: loft.maxX - 0.5, z: loft.minZ + 0.5, loft, stair });
+  assert.ok(north.d > 1.2);
+  assert.ok(south.d > 1.2);
+  assert.ok(north.z + north.d / 2 <= stair.maxZ + 1e-6 || north.z - north.d / 2 >= stair.maxZ - 1e-6);
+  assert.ok(south.z - south.d / 2 >= stair.minZ - 1e-6 || south.z + south.d / 2 <= stair.minZ + 1e-6);
+  assert.ok(Math.abs(north.w - (loft.maxX - loft.minX)) < 1e-6);
+});
+
+test('walled loft bedrooms block the open-edge rail along their frontage', () => {
+  const loft = loftDeckBounds(6, 6.6, 16, 'hoger', false, false);
+  const room = {
+    x: (loft.minX + loft.maxX) / 2,
+    z: loft.maxZ - 1,
+    w: loft.maxX - loft.minX,
+    d: 2,
+    wallsVisible: true
+  };
+  const blocked = loftRailBlockedSpans([room], loft, 'hoger');
+  assert.equal(blocked.length, 1);
+  assert.ok(blocked[0].max - blocked[0].min > 1.5);
+  const kept = subtractRailSpans(loft.minZ, loft.maxZ, blocked);
+  assert.ok(kept.every((seg) => seg.max - seg.min > 0.05));
+  assert.ok(kept.every((seg) => seg.max <= room.z - room.d / 2 + 1e-6 || seg.min >= room.z + room.d / 2 - 1e-6));
 });
