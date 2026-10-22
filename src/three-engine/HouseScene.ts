@@ -153,6 +153,10 @@ export interface SceneConfig {
   framingWalkthrough?: boolean;
   /** Current builder walkthrough step (1 to 7) */
   framingStep?: number;
+  /** Frame steps vs outside→inside assembly peel */
+  walkthroughMode?: 'frame' | 'layers';
+  /** Current assembly layer peel step (1 to 6) */
+  assemblyLayerStep?: number;
   /**
    * Stugan V4: pulpet falls east→west (along width). High eave on the right (+X)
    * when the south facade faces +Z.
@@ -213,6 +217,8 @@ export class HouseScene {
   private wallsGroup: THREE.Group;
   private concreteGroup: THREE.Group;
   private framingGroup: THREE.Group;
+  /** Exploded outside→inside wall/roof peel for the assembly-layers walkthrough. */
+  private assemblyLayersGroup: THREE.Group;
   private innerWallsGroup: THREE.Group;
   private ceilingDrywallGroup: THREE.Group | null = null;
   private trussesGroup: THREE.Group;
@@ -425,6 +431,8 @@ export class HouseScene {
     this.concreteGroup = new THREE.Group();
     this.wallsGroup = new THREE.Group();
     this.framingGroup = new THREE.Group();
+    this.assemblyLayersGroup = new THREE.Group();
+    this.assemblyLayersGroup.visible = false;
     this.innerWallsGroup = new THREE.Group();
     this.trussesGroup = new THREE.Group();
     this.roofGroup = new THREE.Group();
@@ -441,6 +449,7 @@ export class HouseScene {
     this.houseGroup.add(this.foundationGroup);
     this.houseGroup.add(this.wallsGroup);
     this.houseGroup.add(this.framingGroup);
+    this.houseGroup.add(this.assemblyLayersGroup);
     this.houseGroup.add(this.innerWallsGroup);
     this.houseGroup.add(this.trussesGroup);
     this.houseGroup.add(this.roofGroup);
@@ -1377,6 +1386,8 @@ export class HouseScene {
     while (this.concreteGroup.children.length > 0) {
       this.concreteGroup.remove(this.concreteGroup.children[0]);
     }
+    this.clearAssemblyLayersGroup();
+    this.roofGroup.position.y = 0;
     while (this.framingGroup.children.length > 0) {
       this.framingGroup.remove(this.framingGroup.children[0]);
     }
@@ -6058,6 +6069,37 @@ export class HouseScene {
     this.scene.add(shadow);
   }
 
+  /** Angle bracket / hurricane seat at a rafter–plate junction (visible in framing guide). */
+  private addRafterSeatClip(
+    parent: THREE.Object3D,
+    x: number,
+    y: number,
+    z: number,
+    along: 'x' | 'z' = 'z'
+  ) {
+    const metal = new THREE.MeshStandardMaterial({
+      color: '#94a3b8',
+      roughness: 0.35,
+      metalness: 0.85
+    });
+    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.012, 0.04), metal);
+    const upright = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.05, 0.012), metal);
+    leg.position.set(x, y, z);
+    upright.position.set(x, y + 0.025, z + (along === 'z' ? -0.014 : 0));
+    if (along === 'x') {
+      upright.position.set(x - 0.014, y + 0.025, z);
+    }
+    for (const mesh of [leg, upright]) {
+      mesh.castShadow = true;
+      mesh.userData.framingStep = 6;
+      mesh.userData.ownMaterial = metal;
+      mesh.userData.framingNameSv = 'Vinkelbeslag takfot (lyftförankring)';
+      mesh.userData.framingNameEn = 'Rafter Seat Angle (Uplift Tie)';
+      mesh.userData.dimension = '90×90×65 mm · ankarspik 4,0×40';
+      parent.add(mesh);
+    }
+  }
+
   private buildRafters(w: number, d: number, h: number, _wt: number) {
     const ghost = this.loftCutaway();
     const rafterMat = ghost
@@ -6072,6 +6114,7 @@ export class HouseScene {
     const angleRad = PULPET_PITCH_RAD;
     const rearH = isPulpettak ? Math.max(h - Math.tan(angleRad) * d, 2.4) : h;
     const beamParent = ghost ? this.trussesGroup : this.framingGroup;
+    const showClips = !ghost && Boolean(this.currentConfig.framingWalkthrough || this.framingVisible());
 
     const rafterW = 0.045;
     const rafterH = ghost ? 0.145 : 0.195;
@@ -6110,6 +6153,11 @@ export class HouseScene {
         rafter.userData.framingNameEn = 'Rafter / Roof Beam (Mono-pitch east→west)';
         rafter.userData.dimension = `${Math.round(rafterW * 1000)}×${Math.round(depth * 1000)} mm C24 cc 600 mm`;
         beamParent.add(rafter);
+        if (showClips) {
+          // Seat clips at high (east) and low (west) plate bearings.
+          this.addRafterSeatClip(beamParent, w / 2 - 0.12, h - 0.04, rz, 'x');
+          this.addRafterSeatClip(beamParent, -(w / 2 - 0.12), lowH - 0.04, rz, 'x');
+        }
       }
     } else if (isPulpettak) {
       const slopeAngle = Math.atan2(h - rearH, d);
@@ -6137,6 +6185,10 @@ export class HouseScene {
         rafter.userData.framingNameEn = 'Rafter / Roof Beam (Mono-pitch)';
         rafter.userData.dimension = `${Math.round(rafterW * 1000)}×${Math.round(depth * 1000)} mm C24 cc 600 mm`;
         beamParent.add(rafter);
+        if (showClips) {
+          this.addRafterSeatClip(beamParent, rx, h - 0.04, d / 2 - 0.1, 'z');
+          this.addRafterSeatClip(beamParent, rx, rearH - 0.04, -(d / 2 - 0.1), 'z');
+        }
       }
     } else if (this.currentConfig.roofType === 'flackt') {
       const shallowAngle = (2 * Math.PI) / 180;
@@ -6154,6 +6206,10 @@ export class HouseScene {
         rafter.userData.framingNameEn = 'Flat Roof Joist';
         rafter.userData.dimension = `${Math.round(rafterW * 1000)}×${Math.round(depth * 1000)} mm C24 cc 600 mm`;
         beamParent.add(rafter);
+        if (showClips) {
+          this.addRafterSeatClip(beamParent, rx, h - 0.08, d / 2 - 0.12, 'z');
+          this.addRafterSeatClip(beamParent, rx, h - 0.08, -(d / 2 - 0.12), 'z');
+        }
       }
     } else {
       const gableAngle = this.gablePitchRad();
@@ -6183,6 +6239,10 @@ export class HouseScene {
         rearRafter.userData.framingNameEn = 'Rafter / Truss Member (Rear)';
         rearRafter.userData.dimension = `${Math.round(rafterW * 1000)}×${Math.round(rafterH * 1000)} mm C24 cc 600 mm`;
         beamParent.add(rearRafter);
+        if (showClips) {
+          this.addRafterSeatClip(beamParent, rx, h - 0.02, d / 2 - 0.08, 'z');
+          this.addRafterSeatClip(beamParent, rx, h - 0.02, -(d / 2 - 0.08), 'z');
+        }
       }
     }
   }
@@ -7540,7 +7600,10 @@ export class HouseScene {
     this.ghostInstant = !viewChanged;
     const interactionChanged = config.interactionMode !== undefined && config.interactionMode !== this.currentConfig.interactionMode;
     if (
-      (config.framingWalkthrough !== undefined || config.framingStep !== undefined) &&
+      (config.framingWalkthrough !== undefined ||
+        config.framingStep !== undefined ||
+        config.walkthroughMode !== undefined ||
+        config.assemblyLayerStep !== undefined) &&
       config.widthMm === undefined &&
       config.depthMm === undefined &&
       config.heightMm === undefined &&
@@ -8632,19 +8695,26 @@ export class HouseScene {
     if (this.contactShadow) this.contactShadow.visible = true;
 
     if (this.currentConfig.framingWalkthrough) {
-      this.wallsGroup.visible = false;
-      this.roofGroup.visible = false;
-      this.innerWallsGroup.visible = false;
-      this.loftGroup.visible = false;
       this.dimensionsGroup.visible = false;
       this.interiorGroup.visible = false;
-      this.framingGroup.visible = true;
-      this.trussesGroup.visible = true;
+      this.loftGroup.visible = false;
       if (this.gridHelper) this.gridHelper.visible = false;
-      this.syncFramingWalkthrough();
+      if (this.currentConfig.walkthroughMode === 'layers') {
+        this.applyAssemblyLayersView();
+      } else {
+        this.assemblyLayersGroup.visible = false;
+        this.wallsGroup.visible = false;
+        this.roofGroup.visible = false;
+        this.innerWallsGroup.visible = false;
+        this.framingGroup.visible = true;
+        this.trussesGroup.visible = true;
+        this.syncFramingWalkthrough();
+      }
       return;
     }
 
+    this.assemblyLayersGroup.visible = false;
+    this.roofGroup.position.y = 0;
     this.wallsGroup.visible = true;
     this.syncFramingWalkthrough();
 
@@ -8897,6 +8967,205 @@ export class HouseScene {
       this.controls.minDistance,
       this.camera.near
     );
+  }
+
+  /** Camera for the outside→inside assembly peel. */
+  public frameAssemblyLayer(step: number) {
+    const clamped = Math.max(1, Math.min(6, Math.round(step || 1)));
+    const shell = this.timberShell();
+    const w = shell.widthM;
+    const d = shell.depthM;
+    const h = this.wallTopM();
+    const cx = shell.x;
+    const cz = shell.z;
+    const frontZ = cz + d / 2;
+    let target = new THREE.Vector3(cx, h * 0.45, frontZ);
+    let pos = new THREE.Vector3(cx + w * 0.55, h * 0.85, frontZ + Math.max(3.2, d * 0.55));
+    if (clamped >= 6) {
+      target = new THREE.Vector3(cx, h * 0.85, cz + d * 0.1);
+      pos = new THREE.Vector3(cx + w * 0.9, h * 1.45, cz + d * 1.1);
+    } else if (clamped >= 4) {
+      target = new THREE.Vector3(cx, h * 0.5, frontZ - 0.2);
+      pos = new THREE.Vector3(cx + w * 0.35, h * 0.7, frontZ + 2.8);
+    }
+    this.flyCamera(pos, target, 2.2, 0.08);
+  }
+
+  private clearAssemblyLayersGroup() {
+    while (this.assemblyLayersGroup.children.length > 0) {
+      this.assemblyLayersGroup.remove(this.assemblyLayersGroup.children[0]!);
+    }
+  }
+
+  private applyAssemblyLayersView() {
+    this.rebuildAssemblyLayersExploded();
+    const step = Math.max(1, Math.min(6, this.currentConfig.assemblyLayerStep ?? 1));
+    this.assemblyLayersGroup.visible = true;
+    // Soften the finished house so the exploded bay reads clearly.
+    this.wallsGroup.visible = step <= 2;
+    this.wallsGroup.traverse((obj) => {
+      if (obj instanceof THREE.Mesh) {
+        obj.visible = true;
+        // Dim non-front walls slightly by keeping them; cladding peel is the hero.
+      }
+    });
+    this.roofGroup.visible = step >= 5;
+    this.roofGroup.position.y = step >= 6 ? 0.55 : 0;
+    this.framingGroup.visible = step >= 3;
+    this.trussesGroup.visible = step >= 5;
+    this.innerWallsGroup.visible = false;
+    this.syncFramingWalkthrough();
+
+    this.assemblyLayersGroup.traverse((obj) => {
+      if (!(obj instanceof THREE.Mesh) || typeof obj.userData.assemblyLayer !== 'number') return;
+      const layer = obj.userData.assemblyLayer as number;
+      // Progressive peel: show this layer and everything further in (higher step).
+      // Outer layers that are already peeled stay visible but offset.
+      obj.visible = layer <= step;
+      if (layer === step) {
+        obj.material = this.activeFramingMat;
+      } else if (obj.userData.ownMaterial) {
+        obj.material = obj.userData.ownMaterial as THREE.Material;
+      }
+    });
+  }
+
+  /**
+   * Exploded front-bay build-up: cladding slid out, membrane, insulation batts,
+   * studs/header, inner lining, and a lifted roof strip — like a modular assembly drawing.
+   */
+  private rebuildAssemblyLayersExploded() {
+    this.clearAssemblyLayersGroup();
+    const shell = this.timberShell();
+    const w = Math.min(3.7, shell.widthM * 0.72);
+    const h = Math.min(3.2, this.wallTopM());
+    const d = shell.depthM;
+    const z0 = shell.z + d / 2;
+    const x0 = shell.x;
+    const stud = 0.045;
+    const studD = 0.145;
+    const cladT = 0.022;
+    const gap = 0.55; // how far cladding slides out
+
+    const wood = new THREE.MeshStandardMaterial({ color: '#dfc39a', roughness: 0.62, metalness: 0.02 });
+    const darkWood = new THREE.MeshStandardMaterial({ color: '#c4a574', roughness: 0.68, metalness: 0.04 });
+    const wool = new THREE.MeshStandardMaterial({ color: '#f0d56a', roughness: 0.9, metalness: 0 });
+    const membrane = new THREE.MeshStandardMaterial({
+      color: '#3d4450',
+      roughness: 0.55,
+      metalness: 0.15,
+      transparent: true,
+      opacity: 0.92,
+      side: THREE.DoubleSide
+    });
+    const plaster = new THREE.MeshStandardMaterial({ color: '#f8fafc', roughness: 0.88, metalness: 0.02 });
+    const roofMat = new THREE.MeshStandardMaterial({ color: '#4b5563', roughness: 0.45, metalness: 0.25 });
+
+    const mark = (mesh: THREE.Mesh, layer: number, nameSv: string, nameEn: string, dim: string, mat: THREE.Material) => {
+      mesh.userData.assemblyLayer = layer;
+      mesh.userData.ownMaterial = mat;
+      mesh.userData.framingNameSv = nameSv;
+      mesh.userData.framingNameEn = nameEn;
+      mesh.userData.dimension = dim;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      this.assemblyLayersGroup.add(mesh);
+    };
+
+    // —— 1 Cladding (slid south) ——
+    const cladding = new THREE.Mesh(new THREE.BoxGeometry(w, h - 0.08, cladT), wood);
+    cladding.position.set(x0, 0.04 + (h - 0.08) / 2, z0 + gap);
+    mark(cladding, 1, 'Ytterpanel (utdragen)', 'Exterior cladding (slid out)', '22×145 mm', wood);
+    // Door / window voids as darker insets on the panel
+    const door = new THREE.Mesh(new THREE.BoxGeometry(0.9, 2.05, cladT + 0.01), plaster);
+    door.position.set(x0 - w * 0.22, 0.04 + 2.05 / 2, z0 + gap);
+    mark(door, 1, 'Dörr i panelfält', 'Door in cladding bay', '10×21', plaster);
+    const win = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, cladT + 0.01), new THREE.MeshStandardMaterial({
+      color: '#93c5fd', roughness: 0.2, metalness: 0.1, transparent: true, opacity: 0.55
+    }));
+    win.position.set(x0 + w * 0.28, h * 0.55, z0 + gap);
+    mark(win, 1, 'Fönster i panelfält', 'Window in cladding bay', 'Modul', win.material as THREE.Material);
+
+    // —— 2 Wind membrane ——
+    const mem = new THREE.Mesh(new THREE.BoxGeometry(w - 0.04, h - 0.1, 0.008), membrane);
+    mem.position.set(x0, 0.05 + (h - 0.1) / 2, z0 + gap * 0.45);
+    mark(mem, 2, 'Vindskyddsduk', 'Wind barrier membrane', 'Ångöppen duk', membrane);
+
+    // —— 4 Frame (studs) — build before insulation so batts sit in bays ——
+    const sill = new THREE.Mesh(new THREE.BoxGeometry(w, stud, studD), darkWood);
+    sill.position.set(x0, stud / 2, z0 + studD / 2 + 0.02);
+    mark(sill, 4, 'Syll 45×145 C24', 'Sill plate 45×145 C24', '45×145 mm C24', darkWood);
+    const top = new THREE.Mesh(new THREE.BoxGeometry(w, stud, studD), darkWood);
+    top.position.set(x0, h - stud / 2, z0 + studD / 2 + 0.02);
+    mark(top, 4, 'Hammarband 45×145 C24', 'Top plate 45×145 C24', '45×145 mm C24', darkWood);
+
+    const bay = 0.6;
+    const studCount = Math.max(3, Math.floor((w - 0.1) / bay) + 1);
+    const span = w - 0.12;
+    const studXs: number[] = [];
+    for (let i = 0; i < studCount; i++) {
+      studXs.push(x0 - span / 2 + (i * span) / (studCount - 1));
+    }
+    const headerH = 0.195;
+    const openingLeft = x0 - w * 0.22 - 0.45;
+    const openingRight = x0 - w * 0.22 + 0.45;
+    const openingTop = 2.1;
+
+    for (const sx of studXs) {
+      const inDoor = sx > openingLeft && sx < openingRight;
+      const studH = inDoor ? Math.max(0.2, h - openingTop - stud * 2) : h - stud * 2;
+      const studY = inDoor ? openingTop + stud + studH / 2 : stud + studH / 2;
+      if (studH < 0.15) continue;
+      const st = new THREE.Mesh(new THREE.BoxGeometry(stud, studH, studD), darkWood);
+      st.position.set(sx, studY, z0 + studD / 2 + 0.02);
+      mark(st, 4, 'Väggregel 45×145 C24 cc 600', 'Wall stud 45×145 C24 cc 600', '45×145 mm C24', darkWood);
+    }
+    // Header over door
+    const header = new THREE.Mesh(new THREE.BoxGeometry(openingRight - openingLeft + 0.1, headerH, studD), darkWood);
+    header.position.set((openingLeft + openingRight) / 2, openingTop + headerH / 2, z0 + studD / 2 + 0.02);
+    mark(header, 4, 'Avväxling 2×(45×195) C24', 'Header 2×(45×195) C24', '2× 45×195 mm C24', darkWood);
+
+    // —— 3 Insulation batts in bays ——
+    for (let i = 0; i < studXs.length - 1; i++) {
+      const a = studXs[i]!;
+      const b = studXs[i + 1]!;
+      const mid = (a + b) / 2;
+      if (mid > openingLeft && mid < openingRight) continue;
+      const bw = Math.max(0.08, b - a - stud - 0.01);
+      const bh = h - stud * 2 - 0.04;
+      const batt = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, studD - 0.02), wool);
+      batt.position.set(mid, stud + 0.02 + bh / 2, z0 + studD / 2 + 0.02);
+      mark(batt, 3, 'Mineralull 145 mm', 'Mineral wool 145 mm', '145 mm · cc 600', wool);
+    }
+
+    // —— 5 Inner lining (offset slightly into the room) ——
+    const lining = new THREE.Mesh(new THREE.BoxGeometry(w - 0.06, h - 0.12, 0.013), plaster);
+    lining.position.set(x0, 0.06 + (h - 0.12) / 2, z0 - 0.04);
+    mark(lining, 5, 'Innervägg gips', 'Interior plasterboard', '13 mm gips', plaster);
+
+    // —— 6 Roof strip lifted ——
+    const roofLift = 0.7;
+    const rafterCount = Math.max(4, Math.floor(w / 0.6) + 1);
+    const rafterLen = 1.6;
+    for (let i = 0; i < rafterCount; i++) {
+      const rx = x0 - (w - 0.2) / 2 + (i * (w - 0.2)) / (rafterCount - 1);
+      const rf = new THREE.Mesh(new THREE.BoxGeometry(stud, 0.22, rafterLen), darkWood);
+      rf.position.set(rx, h + 0.12 + roofLift, z0 - rafterLen / 2 + 0.35);
+      rf.rotation.x = -0.12;
+      mark(rf, 6, 'Takbjälke 45×220 C24', 'Roof rafter 45×220 C24', '45×220 mm C24 cc 600', darkWood);
+      if (i < rafterCount - 1) {
+        const mid = (rx + (x0 - (w - 0.2) / 2 + ((i + 1) * (w - 0.2)) / (rafterCount - 1))) / 2;
+        const gapW = (w - 0.2) / (rafterCount - 1) - stud - 0.02;
+        const ib = new THREE.Mesh(new THREE.BoxGeometry(Math.max(0.08, gapW), 0.18, rafterLen - 0.15), wool);
+        ib.position.set(mid, h + 0.12 + roofLift, z0 - rafterLen / 2 + 0.35);
+        ib.rotation.x = -0.12;
+        mark(ib, 6, 'Takisolering 120–220 mm', 'Roof insulation 120–220 mm', 'Mineralull', wool);
+      }
+    }
+    const roofSheet = new THREE.Mesh(new THREE.BoxGeometry(w + 0.15, 0.06, rafterLen + 0.25), roofMat);
+    roofSheet.position.set(x0, h + 0.28 + roofLift, z0 - rafterLen / 2 + 0.35);
+    roofSheet.rotation.x = -0.12;
+    mark(roofSheet, 6, 'Tätskikt / takskiva', 'Roof covering', 'Underlag + plåt/papp', roofMat);
   }
 
   /** Smoothly glide camera and focus on the current timber framing construction step */

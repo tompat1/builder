@@ -31,10 +31,30 @@ test('framing walkthrough defines all 7 authentic Swedish timber construction st
     assert.ok(stepDef.subtitleEn.length > 5);
     assert.ok(stepDef.proTipsSv.length > 20);
     assert.ok(stepDef.proTipsEn.length > 20);
-    assert.equal(stepDef.specs.length, 4);
-    assert.equal(stepDef.checklistSv.length, 3);
-    assert.equal(stepDef.checklistEn.length, 3);
+    assert.ok(stepDef.specs.length >= 4);
+    assert.ok(stepDef.checklistSv.length >= 3);
+    assert.ok(stepDef.checklistEn.length >= 3);
+    assert.ok(stepDef.assemblySv.length >= 4);
+    assert.ok(stepDef.assemblyEn.length >= 4);
+    assert.ok(stepDef.toolsSv.length >= 3);
+    assert.ok(stepDef.toolsEn.length >= 3);
+    assert.ok(stepDef.pitfallsSv.length >= 2);
+    assert.ok(stepDef.pitfallsEn.length >= 2);
   });
+});
+
+test('framing guide assembly sequences teach a continuous load path', () => {
+  const sill = getFramingStep(1);
+  assert.ok(sill.assemblySv.some((line) => /EPDM|syllisolering/i.test(line)));
+  assert.ok(sill.pitfallsSv.some((line) => /EPDM|fukt/i.test(line)));
+
+  const openings = getFramingStep(4);
+  assert.ok(openings.assemblyEn.some((line) => /jack/i.test(line)));
+  assert.ok(openings.pitfallsEn.some((line) => /header|jack/i.test(line)));
+
+  const trusses = getFramingStep(6);
+  assert.ok(trusses.assemblyEn.some((line) => /bracket|anchor|uplift|angle/i.test(line)));
+  assert.ok(trusses.specs.some((s) => /Beslag|Clip/i.test(s.labelSv + s.labelEn)));
 });
 
 test('getFramingStep safely clamps and returns valid step metadata', () => {
@@ -70,7 +90,8 @@ test('timber framing specifications meet Swedish standard SS-EN 1995-1-1 require
   // Step 6: Trusses / Rafters
   const trusses = getFramingStep(6);
   const trussProfile = trusses.specs.find((s) => s.labelSv === 'Takstolsprofil');
-  assert.ok(trussProfile?.valueSv.includes('45×195 mm C24 / Fackverk cc 600'));
+  assert.ok(trussProfile?.valueSv.includes('45×195 mm C24'));
+  assert.ok(/fackverk|cc 600/i.test(trussProfile?.valueSv ?? ''));
 });
 
 test('concrete combo framing guide accounts for existing concrete walls, dual sills, chemical anchors, and uplift ties', () => {

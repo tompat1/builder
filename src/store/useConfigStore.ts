@@ -675,6 +675,9 @@ export const useConfigStore = defineStore('config', () => {
   const viewMode = ref<ViewMode>('utsida');
   const framingWalkthrough = ref<boolean>(false);
   const framingStep = ref<number>(1);
+  /** Frame steps vs outside→inside assembly peel. */
+  const walkthroughMode = ref<'frame' | 'layers'>('frame');
+  const assemblyLayerStep = ref<number>(1);
   const interactionMode = ref<InteractionMode>('default');
   const generateElectricalSignal = ref(0);
   const interiorFocusSignal = ref(0);
@@ -1393,23 +1396,43 @@ export const useConfigStore = defineStore('config', () => {
   const startFramingWalkthrough = () => {
     framingWalkthrough.value = true;
     framingStep.value = 1;
+    walkthroughMode.value = 'frame';
+    assemblyLayerStep.value = 1;
   };
 
   const stopFramingWalkthrough = () => {
     framingWalkthrough.value = false;
+    walkthroughMode.value = 'frame';
+  };
+
+  const setWalkthroughMode = (mode: 'frame' | 'layers') => {
+    walkthroughMode.value = mode;
+    if (mode === 'layers' && assemblyLayerStep.value < 1) assemblyLayerStep.value = 1;
   };
 
   const setFramingStep = (step: number) => {
     framingStep.value = Math.max(1, Math.min(7, Math.round(step || 1)));
   };
 
+  const setAssemblyLayerStep = (step: number) => {
+    assemblyLayerStep.value = Math.max(1, Math.min(6, Math.round(step || 1)));
+  };
+
   const nextFramingStep = () => {
+    if (walkthroughMode.value === 'layers') {
+      if (assemblyLayerStep.value < 6) assemblyLayerStep.value++;
+      return;
+    }
     if (framingStep.value < 7) {
       framingStep.value++;
     }
   };
 
   const prevFramingStep = () => {
+    if (walkthroughMode.value === 'layers') {
+      if (assemblyLayerStep.value > 1) assemblyLayerStep.value--;
+      return;
+    }
     if (framingStep.value > 1) {
       framingStep.value--;
     }
@@ -2998,6 +3021,10 @@ export const useConfigStore = defineStore('config', () => {
     setViewMode,
     framingWalkthrough,
     framingStep,
+    walkthroughMode,
+    assemblyLayerStep,
+    setWalkthroughMode,
+    setAssemblyLayerStep,
     startFramingWalkthrough,
     stopFramingWalkthrough,
     setFramingStep,

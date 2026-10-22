@@ -254,6 +254,8 @@ onMounted(() => {
       concreteColor: store.concreteColor,
       framingWalkthrough: store.framingWalkthrough,
       framingStep: store.framingStep,
+      walkthroughMode: store.walkthroughMode,
+      assemblyLayerStep: store.assemblyLayerStep,
       roofFallAxis: store.selectedSizeId === 'size-stugan-v4' ? 'width' : 'depth',
       pulpetPitchDeg: store.selectedSizeId === 'size-stugan-v4' ? 10 : undefined,
       roofOverhangs:
@@ -680,19 +682,22 @@ watch(
   }
 );
 
-// Watch structural framing walkthrough & step
+// Watch structural framing walkthrough & step / assembly layers
 watch(
-  [() => store.framingWalkthrough, () => store.framingStep],
-  ([walkthrough, step]) => {
+  [() => store.framingWalkthrough, () => store.framingStep, () => store.walkthroughMode, () => store.assemblyLayerStep],
+  ([walkthrough, step, mode, layerStep]) => {
     if (!walkthrough) {
       hoveredFramingItem.value = null;
     }
     engine?.updateConfig({
       framingWalkthrough: walkthrough,
-      framingStep: step
+      framingStep: step,
+      walkthroughMode: mode,
+      assemblyLayerStep: layerStep
     });
     if (walkthrough) {
-      engine?.frameFramingStep(step);
+      if (mode === 'layers') engine?.frameAssemblyLayer?.(layerStep);
+      else engine?.frameFramingStep(step);
     }
   }
 );
