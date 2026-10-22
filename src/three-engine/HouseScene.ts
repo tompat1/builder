@@ -5399,8 +5399,8 @@ export class HouseScene {
 
   /**
    * Structural south canopy under a deep width-fall overhang.
-   * Posts + pitched header + wall ledger + N–S rafters (on edge) + knee braces.
-   * Sizes follow common Swedish timber: 150×150 posts, 140×225 header, 45×195 rafters cc 600.
+   * Load path: roof → rafters → header on posts → deck. Knee braces only in the
+   * eave plane (post ↔ header), with hangers / straps / blocking like a patio cover.
    */
   private addSouthCanopyFraming(
     w: number,
@@ -5420,34 +5420,38 @@ export class HouseScene {
       roughness: 0.7,
       metalness: 0.05
     });
-    const shoeMat = new THREE.MeshStandardMaterial({
-      color: '#6b7280',
-      roughness: 0.4,
-      metalness: 0.75
+    const metal = new THREE.MeshStandardMaterial({
+      color: '#9aa3af',
+      roughness: 0.35,
+      metalness: 0.85
     });
 
-    // Realistic structural sections (metres).
-    const postSize = 0.15; // 150×150
-    const beamH = 0.225; // 140×225 glulam header
-    const beamD = 0.14;
+    // Nominal sizes (m): 150² posts, 90×225 header, 45×195 rafters, 90² braces.
+    const postSize = 0.15;
+    const beamH = 0.225;
+    const beamD = 0.09;
     const ledgerH = 0.195;
-    const ledgerD = 0.095;
-    const rafterW = 0.045; // 45×195 on edge
+    const ledgerD = 0.045;
+    const rafterW = 0.045;
     const rafterH = 0.195;
-    const braceSection = 0.07; // ~70×145 brace
-    const braceDepth = 0.145;
-    const rafterClear = 0.014; // air under roof sheet
-    const eavePast = 0.25; // rafters past the header
-    const postInset = eavePast + beamD / 2 + 0.02;
+    const braceSize = 0.09;
+    const blockH = 0.145;
+    const blockD = 0.045;
+    const rafterClear = 0.012;
+    const eavePast = 0.28;
+    const postInset = eavePast + beamD / 2;
     const postZ = d / 2 + frontOverhang - postInset;
-    const wallLedgerZ = d / 2 + 0.05;
+    const wallFaceZ = d / 2;
+    const ledgerZ = wallFaceZ + ledgerD / 2 + 0.01;
     const deckTop = 0.32;
-    const shoeH = 0.08;
+    const shoeH = 0.1;
+    const braceReach = 0.5;
 
     const plateY = (x: number) => yMid + x * Math.tan(angleRad);
-    // Header seats under the rafters; rafters sit on the header top.
-    const beamSeat = rafterClear + rafterH + beamH / 2;
-    const beamCentreY = yMid - beamSeat;
+    // Rafters sit on the header; header underside is the post seat.
+    const headerTop = (x: number) => plateY(x) - rafterClear - rafterH;
+    const headerBottom = (x: number) => headerTop(x) - beamH;
+    const headerCentreY = yMid - rafterClear - rafterH - beamH / 2;
 
     const mark = (mesh: THREE.Mesh) => {
       mesh.castShadow = true;
@@ -5456,22 +5460,22 @@ export class HouseScene {
       this.roofGroup.add(mesh);
     };
 
-    /** Box along Z, then aim local +Z from `from` → `to` so ends meet both points. */
-    const addBrace = (from: THREE.Vector3, to: THREE.Vector3, mat: THREE.Material) => {
-      const delta = new THREE.Vector3().subVectors(to, from);
-      const len = delta.length();
-      if (len < 0.08) return;
-      const mesh = new THREE.Mesh(
-        new THREE.BoxGeometry(braceSection, braceDepth, len),
-        mat
-      );
-      mesh.position.copy(from).add(to).multiplyScalar(0.5);
-      mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), delta.normalize());
+    /**
+     * Knee brace in the eave plane (constant Z): long axis along X before rotation.z.
+     * Ends overlap the post face and header underside so nothing floats.
+     */
+    const addEaveBrace = (x0: number, y0: number, x1: number, y1: number, z: number) => {
+      const dx = x1 - x0;
+      const dy = y1 - y0;
+      const len = Math.hypot(dx, dy);
+      if (len < 0.1) return;
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(len, braceSize, braceSize), timber);
+      mesh.position.set((x0 + x1) / 2, (y0 + y1) / 2, z);
+      mesh.rotation.z = Math.atan2(dy, dx);
       mark(mesh);
     };
 
-    // Posts along the eave — roughly cc 2.0 m, always at least three for a 3 m canopy.
-    const postMargin = Math.max(postSize, 0.28);
+    const postMargin = Math.max(postSize, 0.3);
     const clearW = Math.max(postSize * 2, w - postMargin * 2);
     const postCount = Math.max(3, Math.ceil(clearW / 2.0) + 1);
     const postXs: number[] = [];
@@ -5479,87 +5483,143 @@ export class HouseScene {
       postXs.push(-clearW / 2 + (i * clearW) / (postCount - 1));
     }
 
-    const beamLen = (clearW + postSize * 1.2) / Math.cos(angleRad);
+    // —— Header (pitched) ——
+    const beamLen = (clearW + postSize * 1.4) / Math.cos(angleRad);
     const eaveBeam = new THREE.Mesh(new THREE.BoxGeometry(beamLen, beamH, beamD), darkTimber);
-    eaveBeam.position.set(0, beamCentreY, postZ);
+    eaveBeam.position.set(0, headerCentreY, postZ);
     eaveBeam.rotation.z = angleRad;
     mark(eaveBeam);
 
-    const ledgerLen = (w - 0.12) / Math.cos(angleRad);
-    const ledgerSeat = rafterClear + rafterH / 2 + ledgerH / 2;
+    // —— Wall ledger ——
+    const ledgerLen = (w - 0.1) / Math.cos(angleRad);
+    const ledgerCentreY = yMid - rafterClear - rafterH / 2 - ledgerH / 2;
     const ledger = new THREE.Mesh(new THREE.BoxGeometry(ledgerLen, ledgerH, ledgerD), darkTimber);
-    ledger.position.set(0, yMid - ledgerSeat, wallLedgerZ);
+    ledger.position.set(0, ledgerCentreY, ledgerZ);
     ledger.rotation.z = angleRad;
     mark(ledger);
 
-    // Underside of header / rafters at world X (width-fall plate).
-    const headerBottom = (wx: number) => plateY(wx) - beamSeat - beamH / 2;
-
-    // Rafters N–S under the canopy, cc 600, bearing on ledger + header, past the eave.
-    const rafterMargin = 0.12;
-    const rafterSpan = Math.max(rafterW * 2, w - rafterMargin * 2);
-    const rafterCount = Math.max(4, Math.floor(rafterSpan / 0.6) + 1);
-    const rafterLen = Math.max(0.5, postZ + eavePast - wallLedgerZ + ledgerD / 2);
-    const rafterMidZ = wallLedgerZ - ledgerD / 2 + rafterLen / 2;
-    for (let i = 0; i < rafterCount; i++) {
-      const x =
-        rafterCount === 1
-          ? 0
-          : -rafterSpan / 2 + (i * rafterSpan) / (rafterCount - 1);
-      const rafter = new THREE.Mesh(new THREE.BoxGeometry(rafterW, rafterH, rafterLen), timber);
-      rafter.position.set(x, plateY(x) - rafterClear - rafterH / 2, rafterMidZ);
-      mark(rafter);
-    }
-
-    // Primary ties at each post — heavier N–S beam the depth braces seat into.
-    const tieW = 0.09;
-    const tieH = 0.22;
-    const tieLen = Math.max(0.5, postZ - wallLedgerZ + ledgerD / 2 + beamD / 2);
-    const tieMidZ = (wallLedgerZ + postZ) / 2;
-    for (const x of postXs) {
-      const tie = new THREE.Mesh(new THREE.BoxGeometry(tieW, tieH, tieLen), darkTimber);
-      tie.position.set(x, plateY(x) - rafterClear - tieH / 2, tieMidZ);
-      mark(tie);
-    }
-    const tieBottom = (wx: number) => plateY(wx) - rafterClear - tieH;
-
-    for (const x of postXs) {
-      const postTop = headerBottom(x);
+    // —— Posts, shoes, straps, knee braces ——
+    for (let pi = 0; pi < postXs.length; pi++) {
+      const x = postXs[pi]!;
+      const seatY = headerBottom(x);
       const postBottom = deckTop + shoeH;
-      const postH = Math.max(1.2, postTop - postBottom);
+      const postH = Math.max(1.2, seatY - postBottom);
 
+      // Galvanized post base
       const shoe = new THREE.Mesh(
-        new THREE.BoxGeometry(postSize + 0.04, shoeH, postSize + 0.04),
-        shoeMat
+        new THREE.BoxGeometry(postSize + 0.05, shoeH * 0.35, postSize + 0.05),
+        metal
       );
-      shoe.position.set(x, deckTop + shoeH / 2, postZ);
+      shoe.position.set(x, deckTop + shoeH * 0.2, postZ);
       mark(shoe);
+      const shoePost = new THREE.Mesh(
+        new THREE.BoxGeometry(postSize + 0.02, shoeH * 0.55, 0.008),
+        metal
+      );
+      shoePost.position.set(x, deckTop + shoeH * 0.55, postZ + postSize / 2 + 0.004);
+      mark(shoePost);
 
       const post = new THREE.Mesh(new THREE.BoxGeometry(postSize, postH, postSize), darkTimber);
       post.position.set(x, postBottom + postH / 2, postZ);
       mark(post);
 
-      // Knee braces in the eave plane: post face → header underside, climbing up.
-      const eaveReach = 0.48;
-      for (const dir of [-1, 1] as const) {
-        if (dir < 0 && x <= postXs[0]! + 0.05) continue;
-        if (dir > 0 && x >= postXs[postXs.length - 1]! - 0.05) continue;
-        const upperX = x + dir * eaveReach;
-        addBrace(
-          new THREE.Vector3(x + dir * (postSize / 2), postTop - eaveReach, postZ),
-          new THREE.Vector3(upperX, headerBottom(upperX), postZ),
-          timber
+      // Post–beam strap (ties uplift)
+      for (const side of [-1, 1] as const) {
+        const strap = new THREE.Mesh(new THREE.BoxGeometry(0.004, 0.28, 0.04), metal);
+        strap.position.set(
+          x + side * (postSize / 2 + 0.003),
+          seatY + beamH * 0.15,
+          postZ
         );
+        mark(strap);
+      }
+      // Through-bolts at the seat
+      for (const by of [0.04, 0.14]) {
+        const bolt = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, postSize + 0.02, 8), metal);
+        bolt.rotation.x = Math.PI / 2;
+        bolt.position.set(x, seatY + by, postZ);
+        mark(bolt);
       }
 
-      // Depth brace: post face toward the house → underside of the primary tie / roof beams.
-      const depthReach = Math.min(0.7, Math.max(0.4, (postZ - wallLedgerZ) * 0.28));
-      addBrace(
-        new THREE.Vector3(x, postTop - depthReach, postZ - postSize / 2),
-        new THREE.Vector3(x, tieBottom(x), postZ - depthReach),
-        timber
+      // Y knee braces in the eave plane: ±X post face → header underside (with bite into both).
+      for (const dir of [-1, 1] as const) {
+        if (dir < 0 && pi === 0) continue;
+        if (dir > 0 && pi === postXs.length - 1) continue;
+        const bite = 0.025;
+        const xPost = x + dir * (postSize / 2 - bite);
+        const yPost = seatY - braceReach + bite;
+        const xBeam = x + dir * braceReach;
+        const yBeam = headerBottom(xBeam) + bite;
+        // Same Z as header/post centreline so ends land in the timber, not beside it.
+        addEaveBrace(xPost, yPost, xBeam, yBeam, postZ);
+      }
+    }
+
+    // —— Rafters on ledger + header, past the eave ——
+    const rafterMargin = 0.14;
+    const rafterSpan = Math.max(rafterW * 2, w - rafterMargin * 2);
+    const rafterCount = Math.max(5, Math.floor(rafterSpan / 0.6) + 1);
+    const rafterInnerZ = ledgerZ + ledgerD / 2;
+    const rafterOuterZ = postZ + beamD / 2 + eavePast;
+    const rafterLen = Math.max(0.6, rafterOuterZ - rafterInnerZ);
+    const rafterMidZ = (rafterInnerZ + rafterOuterZ) / 2;
+    const rafterXs: number[] = [];
+    for (let i = 0; i < rafterCount; i++) {
+      rafterXs.push(
+        rafterCount === 1 ? 0 : -rafterSpan / 2 + (i * rafterSpan) / (rafterCount - 1)
       );
     }
+
+    for (const x of rafterXs) {
+      const ry = plateY(x) - rafterClear - rafterH / 2;
+      const rafter = new THREE.Mesh(new THREE.BoxGeometry(rafterW, rafterH, rafterLen), timber);
+      rafter.position.set(x, ry, rafterMidZ);
+      mark(rafter);
+
+      // Joist hanger at the ledger (U-clip)
+      const hanger = new THREE.Mesh(
+        new THREE.BoxGeometry(rafterW + 0.03, rafterH * 0.55, 0.012),
+        metal
+      );
+      hanger.position.set(x, ry - rafterH * 0.12, rafterInnerZ + 0.01);
+      mark(hanger);
+
+      // Hurricane tie at the header crossing
+      const tie = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.04, 0.03), metal);
+      tie.position.set(x, headerTop(x) - 0.01, postZ);
+      mark(tie);
+    }
+
+    // —— Blocking between rafters (wall bay + mid-span) ——
+    const blockZs = [
+      rafterInnerZ + 0.12,
+      (rafterInnerZ + postZ) / 2,
+      postZ - beamD / 2 - 0.08
+    ];
+    for (const bz of blockZs) {
+      for (let i = 0; i < rafterXs.length - 1; i++) {
+        const a = rafterXs[i]!;
+        const b = rafterXs[i + 1]!;
+        const gap = b - a - rafterW;
+        if (gap < 0.08) continue;
+        const midX = (a + b) / 2;
+        const by = plateY(midX) - rafterClear - rafterH + blockH / 2 + 0.01;
+        const block = new THREE.Mesh(new THREE.BoxGeometry(gap - 0.004, blockH, blockD), timber);
+        block.position.set(midX, by, bz);
+        mark(block);
+      }
+    }
+
+    // —— Sub-fascia capping rafter tails ——
+    const fasciaLen = rafterSpan + rafterW + 0.08;
+    const fasciaX = 0;
+    // Fascia follows the pitch: rotate like the header.
+    const fasciaH = rafterH + 0.02;
+    const fascia = new THREE.Mesh(new THREE.BoxGeometry(fasciaLen / Math.cos(angleRad), fasciaH, 0.028), darkTimber);
+    const fasciaY = yMid - rafterClear - rafterH / 2;
+    fascia.position.set(fasciaX, fasciaY, rafterOuterZ + 0.012);
+    fascia.rotation.z = angleRad;
+    mark(fascia);
   }
 
   private buildRoof(w: number, d: number, h: number) {
