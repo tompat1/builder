@@ -499,3 +499,63 @@ export function containWindowInPanel<T extends RoofOpening & { casingSide?: numb
   if (opening.head != null) next.head = opening.head + (top - oldTop);
   return next;
 }
+
+/** Panel indices (0..panelCount-1 within a run) for an evenly spaced window rhythm. */
+export function evenlySpacedPanelIndices(panelCount: number, windowCount: number): number[] {
+  const n = Math.max(1, Math.min(panelCount, windowCount));
+  if (n >= panelCount) {
+    return Array.from({ length: panelCount }, (_, i) => i);
+  }
+  if (n === 1) return [Math.floor((panelCount - 1) / 2)];
+  return Array.from({ length: n }, (_, i) => Math.round((i * (panelCount - 1)) / (n - 1)));
+}
+
+/**
+ * Centers along a wall run measured from the start of the run (0 … span).
+ * Equal end gaps: gap = (span − n·winW) / (n + 1).
+ */
+export function evenWindowCentersAlongRun(span: number, count: number, winW: number): number[] {
+  if (count < 1 || span <= 0 || winW <= 0) return [];
+  const n = count;
+  const gap = Math.max(0.04, (span - n * winW) / (n + 1));
+  return Array.from({ length: n }, (_, i) => gap * (i + 1) + winW * i + winW / 2);
+}
+
+export interface RhythmPanelOpening {
+  /** Panel index within the full wall (not only the run). */
+  panelIndex: number;
+  /** Local X in the panel group (0 = panel centre). */
+  x: number;
+  winW: number;
+}
+
+/**
+ * Places `windowCount` windows across a contiguous panel run, one panel each when possible,
+ * shifting each pane toward the ideal even centre within its panel.
+ */
+export function rhythmOpeningsInRun(
+  runStart: number,
+  runLength: number,
+  windowCount: number,
+  panelWidth: number,
+  winW: number
+): RhythmPanelOpening[] {
+  if (runLength < 1 || windowCount < 1 || panelWidth <= 0) return [];
+  const n = Math.min(windowCount, runLength);
+  const span = runLength * panelWidth;
+  const centers = evenWindowCentersAlongRun(span, n, Math.min(winW, panelWidth * 0.85));
+  const indices = evenlySpacedPanelIndices(runLength, n);
+  const half = panelWidth / 2;
+  const maxShift = Math.max(0, half - winW / 2 - 0.05);
+  const usedW = Math.min(winW, panelWidth * 0.85);
+  return indices.map((runLocal, i) => {
+    const panelCenterAlong = (runLocal + 0.5) * panelWidth;
+    const ideal = centers[i] ?? panelCenterAlong;
+    const x = Math.max(-maxShift, Math.min(maxShift, ideal - panelCenterAlong));
+    return {
+      panelIndex: runStart + runLocal,
+      x,
+      winW: usedW
+    };
+  });
+}

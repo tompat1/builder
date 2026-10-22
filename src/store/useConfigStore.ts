@@ -591,6 +591,7 @@ export { TERRACE_BUILDINGS, TERRACE_BUILDING_PLACEMENTS, SAUNA_BUILDING_PRICE, S
 
 import {
   type WallSlot,
+  type WindowRhythmCount,
   PANEL_COUNTS,
   panelCountForWall,
   createWallSlots,
@@ -600,10 +601,12 @@ import {
   shedWallSlots,
   garageWallSlots,
   stuganV4WallSlots,
-  mergeWallSlots
+  mergeWallSlots,
+  freeLowerRunForRhythm
 } from './wallSlots';
+import { clearWindowRhythmSlots, releaseWindowRhythmSlots } from './slotMove';
 
-export type { WallSlot } from './wallSlots';
+export type { WallSlot, WindowRhythmCount } from './wallSlots';
 export {
   PANEL_COUNTS,
   panelCountForWall,
@@ -615,7 +618,8 @@ export {
   garageWallSlots,
   stuganV4WallSlots,
   mergeWallSlots,
-  paabyggnadWallSlots
+  paabyggnadWallSlots,
+  freeLowerRunForRhythm
 };
 export {
   STUGAN_V4_SIZE_ID,
@@ -2516,8 +2520,9 @@ export const useConfigStore = defineStore('config', () => {
     }
     const hostId = slot.coveredBy;
     if (!hostId) return;
-    slot.coveredBy = undefined;
     const host = wallSlots.value[hostId];
+    if (host?.windowRhythm) return;
+    slot.coveredBy = undefined;
     if (host?.itemId !== 'SKJUTDORR' && host?.itemId !== 'SKJUTDORR3') return;
     host.type = 'empty';
     host.itemId = undefined;
@@ -2526,15 +2531,71 @@ export const useConfigStore = defineStore('config', () => {
     }
   }
 
+  const clearWallWindowRhythm = (hostId: string) => {
+    clearWindowRhythmSlots(wallSlots.value, hostId);
+  }
+
+  const setWallWindowRhythm = (
+    wall: WallSlot['wall'],
+    count: WindowRhythmCount,
+    itemId: string,
+    anchorIndex?: number
+  ) => {
+    const panelCount = panelCountForWall(wall, buildingWidth.value, buildingDepth.value);
+    const selected = selectedSlotId.value ? wallSlots.value[selectedSlotId.value] : null;
+    const anchor = anchorIndex
+      ?? (selected && selected.wall === wall && !selected.isUpper ? selected.index : 0);
+    const run = freeLowerRunForRhythm(wallSlots.value, wall, panelCount, anchor);
+    if (run.length < 2) return;
+    const n = Math.min(count, run.length, 4) as WindowRhythmCount;
+    if (n < 2) return;
+
+    // Drop any existing rhythm on this wall before rebuilding the run.
+    for (let i = 0; i < panelCount; i += 1) {
+      const id = `${wall}-${i}`;
+      const s = wallSlots.value[id];
+      if (!s) continue;
+      if (s.windowRhythm) clearWallWindowRhythm(id);
+      else if (s.coveredBy && wallSlots.value[s.coveredBy]?.windowRhythm) {
+        clearWallWindowRhythm(s.coveredBy);
+      }
+    }
+
+    const hostIndex = run[0];
+    const hostId = `${wall}-${hostIndex}`;
+    for (const i of run) {
+      const id = `${wall}-${i}`;
+      const s = wallSlots.value[id];
+      if (!s) continue;
+      if (i === hostIndex) {
+        s.type = 'window';
+        s.itemId = itemId;
+        s.windowRhythm = n;
+        s.coveredBy = undefined;
+        s.fitToWall = true;
+      } else {
+        s.type = 'empty';
+        s.itemId = undefined;
+        s.windowRhythm = undefined;
+        s.coveredBy = hostId;
+        s.fitToWall = undefined;
+      }
+    }
+    selectedSlotId.value = hostId;
+    saveSnapshot();
+  }
+
   const assignSlotItem = (slotId: string, type: 'empty' | 'door' | 'window' | 'gate', itemId?: string) => {
     const slot = wallSlots.value[slotId];
     if (!slot) return;
     const isUpper = slot.isUpper === true || slotId.endsWith('u');
     if ((type === 'door' || type === 'gate') && isUpper) return;
+    releaseWindowRhythmSlots(wallSlots.value, slotId);
     releaseWideDoor(slotId);
     slot.type = type;
     slot.itemId = itemId;
     slot.coveredBy = undefined;
+    slot.windowRhythm = undefined;
     slot.fitToWall = type === 'window' ? true : undefined;
     if ((itemId === 'SKJUTDORR' || itemId === 'SKJUTDORR3') && !slot.isUpper) {
       const count = slot.wall === 'front' || slot.wall === 'back' ? 4 : 3;
@@ -2551,6 +2612,17 @@ export const useConfigStore = defineStore('config', () => {
   }
 
   const removeSlotItem = (slotId: string) => {
+    const slot = wallSlots.value[slotId];
+    if (slot?.windowRhythm) {
+      clearWallWindowRhythm(slotId);
+      saveSnapshot();
+      return;
+    }
+    if (slot?.coveredBy && wallSlots.value[slot.coveredBy]?.windowRhythm) {
+      clearWallWindowRhythm(slot.coveredBy);
+      saveSnapshot();
+      return;
+    }
     assignSlotItem(slotId, 'empty', undefined);
   }
 
@@ -2902,6 +2974,8 @@ export const useConfigStore = defineStore('config', () => {
     deselectSlot,
     assignSlotItem,
     removeSlotItem,
+    setWallWindowRhythm,
+    clearWallWindowRhythm,
     moveSlotItem,
     toggleDimensions,
     setDisplay,

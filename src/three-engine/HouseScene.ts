@@ -31,7 +31,7 @@ import { inferNoteNormal, noteAxes, noteCameraTransform, noteSheetTransform, not
 import { paintBoards } from '../color/paint';
 import { INTERIOR_FLOOR_TOP, LOFT_FLOORBOARD, curvedLoftStair, loftEndRotation, loftIsGhosted, loftJoistTop, loftStairOpening, loftStairRun, loftStairTreads, straightLoftStair, isLoftRoom, loftWallStudsVisible, loftDeckBounds, type LoftBounds } from './loftLevel';
 import { ceilingStations, loftCeilingY, sliceStations, type CeilingStation, type RoofSlope } from './roofClearance';
-import { NARROW_TALL, OVERLIGHT, PORTRAIT_PANORAMA, containWindowInPanel, fittedDoorOpening, fittedWindowOpening, narrowTallPane, openingClearOfRoof, overlightHeight, portraitPane, windowOpeningChanged } from './windowFit';
+import { NARROW_TALL, OVERLIGHT, PORTRAIT_PANORAMA, containWindowInPanel, fittedDoorOpening, fittedWindowOpening, narrowTallPane, openingClearOfRoof, overlightHeight, portraitPane, rhythmOpeningsInRun, windowOpeningChanged } from './windowFit';
 import { fitRoom, innerHalf, roomFootprint, roomWallRuns, shellSides, SHELL_TOUCH, bedroomBedPlacement, type RoomBox, type ShellSides, type RoomBounds } from './roomWalls';
 import {
   CONCRETE_WALL_THICK_M,
@@ -1251,11 +1251,20 @@ export class HouseScene {
     this.container.addEventListener('pointerup', this.handlePointerUp);
   }
 
+  /** Rhythm-covered bays select their host so the count control stays available. */
+  private resolveSlotSelection(slotId: string): string {
+    const slot = this.currentConfig.wallSlots[slotId];
+    if (!slot?.coveredBy) return slotId;
+    const host = this.currentConfig.wallSlots[slot.coveredBy];
+    return host?.windowRhythm ? slot.coveredBy : slotId;
+  }
+
   private selectPanel(slotId: string, hit: THREE.Mesh, screenX: number, screenY: number) {
-    this.currentConfig.selectedSlotId = slotId;
+    const id = this.resolveSlotSelection(slotId);
+    this.currentConfig.selectedSlotId = id;
     this.updateHoverBox(null);
     this.updateHighlightBox(this.boundsOf(hit));
-    this.onPanelClick?.(slotId, screenX, screenY);
+    this.onPanelClick?.(id, screenX, screenY);
   }
 
   public rebuildScene() {
@@ -1466,7 +1475,7 @@ export class HouseScene {
     return (gablePitchDegrees(this.currentConfig.roofType) * Math.PI) / 180;
   }
 
-  /** The Outside tab. Facade panels belong to it, and rooms do not. */
+  /** The Outside tab. Facade panels are interactive; rooms stay visible for peek-in. */
   private outsideShell() {
     return this.currentConfig.viewMode === 'utsida' && !this.currentConfig.framingWalkthrough;
   }
@@ -2273,7 +2282,10 @@ export class HouseScene {
     panelGroup.rotation.y = rotY;
     panelGroup.userData = { slotId: band.slotId, wall: wallSide, index };
 
-    const wide = band.upper
+    const rhythm = band.upper
+      ? null
+      : this.windowRhythmOpeningForPanel(wallSide, index, panelWidth, band.height, band.base, panelCount);
+    const wide = band.upper || rhythm
       ? null
       : this.wideOpeningForPanel(wallSide, index, panelWidth, band.height, band.base);
     const lowerBay = this.currentConfig.wallSlots[`${wallSide}-${index}`];
@@ -2295,21 +2307,24 @@ export class HouseScene {
     const facadeSpan = facadeTop == null ? null : this.concreteSpanLocal(wallSide, px, pz, panelWidth);
     const isConcreteLower = Boolean(facadeTop && facadeSpan && !band.upper);
 
-    const fitted: { winW: number; winH: number; winY: number; x?: number; sill?: number; head?: number; casingSide?: number } | null = wide
-      ?? ((slotType === 'window' || slotType === 'door')
-        ? this.fittedOpening(slotType, slot?.itemId, band.upper, panelWidth, band.height, band.base, aboveDoor, cornerSide, facadeSpan)
-        : null);
+    const fitted: { winW: number; winH: number; winY: number; x?: number; sill?: number; head?: number; casingSide?: number } | null = rhythm
+      ? rhythm.opening
+      : wide
+        ?? ((slotType === 'window' || slotType === 'door')
+          ? this.fittedOpening(slotType, slot?.itemId, band.upper, panelWidth, band.height, band.base, aboveDoor, cornerSide, facadeSpan)
+          : null);
     const preferred = fitted && band.reachesRoof
       ? openingClearOfRoof(fitted, band.height, slope, {
           pinSill: Boolean(wide) || slotType === 'door',
           minHeight: wide || slotType === 'door' ? 0.9 : 0.28
         })
       : fitted;
-    const opening = preferred
+    const opening = preferred && !rhythm
       ? this.resolveWindowOpening(preferred, slot, panelWidth, band.height, cornerSide, facadeSpan, band.upper, slope, true)
       : preferred;
+    const selectId = rhythm?.hostId ?? band.slotId;
     const userData = {
-      slotId: band.slotId,
+      slotId: selectId,
       wall: wallSide,
       index,
       panelGroup
@@ -2325,8 +2340,9 @@ export class HouseScene {
       this.addSolidCladding(panelGroup, panelWidth, band.height, claddingThick, exteriorMat, userData, facadeTop, facadeSpan);
     }
 
-    const ownsOpening = wide ? wide.drawDoor : (slotType === 'door' || slotType === 'window');
-    if (ownsOpening && opening && (wide || slotType === 'door' || slotType === 'window')) {
+    const ownsOpening = Boolean(rhythm)
+      || (wide ? wide.drawDoor : (slotType === 'door' || slotType === 'window'));
+    if (ownsOpening && opening && (rhythm || wide || slotType === 'door' || slotType === 'window')) {
       // Sliding doors span two bays — clamp casing to the full opening, not the host panel alone.
       const casingSpan = wide?.drawDoor
         ? Math.max(panelWidth, Math.abs(opening.x ?? 0) * 2 + opening.winW + 0.28)
@@ -2341,10 +2357,10 @@ export class HouseScene {
         wide?.drawDoor ? null : facadeSpan
       );
     }
-    if (ownsOpening && opening && (wide || slotType === 'door')) {
+    if (ownsOpening && opening && (wide || slotType === 'door') && !rhythm) {
       this.addDoorFeature(panelGroup, opening, slot?.itemId, userData);
-    } else if (slotType === 'window' && opening) {
-      this.addWindowFeature(panelGroup, opening, slot?.itemId, userData);
+    } else if ((rhythm || slotType === 'window') && opening) {
+      this.addWindowFeature(panelGroup, opening, rhythm?.itemId ?? slot?.itemId, userData);
     } else if (slotType === 'gate') {
       this.addGateFeature(panelGroup, panelWidth, band.height, wallThick, slot?.itemId, userData);
     }
@@ -2358,7 +2374,7 @@ export class HouseScene {
         panelWidth,
         slope,
         opening,
-        ownsOpening && (Boolean(wide) || slotType === 'door'),
+        ownsOpening && (Boolean(wide) || slotType === 'door') && !rhythm,
         slotType === 'gate'
       );
     }
@@ -3230,6 +3246,77 @@ export class HouseScene {
   }
 
   /**
+   * Evenly spaced lower windows hosted on one slot and covering sibling bays.
+   * Returns the opening that belongs on this panel index, or null.
+   */
+  private windowRhythmOpeningForPanel(
+    wall: 'front' | 'back' | 'left' | 'right',
+    index: number,
+    panelWidth: number,
+    panelHeight: number,
+    panelBase: number,
+    panelCount: number
+  ): {
+    hostId: string;
+    itemId: string | undefined;
+    opening: { winW: number; winH: number; winY: number; x: number; sill: number; head: number; casingSide?: number };
+  } | null {
+    const slots = this.currentConfig.wallSlots;
+    const slot = slots[`${wall}-${index}`];
+    if (!slot || slot.isUpper) return null;
+    let hostId: string | null = null;
+    if (slot.windowRhythm) hostId = slot.id;
+    else if (slot.coveredBy && slots[slot.coveredBy]?.windowRhythm) hostId = slot.coveredBy;
+    if (!hostId) return null;
+    const host = slots[hostId];
+    if (!host?.windowRhythm) return null;
+
+    const run: number[] = [];
+    for (let i = 0; i < panelCount; i += 1) {
+      const s = slots[`${wall}-${i}`];
+      if (s && (s.id === hostId || s.coveredBy === hostId)) run.push(i);
+    }
+    if (run.length < 2) return null;
+
+    const runStart = run[0];
+    const runLength = run.length;
+    const cornerSide = this.cornerSideForPanel(wall, index, panelCount);
+    const fitted = this.fittedOpening(
+      'window',
+      host.itemId,
+      false,
+      panelWidth,
+      panelHeight,
+      panelBase,
+      false,
+      cornerSide,
+      null
+    );
+    const placed = rhythmOpeningsInRun(
+      runStart,
+      runLength,
+      host.windowRhythm,
+      panelWidth,
+      fitted.winW
+    );
+    const mine = placed.find((p) => p.panelIndex === index);
+    if (!mine) return null;
+    return {
+      hostId,
+      itemId: host.itemId,
+      opening: {
+        winW: mine.winW,
+        winH: fitted.winH,
+        winY: fitted.winY,
+        x: mine.x,
+        sill: fitted.sill,
+        head: fitted.head,
+        casingSide: fitted.casingSide
+      }
+    };
+  }
+
+  /**
    * A sliding door occupies two bays. The host panel draws the leaves;
    * the neighbour only cuts the cladding where the opening crosses the joint.
    */
@@ -4073,6 +4160,30 @@ export class HouseScene {
         : [{ id: `${wall}-${p}`, upper: false, panelH: panelWallH, panelBase: base }];
       for (const band of bands) {
         const slot = this.currentConfig.wallSlots[band.id];
+        if (!band.upper) {
+          const rhythm = this.windowRhythmOpeningForPanel(wall, p, panelW, band.panelH, band.panelBase, count);
+          if (rhythm) {
+            const slope = this.alongWallSlope(wall);
+            const fit = openingClearOfRoof(rhythm.opening, band.panelH, slope, {
+              pinSill: false,
+              minHeight: 0.28
+            });
+            const local = fit.x ?? 0;
+            const x = wall === 'front' || wall === 'left' ? center + local : center - local;
+            openings.push({
+              x,
+              winW: fit.winW,
+              winH: fit.winH,
+              winY: fit.winY,
+              sill: fit.sill,
+              head: fit.head
+            });
+            continue;
+          }
+          if (slot?.coveredBy && this.currentConfig.wallSlots[slot.coveredBy]?.windowRhythm) {
+            continue;
+          }
+        }
         if (!slot || (slot.type !== 'door' && slot.type !== 'window')) continue;
         const wide = band.upper
           ? null
@@ -4087,6 +4198,8 @@ export class HouseScene {
           }
           continue;
         }
+        // Rhythm host alone would otherwise place a single centred pane — skip; rhythm branch above owns it.
+        if (slot.windowRhythm && !band.upper) continue;
         const lower = this.currentConfig.wallSlots[`${wall}-${p}`];
         const aboveDoor = Boolean(
           band.upper
@@ -4859,11 +4972,11 @@ export class HouseScene {
     const glass = new THREE.Mesh(
       new THREE.PlaneGeometry(glassW, glassH),
       new THREE.MeshStandardMaterial({
-        color: frosted ? '#f1f5f9' : '#e3ddd4',
+        color: frosted ? '#f1f5f9' : '#c5d4e2',
         transparent: true,
-        opacity: frosted ? 0.62 : 0.58,
-        roughness: frosted ? 0.55 : 0.12,
-        metalness: 0.08,
+        opacity: frosted ? 0.55 : 0.16,
+        roughness: frosted ? 0.55 : 0.08,
+        metalness: 0.06,
         side: THREE.DoubleSide,
         depthWrite: false
       })
@@ -4949,9 +5062,9 @@ export class HouseScene {
       }
 
       const glassMat = new THREE.MeshStandardMaterial({
-        color: '#bfa073',
+        color: '#c9b08a',
         transparent: true,
-        opacity: 0.35,
+        opacity: 0.18,
         roughness: 0.08,
         metalness: 0.1,
         side: THREE.DoubleSide,
@@ -5043,11 +5156,11 @@ export class HouseScene {
   ) {
     const aluminium = new THREE.MeshStandardMaterial({ color: '#b7bcc3', metalness: 0.74, roughness: 0.3 });
     const glassMat = new THREE.MeshStandardMaterial({
-      color: '#c5d5e0',
+      color: '#b8cce0',
       transparent: true,
-      opacity: 0.3,
-      roughness: 0.05,
-      metalness: 0.12,
+      opacity: 0.14,
+      roughness: 0.04,
+      metalness: 0.1,
       side: THREE.DoubleSide,
       depthWrite: false
     });
@@ -8038,7 +8151,8 @@ export class HouseScene {
 
       if (this.gridHelper) this.gridHelper.visible = false;
     }
-    this.interiorGroup.visible = !this.outsideShell();
+    // Keep rooms/furniture visible in outside mode so openings read as a lived-in house.
+    this.interiorGroup.visible = true;
     this.syncOutsideAdditions();
     this.syncLoftPresentation(this.ghostInstant);
     this.syncLoftStuds();

@@ -10,6 +10,8 @@ export function overlightItem(
   return itemId;
 }
 
+export type WindowRhythmCount = 2 | 3 | 4;
+
 export interface WallSlot {
   id: string;
   wall: 'front' | 'back' | 'left' | 'right';
@@ -18,10 +20,52 @@ export interface WallSlot {
   itemId?: string;
   canAcceptDoor?: boolean;
   isUpper?: boolean;
-  /** Lower bay covered by a three-pane slider hosted on another slot. */
+  /** Lower bay covered by a three-pane slider or a wall window rhythm hosted on another slot. */
   coveredBy?: string;
   /** Size and place the window inside the bay instead of letting it run past the wall. */
   fitToWall?: boolean;
+  /**
+   * Host of an evenly spaced lower-bay window row on this wall.
+   * Sibling bays in the run use coveredBy pointing at this slot.
+   */
+  windowRhythm?: WindowRhythmCount;
+}
+
+/** Lower bays blocked by a door, gate, or door slider (not a window rhythm). */
+export function lowerBayBlockedForRhythm(
+  slots: Record<string, WallSlot>,
+  wall: WallSlot['wall'],
+  index: number
+): boolean {
+  const slot = slots[`${wall}-${index}`];
+  if (!slot || slot.isUpper) return true;
+  if (slot.type === 'door' || slot.type === 'gate') return true;
+  if (!slot.coveredBy) return false;
+  const host = slots[slot.coveredBy];
+  if (!host) return false;
+  if (host.windowRhythm) return false;
+  return host.type === 'door' || host.itemId === 'SKJUTDORR' || host.itemId === 'SKJUTDORR3';
+}
+
+/**
+ * Contiguous free lower bays around anchorIndex for a wall window rhythm.
+ * Empty, window, and existing rhythm-covered bays are free; doors/gates are not.
+ */
+export function freeLowerRunForRhythm(
+  slots: Record<string, WallSlot>,
+  wall: WallSlot['wall'],
+  panelCount: number,
+  anchorIndex: number
+): number[] {
+  const anchor = Math.max(0, Math.min(panelCount - 1, anchorIndex));
+  if (lowerBayBlockedForRhythm(slots, wall, anchor)) return [];
+  let lo = anchor;
+  let hi = anchor;
+  while (lo > 0 && !lowerBayBlockedForRhythm(slots, wall, lo - 1)) lo -= 1;
+  while (hi < panelCount - 1 && !lowerBayBlockedForRhythm(slots, wall, hi + 1)) hi += 1;
+  const run: number[] = [];
+  for (let i = lo; i <= hi; i += 1) run.push(i);
+  return run;
 }
 
 export const PANEL_COUNTS = { front: 4, back: 4, left: 3, right: 3 } as const;

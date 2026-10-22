@@ -49,6 +49,33 @@
       <div class="px-3 pb-3 pt-1">
         <template v-if="activeSlot.type !== 'empty'">
           <p class="truncate text-sm leading-5 text-slate-600">{{ placedLabel }}</p>
+          <div v-if="rhythmCounts.length > 0" class="mt-3">
+            <p class="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              <Cms k="slot.windowCount" />
+            </p>
+            <div
+              class="grid gap-1 rounded-xl bg-slate-100 p-1"
+              :style="{ gridTemplateColumns: `repeat(${rhythmCounts.length}, minmax(0, 1fr))` }"
+              role="group"
+              :aria-label="t('slot.windowCount')"
+            >
+              <button
+                v-for="n in rhythmCounts"
+                :key="n"
+                type="button"
+                :id="`btn-window-rhythm-${n}`"
+                @click="applyWindowRhythm(n)"
+                class="h-10 rounded-lg text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+                :class="activeRhythmCount === n
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-600 hover:bg-white/70 hover:text-slate-900'"
+                :aria-pressed="activeRhythmCount === n"
+                :aria-label="t('slot.windowCountN', { n })"
+              >
+                {{ n }}
+              </button>
+            </div>
+          </div>
           <div class="mt-3 flex flex-col gap-1.5">
             <button
               type="button"
@@ -131,7 +158,17 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { DOORS_OPTIONS, GATES_OPTIONS, useConfigStore, WINDOWS_OPTIONS, type CategoryKey, type WallSlot } from '../store/useConfigStore';
+import {
+  DOORS_OPTIONS,
+  GATES_OPTIONS,
+  freeLowerRunForRhythm,
+  panelCountForWall,
+  useConfigStore,
+  WINDOWS_OPTIONS,
+  type CategoryKey,
+  type WallSlot,
+  type WindowRhythmCount
+} from '../store/useConfigStore';
 import { useLabels } from '../i18n';
 import Cms from './Cms.vue';
 
@@ -141,6 +178,53 @@ const { t, catalog } = useLabels();
 const activeSlot = computed(() => {
   return store.selectedSlotId ? store.wallSlots[store.selectedSlotId] : null;
 });
+
+const rhythmHost = computed(() => {
+  const slot = activeSlot.value;
+  if (!slot || slot.isUpper) return null;
+  if (slot.windowRhythm) return slot;
+  if (slot.coveredBy) {
+    const host = store.wallSlots[slot.coveredBy];
+    if (host?.windowRhythm) return host;
+  }
+  return null;
+});
+
+const rhythmRunLength = computed(() => {
+  const slot = activeSlot.value;
+  if (!slot || slot.isUpper || slot.type !== 'window') return 0;
+  const count = panelCountForWall(slot.wall, store.dimensions.width, store.dimensions.depth);
+  return freeLowerRunForRhythm(store.wallSlots, slot.wall, count, slot.index).length;
+});
+
+const rhythmCounts = computed((): WindowRhythmCount[] => {
+  const slot = activeSlot.value;
+  if (!slot || slot.isUpper || slot.type !== 'window') return [];
+  const max = Math.min(4, rhythmRunLength.value);
+  if (max < 2) return [];
+  return ([2, 3, 4] as WindowRhythmCount[]).filter((n) => n <= max);
+});
+
+const activeRhythmCount = computed((): WindowRhythmCount | null => {
+  const host = rhythmHost.value;
+  if (host?.windowRhythm) return host.windowRhythm;
+  const slot = activeSlot.value;
+  if (!slot || slot.type !== 'window' || slot.isUpper) return null;
+  const count = panelCountForWall(slot.wall, store.dimensions.width, store.dimensions.depth);
+  let windows = 0;
+  for (let i = 0; i < count; i += 1) {
+    const s = store.wallSlots[`${slot.wall}-${i}`];
+    if (s?.type === 'window') windows += 1;
+  }
+  if (windows === 2 || windows === 3 || windows === 4) return windows;
+  return null;
+});
+
+function applyWindowRhythm(n: WindowRhythmCount) {
+  const slot = activeSlot.value;
+  if (!slot || slot.type !== 'window' || !slot.itemId) return;
+  store.setWallWindowRhythm(slot.wall, n, slot.itemId, slot.index);
+}
 
 const WALL_LABEL = {
   front: 'notes.wallFront',
