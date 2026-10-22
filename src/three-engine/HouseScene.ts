@@ -114,6 +114,8 @@ export interface SceneConfig {
   terraces?: HouseTerrace[];
   /** Corner boards color ('same' | 'white' | 'falurod' | 'grey' | 'black' | 'wood' | hex) */
   cornerColor?: string | null;
+  /** Window / door casing colour ('same' | 'white' | 'falurod' | 'grey' | 'black' | 'wood' | hex) */
+  frameColor?: string | null;
   /** Whether exterior corner boards (knutbrädor) are visible. */
   cornerBoards?: boolean;
   /** Existing concrete footprint; at 10 cm only its foundation curb remains. */
@@ -352,6 +354,7 @@ export class HouseScene {
       flushRoof: initialConfig?.flushRoof ?? false,
       terraces: initialConfig?.terraces ?? [],
       cornerColor: initialConfig?.cornerColor ?? 'same',
+      frameColor: initialConfig?.frameColor ?? 'white',
       cornerBoards: initialConfig?.cornerBoards ?? true,
       concreteBase: initialConfig?.concreteBase ?? false,
       concreteWidthMm: initialConfig?.concreteWidthMm ?? 5200,
@@ -1336,7 +1339,7 @@ export class HouseScene {
       roughness: 0.4
     });
     const casingMat = new THREE.MeshStandardMaterial({
-      color: this.casingColor(),
+      color: this.houseCasingHex(),
       roughness: 0.58,
       metalness: 0.02
     });
@@ -3607,29 +3610,23 @@ export class HouseScene {
   }
 
   private houseCornerHex(): string {
-    const cc = this.currentConfig.cornerColor;
-    if (cc && cc !== 'same') {
-      if (cc === 'white') return '#f8fafc';
-      if (cc === 'falurod') return '#892622';
-      if (cc === 'grey') return '#64748b';
-      if (cc === 'black') return '#1a1c1b';
-      if (cc === 'wood') return '#f6ead8';
-      if (cc.startsWith('#')) return cc;
+    return this.resolveTrimHex(this.currentConfig.cornerColor, () => this.houseExteriorHex());
+  }
+
+  private resolveTrimHex(key: string | null | undefined, fallback: () => string): string {
+    if (key && key !== 'same') {
+      if (key === 'white') return '#f8fafc';
+      if (key === 'falurod') return '#892622';
+      if (key === 'grey') return '#64748b';
+      if (key === 'black') return '#1a1c1b';
+      if (key === 'wood') return '#f6ead8';
+      if (key.startsWith('#')) return key;
     }
-    return this.houseExteriorHex();
+    return fallback();
   }
 
   private houseCasingHex(): string {
-    const cc = this.currentConfig.cornerColor;
-    if (cc && cc !== 'same') {
-      if (cc === 'white') return '#f8fafc';
-      if (cc === 'falurod') return '#892622';
-      if (cc === 'grey') return '#64748b';
-      if (cc === 'black') return '#1a1c1b';
-      if (cc === 'wood') return '#f6ead8';
-      if (cc.startsWith('#')) return cc;
-    }
-    return this.casingColor();
+    return this.resolveTrimHex(this.currentConfig.frameColor, () => this.casingColor());
   }
 
   private addTerrace(

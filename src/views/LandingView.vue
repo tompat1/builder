@@ -48,7 +48,7 @@
 
       <router-link
         to="/merch"
-        class="group relative z-10 mx-4 mb-3 mt-2 flex w-[min(100%-2rem,18.5rem)] items-stretch self-end overflow-hidden rounded-2xl bg-white text-pine shadow-[0_12px_28px_-16px_rgba(23,61,53,0.55)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine [@media(min-width:1280px)_and_(min-height:1000px)]:absolute [@media(min-width:1280px)_and_(min-height:1000px)]:bottom-4 [@media(min-width:1280px)_and_(min-height:1000px)]:right-4 [@media(min-width:1280px)_and_(min-height:1000px)]:mx-0 [@media(min-width:1280px)_and_(min-height:1000px)]:mb-0 [@media(min-width:1280px)_and_(min-height:1000px)]:mt-0 [@media(min-width:1280px)_and_(min-height:1000px)]:w-[18.5rem]"
+        class="group relative z-10 mx-4 mb-3 mt-2 flex w-[min(100%-2rem,18.5rem)] items-stretch self-end overflow-hidden rounded-2xl bg-white text-pine shadow-[0_12px_28px_-16px_rgba(23,61,53,0.55)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pine [@media(min-width:1280px)_and_(min-height:1000px)]:fixed [@media(min-width:1280px)_and_(min-height:1000px)]:bottom-4 [@media(min-width:1280px)_and_(min-height:1000px)]:right-4 [@media(min-width:1280px)_and_(min-height:1000px)]:mx-0 [@media(min-width:1280px)_and_(min-height:1000px)]:mb-0 [@media(min-width:1280px)_and_(min-height:1000px)]:mt-0 [@media(min-width:1280px)_and_(min-height:1000px)]:w-[18.5rem]"
       >
           <span class="absolute inset-y-0 left-0 w-[5.25rem]">
             <img :src="ctaProduct.cta ?? `/merch/cta/${ctaProduct.id}.webp`" alt="" class="h-full w-full object-contain" />

@@ -115,6 +115,20 @@ export type CameraView = {
 export type ViewMode = 'utsida' | 'insida' | 'blueprint';
 export type CategoryKey = 'size' | 'color' | 'roof' | 'loft' | 'interior' | 'doors' | 'windows' | 'gates' | 'extras';
 export type MaterialKey = 'wood' | 'falurod' | 'grey' | 'white' | 'black';
+
+/** Saved facade + corner + frame combination. */
+export interface ColorCombo {
+  id: string;
+  name: string;
+  material: MaterialKey;
+  paintId: string | null;
+  paintHex: string | null;
+  cornerColor: string;
+  cornerBoards: boolean;
+  frameColor: string;
+}
+
+export const COLOR_COMBO_LIMIT = 12;
 export type PanelOrientation = 'staende' | 'liggande';
 export type InteractionMode =
   | 'default'
@@ -612,6 +626,36 @@ export {
 } from './stuganV4';
 export type { StuganConflict, StuganStairSolution } from './stuganV4';
 
+function parseColorCombos(raw: unknown): ColorCombo[] {
+  if (!Array.isArray(raw)) return [];
+  const materials = new Set(MATERIAL_OPTIONS.map((item) => item.id));
+  const out: ColorCombo[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const row = item as Record<string, unknown>;
+    const id = typeof row.id === 'string' ? row.id : '';
+    const name = typeof row.name === 'string' ? row.name.trim() : '';
+    const material = typeof row.material === 'string' && materials.has(row.material as MaterialKey)
+      ? (row.material as MaterialKey)
+      : null;
+    const corner = typeof row.cornerColor === 'string' ? row.cornerColor : null;
+    const frame = typeof row.frameColor === 'string' ? row.frameColor : null;
+    if (!id || !name || !material || !corner || !frame) continue;
+    out.push({
+      id,
+      name: name.slice(0, 40),
+      material,
+      paintId: typeof row.paintId === 'string' ? row.paintId : null,
+      paintHex: typeof row.paintHex === 'string' ? row.paintHex : null,
+      cornerColor: corner,
+      cornerBoards: row.cornerBoards !== false,
+      frameColor: frame
+    });
+    if (out.length >= COLOR_COMBO_LIMIT) break;
+  }
+  return out;
+}
+
 export const useConfigStore = defineStore('config', () => {
   const displayPrefs = loadDisplayPrefs();
   const viewMode = ref<ViewMode>('utsida');
@@ -635,6 +679,13 @@ export const useConfigStore = defineStore('config', () => {
   const cornerColor = ref<string>('same');
   /** Saved custom corner board colors */
   const savedCornerColors = ref<string[]>([]);
+  /** Window / door frame colour: 'same' | 'white' | 'falurod' | 'grey' | 'black' | 'wood' | custom hex */
+  const frameColor = ref<string>('white');
+  /** Saved custom window frame colors */
+  const savedFrameColors = ref<string[]>([]);
+  /** Named facade + corner + frame combinations */
+  const savedColorCombos = ref<ColorCombo[]>([]);
+  const activeColorComboId = ref<string | null>(null);
   /** Exterior color of the concrete walls (hex code) */
   const concreteColor = ref<string>('#b7b3ac');
   /** Saved custom concrete colors */
@@ -843,6 +894,10 @@ export const useConfigStore = defineStore('config', () => {
       claddingSizeId: claddingSizeId.value,
       cornerColor: cornerColor.value,
       savedCornerColors: savedCornerColors.value,
+      frameColor: frameColor.value,
+      savedFrameColors: savedFrameColors.value,
+      savedColorCombos: savedColorCombos.value,
+      activeColorComboId: activeColorComboId.value,
       cornerBoards: cornerBoards.value,
       wallSlots: wallSlots.value,
       notes: notes.value,
@@ -949,13 +1004,26 @@ export const useConfigStore = defineStore('config', () => {
       claddingSizeId.value = CLADDING_SIZES.some((size) => size.id === data.claddingSizeId)
         ? data.claddingSizeId
         : '22x145';
-       cornerColor.value = typeof data.cornerColor === 'string' ? data.cornerColor : 'same';
+      cornerColor.value = typeof data.cornerColor === 'string' ? data.cornerColor : 'same';
       savedCornerColors.value = Array.isArray(data.savedCornerColors)
         ? data.savedCornerColors.filter((c: unknown): c is string => typeof c === 'string' && c.startsWith('#'))
         : (cornerColor.value.startsWith('#') ? [cornerColor.value] : []);
       if (cornerColor.value.startsWith('#') && !savedCornerColors.value.includes(cornerColor.value)) {
         savedCornerColors.value.push(cornerColor.value);
       }
+      frameColor.value = typeof data.frameColor === 'string' ? data.frameColor : 'white';
+      savedFrameColors.value = Array.isArray(data.savedFrameColors)
+        ? data.savedFrameColors.filter((c: unknown): c is string => typeof c === 'string' && c.startsWith('#'))
+        : (frameColor.value.startsWith('#') ? [frameColor.value] : []);
+      if (frameColor.value.startsWith('#') && !savedFrameColors.value.includes(frameColor.value)) {
+        savedFrameColors.value.push(frameColor.value);
+      }
+      savedColorCombos.value = parseColorCombos(data.savedColorCombos);
+      activeColorComboId.value =
+        typeof data.activeColorComboId === 'string' &&
+        savedColorCombos.value.some((combo) => combo.id === data.activeColorComboId)
+          ? data.activeColorComboId
+          : null;
       concreteColor.value = typeof data.concreteColor === 'string' ? data.concreteColor : '#b7b3ac';
       savedConcreteColors.value = Array.isArray(data.savedConcreteColors)
         ? data.savedConcreteColors.filter((c: unknown): c is string => typeof c === 'string' && c.startsWith('#'))
@@ -2019,10 +2087,15 @@ export const useConfigStore = defineStore('config', () => {
     saveSnapshot();
   }
 
+  const clearActiveColorCombo = () => {
+    if (activeColorComboId.value) activeColorComboId.value = null;
+  };
+
   const selectMaterial = (id: MaterialKey) => {
     activeMaterial.value = id;
     activePaintId.value = null;
     paintPreview.value = null;
+    clearActiveColorCombo();
     saveSnapshot();
   }
 
@@ -2038,8 +2111,137 @@ export const useConfigStore = defineStore('config', () => {
       if (cornerColor.value === color) return;
       cornerColor.value = color;
     }
+    clearActiveColorCombo();
     saveSnapshot();
   }
+
+  const selectFrameColor = (color: string) => {
+    if (color.startsWith('#')) {
+      const normalized = normalizeHex(color) ?? color.toLowerCase();
+      if (!savedFrameColors.value.includes(normalized)) {
+        savedFrameColors.value = [...savedFrameColors.value, normalized].slice(-12);
+      }
+      if (frameColor.value === normalized) return;
+      frameColor.value = normalized;
+    } else {
+      if (frameColor.value === color) return;
+      frameColor.value = color;
+    }
+    clearActiveColorCombo();
+    saveSnapshot();
+  };
+
+  const addFrameColor = (color: string) => {
+    const normalized = normalizeHex(color) ?? color.toLowerCase();
+    if (!savedFrameColors.value.includes(normalized)) {
+      savedFrameColors.value = [...savedFrameColors.value, normalized].slice(-12);
+    }
+    frameColor.value = normalized;
+    clearActiveColorCombo();
+    saveSnapshot();
+  };
+
+  const removeFrameColor = (color: string) => {
+    const normalized = normalizeHex(color) ?? color.toLowerCase();
+    savedFrameColors.value = savedFrameColors.value.filter((c) => c !== normalized && c !== color);
+    if (frameColor.value === normalized || frameColor.value === color) {
+      frameColor.value = savedFrameColors.value[savedFrameColors.value.length - 1] ?? 'white';
+    }
+    clearActiveColorCombo();
+    saveSnapshot();
+  };
+
+  const updateFrameColor = (oldColor: string, newColor: string) => {
+    const normOld = normalizeHex(oldColor) ?? oldColor.toLowerCase();
+    const normNew = normalizeHex(newColor) ?? newColor.toLowerCase();
+    savedFrameColors.value = savedFrameColors.value.map((c) => (c === normOld ? normNew : c));
+    if (frameColor.value === normOld || frameColor.value === oldColor) {
+      frameColor.value = normNew;
+    }
+    clearActiveColorCombo();
+    saveSnapshot();
+  };
+
+  const currentColorComboSnapshot = (): Omit<ColorCombo, 'id' | 'name'> => ({
+    material: activeMaterial.value,
+    paintId: activePaintId.value,
+    paintHex: customPaint.value?.hex ?? null,
+    cornerColor: cornerColor.value,
+    cornerBoards: cornerBoards.value,
+    frameColor: frameColor.value
+  });
+
+  const saveColorCombo = (name?: string) => {
+    const label =
+      (name?.trim() || `Kulör ${savedColorCombos.value.length + 1}`).slice(0, 40);
+    const combo: ColorCombo = {
+      id: `combo_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 7)}`,
+      name: label,
+      ...currentColorComboSnapshot()
+    };
+    savedColorCombos.value = [combo, ...savedColorCombos.value].slice(0, COLOR_COMBO_LIMIT);
+    activeColorComboId.value = combo.id;
+    saveSnapshot();
+    return combo;
+  };
+
+  const applyColorCombo = (id: string) => {
+    const combo = savedColorCombos.value.find((item) => item.id === id);
+    if (!combo) return;
+    activeMaterial.value = combo.material;
+    paintPreview.value = null;
+    const paint =
+      (combo.paintId && savedPaints.value.find((item) => item.id === combo.paintId)) ||
+      (combo.paintHex
+        ? savedPaints.value.find((item) => item.hex.toLowerCase() === combo.paintHex!.toLowerCase())
+        : undefined);
+    if (paint) {
+      activePaintId.value = paint.id;
+    } else if (combo.paintHex) {
+      const parsed = parseCustomPaint({ hex: combo.paintHex, system: 'hex' });
+      if (parsed) {
+        const newId = `paint_combo_${combo.paintHex.replace('#', '')}`;
+        const existing = savedPaints.value.find(
+          (item) => item.hex.toLowerCase() === parsed.hex.toLowerCase()
+        );
+        if (existing) activePaintId.value = existing.id;
+        else {
+          savedPaints.value = [{ id: newId, ...parsed }, ...savedPaints.value].slice(0, SAVED_PAINT_LIMIT);
+          activePaintId.value = newId;
+        }
+      } else {
+        activePaintId.value = null;
+      }
+    } else {
+      activePaintId.value = null;
+    }
+    cornerColor.value = combo.cornerColor;
+    if (combo.cornerColor.startsWith('#') && !savedCornerColors.value.includes(combo.cornerColor)) {
+      savedCornerColors.value = [...savedCornerColors.value, combo.cornerColor].slice(-12);
+    }
+    cornerBoards.value = combo.cornerBoards;
+    frameColor.value = combo.frameColor;
+    if (combo.frameColor.startsWith('#') && !savedFrameColors.value.includes(combo.frameColor)) {
+      savedFrameColors.value = [...savedFrameColors.value, combo.frameColor].slice(-12);
+    }
+    activeColorComboId.value = combo.id;
+    saveSnapshot();
+  };
+
+  const removeColorCombo = (id: string) => {
+    savedColorCombos.value = savedColorCombos.value.filter((item) => item.id !== id);
+    if (activeColorComboId.value === id) activeColorComboId.value = null;
+    saveSnapshot();
+  };
+
+  const renameColorCombo = (id: string, name: string) => {
+    const label = name.trim().slice(0, 40);
+    if (!label) return;
+    savedColorCombos.value = savedColorCombos.value.map((item) =>
+      item.id === id ? { ...item, name: label } : item
+    );
+    saveSnapshot();
+  };
 
   const addCornerColor = (color: string) => {
     const normalized = normalizeHex(color) ?? color.toLowerCase();
@@ -2047,6 +2249,7 @@ export const useConfigStore = defineStore('config', () => {
       savedCornerColors.value = [...savedCornerColors.value, normalized].slice(-12);
     }
     cornerColor.value = normalized;
+    clearActiveColorCombo();
     saveSnapshot();
   }
 
@@ -2056,6 +2259,7 @@ export const useConfigStore = defineStore('config', () => {
     if (cornerColor.value === normalized || cornerColor.value === color) {
       cornerColor.value = savedCornerColors.value[savedCornerColors.value.length - 1] ?? 'same';
     }
+    clearActiveColorCombo();
     saveSnapshot();
   }
 
@@ -2066,6 +2270,7 @@ export const useConfigStore = defineStore('config', () => {
     if (cornerColor.value === normOld || cornerColor.value === oldColor) {
       cornerColor.value = normNew;
     }
+    clearActiveColorCombo();
     saveSnapshot();
   }
 
@@ -2114,12 +2319,14 @@ export const useConfigStore = defineStore('config', () => {
 
   const toggleCornerBoards = () => {
     cornerBoards.value = !cornerBoards.value;
+    clearActiveColorCombo();
     saveSnapshot();
   }
 
   const setCornerBoards = (visible: boolean) => {
     if (cornerBoards.value === visible) return;
     cornerBoards.value = visible;
+    clearActiveColorCombo();
     saveSnapshot();
   }
 
@@ -2128,6 +2335,7 @@ export const useConfigStore = defineStore('config', () => {
     paintPreview.value = null;
     if (activePaintId.value === id) return;
     activePaintId.value = id;
+    clearActiveColorCombo();
     saveSnapshot();
   }
 
@@ -2139,6 +2347,7 @@ export const useConfigStore = defineStore('config', () => {
     const next = parseCustomPaint(paint);
     if (!next) return;
     paintPreview.value = null;
+    clearActiveColorCombo();
     const existing = savedPaints.value.find((item) => item.hex === next.hex && item.ral === next.ral && item.pantone === next.pantone);
     if (existing) {
       if (activePaintId.value === existing.id) return;
@@ -2156,6 +2365,23 @@ export const useConfigStore = defineStore('config', () => {
     activePaintId.value = id;
     saveSnapshot();
   }
+
+  const effectiveFrameHex = computed(() => {
+    if (frameColor.value && frameColor.value !== 'same') {
+      if (frameColor.value.startsWith('#')) return frameColor.value;
+      if (frameColor.value === 'white') return '#f8fafc';
+      if (frameColor.value === 'falurod') return '#892622';
+      if (frameColor.value === 'grey') return '#64748b';
+      if (frameColor.value === 'black') return '#1a1c1b';
+      if (frameColor.value === 'wood') return '#e8d8be';
+      const found = MATERIAL_OPTIONS.find((m) => m.id === frameColor.value);
+      if (found) return found.colorHex;
+    }
+    if (paintPreview.value) return paintPreview.value;
+    if (customPaint.value?.hex) return customPaint.value.hex;
+    const currentMat = MATERIAL_OPTIONS.find((m) => m.id === activeMaterial.value);
+    return currentMat ? currentMat.colorHex : '#e8d8be';
+  });
 
   const removeSavedPaint = (id: string) => {
     savedPaints.value = savedPaints.value.filter((paint) => paint.id !== id);
@@ -2518,12 +2744,25 @@ export const useConfigStore = defineStore('config', () => {
     claddingSizeId,
     cornerColor,
     savedCornerColors,
+    frameColor,
+    savedFrameColors,
+    savedColorCombos,
+    activeColorComboId,
     cornerBoards,
     effectiveCornerHex,
+    effectiveFrameHex,
     selectCornerColor,
     addCornerColor,
     removeCornerColor,
     updateCornerColor,
+    selectFrameColor,
+    addFrameColor,
+    removeFrameColor,
+    updateFrameColor,
+    saveColorCombo,
+    applyColorCombo,
+    removeColorCombo,
+    renameColorCombo,
     removeSavedPaint,
     toggleCornerBoards,
     setCornerBoards,

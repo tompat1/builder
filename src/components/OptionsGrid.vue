@@ -404,8 +404,106 @@
 
     <!-- Color Category Content -->
     <template v-else-if="store.selectedCategory === 'color'">
+      <!-- Saved colour combinations -->
+      <div class="mb-4">
+        <div class="flex items-center justify-between mb-2">
+          <div>
+            <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider">
+              <Cms k="category.colorCombos" />
+            </h4>
+            <p class="text-[11px] text-slate-500">
+              <Cms k="category.colorCombosHint" />
+            </p>
+          </div>
+          <span
+            v-if="store.savedColorCombos.length"
+            class="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60"
+          >
+            {{ store.savedColorCombos.length }}
+          </span>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <button
+            v-for="combo in store.savedColorCombos"
+            :key="combo.id"
+            type="button"
+            :id="`color-combo-${combo.id}`"
+            class="group relative p-2.5 rounded-xl border text-left flex items-center gap-3 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+            :class="store.activeColorComboId === combo.id
+              ? 'border-slate-900 ring-1 ring-slate-900 bg-slate-50 shadow-sm'
+              : 'border-slate-200 bg-white hover:border-slate-300'"
+            :aria-pressed="store.activeColorComboId === combo.id"
+            @click="store.applyColorCombo(combo.id)"
+          >
+            <span class="flex shrink-0 -space-x-1.5" aria-hidden="true">
+              <span
+                class="h-7 w-7 rounded-lg border border-slate-300 shadow-xs"
+                :style="{ backgroundColor: comboFacadeHex(combo) }"
+              />
+              <span
+                class="h-7 w-7 rounded-lg border border-slate-300 shadow-xs"
+                :style="{ backgroundColor: comboTrimHex(combo.cornerColor, comboFacadeHex(combo)) }"
+              />
+              <span
+                class="h-7 w-7 rounded-lg border border-slate-300 shadow-xs"
+                :style="{ backgroundColor: comboTrimHex(combo.frameColor, comboFacadeHex(combo)) }"
+              />
+            </span>
+            <div class="min-w-0 flex-1">
+              <span class="block text-xs font-bold text-slate-900 truncate">{{ combo.name }}</span>
+              <p class="text-[10px] text-slate-500 truncate">
+                {{ combo.cornerBoards ? t('category.cornerBoards') : '—' }} · {{ t('category.windowFrames') }}
+              </p>
+            </div>
+            <svg
+              v-if="store.activeColorComboId === combo.id"
+              class="w-4 h-4 shrink-0 text-slate-900"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="3"
+            >
+              <polyline points="20 6 9 17 4 12" />
+            </svg>
+            <span
+              role="button"
+              tabindex="0"
+              class="opacity-0 group-hover:opacity-100 focus:opacity-100 p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-all"
+              :aria-label="t('tools.remove') || 'Remove'"
+              @click.stop="store.removeColorCombo(combo.id)"
+            >
+              <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M18 6L6 18M6 6l12 12" />
+              </svg>
+            </span>
+          </button>
+
+          <button
+            type="button"
+            id="btn-save-color-combo"
+            class="p-2.5 rounded-xl border border-dashed text-left flex items-center gap-3 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 border-slate-300 bg-white hover:border-slate-400 hover:bg-slate-50"
+            @click="onSaveColorCombo"
+          >
+            <div class="w-8 h-8 rounded-lg shrink-0 border border-dashed border-slate-300 flex items-center justify-center bg-slate-50 text-slate-700">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+            </div>
+            <div class="min-w-0">
+              <span class="block text-xs font-bold text-slate-900 truncate">
+                + {{ store.savedColorCombos.length > 0 ? t('category.colorComboSaveMore') : t('category.colorComboSave') }}
+              </span>
+              <p class="text-[10px] text-slate-600 truncate">
+                {{ store.savedColorCombos.length ? t('category.colorCombosHint') : t('category.colorComboEmpty') }}
+              </p>
+            </div>
+          </button>
+        </div>
+      </div>
+
       <!-- Main Facade Wall Colors -->
-      <div>
+      <div class="pt-4 border-t border-slate-200/80">
         <div class="flex items-center justify-between mb-2">
           <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider">
             <Cms k="category.colourTab" />
@@ -780,6 +878,225 @@
             </label>
           </div>
         </template>
+      </div>
+
+      <!-- Window / door frames -->
+      <div class="pt-4 border-t border-slate-200/80">
+        <div class="flex items-center justify-between mb-2">
+          <div>
+            <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider">
+              <Cms k="category.windowFrames" />
+            </h4>
+            <p class="text-[11px] text-slate-500">
+              <Cms k="category.windowFramesHint" />
+            </p>
+          </div>
+          <span class="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60">
+            {{ currentFrameColorName }}
+          </span>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          <button
+            type="button"
+            id="frame-color-same"
+            @click="store.selectFrameColor('same')"
+            :class="[
+              'p-2 rounded-xl border text-left flex items-center gap-2.5 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
+              store.frameColor === 'same'
+                ? 'border-slate-900 ring-1 ring-slate-900 bg-slate-50 shadow-sm'
+                : 'border-slate-200 bg-white hover:border-slate-300'
+            ]"
+          >
+            <div
+              class="w-7 h-7 rounded-lg shrink-0 border border-slate-300 shadow-xs flex items-center justify-center relative overflow-hidden"
+              :style="{ backgroundColor: currentFacadeColorHex }"
+            >
+              <div class="absolute inset-0 bg-gradient-to-tr from-black/10 to-transparent"></div>
+              <svg v-if="store.frameColor === 'same'" class="w-3.5 h-3.5 text-white drop-shadow-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </div>
+            <div class="min-w-0 flex-1">
+              <span class="block text-xs font-bold text-slate-900 truncate"><Cms k="category.frameSame" /></span>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            id="frame-color-white"
+            @click="store.selectFrameColor('white')"
+            :class="[
+              'p-2 rounded-xl border text-left flex items-center gap-2.5 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
+              store.frameColor === 'white'
+                ? 'border-slate-900 ring-1 ring-slate-900 bg-slate-50 shadow-sm'
+                : 'border-slate-200 bg-white hover:border-slate-300'
+            ]"
+          >
+            <div class="w-7 h-7 rounded-lg shrink-0 border border-slate-300 shadow-xs flex items-center justify-center relative overflow-hidden bg-[#f8fafc]">
+              <svg v-if="store.frameColor === 'white'" class="w-3.5 h-3.5 text-slate-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </div>
+            <div class="min-w-0 flex-1">
+              <span class="block text-xs font-bold text-slate-900 truncate"><Cms k="category.frameWhite" /></span>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            id="frame-color-falurod"
+            @click="store.selectFrameColor('falurod')"
+            :class="[
+              'p-2 rounded-xl border text-left flex items-center gap-2.5 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
+              store.frameColor === 'falurod'
+                ? 'border-slate-900 ring-1 ring-slate-900 bg-slate-50 shadow-sm'
+                : 'border-slate-200 bg-white hover:border-slate-300'
+            ]"
+          >
+            <div class="w-7 h-7 rounded-lg shrink-0 border border-slate-300 shadow-xs flex items-center justify-center relative overflow-hidden bg-[#8b2522]">
+              <svg v-if="store.frameColor === 'falurod'" class="w-3.5 h-3.5 text-white drop-shadow-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </div>
+            <div class="min-w-0 flex-1">
+              <span class="block text-xs font-bold text-slate-900 truncate"><Cms k="category.frameFalurod" /></span>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            id="frame-color-grey"
+            @click="store.selectFrameColor('grey')"
+            :class="[
+              'p-2 rounded-xl border text-left flex items-center gap-2.5 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
+              store.frameColor === 'grey'
+                ? 'border-slate-900 ring-1 ring-slate-900 bg-slate-50 shadow-sm'
+                : 'border-slate-200 bg-white hover:border-slate-300'
+            ]"
+          >
+            <div class="w-7 h-7 rounded-lg shrink-0 border border-slate-300 shadow-xs flex items-center justify-center relative overflow-hidden bg-[#64748b]">
+              <svg v-if="store.frameColor === 'grey'" class="w-3.5 h-3.5 text-white drop-shadow-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </div>
+            <div class="min-w-0 flex-1">
+              <span class="block text-xs font-bold text-slate-900 truncate"><Cms k="category.frameGrey" /></span>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            id="frame-color-black"
+            @click="store.selectFrameColor('black')"
+            :class="[
+              'p-2 rounded-xl border text-left flex items-center gap-2.5 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
+              store.frameColor === 'black'
+                ? 'border-slate-900 ring-1 ring-slate-900 bg-slate-50 shadow-sm'
+                : 'border-slate-200 bg-white hover:border-slate-300'
+            ]"
+          >
+            <div class="w-7 h-7 rounded-lg shrink-0 border border-slate-300 shadow-xs flex items-center justify-center relative overflow-hidden bg-[#1e293b]">
+              <svg v-if="store.frameColor === 'black'" class="w-3.5 h-3.5 text-white drop-shadow-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </div>
+            <div class="min-w-0 flex-1">
+              <span class="block text-xs font-bold text-slate-900 truncate"><Cms k="category.frameBlack" /></span>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            id="frame-color-wood"
+            @click="store.selectFrameColor('wood')"
+            :class="[
+              'p-2 rounded-xl border text-left flex items-center gap-2.5 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
+              store.frameColor === 'wood'
+                ? 'border-slate-900 ring-1 ring-slate-900 bg-slate-50 shadow-sm'
+                : 'border-slate-200 bg-white hover:border-slate-300'
+            ]"
+          >
+            <div class="w-7 h-7 rounded-lg shrink-0 border border-slate-300 shadow-xs flex items-center justify-center relative overflow-hidden bg-[#e8d8be]">
+              <svg v-if="store.frameColor === 'wood'" class="w-3.5 h-3.5 text-slate-900" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </div>
+            <div class="min-w-0 flex-1">
+              <span class="block text-xs font-bold text-slate-900 truncate"><Cms k="category.frameWood" /></span>
+            </div>
+          </button>
+        </div>
+
+        <div class="mt-2.5 flex flex-wrap items-center gap-2">
+          <div
+            v-for="color in customFrameColors"
+            :key="color"
+            class="relative inline-flex items-center"
+          >
+            <button
+              type="button"
+              :id="store.frameColor === color ? 'frame-color-custom' : `frame-color-custom-${color.replace('#', '')}`"
+              @click="store.selectFrameColor(color)"
+              class="group relative flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+              :class="store.frameColor === color
+                ? 'border-slate-900 ring-1 ring-slate-900 bg-slate-50 shadow-sm text-slate-900'
+                : 'border-slate-200 bg-white hover:border-slate-300 text-slate-700'"
+            >
+              <label
+                class="relative w-5 h-5 rounded border border-slate-300 shrink-0 cursor-pointer flex items-center justify-center overflow-hidden"
+                :style="{ backgroundColor: color }"
+                title="Adjust color"
+              >
+                <input
+                  type="color"
+                  class="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                  :value="color"
+                  @input="store.updateFrameColor(color, ($event.target as HTMLInputElement).value)"
+                  @click.stop
+                />
+                <svg v-if="store.frameColor === color" class="w-3 h-3 drop-shadow-sm" :class="readableInk(color) === '#ffffff' ? 'text-white' : 'text-slate-900'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              </label>
+              <span><Cms k="category.frameCustom" /></span>
+              <span class="text-[10px] font-mono text-slate-500">
+                {{ color.toUpperCase() }}
+              </span>
+              <span
+                v-if="customFrameColors.length > 1"
+                role="button"
+                tabindex="0"
+                :aria-label="t('tools.remove') || 'Remove'"
+                class="ml-0.5 -mr-1 p-0.5 rounded text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                @click.stop="store.removeFrameColor(color)"
+              >
+                <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <path d="M18 6L6 18M6 6l12 12" />
+                </svg>
+              </span>
+            </button>
+          </div>
+
+          <label
+            :id="customFrameColors.length === 0 ? 'frame-color-custom' : 'btn-add-frame-color'"
+            class="relative flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-slate-300 bg-white hover:border-slate-400 hover:bg-slate-50 text-xs font-medium text-slate-700 cursor-pointer transition-all focus-within:ring-2 focus-within:ring-slate-900"
+            :title="t('category.frameAddColor')"
+          >
+            <input
+              type="color"
+              class="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+              value="#f8fafc"
+              @input="onAddFrameColor(($event.target as HTMLInputElement).value)"
+            />
+            <svg class="w-3.5 h-3.5 text-slate-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+            <span class="font-bold text-slate-800">
+              <Cms :k="customFrameColors.length === 0 ? 'category.frameCustom' : 'category.frameAddColor'" />
+            </span>
+          </label>
+        </div>
       </div>
 
       <!-- Concrete Wall Color Option in Color Category (when Påbyggnad is selected) -->
@@ -2972,6 +3289,17 @@ const currentCornerColorName = computed(() => {
   return store.cornerColor;
 });
 
+const currentFrameColorName = computed(() => {
+  if (store.frameColor === 'same') return t('category.frameSame');
+  if (store.frameColor === 'white') return t('category.frameWhite');
+  if (store.frameColor === 'falurod') return t('category.frameFalurod');
+  if (store.frameColor === 'grey') return t('category.frameGrey');
+  if (store.frameColor === 'black') return t('category.frameBlack');
+  if (store.frameColor === 'wood') return t('category.frameWood');
+  if (store.frameColor.startsWith('#')) return store.frameColor.toUpperCase();
+  return store.frameColor;
+});
+
 const customCornerColors = computed(() => {
   const list: string[] = [];
   if (store.cornerColor.startsWith('#')) {
@@ -2986,9 +3314,50 @@ const customCornerColors = computed(() => {
   return list;
 });
 
+const customFrameColors = computed(() => {
+  const list: string[] = [];
+  if (store.frameColor.startsWith('#')) {
+    list.push(store.frameColor.toLowerCase());
+  }
+  for (const c of store.savedFrameColors) {
+    const norm = c.toLowerCase();
+    if (!list.includes(norm)) {
+      list.push(norm);
+    }
+  }
+  return list;
+});
+
 function onAddCornerColor(value: string) {
   if (!value) return;
   store.addCornerColor(value);
+}
+
+function onAddFrameColor(value: string) {
+  if (!value) return;
+  store.addFrameColor(value);
+}
+
+function onSaveColorCombo() {
+  store.saveColorCombo();
+}
+
+function comboFacadeHex(combo: { material: string; paintHex: string | null }) {
+  if (combo.paintHex) return combo.paintHex;
+  const mat = MATERIAL_OPTIONS.find((m) => m.id === combo.material);
+  return mat ? mat.colorHex : '#e8d8be';
+}
+
+function comboTrimHex(key: string, facadeHex: string) {
+  if (!key || key === 'same') return facadeHex;
+  if (key === 'white') return '#f8fafc';
+  if (key === 'falurod') return '#892622';
+  if (key === 'grey') return '#64748b';
+  if (key === 'black') return '#1a1c1b';
+  if (key === 'wood') return '#e8d8be';
+  if (key.startsWith('#')) return key;
+  const mat = MATERIAL_OPTIONS.find((m) => m.id === key);
+  return mat ? mat.colorHex : facadeHex;
 }
 
 const CONCRETE_COLOR_OPTIONS = [

@@ -207,6 +207,30 @@ const actions: SearchEntry[] = [
     focus: 'corner-color-custom'
   }),
   entry({
+    id: 'window-frames',
+    topic: 'colour',
+    titleKey: 'category.windowFrames',
+    title: 'Fönsterfoder',
+    hintKey: 'category.windowFramesHint',
+    hint: '',
+    keywords: ['fönsterfoder', 'window frames', 'foder', 'karm', 'casing', 'trim', ...COLOUR_WORDS],
+    path: '/build',
+    category: 'color',
+    focus: 'frame-color-white'
+  }),
+  entry({
+    id: 'color-combos',
+    topic: 'colour',
+    titleKey: 'category.colorCombos',
+    title: 'Kulörkombinationer',
+    hintKey: 'category.colorCombosHint',
+    hint: '',
+    keywords: ['kulörkombination', 'color combo', 'colour combo', 'preset', 'sparad kulör', ...COLOUR_WORDS],
+    path: '/build',
+    category: 'color',
+    focus: 'btn-save-color-combo'
+  }),
+  entry({
     id: 'custom-size',
     topic: 'size',
     titleKey: 'search.customSize',

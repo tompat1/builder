@@ -228,6 +228,7 @@ onMounted(() => {
       panelOrientation: store.panelOrientation,
       verticalDoorBay: store.verticalDoorBay,
       cornerColor: store.cornerColor,
+      frameColor: store.frameColor,
       cornerBoards: store.cornerBoards,
       panelWidthMm: store.claddingSizeId === '22x95'
         ? 95
@@ -476,9 +477,10 @@ watch(
     () => store.verticalDoorBay,
     () => store.claddingSizeId,
     () => store.cornerColor,
+    () => store.frameColor,
     () => store.cornerBoards
   ],
-  ([mat, customHex, orientation, verticalDoorBay, sizeId, cornerColor, cornerBoards]) => {
+  ([mat, customHex, orientation, verticalDoorBay, sizeId, cornerColor, frameColor, cornerBoards]) => {
     const width = sizeId === '22x95' ? 95 : sizeId === '22x120' ? 120 : sizeId === '22x170' ? 170 : 145;
     engine?.updateConfig({
       material: mat,
@@ -487,6 +489,7 @@ watch(
       verticalDoorBay,
       panelWidthMm: width,
       cornerColor,
+      frameColor,
       cornerBoards
     });
   }
