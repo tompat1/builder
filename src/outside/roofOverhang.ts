@@ -17,6 +17,20 @@ export const ROOF_OVERHANG_VERSIONS: readonly RoofOverhangVersion[] = ['v1', 'v2
 
 export const DEFAULT_ROOF_OVERHANG_VERSION: RoofOverhangVersion = 'v1';
 
+/**
+ * Local Y centre for a cylindrical downlight recessed into the underside of a
+ * roof soffit. Negative Y points out through the visible soffit face.
+ */
+export function recessedSoffitLightCenterY(
+  roofThicknessM: number,
+  soffitThicknessM: number,
+  fixtureDepthM: number,
+  revealM = 0.0015
+): number {
+  const soffitUndersideY = -roofThicknessM / 2 - soffitThicknessM;
+  return soffitUndersideY + fixtureDepthM / 2 - revealM;
+}
+
 export function acceptRoofOverhangVersion(value: unknown): RoofOverhangVersion {
   if (value === 'v2' || value === 'v3') return value;
   return 'v1';

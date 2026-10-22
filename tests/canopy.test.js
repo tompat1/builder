@@ -3,12 +3,30 @@ import assert from 'node:assert/strict';
 import { computeDoorCanopyLayout, isDoorCoveredByAddition } from '../src/outside/canopy.ts';
 import {
   acceptRoofOverhangVersion,
+  recessedSoffitLightCenterY,
   roofBeamsAlongDepthForOverhang,
   usesCantileverBlackFascia,
   usesPlankSoffitOverhang,
   usesSoffitCanopyFraming,
   usesTimberCanopyFraming
 } from '../src/outside/roofOverhang.ts';
+
+test('a recessed soffit light is embedded with only its trim reveal below the soffit', () => {
+  const roofThickness = 0.1;
+  const soffitThickness = 0.018;
+  const fixtureDepth = 0.012;
+  const reveal = 0.0015;
+  const undersideY = -roofThickness / 2 - soffitThickness;
+  const centreY = recessedSoffitLightCenterY(
+    roofThickness,
+    soffitThickness,
+    fixtureDepth,
+    reveal
+  );
+
+  assert.ok(centreY > undersideY, 'the fixture body should sit inside the soffit');
+  assert.equal(centreY - fixtureDepth / 2, undersideY - reveal);
+});
 
 test('a door canopy on an interior bay has symmetric overhang and brackets', () => {
   const layout = computeDoorCanopyLayout({

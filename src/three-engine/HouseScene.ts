@@ -26,6 +26,7 @@ import { addTerraceHotTub } from './terraceHotTub';
 import { computeDoorCanopyLayout, isDoorCoveredByAddition } from '../outside/canopy';
 import {
   acceptRoofOverhangVersion,
+  recessedSoffitLightCenterY,
   roofBeamsAlongDepthForOverhang,
   usesCantileverBlackFascia,
   usesPlankSoffitOverhang,
@@ -5675,13 +5676,6 @@ export class HouseScene {
       roughness: 0.35,
       metalness: 0.85
     });
-    const lightMat = new THREE.MeshStandardMaterial({
-      color: '#f8f4ea',
-      emissive: '#fff6e0',
-      emissiveIntensity: 0.85,
-      roughness: 0.4
-    });
-
     const postSize = 0.12;
     const eavePast = 0.22;
     const postInset = eavePast + postSize / 2;
@@ -5722,23 +5716,6 @@ export class HouseScene {
     cap.position.set(postX, seatY - 0.015, postZ);
     mark(cap);
 
-    // Recessed spotlights in the overhang soffit (world space under the eave).
-    const lightR = 0.045;
-    const lightY = plateY(0) - 0.14;
-    const lightZs = [
-      d / 2 + frontOverhang * 0.35,
-      d / 2 + frontOverhang * 0.62,
-      d / 2 + frontOverhang * 0.85
-    ];
-    const lightXs = [-w * 0.22, 0, w * 0.22];
-    for (let i = 0; i < lightZs.length; i++) {
-      const spot = new THREE.Mesh(
-        new THREE.CylinderGeometry(lightR, lightR * 0.85, 0.02, 16),
-        lightMat
-      );
-      spot.position.set(lightXs[i] ?? 0, lightY + (lightXs[i] ?? 0) * Math.tan(angleRad), lightZs[i]!);
-      mark(spot);
-    }
   }
 
   private buildRoof(w: number, d: number, h: number) {
@@ -5851,6 +5828,38 @@ export class HouseScene {
             plank.position.set(0, soffitY, z0 + i * (plankW + plankGap));
             plank.receiveShadow = true;
             assembly.add(plank);
+          }
+
+          if (usesSoffitCanopyFraming(overhangVersion, edges.front)) {
+            const lightRadius = 0.045;
+            const lightDepth = 0.012;
+            const lightY = recessedSoffitLightCenterY(
+              roofThick,
+              soffitT,
+              lightDepth
+            );
+            const lightMat = new THREE.MeshStandardMaterial({
+              color: '#f8f4ea',
+              emissive: '#fff6e0',
+              emissiveIntensity: 0.85,
+              roughness: 0.4
+            });
+            const lightXs = [-w * 0.22, 0, w * 0.22];
+            const lightZs = [
+              localWallFrontZ + edges.front * 0.35,
+              localWallFrontZ + edges.front * 0.62,
+              localWallFrontZ + edges.front * 0.85
+            ];
+
+            for (let i = 0; i < lightZs.length; i++) {
+              const spot = new THREE.Mesh(
+                new THREE.CylinderGeometry(lightRadius, lightRadius, lightDepth, 24),
+                lightMat
+              );
+              spot.position.set(lightXs[i] ?? 0, lightY, lightZs[i]!);
+              spot.userData.outsideAddition = true;
+              assembly.add(spot);
+            }
           }
         } else {
           const frontSoffit = new THREE.Mesh(
