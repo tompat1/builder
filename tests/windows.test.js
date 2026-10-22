@@ -325,6 +325,7 @@ test('alignWindowsOnBand consolidates loose windows into one rhythm host with no
   const {
     rhythmOpeningsAlongRun,
     rhythmOpeningForPanel,
+    rhythmOpeningsForPanel,
     rhythmOpeningsDoNotOverlap
   } = await import('../src/three-engine/windowFit.ts');
 
@@ -371,7 +372,7 @@ test('alignWindowsOnBand consolidates loose windows into one rhythm host with no
   assert.equal(after.count, 3);
   assert.equal(after.hostId, result.hostId);
 
-  // Geometry: three non-overlapping panes, exactly three drawFeature owners.
+  // Geometry: three bay-centred panes (no seam straddles), exactly three feature owners.
   const panelWidth = 1.5;
   const along = rhythmOpeningsAlongRun(4, 3, panelWidth, 1.0, 0.32);
   assert.equal(along.length, 3);
@@ -380,6 +381,8 @@ test('alignWindowsOnBand consolidates loose windows into one rhythm host with no
   for (let i = 0; i < 4; i += 1) {
     const mapped = rhythmOpeningForPanel(along, 0, 4, i, panelWidth);
     if (mapped?.drawFeature) drawn.push(mapped);
+    // Each intersecting panel owns its pane entirely — no cut-only seam halves.
+    assert.ok(rhythmOpeningsForPanel(along, 0, 4, i, panelWidth).every((o) => o.drawFeature));
   }
   assert.equal(drawn.length, 3);
 
@@ -450,49 +453,41 @@ test('Align UI path is only alignWallWindows → alignWindowsOnBand', async () =
   assert.match(scene, /windowRhythmOpeningsForPanel/);
 });
 
-test('seam-crossing rhythm panes map to both neighbours with one feature owner', async () => {
+test('Align rhythm snaps panes into whole bays so frames never cross seams', async () => {
   const {
+    evenBayIndicesForRhythm,
     rhythmOpeningsAlongRun,
     rhythmOpeningsForPanel,
-    rhythmOpeningForPanel,
-    clipOpeningToPanel,
     openingSpansPastPanel,
-    rhythmOpeningsDoNotOverlap
+    rhythmOpeningsDoNotOverlap,
+    clipOpeningToPanel
   } = await import('../src/three-engine/windowFit.ts');
 
-  // Three standard panes on four 1.5 m bays: the middle centre sits on a seam.
+  assert.deepEqual(evenBayIndicesForRhythm(4, 3), [0, 2, 3]);
+  assert.deepEqual(evenBayIndicesForRhythm(3, 3), [0, 1, 2]);
+  assert.deepEqual(evenBayIndicesForRhythm(4, 2), [0, 3]);
+
   const panelWidth = 1.5;
   const along = rhythmOpeningsAlongRun(4, 3, panelWidth, 1.05, 0.32);
   assert.equal(along.length, 3);
   assert.equal(rhythmOpeningsDoNotOverlap(along), true);
+  // Bay centres: 0.75, 3.75, 5.25
+  assert.ok(Math.abs(along[0].along - 0.75) < 1e-9);
+  assert.ok(Math.abs(along[1].along - 3.75) < 1e-9);
+  assert.ok(Math.abs(along[2].along - 5.25) < 1e-9);
 
-  const mid = along[1];
-  assert.ok(mid);
-  assert.ok(Math.abs(mid.along - 3) < 1e-6, 'middle centre lands on the panel 1/2 seam');
+  for (let i = 0; i < 4; i += 1) {
+    const panes = rhythmOpeningsForPanel(along, 0, 4, i, panelWidth);
+    for (const pane of panes) {
+      assert.equal(pane.drawFeature, true);
+      assert.equal(openingSpansPastPanel(pane, panelWidth), false);
+    }
+  }
 
-  const perPanel = [0, 1, 2, 3].map((i) =>
-    rhythmOpeningsForPanel(along, 0, 4, i, panelWidth)
-  );
-  // Old contract returned one opening and dropped the neighbour cut — both sides must see the mid pane.
-  assert.equal(perPanel[1].length, 1);
-  assert.equal(perPanel[2].length, 1);
-  assert.equal(perPanel[1][0].drawFeature || perPanel[2][0].drawFeature, true);
-  assert.equal(perPanel[1][0].drawFeature && perPanel[2][0].drawFeature, false);
-  assert.equal(perPanel[1][0].winW, mid.winW);
-  assert.equal(perPanel[2][0].winW, mid.winW);
-
-  const owners = perPanel.flat().filter((o) => o.drawFeature);
-  assert.equal(owners.length, 3);
-
-  // Single-opening helper still returns the primary, but must not be the only API.
-  assert.ok(rhythmOpeningForPanel(along, 0, 4, 1, panelWidth));
-  assert.ok(rhythmOpeningForPanel(along, 0, 4, 2, panelWidth));
-
-  const owner = owners.find((o) => Math.abs(o.x + 0.75) < 0.05 || Math.abs(o.x - 0.75) < 0.05);
-  assert.ok(owner);
-  assert.equal(openingSpansPastPanel(owner, panelWidth), true);
-  const clipped = clipOpeningToPanel(owner, panelWidth);
+  // Wide pane fallback may still straddle — clip helper stays available for the renderer.
+  const wide = { x: -0.75, winW: 1.05 };
+  assert.equal(openingSpansPastPanel(wide, panelWidth), true);
+  const clipped = clipOpeningToPanel(wide, panelWidth);
   assert.ok(clipped);
-  assert.ok(clipped.winW < owner.winW);
-  assert.ok(clipped.winW > 0.2);
+  assert.ok(clipped.winW < wide.winW);
 });

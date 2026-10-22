@@ -230,7 +230,13 @@ test('a loft bedroom maximizes into the deck zone and leaves the stair clear', (
 });
 
 test('even window centres keep equal gaps and clear end margins', async () => {
-  const { evenWindowCentersAlongRun, rhythmOpeningsAlongRun, rhythmOpeningForPanel } = await import('../src/three-engine/windowFit.ts');
+  const {
+    evenWindowCentersAlongRun,
+    rhythmOpeningsAlongRun,
+    rhythmOpeningForPanel,
+    rhythmOpeningsForPanel,
+    openingSpansPastPanel
+  } = await import('../src/three-engine/windowFit.ts');
   const centers = evenWindowCentersAlongRun(6, 3, 1.0, 0.3);
   assert.equal(centers.length, 3);
   const gap01 = centers[1] - centers[0];
@@ -239,24 +245,23 @@ test('even window centres keep equal gaps and clear end margins', async () => {
   assert.ok(centers[0] - 0.5 >= 0.3 - 1e-9);
   assert.ok(6 - (centers[2] + 0.5) >= 0.3 - 1e-9);
 
+  // Align snaps to bay centres so panes stay inside their panels.
   const along = rhythmOpeningsAlongRun(4, 3, 1.5, 1.0, 0.3);
   assert.equal(along.length, 3);
-  const world = along.map((p) => p.along).sort((a, b) => a - b);
-  assert.ok(Math.abs((world[1] - world[0]) - (world[2] - world[1])) < 1e-9);
-  assert.ok(world[0] - along[0].winW / 2 >= 0.3 - 1e-6);
-  assert.ok(6 - (world[2] + along[2].winW / 2) >= 0.3 - 1e-6);
+  assert.deepEqual(
+    along.map((p) => p.along),
+    [0.75, 3.75, 5.25]
+  );
 
   const drawn = [];
   for (let i = 0; i < 4; i += 1) {
     const mapped = rhythmOpeningForPanel(along, 0, 4, i, 1.5);
     if (mapped?.drawFeature) drawn.push(mapped);
+    for (const pane of rhythmOpeningsForPanel(along, 0, 4, i, 1.5)) {
+      assert.equal(openingSpansPastPanel(pane, 1.5), false);
+    }
   }
   assert.equal(drawn.length, 3);
-
-  // Seam-crossing mid pane must be visible to both neighbouring panels.
-  const { rhythmOpeningsForPanel } = await import('../src/three-engine/windowFit.ts');
-  const cuts = [0, 1, 2, 3].map((i) => rhythmOpeningsForPanel(along, 0, 4, i, 1.5));
-  assert.ok(cuts.some((list) => list.length > 0 && list.some((o) => !o.drawFeature)));
 });
 
 test('walled loft bedrooms block the open-edge rail along their frontage', () => {

@@ -538,8 +538,32 @@ export interface RhythmPanelOpening {
 }
 
 /**
- * Even centres along the run with equal gaps and corner-safe end margins.
- * Returns wall-run coordinates (not snapped to panel centres).
+ * Evenly spaced bay indices inside a run (0 … runLength-1).
+ * Used so Align places one whole pane per bay and never straddles a panel seam.
+ */
+export function evenBayIndicesForRhythm(runLength: number, windowCount: number): number[] {
+  const n = Math.min(windowCount, runLength);
+  if (n < 1 || runLength < 1) return [];
+  if (n === 1) return [Math.floor((runLength - 1) / 2)];
+  const out: number[] = [];
+  for (let i = 0; i < n; i += 1) {
+    const idx = Math.round((i * (runLength - 1)) / (n - 1));
+    if (!out.length || out[out.length - 1] !== idx) out.push(idx);
+  }
+  // Degenerate rounding (e.g. 3 into 2) — fill unique bays from the left.
+  if (out.length < n) {
+    for (let i = 0; i < runLength && out.length < n; i += 1) {
+      if (!out.includes(i)) out.push(i);
+    }
+    out.sort((a, b) => a - b);
+  }
+  return out;
+}
+
+/**
+ * Even Align openings along a wall run.
+ * Centres snap to bay midpoints and panes shrink to fit the bay, so frames
+ * never cross panel seams (the failure mode behind clipped casing / slits).
  */
 export function rhythmOpeningsAlongRun(
   runLength: number,
@@ -549,11 +573,15 @@ export function rhythmOpeningsAlongRun(
   endMargin = 0.3
 ): RhythmWallOpening[] {
   if (runLength < 1 || windowCount < 1 || panelWidth <= 0) return [];
-  const span = runLength * panelWidth;
-  // Keep panes clear of corner boards; also leave a little air between panes.
-  const maxW = Math.max(0.32, Math.min(winW, (span - 2 * endMargin - (windowCount - 1) * 0.2) / windowCount));
-  const centers = evenWindowCentersAlongRun(span, windowCount, maxW, endMargin);
-  return centers.map((along) => ({ along, winW: maxW }));
+  const margin = Math.max(0.12, endMargin);
+  const bayFitW = Math.max(0.28, panelWidth - 2 * margin);
+  const n = Math.min(windowCount, runLength);
+  const usedW = Math.min(winW, bayFitW);
+
+  return evenBayIndicesForRhythm(runLength, n).map((bay) => ({
+    along: (bay + 0.5) * panelWidth,
+    winW: usedW
+  }));
 }
 
 /**
