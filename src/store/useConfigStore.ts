@@ -40,6 +40,7 @@ import {
 import {
   STUGAN_V4_CLADDING_HEX,
   STUGAN_V4_DECK_DEPTH_MM,
+  STUGAN_V4_DEFAULT_LOFT_M2,
   STUGAN_V4_DEPTH_MM,
   STUGAN_V4_FOOTPRINT_M2,
   STUGAN_V4_HIGH_EAVE_MM,
@@ -284,7 +285,7 @@ export const SIZE_OPTIONS: SizeOption[] = [
     height: STUGAN_V4_HIGH_EAVE_MM,
     areaSqMeters: STUGAN_V4_FOOTPRINT_M2,
     basePrice: 168000,
-    desc: '6000 × 6600 mm. Pulpet 10° väst→öst, loft längs väst, söderglas, trädäck 3 m. Koncept — se konflikter.'
+    desc: '6000 × 6600 mm. Pulpet 10° öst→väst (6 m östvägg), loft längs öst, söderglas, trädäck 3 m. Koncept — se konflikter.'
   },
   {
     id: 'size-garage',
@@ -1176,15 +1177,12 @@ export const useConfigStore = defineStore('config', () => {
         { areaSqMeters: 13.7, label: '13,7 m²', descId: 'whole-floor', desc: 'Hela golvytan', priceDelta: 24800 }
       ];
     } else if (isStuganV4(selectedSizeId.value)) {
-      const area = stuganV4LoftAreaSqMeters();
+      // Same catalog as size-25 — no full-strip 23 m² option.
       return [
-        {
-          areaSqMeters: area,
-          label: `${area.toString().replace('.', ',')} m²`,
-          descId: 'stugan-west-strip',
-          desc: 'Västloft 3500×6600 mm brutto (trappöppning dras av)',
-          priceDelta: 42000
-        }
+        { areaSqMeters: 8.21, label: '8,21 m²', descId: 'compact', desc: 'Kompakt sovloft', priceDelta: 16200 },
+        { areaSqMeters: 12.32, label: '12,32 m²', descId: 'standard', desc: 'Standardloft', priceDelta: 21500 },
+        { areaSqMeters: 16.4, label: '16,4 m²', descId: 'large', desc: 'Stort sovloft', priceDelta: 26800 },
+        { areaSqMeters: 22.8, label: '22,8 m²', descId: 'whole-floor', desc: 'Hela golvytan', priceDelta: 32500 }
       ];
     } else if (selectedSizeId.value === 'size-paabyggnad') {
       const areas = paabyggnadLoftAreas(buildingWidth.value, buildingDepth.value);
@@ -1459,7 +1457,7 @@ export const useConfigStore = defineStore('config', () => {
   }
 
   /**
-   * Stugan V4 massing: west→east 10° pulpet, west loft, south deck + glazing.
+   * Stugan V4 massing: east→west 10° pulpet (6 m east wall), east loft, south deck + glazing.
    * Bedroom partitions stay unlocked until the central U-stair is accepted.
    */
   const applyStuganV4Shell = () => {
@@ -1494,11 +1492,11 @@ export const useConfigStore = defineStore('config', () => {
     }
     activeLoft.value = 'sleeping';
     loftCount.value = 'ett';
-    loftPlacement.value = 'vanster';
+    loftPlacement.value = 'hoger';
     hasLoftStair.value = true;
     loftStairType.value = 'straight';
     loftStairPosition.value = 'middle';
-    selectedLoftSize.value = stuganV4LoftAreaSqMeters();
+    selectedLoftSize.value = STUGAN_V4_DEFAULT_LOFT_M2;
     facing.value = 'south';
     wallSlots.value = stuganV4WallSlots();
     activeDoor.value = 'LERVIK';

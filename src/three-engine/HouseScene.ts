@@ -132,7 +132,7 @@ export interface SceneConfig {
   /** Current builder walkthrough step (1 to 7) */
   framingStep?: number;
   /**
-   * Stugan V4: pulpet falls west→east (along width). High eave on the left (−X)
+   * Stugan V4: pulpet falls east→west (along width). High eave on the right (+X)
    * when the south facade faces +Z.
    */
   roofFallAxis?: 'depth' | 'width';
@@ -1593,7 +1593,7 @@ export class HouseScene {
     const widthFall = this.roofFallsAlongWidth();
     const isFlackt = this.currentConfig.roofType === 'flackt';
     const flacktDrop = isFlackt ? (d / 2) * Math.tan((2 * Math.PI) / 180) : 0;
-    // Default pulpet: high front, low back. Stugan V4: high left (west), low right (east).
+    // Default pulpet: high front, low back. Stugan V4: high right (east), low left (west).
     const highH = isFlackt ? h + flacktDrop : h;
     const lowH = isPulpettak
       ? Math.max(h - Math.tan(angleRad) * (widthFall ? w : d), 2.4)
@@ -1626,28 +1626,29 @@ export class HouseScene {
         // In insida view, cut front wall to waist height (1.35m) matching Reference Image 4 & 5
         // so interior floor, loft, stairs, and framing are completely visible without obstruction
         if (this.interiorCut()) panelWallH = 1.35;
-        else if (widthFall) panelWallH = this.sidePanelHeight(w, h, lowH, yMid, angleRad, -px, baseElev);
+        // High east (+X): plate Y = yMid + px * tan.
+        else if (widthFall) panelWallH = this.sidePanelHeight(w, h, lowH, yMid, angleRad, px, baseElev);
         else panelWallH = frontH - baseElev;
       } else if (wallSide === 'back') {
         px = w / 2 - panelWidth / 2 - i * panelWidth;
         pz = -d / 2 + claddingThick / 2;
         rotY = Math.PI;
         panelWallH = widthFall
-          ? this.sidePanelHeight(w, h, lowH, yMid, angleRad, -px, baseElev)
+          ? this.sidePanelHeight(w, h, lowH, yMid, angleRad, px, baseElev)
           : rearH - baseElev;
       } else if (wallSide === 'left') {
         px = -w / 2 + claddingThick / 2;
         pz = d / 2 - endInset - panelWidth / 2 - i * panelWidth;
         rotY = -Math.PI / 2;
         panelWallH = widthFall
-          ? highH - baseElev
+          ? lowH - baseElev
           : this.sidePanelHeight(d, h, rearH, yMid, angleRad, pz, baseElev);
       } else {
         px = w / 2 - claddingThick / 2;
         pz = -d / 2 + endInset + panelWidth / 2 + i * panelWidth;
         rotY = Math.PI / 2;
         panelWallH = widthFall
-          ? lowH - baseElev
+          ? highH - baseElev
           : this.sidePanelHeight(d, h, rearH, yMid, angleRad, pz, baseElev);
       }
 
@@ -2227,9 +2228,9 @@ export class HouseScene {
         : 2;
     const tan = Math.tan((degrees * Math.PI) / 180);
     if (this.roofFallsAlongWidth()) {
-      // High at west (−X / left when facing south). Front/back panels drop toward +X (right).
-      if (wallSide === 'front') return -tan;
-      if (wallSide === 'back') return tan;
+      // High at east (+X / right when facing south). Front/back panels drop toward −X (left).
+      if (wallSide === 'front') return tan;
+      if (wallSide === 'back') return -tan;
       return 0;
     }
     if (wallSide !== 'left' && wallSide !== 'right') return 0;
@@ -5130,9 +5131,10 @@ export class HouseScene {
         : whiteTrimMat;
       this.addShallowRoof(w, d, h, overhang, 2, roofMat, frameMat);
     } else if (this.roofFallsAlongWidth()) {
-      // Stugan V4: 10° fall west→east. High left (−X), low right (+X), long south overhang.
+      // Stugan V4: 10° fall east→west. High right (+X), low left (−X), long south overhang.
       const angleRad = this.pulpetPitchRad();
-      const lowH = Math.max(h - Math.tan(angleRad) * w, 1.8);
+      const tan = Math.tan(angleRad);
+      const lowH = Math.max(h - tan * w, 1.8);
       const yMid = (h + lowH) / 2;
       const roofThick = 0.1;
       const slopeLen = (w + edges.left + edges.right) / Math.cos(angleRad);
@@ -5142,8 +5144,8 @@ export class HouseScene {
 
       const assembly = new THREE.Group();
       assembly.position.set(0, roofCenterY, zShift);
-      // Positive Z rotation drops toward +X (east).
-      assembly.rotation.z = angleRad;
+      // Negative Z rotation drops toward −X (west); high eave stays at +X (east).
+      assembly.rotation.z = -angleRad;
 
       const roofMesh = new THREE.Mesh(new THREE.BoxGeometry(slopeLen, roofThick, roofDepth), roofMat);
       roofMesh.castShadow = true;
@@ -5179,6 +5181,30 @@ export class HouseScene {
       assembly.add(eastFascia);
 
       this.roofGroup.add(assembly);
+
+      // Two posts under the south canopy (concept structure over the terrace).
+      if (edges.front >= 1.5) {
+        const timber = new THREE.MeshStandardMaterial({
+          color: '#c4a574',
+          roughness: 0.72,
+          metalness: 0.05
+        });
+        const postInset = 0.2;
+        const postZ = d / 2 + edges.front - postInset;
+        const deckTop = 0.32;
+        const soffitClear = 0.12;
+        for (const x of [-w / 4, w / 4]) {
+          const plateY = yMid + x * tan;
+          const postTop = plateY - soffitClear;
+          const postH = Math.max(1.2, postTop - deckTop);
+          const post = new THREE.Mesh(new THREE.BoxGeometry(0.12, postH, 0.12), timber);
+          post.position.set(x, deckTop + postH / 2, postZ);
+          post.castShadow = true;
+          post.receiveShadow = true;
+          post.userData.outsideAddition = true;
+          this.roofGroup.add(post);
+        }
+      }
     } else {
       // Pulpettak. The slab, barge boards, and fascia share one rotated assembly
       // so each board meets the next at an edge instead of occupying the same face.
@@ -6971,15 +6997,39 @@ export class HouseScene {
   /** The slope the loft room ceiling has to follow. */
   private roofSlope(): RoofSlope {
     const roof = this.currentConfig.roofType;
-    if (roof === 'pulpettak') return { kind: 'shed', degrees: PULPET_PITCH_DEG, anchor: 'front', minRear: 2.4 };
+    if (roof === 'pulpettak') {
+      const deg = this.currentConfig.pulpetPitchDeg ?? PULPET_PITCH_DEG;
+      return { kind: 'shed', degrees: deg, anchor: 'front', minRear: 2.4 };
+    }
     if (roof === 'flackt') return { kind: 'shed', degrees: 2, anchor: 'centre' };
     return { kind: 'gable', degrees: gablePitchDegrees(roof) };
   }
 
-  /** Ceiling height in room-local Y, following the roof above a loft floor. */
-  private loftCeiling(roomZ: number, baseY: number) {
-    const depth = this.currentConfig.depthMm / 1000;
+  /** Plate height for width-fall pulpet (high at +X / east). */
+  private widthFallPlateY(worldX: number) {
+    const w = this.currentConfig.widthMm / 1000;
+    const h = this.wallTopM();
+    const tan = Math.tan(this.pulpetPitchRad());
+    const lowH = Math.max(h - tan * w, 1.8);
+    const yMid = (h + lowH) / 2;
+    return yMid + worldX * tan;
+  }
+
+  /**
+   * Ceiling height in room-local Y above a loft floor.
+   * Depth-fall roofs vary with Z; width-fall (Stugan) uses the lowest plate over the room's X span
+   * so partition walls never pierce the mono-pitch.
+   */
+  private loftCeiling(roomZ: number, baseY: number, roomX = 0, roomW = 0) {
     const wallTop = this.wallTopM();
+    if (this.roofFallsAlongWidth()) {
+      const half = Math.max(roomW / 2, 0.01);
+      const minX = roomX - half;
+      const clear = this.widthFallPlateY(minX) - 0.16 - baseY;
+      const capped = Math.max(0.6, Math.min(2.4, clear));
+      return (_localZ: number) => capped;
+    }
+    const depth = this.currentConfig.depthMm / 1000;
     const slope = this.roofSlope();
     return (localZ: number) => loftCeilingY(slope, depth, wallTop, roomZ + localZ) - baseY;
   }
@@ -7124,7 +7174,8 @@ export class HouseScene {
     group.userData.d = d;
     group.userData.wallsVisible = wallsVisible;
     const loft = place && isLoftRoom(place.y) ? place : null;
-    const ceiling = loft ? this.loftCeiling(loft.z, loft.y) : null;
+    const ceiling = loft ? this.loftCeiling(loft.z, loft.y, loft.x ?? 0, w) : null;
+    const widthFallLoft = Boolean(loft && this.roofFallsAlongWidth());
 
     const wallThick = 0.1;
     const wallH = 2.4;
@@ -7198,7 +7249,7 @@ export class HouseScene {
       if (height > 0.02) addRun('front', size, center, z, 'x', doorSide === 'front' && height >= 1.35, height);
     }
     if (wallsVisible && !open.left) {
-      if (ceiling && loft) {
+      if (ceiling && loft && !widthFallLoft) {
         this.addLoftSide(
           group, 'left', -w / 2 + wallThick / 2,
           wallRuns.left.center - wallRuns.left.size / 2, wallRuns.left.center + wallRuns.left.size / 2,
@@ -7206,11 +7257,12 @@ export class HouseScene {
         );
       } else {
         const { size, center } = wallRuns.left;
-        addRun('left', size, center, -w / 2 + wallThick / 2, 'z', doorSide === 'left', wallH);
+        const hLeft = ceiling ? Math.min(wallH, Math.max(0.6, ceiling(0))) : wallH;
+        addRun('left', size, center, -w / 2 + wallThick / 2, 'z', doorSide === 'left', hLeft);
       }
     }
     if (wallsVisible && !open.right) {
-      if (ceiling && loft) {
+      if (ceiling && loft && !widthFallLoft) {
         this.addLoftSide(
           group, 'right', w / 2 - wallThick / 2,
           wallRuns.right.center - wallRuns.right.size / 2, wallRuns.right.center + wallRuns.right.size / 2,
@@ -7218,7 +7270,8 @@ export class HouseScene {
         );
       } else {
         const { size, center } = wallRuns.right;
-        addRun('right', size, center, w / 2 - wallThick / 2, 'z', doorSide === 'right', wallH);
+        const hRight = ceiling ? Math.min(wallH, Math.max(0.6, ceiling(0))) : wallH;
+        addRun('right', size, center, w / 2 - wallThick / 2, 'z', doorSide === 'right', hRight);
       }
     }
     if (wallsVisible && ceiling && loft) this.addLoftCeiling(group, w, loft.z, ceiling, wallMat, edgeMat);

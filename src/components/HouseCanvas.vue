@@ -255,7 +255,7 @@ onMounted(() => {
       pulpetPitchDeg: store.selectedSizeId === 'size-stugan-v4' ? 10 : undefined,
       roofOverhangs:
         store.selectedSizeId === 'size-stugan-v4'
-          ? { front: 2.0, back: 0.4, left: 0.35, right: 0.35 }
+          ? { front: 2.5, back: 0.2, left: 0, right: 0 }
           : undefined
     });
 
@@ -526,7 +526,7 @@ watch(
       pulpetPitchDeg: id === 'size-stugan-v4' ? 10 : undefined,
       roofOverhangs:
         id === 'size-stugan-v4'
-          ? { front: 2.0, back: 0.4, left: 0.35, right: 0.35 }
+          ? { front: 2.5, back: 0.2, left: 0, right: 0 }
           : undefined
     });
   }
