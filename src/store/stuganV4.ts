@@ -15,8 +15,8 @@ export const STUGAN_V4_ROOF_PITCH_DEG = 10;
 export const STUGAN_V4_FOOTPRINT_M2 = 39.6;
 
 /** South canopy over the terrace; east/west eaves flush with the wall line. */
-export const STUGAN_V4_SOUTH_OVERHANG_MM = 2500;
-export const STUGAN_V4_NORTH_OVERHANG_MM = 200;
+export const STUGAN_V4_SOUTH_OVERHANG_MM = 3000;
+export const STUGAN_V4_NORTH_OVERHANG_MM = 0;
 export const STUGAN_V4_EAST_OVERHANG_MM = 0;
 export const STUGAN_V4_WEST_OVERHANG_MM = 0;
 
@@ -267,8 +267,8 @@ export function stuganV4Conflicts(stair = solveStuganV4Stair()): StuganConflict[
       severity: 'hold',
       titleSv: `Söderutsprång ${STUGAN_V4_SOUTH_OVERHANG_MM} mm`,
       titleEn: `South overhang ${STUGAN_V4_SOUTH_OVERHANG_MM} mm`,
-      detailSv: 'Två modellstolpar under utsprånget — projektera bärning för snö- och vindlast.',
-      detailEn: 'Two concept posts under the overhang — design for snow and wind loads.'
+      detailSv: 'Kant i vägglinjen öst/väst/norr. Två stolpar + balk under söderutsprånget — projektera bärning.',
+      detailEn: 'Flush eaves east/west/north. Two posts + beam under the south overhang — design for loads.'
     },
     {
       id: 'cladding-colour',

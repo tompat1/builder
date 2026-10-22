@@ -1400,13 +1400,16 @@ export class HouseScene {
       const flacktDrop = isFlackt ? (d / 2) * Math.tan((2 * Math.PI) / 180) : 0;
       const roofTrimDrop = isPulpet ? 0.08 : (isFlackt ? 0.13 : 0.06);
       const pitch = this.pulpetPitchRad();
-      const frontTop = (isFlackt ? h + flacktDrop : h) - roofTrimDrop;
-      const rearTop = (isPulpet
-        ? Math.max(
-            h - Math.tan(pitch) * (this.roofFallsAlongWidth() ? w : d),
-            2.4
-          )
+      const widthFall = this.roofFallsAlongWidth();
+      const highTop = (isFlackt ? h + flacktDrop : h) - roofTrimDrop;
+      const lowTop = (isPulpet
+        ? Math.max(h - Math.tan(pitch) * (widthFall ? w : d), 2.4)
         : (isFlackt ? h - flacktDrop : h)) - roofTrimDrop;
+      // Depth-fall: high south / low north. Width-fall (Stugan): high east / low west.
+      const frontTop = highTop;
+      const rearTop = widthFall ? highTop : lowTop;
+      const westTop = widthFall ? lowTop : undefined;
+      const eastTop = widthFall ? highTop : undefined;
       const cornerColor = this.currentConfig.cornerColor ?? 'same';
       const cornerMat = new THREE.MeshStandardMaterial({
         roughness: 0.64,
@@ -1415,7 +1418,7 @@ export class HouseScene {
         bumpMap: this.createCornerBoardBumpMap(),
         bumpScale: 0.03
       });
-      this.addCornerBoards(w, d, frontTop, rearTop, 0.25, cornerMat);
+      this.addCornerBoards(w, d, frontTop, rearTop, 0.25, cornerMat, westTop, eastTop);
     }
     if (isGableRoof(this.currentConfig.roofType) && this.currentConfig.viewMode === 'utsida') {
       this.addGableEnds(w, d, h, exteriorMat);
@@ -4228,15 +4231,19 @@ export class HouseScene {
     frontH: number,
     rearH: number,
     baseElev: number,
-    material: THREE.Material
+    material: THREE.Material,
+    westH?: number,
+    eastH?: number
   ) {
     const { face, thick } = this.cornerTrimSize();
     const sideFace = Math.max(0.05, face - thick);
+    const west = westH ?? null;
+    const east = eastH ?? null;
     const corners = [
-      { x: -1, z: 1, top: frontH },
-      { x: 1, z: 1, top: frontH },
-      { x: -1, z: -1, top: rearH },
-      { x: 1, z: -1, top: rearH }
+      { x: -1, z: 1, top: west ?? frontH },
+      { x: 1, z: 1, top: east ?? frontH },
+      { x: -1, z: -1, top: west ?? rearH },
+      { x: 1, z: -1, top: east ?? rearH }
     ];
     for (const corner of corners) {
       const { top, x, z } = corner;
@@ -4684,8 +4691,30 @@ export class HouseScene {
 
     const ceilingGroup = new THREE.Group();
 
-    if (isPulpettak) {
-      const angleRad = PULPET_PITCH_RAD;
+    if (isPulpettak && this.roofFallsAlongWidth()) {
+      const angleRad = this.pulpetPitchRad();
+      const lowH = Math.max(h - Math.tan(angleRad) * w, 2.4);
+      const slopeAngle = Math.atan2(h - lowH, w);
+      const depth = 0.1;
+      const midY = (h + lowH) / 2 - depth / 2 - 0.016;
+      const ceilingSlopeLen = (w - 0.34) / Math.cos(slopeAngle);
+      const ceilingD = d - 0.34;
+
+      const slopeGroup = new THREE.Group();
+      slopeGroup.position.set(0, midY, 0);
+      slopeGroup.rotation.z = slopeAngle;
+
+      const ceilingMesh = new THREE.Mesh(
+        new THREE.BoxGeometry(ceilingSlopeLen, drywallThick, ceilingD),
+        this.drywallMat
+      );
+      ceilingMesh.position.set(0, -(depth / 2 + drywallThick / 2 + 0.002), 0);
+      ceilingMesh.castShadow = true;
+      ceilingMesh.receiveShadow = true;
+      slopeGroup.add(ceilingMesh);
+      ceilingGroup.add(slopeGroup);
+    } else if (isPulpettak) {
+      const angleRad = this.pulpetPitchRad();
       const rearH = Math.max(h - Math.tan(angleRad) * d, 2.4);
       const slopeAngle = Math.atan2(h - rearH, d);
       const depth = 0.1; // Matches rafter depth in buildRafters
@@ -5141,8 +5170,8 @@ export class HouseScene {
 
       const assembly = new THREE.Group();
       assembly.position.set(0, roofCenterY, zShift);
-      // Negative Z rotation drops toward −X (west); high eave stays at +X (east).
-      assembly.rotation.z = -angleRad;
+      // Positive Z rotation lifts +X (east) and drops toward −X (west).
+      assembly.rotation.z = angleRad;
 
       const roofMesh = new THREE.Mesh(new THREE.BoxGeometry(slopeLen, roofThick, roofDepth), roofMat);
       roofMesh.castShadow = true;
@@ -5179,20 +5208,24 @@ export class HouseScene {
 
       this.roofGroup.add(assembly);
 
-      // Two posts under the south canopy (concept structure over the terrace).
+      // Two posts + outer beam under the south canopy (over the terrace).
       if (edges.front >= 1.5) {
         const timber = new THREE.MeshStandardMaterial({
           color: '#c4a574',
           roughness: 0.72,
           metalness: 0.05
         });
-        const postInset = 0.2;
+        const postInset = 0.18;
         const postZ = d / 2 + edges.front - postInset;
         const deckTop = 0.32;
-        const soffitClear = 0.12;
-        for (const x of [-w / 4, w / 4]) {
-          const plateY = yMid + x * tan;
+        const soffitClear = roofThick / 2 + eavesDrop + 0.04;
+        const postXs = [-w / 4, w / 4] as const;
+        const postTops: number[] = [];
+        for (const x of postXs) {
+          // Underside of the rotated roof plate at this X (constant along Z).
+          const plateY = yMid + x * Math.sin(angleRad);
           const postTop = plateY - soffitClear;
+          postTops.push(postTop);
           const postH = Math.max(1.2, postTop - deckTop);
           const post = new THREE.Mesh(new THREE.BoxGeometry(0.12, postH, 0.12), timber);
           post.position.set(x, deckTop + postH / 2, postZ);
@@ -5201,6 +5234,15 @@ export class HouseScene {
           post.userData.outsideAddition = true;
           this.roofGroup.add(post);
         }
+        const beamY = Math.min(...postTops) - 0.05;
+        const beam = new THREE.Mesh(
+          new THREE.BoxGeometry(Math.abs(postXs[1] - postXs[0]) + 0.24, 0.12, 0.12),
+          timber
+        );
+        beam.position.set(0, beamY, postZ);
+        beam.castShadow = true;
+        beam.userData.outsideAddition = true;
+        this.roofGroup.add(beam);
       }
     } else {
       // Pulpettak. The slab, barge boards, and fascia share one rotated assembly
@@ -5562,7 +5604,37 @@ export class HouseScene {
     const count = Math.max(2, Math.floor(spanW / 0.6) + 1); // cc 600 mm
     const spacing = spanW / (count - 1);
 
-    if (isPulpettak) {
+    if (isPulpettak && this.roofFallsAlongWidth()) {
+      // Stugan: rafters run east–west with the 10° fall (high east → low west).
+      const angleRad = this.pulpetPitchRad();
+      const lowH = Math.max(h - Math.tan(angleRad) * w, 2.4);
+      const slopeAngle = Math.atan2(h - lowH, w);
+      const span = Math.hypot(w, h - lowH);
+      const edges = this.roofEdgeOverhangs(w, d);
+      const southTail = ghost ? Math.max(0.2, edges.front) : 0;
+      const depth = ghost ? 0.145 : 0.1;
+      const slopeLen = span - (ghost ? 0 : 0.1);
+      const midY = (h + lowH) / 2 - depth / 2 - (ghost ? 0 : 0.016);
+      const zSpan = d - rafterInset * 2 + southTail;
+      const zCount = Math.max(2, Math.floor(zSpan / 0.6) + 1);
+      const zSpacing = zSpan / (zCount - 1);
+      const z0 = -d / 2 + rafterInset;
+      const rafterGeo = new THREE.BoxGeometry(slopeLen, depth, rafterW);
+
+      for (let i = 0; i < zCount; i++) {
+        const rz = z0 + i * zSpacing;
+        const rafter = new THREE.Mesh(rafterGeo, rafterMat);
+        rafter.position.set(0, midY, rz);
+        // Lift +X (east) to match the width-fall roof plate.
+        rafter.rotation.z = slopeAngle;
+        rafter.castShadow = !ghost;
+        rafter.userData.framingStep = 6;
+        rafter.userData.framingNameSv = 'Takstol / takbalk (pulpettak öst→väst)';
+        rafter.userData.framingNameEn = 'Rafter / Roof Beam (Mono-pitch east→west)';
+        rafter.userData.dimension = `${Math.round(rafterW * 1000)}×${Math.round(depth * 1000)} mm C24 cc 600 mm`;
+        beamParent.add(rafter);
+      }
+    } else if (isPulpettak) {
       const slopeAngle = Math.atan2(h - rearH, d);
       const span = Math.hypot(d, h - rearH);
       // In ghost/cutaway mode rafter tails project for framing inspection. In exterior envelope mode they stay inside.

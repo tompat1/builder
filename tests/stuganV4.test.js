@@ -19,8 +19,22 @@ import {
 test('Stugan V4 low (west) eave follows 10° fall over 6000 mm width from 6 m east wall', () => {
   const expected = Math.round(STUGAN_V4_HIGH_EAVE_MM - STUGAN_V4_WIDTH_MM * Math.tan((STUGAN_V4_ROOF_PITCH_DEG * Math.PI) / 180));
   assert.equal(STUGAN_V4_HIGH_EAVE_MM, 6000);
+  assert.equal(STUGAN_V4_ROOF_PITCH_DEG, 10);
   assert.equal(stuganV4LowEaveMm(), expected);
   assert.equal(stuganV4LowEaveMm(), 4942);
+});
+
+test('Stugan V4 south canopy is 3 m with flush side eaves', async () => {
+  const {
+    STUGAN_V4_SOUTH_OVERHANG_MM,
+    STUGAN_V4_EAST_OVERHANG_MM,
+    STUGAN_V4_WEST_OVERHANG_MM,
+    STUGAN_V4_NORTH_OVERHANG_MM
+  } = await import('../src/store/stuganV4.ts');
+  assert.equal(STUGAN_V4_SOUTH_OVERHANG_MM, 3000);
+  assert.equal(STUGAN_V4_EAST_OVERHANG_MM, 0);
+  assert.equal(STUGAN_V4_WEST_OVERHANG_MM, 0);
+  assert.equal(STUGAN_V4_NORTH_OVERHANG_MM, 0);
 });
 
 test('loft clear height is highest at the east wall and drops toward the west', () => {

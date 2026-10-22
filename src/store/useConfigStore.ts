@@ -1544,6 +1544,7 @@ export const useConfigStore = defineStore('config', () => {
     ];
     activeRoof.value = 'pulpettak';
     roofCovering.value = 'metal';
+    flushRoof.value = false;
     activeMaterial.value = 'wood';
     // Screen stand-in for Nordsjö H7.15.53 — listed as uncertain in conflicts.
     const paint = parseCustomPaint({ hex: STUGAN_V4_CLADDING_HEX, system: 'hex' });

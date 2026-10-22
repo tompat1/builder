@@ -1261,7 +1261,7 @@
     <template v-else-if="store.selectedCategory === 'roof'">
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
         <button
-          v-for="roof in ROOF_OPTIONS"
+          v-for="roof in roofChoices"
           :key="roof.id"
           type="button"
           :id="`option-${roof.id}`"
@@ -1291,28 +1291,72 @@
               <text x="80" y="72" font-size="10" fill="currentColor" text-anchor="middle">2° funkis</text>
             </svg>
             <svg v-else class="w-full h-full text-slate-700" viewBox="0 0 160 80" fill="none">
-              <line x1="20" y1="16" x2="140" y2="48" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
-              <path d="M 25 18 L 25 60 L 135 60 L 135 48" stroke="currentColor" stroke-width="1.2" stroke-dasharray="3 3" />
-              <text x="80" y="72" font-size="10" fill="currentColor" text-anchor="middle">12° pulpettak</text>
+              <line
+                :x1="isStuganRoof ? 20 : 20"
+                :y1="isStuganRoof ? 48 : 16"
+                :x2="isStuganRoof ? 140 : 140"
+                :y2="isStuganRoof ? 16 : 48"
+                stroke="currentColor"
+                stroke-width="3"
+                stroke-linecap="round"
+              />
+              <path
+                v-if="isStuganRoof"
+                d="M 25 48 L 25 60 L 135 60 L 135 18"
+                stroke="currentColor"
+                stroke-width="1.2"
+                stroke-dasharray="3 3"
+              />
+              <path
+                v-else
+                d="M 25 18 L 25 60 L 135 60 L 135 48"
+                stroke="currentColor"
+                stroke-width="1.2"
+                stroke-dasharray="3 3"
+              />
+              <text x="80" y="72" font-size="10" fill="currentColor" text-anchor="middle">
+                {{ isStuganRoof ? t('category.stuganRoofPitch') : '12° pulpettak' }}
+              </text>
             </svg>
           </div>
           </CmsImage>
 
           <div>
             <div class="flex items-center justify-between">
-              <p class="text-xs font-bold text-slate-900"><Cms :k="`catalog.${roof.id}.name`" :fallback="roof.name" /></p>
+              <p class="text-xs font-bold text-slate-900">
+                <template v-if="isStuganRoof && roof.id === 'pulpettak'">Pulpettak 10°</template>
+                <Cms v-else :k="`catalog.${roof.id}.name`" :fallback="roof.name" />
+              </p>
               <span class="text-xs font-extrabold text-slate-900 tabular-nums">
                 {{ delta(roof.priceDelta) }}
               </span>
             </div>
-            <p class="text-[11px] text-slate-500 mt-0.5"><Cms :k="`catalog.${roof.id}.spec`" :fallback="roof.spec ?? ''" /></p>
+            <p class="text-[11px] text-slate-500 mt-0.5">
+              <template v-if="isStuganRoof && roof.id === 'pulpettak'">{{ t('category.stuganRoofSpec') }}</template>
+              <Cms v-else :k="`catalog.${roof.id}.spec`" :fallback="roof.spec ?? ''" />
+            </p>
           </div>
         </button>
       </div>
 
       <div class="pt-1">
         <p class="text-xs font-bold text-slate-900 mb-2"><Cms k="category.roofEdge" /></p>
-        <div class="grid grid-cols-2 gap-2" role="radiogroup" :aria-label="t('category.roofEdge')">
+        <div
+          v-if="isStuganRoof"
+          class="rounded-xl border border-slate-900 ring-1 ring-slate-900 bg-slate-50/70 p-2.5"
+          id="option-roof-stugan-edge"
+        >
+          <span class="mb-2 flex h-8 items-center justify-center text-slate-700">
+            <svg class="h-8 w-full" viewBox="0 0 120 32" fill="none" aria-hidden="true">
+              <path d="M20 14 H100" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
+              <path d="M20 14 V28 H72 V14" stroke="currentColor" stroke-width="1.4" />
+              <path d="M72 14 H100" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
+            </svg>
+          </span>
+          <span class="block text-xs font-bold text-slate-900"><Cms k="category.stuganRoofEdge" /></span>
+          <span class="block text-[10px] text-slate-500 mt-0.5"><Cms k="category.stuganRoofEdgeBody" /></span>
+        </div>
+        <div v-else class="grid grid-cols-2 gap-2" role="radiogroup" :aria-label="t('category.roofEdge')">
           <button
             type="button"
             id="option-roof-overhang"
@@ -3019,7 +3063,8 @@ import {
   DOORS_OPTIONS,
   WINDOWS_OPTIONS,
   GATES_OPTIONS,
-  OUTSIDE_PRICES
+  OUTSIDE_PRICES,
+  isStuganV4
 } from '../store/useConfigStore';
 import {
   TERRACE_DEPTHS,
@@ -3057,6 +3102,10 @@ import { searchAction, searchRequest } from '../search/run';
 import { CONCRETE_FOUNDATION_HEIGHT_MM } from '../store/paabyggnad';
 
 const store = useConfigStore();
+const isStuganRoof = computed(() => isStuganV4(store.selectedSizeId));
+const roofChoices = computed(() =>
+  isStuganRoof.value ? ROOF_OPTIONS.filter((roof) => roof.id === 'pulpettak') : ROOF_OPTIONS
+);
 const loftPlaces: { id: LoftPlacement; label: string }[] = [
   { id: 'vanster', label: 'category.left' },
   { id: 'hoger', label: 'category.right' },
