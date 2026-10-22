@@ -5,7 +5,8 @@ import {
   acceptRoofOverhangVersion,
   recessedSoffitLightCenterY,
   roofBeamsAlongDepthForOverhang,
-  usesCantileverBlackFascia,
+  usesBlackFasciaCasing,
+  usesOverhangSideWalls,
   usesPlankSoffitOverhang,
   usesSoffitCanopyFraming,
   usesTimberCanopyFraming
@@ -176,7 +177,7 @@ test('a door covered by a sauna or terrace roof skips the door canopy', () => {
   assert.equal(openDeckDoor, false);
 });
 
-test('roof overhang v1 timber, v2 post soffit, v3 black cantilever', () => {
+test('roof overhang v1 timber, v2 post soffit, v3 framed side walls', () => {
   assert.equal(acceptRoofOverhangVersion(undefined), 'v1');
   assert.equal(acceptRoofOverhangVersion('v2'), 'v2');
   assert.equal(acceptRoofOverhangVersion('v3'), 'v3');
@@ -189,13 +190,15 @@ test('roof overhang v1 timber, v2 post soffit, v3 black cantilever', () => {
   assert.equal(usesSoffitCanopyFraming('v3', 3), false);
   assert.equal(usesPlankSoffitOverhang('v2', 3), true);
   assert.equal(usesPlankSoffitOverhang('v3', 3), true);
-  assert.equal(usesCantileverBlackFascia('v3', 3), true);
-  assert.equal(usesCantileverBlackFascia('v2', 3), false);
+  assert.equal(usesBlackFasciaCasing('v3', 3), true);
+  assert.equal(usesBlackFasciaCasing('v2', 3), false);
+  assert.equal(usesOverhangSideWalls('v3', 3), true);
+  assert.equal(usesOverhangSideWalls('v2', 3), false);
   assert.equal(usesTimberCanopyFraming('v1', 0.4), false);
 
   assert.equal(roofBeamsAlongDepthForOverhang('v1', true), false);
   assert.equal(roofBeamsAlongDepthForOverhang('v2', true), true);
-  assert.equal(roofBeamsAlongDepthForOverhang('v3', true), true);
+  assert.equal(roofBeamsAlongDepthForOverhang('v3', true), false);
   assert.equal(roofBeamsAlongDepthForOverhang('v3', false), false);
 });
 
@@ -210,9 +213,11 @@ test('HouseScene wires all three overhang versions', async () => {
 
   assert.match(scene, /addSouthCanopyFraming/);
   assert.match(scene, /addSouthSoffitCanopyPost/);
-  assert.match(scene, /usesCantileverBlackFascia/);
+  assert.match(scene, /addSouthOverhangSideWalls/);
+  assert.match(scene, /usesBlackFasciaCasing/);
   assert.match(scene, /roofBeamsAlongDepthForOverhang/);
   assert.match(scene, /Takbjälke \(utsprång norr→söder\)/);
+  assert.match(scene, /Takstol \/ takbalk \(pulpettak öst→väst\)/);
   assert.match(store, /setRoofOverhangVersion/);
   assert.match(overlay, /setRoofOverhangVersion\('v1'\)/);
   assert.match(overlay, /setRoofOverhangVersion\('v2'\)/);

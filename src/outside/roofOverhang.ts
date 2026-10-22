@@ -7,8 +7,8 @@
  * v2 — closed soffit canopy: light plank soffit, spotlights, one outer post,
  *      no braces. Main roof beams run north→south into the overhang.
  *
- * v3 — pure cantilever: closed light soffit, thick black fascia casing, no
- *      posts. Main roof beams run north→south and carry the eave alone.
+ * v3 — framed terrace bay: timber-lined soffit, black fascia casing and deep
+ *      side walls. Main roof beams run east→west and bear on the side walls.
  */
 
 export type RoofOverhangVersion = 'v1' | 'v2' | 'v3';
@@ -41,7 +41,7 @@ export function roofBeamsAlongDepthForOverhang(
   version: RoofOverhangVersion,
   roofFallsAlongWidth: boolean
 ): boolean {
-  return roofFallsAlongWidth && (version === 'v2' || version === 'v3');
+  return roofFallsAlongWidth && version === 'v2';
 }
 
 /** Deep front eave uses open timber framing (posts / braces / header). */
@@ -60,7 +60,7 @@ export function usesSoffitCanopyFraming(
   return version === 'v2' && frontOverhangM >= 1.5;
 }
 
-/** Closed plank soffit under a deep front eave (v2 post / v3 cantilever). */
+/** Closed plank soffit under a deep front eave (v2 post / v3 side walls). */
 export function usesPlankSoffitOverhang(
   version: RoofOverhangVersion,
   frontOverhangM: number
@@ -68,8 +68,16 @@ export function usesPlankSoffitOverhang(
   return (version === 'v2' || version === 'v3') && frontOverhangM >= 1.5;
 }
 
-/** Thick dark fascia casing with no posts — pure cantilever eave. */
-export function usesCantileverBlackFascia(
+/** Thick dark fascia casing around the framed v3 terrace bay. */
+export function usesBlackFasciaCasing(
+  version: RoofOverhangVersion,
+  frontOverhangM: number
+): boolean {
+  return version === 'v3' && frontOverhangM >= 1.5;
+}
+
+/** Deep structural side walls carry the east–west beams of the v3 overhang. */
+export function usesOverhangSideWalls(
   version: RoofOverhangVersion,
   frontOverhangM: number
 ): boolean {

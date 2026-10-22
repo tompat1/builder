@@ -764,7 +764,7 @@ export const useConfigStore = defineStore('config', () => {
   const doorCanopy = ref(false);
   /** Tin roof ends at the walls, with a metal band over the roof edge. */
   const flushRoof = ref(false);
-  /** Deep south overhang: v1 timber, v2 soffit+post, v3 black cantilever. */
+  /** Deep south overhang: v1 timber, v2 soffit+post, v3 framed side walls. */
   const roofOverhangVersion = ref<RoofOverhangVersion>(DEFAULT_ROOF_OVERHANG_VERSION);
   const terraces = ref<HouseTerrace[]>([]);
   const facing = ref<CompassFacing>('south');

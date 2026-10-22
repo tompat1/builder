@@ -28,7 +28,8 @@ import {
   acceptRoofOverhangVersion,
   recessedSoffitLightCenterY,
   roofBeamsAlongDepthForOverhang,
-  usesCantileverBlackFascia,
+  usesBlackFasciaCasing,
+  usesOverhangSideWalls,
   usesPlankSoffitOverhang,
   usesSoffitCanopyFraming,
   usesTimberCanopyFraming,
@@ -180,7 +181,7 @@ export interface SceneConfig {
    * Deep south overhang style.
    * v1 = open timber canopy (posts, braces, header).
    * v2 = closed soffit + single post; roof beams run N–S into the eave.
-   * v3 = cantilevered black fascia casing; no posts; beams N–S.
+   * v3 = black framed terrace bay; deep side walls; beams E–W.
    */
   roofOverhangVersion?: RoofOverhangVersion;
 }
@@ -5715,7 +5716,108 @@ export class HouseScene {
     );
     cap.position.set(postX, seatY - 0.015, postZ);
     mark(cap);
+  }
 
+  /**
+   * v3 south overhang: deep side walls turn the covered terrace into a framed
+   * outdoor room and carry the east–west roof beams at both ends.
+   */
+  private addSouthOverhangSideWalls(
+    w: number,
+    d: number,
+    frontOverhang: number,
+    angleRad: number,
+    yMid: number
+  ) {
+    const shellMat = new THREE.MeshStandardMaterial({
+      color: '#1a1a1a',
+      roughness: 0.66,
+      metalness: 0.04
+    });
+    const timberMat = new THREE.MeshStandardMaterial({
+      color: '#c79a64',
+      roughness: 0.72,
+      metalness: 0.02
+    });
+    const grooveMat = new THREE.MeshStandardMaterial({
+      color: '#71583d',
+      roughness: 0.8,
+      metalness: 0.01
+    });
+    const shellGrooveMat = new THREE.MeshStandardMaterial({
+      color: '#34312d',
+      roughness: 0.78,
+      metalness: 0.02
+    });
+
+    const wallT = 0.16;
+    const deckTop = 0.32;
+    const soffitT = 0.018;
+    const wallDepth = Math.max(0.6, frontOverhang - 0.08);
+    const wallZ = d / 2 + 0.02 + wallDepth / 2;
+    const linerT = 0.014;
+    const linerInset = 0.055;
+    const groovePitch = 0.16;
+
+    const mark = (mesh: THREE.Mesh) => {
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.userData.outsideAddition = true;
+      this.roofGroup.add(mesh);
+    };
+
+    for (const sign of [-1, 1] as const) {
+      const wallX = sign * (w / 2 - wallT / 2);
+      const soffitUndersideY = yMid + wallX * Math.tan(angleRad) - soffitT / Math.cos(angleRad);
+      const wallH = Math.max(1.8, soffitUndersideY - deckTop);
+      const wallY = deckTop + wallH / 2;
+
+      const wall = new THREE.Mesh(
+        new THREE.BoxGeometry(wallT, wallH, wallDepth),
+        shellMat
+      );
+      wall.position.set(wallX, wallY, wallZ);
+      mark(wall);
+
+      // Warm timber lining on the terrace-facing side, inset to leave a black frame.
+      const linerH = Math.max(0.5, wallH - linerInset * 2);
+      const linerDepth = Math.max(0.4, wallDepth - linerInset * 2);
+      const linerX = wallX - sign * (wallT / 2 + linerT / 2);
+      const liner = new THREE.Mesh(
+        new THREE.BoxGeometry(linerT, linerH, linerDepth),
+        timberMat
+      );
+      liner.position.set(linerX, wallY, wallZ);
+      mark(liner);
+
+      // Fine vertical board joints keep the lining architectural rather than slab-like.
+      const grooveCount = Math.max(1, Math.floor(linerDepth / groovePitch));
+      const grooveStartZ = wallZ - ((grooveCount - 1) * groovePitch) / 2;
+      for (let i = 0; i < grooveCount; i++) {
+        const grooveZ = grooveStartZ + i * groovePitch;
+        const groove = new THREE.Mesh(
+          new THREE.BoxGeometry(0.004, linerH, 0.008),
+          grooveMat
+        );
+        groove.position.set(
+          linerX - sign * (linerT / 2 + 0.002),
+          wallY,
+          grooveZ
+        );
+        mark(groove);
+
+        const shellGroove = new THREE.Mesh(
+          new THREE.BoxGeometry(0.004, wallH - 0.02, 0.008),
+          shellGrooveMat
+        );
+        shellGroove.position.set(
+          wallX + sign * (wallT / 2 + 0.002),
+          wallY,
+          grooveZ
+        );
+        mark(shellGroove);
+      }
+    }
   }
 
   private buildRoof(w: number, d: number, h: number) {
@@ -5759,7 +5861,8 @@ export class HouseScene {
       assembly.add(roofMesh);
 
       const overhangVersion = acceptRoofOverhangVersion(this.currentConfig.roofOverhangVersion);
-      const blackCasing = usesCantileverBlackFascia(overhangVersion, edges.front);
+      const blackCasing = usesBlackFasciaCasing(overhangVersion, edges.front);
+      const sideWallOverhang = usesOverhangSideWalls(overhangVersion, edges.front);
       const edgeMat = blackCasing
         ? new THREE.MeshStandardMaterial({
             color: '#1a1a1a',
@@ -5800,15 +5903,15 @@ export class HouseScene {
       assembly.add(eastFascia);
 
       // Short eaves always get a closed soffit. Deep v1 timber canopies leave the
-      // underside open; deep v2/v3 get a light plank soffit (no posts on v3).
+      // underside open; deep v2 gets a light soffit and v3 a timber-lined soffit.
       const closedPlank = usesPlankSoffitOverhang(overhangVersion, edges.front);
       if (edges.front > 0.05 && (edges.front < 1.5 || closedPlank)) {
         const soffitT = 0.018;
         const soffitMat = new THREE.MeshStandardMaterial({
-          color: closedPlank ? '#e8dcc8' : '#f4f1ea',
+          color: sideWallOverhang ? '#c79a64' : closedPlank ? '#e8dcc8' : '#f4f1ea',
           roughness: 0.72,
-          emissive: '#efebe4',
-          emissiveIntensity: closedPlank ? 0.22 : 0.35
+          emissive: sideWallOverhang ? '#5c432b' : '#efebe4',
+          emissiveIntensity: sideWallOverhang ? 0.12 : closedPlank ? 0.22 : 0.35
         });
         const localWallFrontZ = d / 2 - zShift;
         const frontSoffitLen = Math.max(0.05, roofDepth / 2 - (localWallFrontZ - 0.02));
@@ -5880,8 +5983,10 @@ export class HouseScene {
       } else if (usesSoffitCanopyFraming(overhangVersion, edges.front)) {
         // v2 — single outer post under the closed soffit (beams cantilever from framing).
         this.addSouthSoffitCanopyPost(w, d, h, edges.front, angleRad, yMid);
+      } else if (sideWallOverhang) {
+        // v3 — deep framed side walls carry east–west beams over the terrace.
+        this.addSouthOverhangSideWalls(w, d, edges.front, angleRad, yMid);
       }
-      // v3 — no posts; N–S beams + black fascia casing carry the eave alone.
     } else {
       // Pulpettak. The slab, barge boards, and fascia share one rotated assembly
       // so each board meets the next at an edge instead of occupying the same face.
@@ -6284,7 +6389,7 @@ export class HouseScene {
       const plateY = (x: number) => (h + lowH) / 2 + x * Math.tan(angleRad);
 
       if (beamsAlongDepth) {
-        // v2 / v3: beams run north→south and cantilever into the south overhang.
+        // v2: beams run north→south and cantilever into the south overhang.
         const southTail = Math.max(ghost ? 0.2 : 0, edges.front);
         const z0 = -d / 2 + rafterInset;
         const z1 = d / 2 + southTail - (ghost ? 0 : 0.04);
@@ -6310,10 +6415,15 @@ export class HouseScene {
           }
         }
       } else {
-        // v1: rafters run east–west with the 10° fall (high east → low west).
+        // v1 / v3: beams run east–west with the 10° fall (high east → low west).
         const slopeAngle = Math.atan2(h - lowH, w);
         const span = Math.hypot(w, h - lowH);
-        const southTail = ghost ? Math.max(0.2, edges.front) : 0;
+        const sideWallOverhang = usesOverhangSideWalls(overhangVersion, edges.front);
+        const southTail = sideWallOverhang
+          ? edges.front
+          : ghost
+            ? Math.max(0.2, edges.front)
+            : 0;
         const slopeLen = span - (ghost ? 0 : 0.1);
         const midY = (h + lowH) / 2 - depth / 2 - (ghost ? 0 : 0.016);
         const zSpan = d - rafterInset * 2 + southTail;
