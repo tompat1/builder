@@ -62,6 +62,11 @@ import {
   type StuganStairSolution
 } from './stuganV4';
 import { overlightItem } from '../three-engine/windowFit';
+import {
+  acceptRoofOverhangVersion,
+  DEFAULT_ROOF_OVERHANG_VERSION,
+  type RoofOverhangVersion
+} from '../outside/roofOverhang';
 import { acceptPlacedRooms, type PlacedRoom } from '../three-engine/roomWalls';
 import {
   acceptTerraces,
@@ -759,6 +764,8 @@ export const useConfigStore = defineStore('config', () => {
   const doorCanopy = ref(false);
   /** Tin roof ends at the walls, with a metal band over the roof edge. */
   const flushRoof = ref(false);
+  /** Deep south overhang: v1 timber canopy, v2 closed soffit + N–S beams. */
+  const roofOverhangVersion = ref<RoofOverhangVersion>(DEFAULT_ROOF_OVERHANG_VERSION);
   const terraces = ref<HouseTerrace[]>([]);
   const facing = ref<CompassFacing>('south');
   const sunHour = ref(12);
@@ -943,6 +950,7 @@ export const useConfigStore = defineStore('config', () => {
       activeGate: activeGate.value,
       doorCanopy: doorCanopy.value,
       flushRoof: flushRoof.value,
+      roofOverhangVersion: roofOverhangVersion.value,
       terraces: terraces.value.map((item) => ({ ...item })),
       facing: facing.value,
       sunHour: sunHour.value,
@@ -1042,6 +1050,7 @@ export const useConfigStore = defineStore('config', () => {
       if (data.activeGate) activeGate.value = data.activeGate;
       doorCanopy.value = data.doorCanopy === true;
       flushRoof.value = data.flushRoof === true;
+      roofOverhangVersion.value = acceptRoofOverhangVersion(data.roofOverhangVersion);
       terraces.value = Array.isArray(data.terraces) ? acceptTerraces(data.terraces) : terracesFromLegacy(data);
       facing.value = COMPASS_FACINGS.includes(data.facing) ? data.facing : 'south';
       sunHour.value = clampSunHour(typeof data.sunHour === 'number' ? data.sunHour : 12);
@@ -1917,6 +1926,13 @@ export const useConfigStore = defineStore('config', () => {
   const setFlushRoof = (flush: boolean) => {
     if (flushRoof.value === flush) return;
     flushRoof.value = flush;
+    saveSnapshot();
+  }
+
+  const setRoofOverhangVersion = (version: RoofOverhangVersion) => {
+    const next = acceptRoofOverhangVersion(version);
+    if (roofOverhangVersion.value === next) return;
+    roofOverhangVersion.value = next;
     saveSnapshot();
   }
 
@@ -2960,6 +2976,7 @@ export const useConfigStore = defineStore('config', () => {
     activeGate,
     doorCanopy,
     flushRoof,
+    roofOverhangVersion,
     terraces,
     facing,
     sunHour,
@@ -3030,6 +3047,7 @@ export const useConfigStore = defineStore('config', () => {
     updateConcreteColor,
     selectRoof,
     setFlushRoof,
+    setRoofOverhangVersion,
     selectRoofCovering,
     selectLoft,
     toggleHasLoft,

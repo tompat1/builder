@@ -24,6 +24,13 @@ import {
 import { addTerraceCabin } from './terraceBuilding';
 import { addTerraceHotTub } from './terraceHotTub';
 import { computeDoorCanopyLayout, isDoorCoveredByAddition } from '../outside/canopy';
+import {
+  acceptRoofOverhangVersion,
+  roofBeamsAlongDepthForOverhang,
+  usesSoffitCanopyFraming,
+  usesTimberCanopyFraming,
+  type RoofOverhangVersion
+} from '../outside/roofOverhang';
 import { headingForFacing, type CompassFacing } from './sunPosition';
 import { calculateCompassHeading, createSceneLighting, updateSunPosition } from './lighting';
 import { eaveLiftMm, gablePitchDegrees, isGableRoof, wallPlateHeightM, type RoofId } from '../store/roof';
@@ -166,6 +173,12 @@ export interface SceneConfig {
   pulpetPitchDeg?: number;
   /** Per-edge overhangs in metres. Defaults to the usual 0.4 m / flush 0.02 m. */
   roofOverhangs?: { front: number; back: number; left: number; right: number };
+  /**
+   * Deep south overhang style.
+   * v1 = open timber canopy (posts, braces, header).
+   * v2 = closed soffit + single post; roof beams run N–S into the eave.
+   */
+  roofOverhangVersion?: RoofOverhangVersion;
 }
 
 interface OutsideAnchor {
@@ -378,6 +391,7 @@ export class HouseScene {
       wallSlots: initialConfig?.wallSlots ?? {},
       doorCanopy: initialConfig?.doorCanopy ?? false,
       flushRoof: initialConfig?.flushRoof ?? false,
+      roofOverhangVersion: acceptRoofOverhangVersion(initialConfig?.roofOverhangVersion),
       terraces: initialConfig?.terraces ?? [],
       cornerColor: initialConfig?.cornerColor ?? 'same',
       frameColor: initialConfig?.frameColor ?? 'white',
@@ -5636,6 +5650,94 @@ export class HouseScene {
     mark(fascia);
   }
 
+  /**
+   * v2 south overhang: closed soffit (drawn with the roof sheet) + one slender
+   * outer post. No knee braces. Primary N–S roof beams (buildRafters) carry the eave.
+   */
+  private addSouthSoffitCanopyPost(
+    w: number,
+    d: number,
+    _h: number,
+    frontOverhang: number,
+    angleRad: number,
+    yMid: number
+  ) {
+    const timber = new THREE.MeshStandardMaterial({
+      color: '#a9845c',
+      roughness: 0.7,
+      metalness: 0.04
+    });
+    const metal = new THREE.MeshStandardMaterial({
+      color: '#9aa3af',
+      roughness: 0.35,
+      metalness: 0.85
+    });
+    const lightMat = new THREE.MeshStandardMaterial({
+      color: '#f8f4ea',
+      emissive: '#fff6e0',
+      emissiveIntensity: 0.85,
+      roughness: 0.4
+    });
+
+    const postSize = 0.12;
+    const eavePast = 0.22;
+    const postInset = eavePast + postSize / 2;
+    const postZ = d / 2 + frontOverhang - postInset;
+    // High side of the width-fall (+X) — matches the reference single corner post.
+    const postX = Math.max(postSize, w / 2 - 0.35);
+    const deckTop = 0.32;
+    const shoeH = 0.08;
+    const plateY = (x: number) => yMid + x * Math.tan(angleRad);
+    // Seat under the soffit / beam line (beams are ~0.1 m deep).
+    const seatY = plateY(postX) - 0.12;
+    const postBottom = deckTop + shoeH;
+    const postH = Math.max(1.2, seatY - postBottom);
+
+    const mark = (mesh: THREE.Mesh) => {
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.userData.outsideAddition = true;
+      this.roofGroup.add(mesh);
+    };
+
+    const shoe = new THREE.Mesh(
+      new THREE.BoxGeometry(postSize + 0.04, shoeH * 0.4, postSize + 0.04),
+      metal
+    );
+    shoe.position.set(postX, deckTop + shoeH * 0.22, postZ);
+    mark(shoe);
+
+    const post = new THREE.Mesh(new THREE.BoxGeometry(postSize, postH, postSize), timber);
+    post.position.set(postX, postBottom + postH / 2, postZ);
+    mark(post);
+
+    // Slim cap plate where the post meets the soffit / beam.
+    const cap = new THREE.Mesh(
+      new THREE.BoxGeometry(postSize + 0.06, 0.03, postSize + 0.06),
+      timber
+    );
+    cap.position.set(postX, seatY - 0.015, postZ);
+    mark(cap);
+
+    // Recessed spotlights in the overhang soffit (world space under the eave).
+    const lightR = 0.045;
+    const lightY = plateY(0) - 0.14;
+    const lightZs = [
+      d / 2 + frontOverhang * 0.35,
+      d / 2 + frontOverhang * 0.62,
+      d / 2 + frontOverhang * 0.85
+    ];
+    const lightXs = [-w * 0.22, 0, w * 0.22];
+    for (let i = 0; i < lightZs.length; i++) {
+      const spot = new THREE.Mesh(
+        new THREE.CylinderGeometry(lightR, lightR * 0.85, 0.02, 16),
+        lightMat
+      );
+      spot.position.set(lightXs[i] ?? 0, lightY + (lightXs[i] ?? 0) * Math.tan(angleRad), lightZs[i]!);
+      mark(spot);
+    }
+  }
+
   private buildRoof(w: number, d: number, h: number) {
     const { roofType } = this.currentConfig;
     const edges = this.roofEdgeOverhangs(w, d);
@@ -5707,33 +5809,55 @@ export class HouseScene {
       eastFascia.castShadow = true;
       assembly.add(eastFascia);
 
-      // Short south eaves keep a closed soffit. Deep canopies leave the underside open
-      // so posts, header, and rafters read as structure (see south canopy timber below).
-      if (edges.front > 0.05 && edges.front < 1.5) {
+      const overhangVersion = acceptRoofOverhangVersion(this.currentConfig.roofOverhangVersion);
+      // Short eaves always get a closed soffit. Deep v1 timber canopies leave the
+      // underside open so posts/header read; deep v2 gets plank soffit + spotlights.
+      if (edges.front > 0.05 && (edges.front < 1.5 || overhangVersion === 'v2')) {
         const soffitT = 0.018;
         const soffitMat = new THREE.MeshStandardMaterial({
-          color: '#f4f1ea',
-          roughness: 0.7,
+          color: overhangVersion === 'v2' ? '#e8dcc8' : '#f4f1ea',
+          roughness: 0.72,
           emissive: '#efebe4',
-          emissiveIntensity: 0.35
+          emissiveIntensity: overhangVersion === 'v2' ? 0.22 : 0.35
         });
         const localWallFrontZ = d / 2 - zShift;
         const frontSoffitLen = Math.max(0.05, roofDepth / 2 - (localWallFrontZ - 0.02));
         const soffitY = -roofThick / 2 - soffitT / 2;
-        const frontSoffit = new THREE.Mesh(
-          new THREE.BoxGeometry(slopeLen - 0.02, soffitT, frontSoffitLen),
-          soffitMat
-        );
-        frontSoffit.position.set(0, soffitY, roofDepth / 2 - frontSoffitLen / 2);
-        frontSoffit.receiveShadow = true;
-        assembly.add(frontSoffit);
+        if (overhangVersion === 'v2' && edges.front >= 1.5) {
+          // Planks run parallel to the front facade (along X), like the reference soffit.
+          const plankW = 0.12;
+          const plankGap = 0.004;
+          const plankCount = Math.max(2, Math.floor(frontSoffitLen / (plankW + plankGap)));
+          const used = plankCount * plankW + (plankCount - 1) * plankGap;
+          const z0 = roofDepth / 2 - frontSoffitLen / 2 - used / 2 + plankW / 2;
+          for (let i = 0; i < plankCount; i++) {
+            const plank = new THREE.Mesh(
+              new THREE.BoxGeometry(slopeLen - 0.04, soffitT, plankW),
+              soffitMat
+            );
+            plank.position.set(0, soffitY, z0 + i * (plankW + plankGap));
+            plank.receiveShadow = true;
+            assembly.add(plank);
+          }
+        } else {
+          const frontSoffit = new THREE.Mesh(
+            new THREE.BoxGeometry(slopeLen - 0.02, soffitT, frontSoffitLen),
+            soffitMat
+          );
+          frontSoffit.position.set(0, soffitY, roofDepth / 2 - frontSoffitLen / 2);
+          frontSoffit.receiveShadow = true;
+          assembly.add(frontSoffit);
+        }
       }
 
       this.roofGroup.add(assembly);
 
-      // South canopy timber — posts + header + rafters + knee braces (structural sizes).
-      if (edges.front >= 1.5) {
+      if (usesTimberCanopyFraming(overhangVersion, edges.front)) {
+        // v1 — open timber canopy: posts + header + rafters + knee braces.
         this.addSouthCanopyFraming(w, d, h, edges.front, angleRad, yMid);
+      } else if (usesSoffitCanopyFraming(overhangVersion, edges.front)) {
+        // v2 — single outer post under the closed soffit (beams cantilever from framing).
+        this.addSouthSoffitCanopyPost(w, d, h, edges.front, angleRad, yMid);
       }
     } else {
       // Pulpettak. The slab, barge boards, and fascia share one rotated assembly
@@ -6128,38 +6252,69 @@ export class HouseScene {
     const spacing = spanW / (count - 1);
 
     if (isPulpettak && this.roofFallsAlongWidth()) {
-      // Stugan: rafters run east–west with the 10° fall (high east → low west).
       const angleRad = this.pulpetPitchRad();
       const lowH = Math.max(h - Math.tan(angleRad) * w, 2.4);
-      const slopeAngle = Math.atan2(h - lowH, w);
-      const span = Math.hypot(w, h - lowH);
       const edges = this.roofEdgeOverhangs(w, d);
-      const southTail = ghost ? Math.max(0.2, edges.front) : 0;
+      const overhangVersion = acceptRoofOverhangVersion(this.currentConfig.roofOverhangVersion);
+      const beamsAlongDepth = roofBeamsAlongDepthForOverhang(overhangVersion, true);
       const depth = ghost ? 0.145 : 0.1;
-      const slopeLen = span - (ghost ? 0 : 0.1);
-      const midY = (h + lowH) / 2 - depth / 2 - (ghost ? 0 : 0.016);
-      const zSpan = d - rafterInset * 2 + southTail;
-      const zCount = Math.max(2, Math.floor(zSpan / 0.6) + 1);
-      const zSpacing = zSpan / (zCount - 1);
-      const z0 = -d / 2 + rafterInset;
-      const rafterGeo = new THREE.BoxGeometry(slopeLen, depth, rafterW);
+      const plateY = (x: number) => (h + lowH) / 2 + x * Math.tan(angleRad);
 
-      for (let i = 0; i < zCount; i++) {
-        const rz = z0 + i * zSpacing;
-        const rafter = new THREE.Mesh(rafterGeo, rafterMat);
-        rafter.position.set(0, midY, rz);
-        // Lift +X (east) to match the width-fall roof plate.
-        rafter.rotation.z = slopeAngle;
-        rafter.castShadow = !ghost;
-        rafter.userData.framingStep = 6;
-        rafter.userData.framingNameSv = 'Takstol / takbalk (pulpettak öst→väst)';
-        rafter.userData.framingNameEn = 'Rafter / Roof Beam (Mono-pitch east→west)';
-        rafter.userData.dimension = `${Math.round(rafterW * 1000)}×${Math.round(depth * 1000)} mm C24 cc 600 mm`;
-        beamParent.add(rafter);
-        if (showClips) {
-          // Seat clips at high (east) and low (west) plate bearings.
-          this.addRafterSeatClip(beamParent, w / 2 - 0.12, h - 0.04, rz, 'x');
-          this.addRafterSeatClip(beamParent, -(w / 2 - 0.12), lowH - 0.04, rz, 'x');
+      if (beamsAlongDepth) {
+        // v2: beams run north→south and cantilever into the south overhang.
+        const southTail = Math.max(ghost ? 0.2 : 0, edges.front);
+        const z0 = -d / 2 + rafterInset;
+        const z1 = d / 2 + southTail - (ghost ? 0 : 0.04);
+        const beamLen = Math.max(0.8, z1 - z0);
+        const midZ = (z0 + z1) / 2;
+        const xCount = Math.max(2, Math.floor(spanW / 0.6) + 1);
+        const xSpacing = spanW / (xCount - 1);
+        const rafterGeo = new THREE.BoxGeometry(rafterW, depth, beamLen);
+
+        for (let i = 0; i < xCount; i++) {
+          const rx = -w / 2 + rafterInset + i * xSpacing;
+          const rafter = new THREE.Mesh(rafterGeo, rafterMat);
+          rafter.position.set(rx, plateY(rx) - depth / 2 - (ghost ? 0 : 0.016), midZ);
+          rafter.castShadow = !ghost;
+          rafter.userData.framingStep = 6;
+          rafter.userData.framingNameSv = 'Takbjälke (utsprång norr→söder)';
+          rafter.userData.framingNameEn = 'Roof Beam (Overhang north→south)';
+          rafter.userData.dimension = `${Math.round(rafterW * 1000)}×${Math.round(depth * 1000)} mm C24 cc 600 mm`;
+          beamParent.add(rafter);
+          if (showClips) {
+            this.addRafterSeatClip(beamParent, rx, plateY(rx) - 0.04, d / 2 - 0.1, 'z');
+            this.addRafterSeatClip(beamParent, rx, plateY(rx) - 0.04, -(d / 2 - 0.1), 'z');
+          }
+        }
+      } else {
+        // v1: rafters run east–west with the 10° fall (high east → low west).
+        const slopeAngle = Math.atan2(h - lowH, w);
+        const span = Math.hypot(w, h - lowH);
+        const southTail = ghost ? Math.max(0.2, edges.front) : 0;
+        const slopeLen = span - (ghost ? 0 : 0.1);
+        const midY = (h + lowH) / 2 - depth / 2 - (ghost ? 0 : 0.016);
+        const zSpan = d - rafterInset * 2 + southTail;
+        const zCount = Math.max(2, Math.floor(zSpan / 0.6) + 1);
+        const zSpacing = zSpan / (zCount - 1);
+        const z0 = -d / 2 + rafterInset;
+        const rafterGeo = new THREE.BoxGeometry(slopeLen, depth, rafterW);
+
+        for (let i = 0; i < zCount; i++) {
+          const rz = z0 + i * zSpacing;
+          const rafter = new THREE.Mesh(rafterGeo, rafterMat);
+          rafter.position.set(0, midY, rz);
+          // Lift +X (east) to match the width-fall roof plate.
+          rafter.rotation.z = slopeAngle;
+          rafter.castShadow = !ghost;
+          rafter.userData.framingStep = 6;
+          rafter.userData.framingNameSv = 'Takstol / takbalk (pulpettak öst→väst)';
+          rafter.userData.framingNameEn = 'Rafter / Roof Beam (Mono-pitch east→west)';
+          rafter.userData.dimension = `${Math.round(rafterW * 1000)}×${Math.round(depth * 1000)} mm C24 cc 600 mm`;
+          beamParent.add(rafter);
+          if (showClips) {
+            this.addRafterSeatClip(beamParent, w / 2 - 0.12, h - 0.04, rz, 'x');
+            this.addRafterSeatClip(beamParent, -(w / 2 - 0.12), lowH - 0.04, rz, 'x');
+          }
         }
       }
     } else if (isPulpettak) {

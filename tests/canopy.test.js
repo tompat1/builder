@@ -1,6 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { computeDoorCanopyLayout, isDoorCoveredByAddition } from '../src/outside/canopy.ts';
+import {
+  acceptRoofOverhangVersion,
+  roofBeamsAlongDepthForOverhang,
+  usesSoffitCanopyFraming,
+  usesTimberCanopyFraming
+} from '../src/outside/roofOverhang.ts';
 
 test('a door canopy on an interior bay has symmetric overhang and brackets', () => {
   const layout = computeDoorCanopyLayout({
@@ -148,4 +154,38 @@ test('a door covered by a sauna or terrace roof skips the door canopy', () => {
     wallDoorsAlong: [-2.0, 2.2]
   });
   assert.equal(openDeckDoor, false);
+});
+
+test('roof overhang v1 keeps timber canopy; v2 turns beams along depth', () => {
+  assert.equal(acceptRoofOverhangVersion(undefined), 'v1');
+  assert.equal(acceptRoofOverhangVersion('v2'), 'v2');
+  assert.equal(acceptRoofOverhangVersion('nope'), 'v1');
+
+  assert.equal(usesTimberCanopyFraming('v1', 3), true);
+  assert.equal(usesTimberCanopyFraming('v2', 3), false);
+  assert.equal(usesSoffitCanopyFraming('v2', 3), true);
+  assert.equal(usesSoffitCanopyFraming('v1', 3), false);
+  assert.equal(usesTimberCanopyFraming('v1', 0.4), false);
+
+  assert.equal(roofBeamsAlongDepthForOverhang('v1', true), false);
+  assert.equal(roofBeamsAlongDepthForOverhang('v2', true), true);
+  assert.equal(roofBeamsAlongDepthForOverhang('v2', false), false);
+});
+
+test('HouseScene wires both overhang versions and flips beam direction for v2', async () => {
+  const fs = await import('node:fs');
+  const path = await import('node:path');
+  const { fileURLToPath } = await import('node:url');
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+  const scene = fs.readFileSync(path.join(root, 'src/three-engine/HouseScene.ts'), 'utf8');
+  const store = fs.readFileSync(path.join(root, 'src/store/useConfigStore.ts'), 'utf8');
+  const overlay = fs.readFileSync(path.join(root, 'src/components/OptionsGrid.vue'), 'utf8');
+
+  assert.match(scene, /addSouthCanopyFraming/);
+  assert.match(scene, /addSouthSoffitCanopyPost/);
+  assert.match(scene, /roofBeamsAlongDepthForOverhang/);
+  assert.match(scene, /Takbjälke \(utsprång norr→söder\)/);
+  assert.match(store, /setRoofOverhangVersion/);
+  assert.match(overlay, /setRoofOverhangVersion\('v1'\)/);
+  assert.match(overlay, /setRoofOverhangVersion\('v2'\)/);
 });

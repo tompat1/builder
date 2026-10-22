@@ -245,6 +245,7 @@ onMounted(() => {
       wallSlots: store.wallSlots,
       doorCanopy: store.doorCanopy,
       flushRoof: store.flushRoof,
+      roofOverhangVersion: store.roofOverhangVersion,
       terraces: store.terraces.map((item) => ({ ...item })),
       concreteBase: store.selectedSizeId === 'size-paabyggnad',
       concreteWidthMm: store.concreteWidth,
@@ -553,11 +554,12 @@ watch(
 
 // Watch roof type
 watch(
-  [() => store.activeRoof, () => store.flushRoof],
-  ([roof, flushRoof]) => {
+  [() => store.activeRoof, () => store.flushRoof, () => store.roofOverhangVersion],
+  ([roof, flushRoof, overhangVersion]) => {
     engine?.updateConfig({
       roofType: roof as RoofId,
-      flushRoof
+      flushRoof,
+      roofOverhangVersion: overhangVersion
     });
   }
 );
