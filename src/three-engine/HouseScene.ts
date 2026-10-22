@@ -27,6 +27,8 @@ import { computeDoorCanopyLayout, isDoorCoveredByAddition } from '../outside/can
 import {
   acceptRoofOverhangVersion,
   roofBeamsAlongDepthForOverhang,
+  usesCantileverBlackFascia,
+  usesPlankSoffitOverhang,
   usesSoffitCanopyFraming,
   usesTimberCanopyFraming,
   type RoofOverhangVersion
@@ -177,6 +179,7 @@ export interface SceneConfig {
    * Deep south overhang style.
    * v1 = open timber canopy (posts, braces, header).
    * v2 = closed soffit + single post; roof beams run N–S into the eave.
+   * v3 = cantilevered black fascia casing; no posts; beams N–S.
    */
   roofOverhangVersion?: RoofOverhangVersion;
 }
@@ -5778,53 +5781,63 @@ export class HouseScene {
       roofMesh.receiveShadow = true;
       assembly.add(roofMesh);
 
-      const fasciaT = 0.022;
-      const eavesDrop = 0.08;
+      const overhangVersion = acceptRoofOverhangVersion(this.currentConfig.roofOverhangVersion);
+      const blackCasing = usesCantileverBlackFascia(overhangVersion, edges.front);
+      const edgeMat = blackCasing
+        ? new THREE.MeshStandardMaterial({
+            color: '#1a1a1a',
+            roughness: 0.55,
+            metalness: 0.08
+          })
+        : whiteTrimMat;
+      // v3: deeper black fascia band reads as a continuous outer casing around the eave.
+      const fasciaT = blackCasing ? 0.04 : 0.022;
+      const eavesDrop = blackCasing ? 0.16 : 0.08;
       const fasciaBottom = -roofThick / 2 - eavesDrop;
       const fasciaTop = roofThick / 2 + 0.008;
       const fasciaH = fasciaTop - fasciaBottom;
       const fasciaY = (fasciaBottom + fasciaTop) / 2;
-      const bargeT = 0.032;
+      const bargeT = blackCasing ? 0.05 : 0.032;
       // Flush side eaves: keep end fascias under the roof sheet so they meet the corner boards cleanly.
       const sideFlush = edges.left < 0.05 && edges.right < 0.05;
       const endFasciaOut = sideFlush ? -fasciaT / 2 : fasciaT / 2;
 
       const bargeGeo = new THREE.BoxGeometry(slopeLen + (sideFlush ? 0 : fasciaT * 2), fasciaH, bargeT);
-      const frontBarge = new THREE.Mesh(bargeGeo, whiteTrimMat);
+      const frontBarge = new THREE.Mesh(bargeGeo, edgeMat);
       frontBarge.position.set(0, fasciaY, roofDepth / 2 + bargeT / 2);
       frontBarge.castShadow = true;
       assembly.add(frontBarge);
-      const backBarge = new THREE.Mesh(bargeGeo, whiteTrimMat);
+      const backBarge = new THREE.Mesh(bargeGeo, edgeMat);
       backBarge.position.set(0, fasciaY, -(roofDepth / 2 + bargeT / 2));
       backBarge.castShadow = true;
       assembly.add(backBarge);
 
       const fasciaGeo = new THREE.BoxGeometry(fasciaT, fasciaH, roofDepth + bargeT * 2);
-      const westFascia = new THREE.Mesh(fasciaGeo, whiteTrimMat);
+      const westFascia = new THREE.Mesh(fasciaGeo, edgeMat);
       westFascia.position.set(-(slopeLen / 2) + endFasciaOut, fasciaY, 0);
       westFascia.castShadow = true;
       assembly.add(westFascia);
-      const eastFascia = new THREE.Mesh(fasciaGeo, whiteTrimMat);
+      const eastFascia = new THREE.Mesh(fasciaGeo, edgeMat);
       eastFascia.position.set(slopeLen / 2 - endFasciaOut, fasciaY, 0);
       eastFascia.castShadow = true;
       assembly.add(eastFascia);
 
-      const overhangVersion = acceptRoofOverhangVersion(this.currentConfig.roofOverhangVersion);
       // Short eaves always get a closed soffit. Deep v1 timber canopies leave the
-      // underside open so posts/header read; deep v2 gets plank soffit + spotlights.
-      if (edges.front > 0.05 && (edges.front < 1.5 || overhangVersion === 'v2')) {
+      // underside open; deep v2/v3 get a light plank soffit (no posts on v3).
+      const closedPlank = usesPlankSoffitOverhang(overhangVersion, edges.front);
+      if (edges.front > 0.05 && (edges.front < 1.5 || closedPlank)) {
         const soffitT = 0.018;
         const soffitMat = new THREE.MeshStandardMaterial({
-          color: overhangVersion === 'v2' ? '#e8dcc8' : '#f4f1ea',
+          color: closedPlank ? '#e8dcc8' : '#f4f1ea',
           roughness: 0.72,
           emissive: '#efebe4',
-          emissiveIntensity: overhangVersion === 'v2' ? 0.22 : 0.35
+          emissiveIntensity: closedPlank ? 0.22 : 0.35
         });
         const localWallFrontZ = d / 2 - zShift;
         const frontSoffitLen = Math.max(0.05, roofDepth / 2 - (localWallFrontZ - 0.02));
         const soffitY = -roofThick / 2 - soffitT / 2;
-        if (overhangVersion === 'v2' && edges.front >= 1.5) {
-          // Planks run parallel to the front facade (along X), like the reference soffit.
+        if (closedPlank) {
+          // Planks run parallel to the front facade (along X).
           const plankW = 0.12;
           const plankGap = 0.004;
           const plankCount = Math.max(2, Math.floor(frontSoffitLen / (plankW + plankGap)));
@@ -5859,6 +5872,7 @@ export class HouseScene {
         // v2 — single outer post under the closed soffit (beams cantilever from framing).
         this.addSouthSoffitCanopyPost(w, d, h, edges.front, angleRad, yMid);
       }
+      // v3 — no posts; N–S beams + black fascia casing carry the eave alone.
     } else {
       // Pulpettak. The slab, barge boards, and fascia share one rotated assembly
       // so each board meets the next at an edge instead of occupying the same face.
@@ -6261,7 +6275,7 @@ export class HouseScene {
       const plateY = (x: number) => (h + lowH) / 2 + x * Math.tan(angleRad);
 
       if (beamsAlongDepth) {
-        // v2: beams run north→south and cantilever into the south overhang.
+        // v2 / v3: beams run north→south and cantilever into the south overhang.
         const southTail = Math.max(ghost ? 0.2 : 0, edges.front);
         const z0 = -d / 2 + rafterInset;
         const z1 = d / 2 + southTail - (ghost ? 0 : 0.04);

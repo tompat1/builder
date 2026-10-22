@@ -4,6 +4,8 @@ import { computeDoorCanopyLayout, isDoorCoveredByAddition } from '../src/outside
 import {
   acceptRoofOverhangVersion,
   roofBeamsAlongDepthForOverhang,
+  usesCantileverBlackFascia,
+  usesPlankSoffitOverhang,
   usesSoffitCanopyFraming,
   usesTimberCanopyFraming
 } from '../src/outside/roofOverhang.ts';
@@ -156,23 +158,30 @@ test('a door covered by a sauna or terrace roof skips the door canopy', () => {
   assert.equal(openDeckDoor, false);
 });
 
-test('roof overhang v1 keeps timber canopy; v2 turns beams along depth', () => {
+test('roof overhang v1 timber, v2 post soffit, v3 black cantilever', () => {
   assert.equal(acceptRoofOverhangVersion(undefined), 'v1');
   assert.equal(acceptRoofOverhangVersion('v2'), 'v2');
+  assert.equal(acceptRoofOverhangVersion('v3'), 'v3');
   assert.equal(acceptRoofOverhangVersion('nope'), 'v1');
 
   assert.equal(usesTimberCanopyFraming('v1', 3), true);
   assert.equal(usesTimberCanopyFraming('v2', 3), false);
+  assert.equal(usesTimberCanopyFraming('v3', 3), false);
   assert.equal(usesSoffitCanopyFraming('v2', 3), true);
-  assert.equal(usesSoffitCanopyFraming('v1', 3), false);
+  assert.equal(usesSoffitCanopyFraming('v3', 3), false);
+  assert.equal(usesPlankSoffitOverhang('v2', 3), true);
+  assert.equal(usesPlankSoffitOverhang('v3', 3), true);
+  assert.equal(usesCantileverBlackFascia('v3', 3), true);
+  assert.equal(usesCantileverBlackFascia('v2', 3), false);
   assert.equal(usesTimberCanopyFraming('v1', 0.4), false);
 
   assert.equal(roofBeamsAlongDepthForOverhang('v1', true), false);
   assert.equal(roofBeamsAlongDepthForOverhang('v2', true), true);
-  assert.equal(roofBeamsAlongDepthForOverhang('v2', false), false);
+  assert.equal(roofBeamsAlongDepthForOverhang('v3', true), true);
+  assert.equal(roofBeamsAlongDepthForOverhang('v3', false), false);
 });
 
-test('HouseScene wires both overhang versions and flips beam direction for v2', async () => {
+test('HouseScene wires all three overhang versions', async () => {
   const fs = await import('node:fs');
   const path = await import('node:path');
   const { fileURLToPath } = await import('node:url');
@@ -183,9 +192,11 @@ test('HouseScene wires both overhang versions and flips beam direction for v2', 
 
   assert.match(scene, /addSouthCanopyFraming/);
   assert.match(scene, /addSouthSoffitCanopyPost/);
+  assert.match(scene, /usesCantileverBlackFascia/);
   assert.match(scene, /roofBeamsAlongDepthForOverhang/);
   assert.match(scene, /Takbjälke \(utsprång norr→söder\)/);
   assert.match(store, /setRoofOverhangVersion/);
   assert.match(overlay, /setRoofOverhangVersion\('v1'\)/);
   assert.match(overlay, /setRoofOverhangVersion\('v2'\)/);
+  assert.match(overlay, /setRoofOverhangVersion\('v3'\)/);
 });

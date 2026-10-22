@@ -1343,7 +1343,7 @@
         <p class="text-xs font-bold text-slate-900 mb-2"><Cms k="category.roofEdge" /></p>
         <div
           v-if="isStuganRoof"
-          class="grid grid-cols-2 gap-2"
+          class="grid grid-cols-3 gap-2"
           role="radiogroup"
           :aria-label="t('category.stuganRoofEdge')"
         >
@@ -1400,6 +1400,30 @@
             </span>
             <span class="block text-xs font-bold text-slate-900"><Cms k="category.roofOverhangV2" /></span>
             <span class="block text-[10px] text-slate-500 mt-0.5"><Cms k="category.roofOverhangV2Body" /></span>
+          </button>
+          <button
+            type="button"
+            id="option-roof-overhang-v3"
+            role="radio"
+            :aria-checked="store.roofOverhangVersion === 'v3'"
+            @click="store.setRoofOverhangVersion('v3')"
+            :class="[
+              'text-left p-2.5 rounded-xl border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
+              store.roofOverhangVersion === 'v3'
+                ? 'border-slate-900 ring-1 ring-slate-900 bg-slate-50/70'
+                : 'border-slate-200/90 bg-white hover:border-slate-300'
+            ]"
+          >
+            <span class="mb-2 flex h-8 items-center justify-center text-slate-700">
+              <svg class="h-8 w-full" viewBox="0 0 120 32" fill="none" aria-hidden="true">
+                <path d="M14 10 H106" stroke="currentColor" stroke-width="4" stroke-linecap="square" />
+                <path d="M18 10 V20 H102 V10" stroke="currentColor" stroke-width="1.4" />
+                <path d="M18 10 V28" stroke="currentColor" stroke-width="2.5" />
+                <path d="M102 10 V28" stroke="currentColor" stroke-width="2.5" />
+              </svg>
+            </span>
+            <span class="block text-xs font-bold text-slate-900"><Cms k="category.roofOverhangV3" /></span>
+            <span class="block text-[10px] text-slate-500 mt-0.5"><Cms k="category.roofOverhangV3Body" /></span>
           </button>
         </div>
         <div v-else class="grid grid-cols-2 gap-2" role="radiogroup" :aria-label="t('category.roofEdge')">
