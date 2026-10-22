@@ -2474,10 +2474,13 @@ export class HouseScene {
       this.addSolidCladding(panelGroup, panelWidth, band.height, claddingThick, exteriorMat, userData, facadeTop, facadeSpan);
     }
 
+    // Rhythm: only the panel that owns the pane centre draws casing/glass.
+    // Host slots stay type=window for selection, but must not also draw a second frame.
     const rhythmDraw = Boolean(rhythm?.drawFeature);
-    const ownsOpening = rhythmDraw
-      || (wide ? wide.drawDoor : (slotType === 'door' || slotType === 'window'));
-    if (ownsOpening && opening && (rhythmDraw || wide || slotType === 'door' || slotType === 'window')) {
+    const ownsOpening = rhythm
+      ? rhythmDraw
+      : (wide ? wide.drawDoor : (slotType === 'door' || slotType === 'window'));
+    if (ownsOpening && opening) {
       // Sliding doors span two bays — clamp casing to the full opening, not the host panel alone.
       const casingSpan = wide?.drawDoor
         ? Math.max(panelWidth, Math.abs(opening.x ?? 0) * 2 + opening.winW + 0.28)
@@ -2495,7 +2498,7 @@ export class HouseScene {
     }
     if (ownsOpening && opening && (wide || slotType === 'door') && !rhythm) {
       this.addDoorFeature(panelGroup, opening, slot?.itemId, userData);
-    } else if ((rhythmDraw || (!rhythm && slotType === 'window')) && opening) {
+    } else if (ownsOpening && opening && (rhythmDraw || (!rhythm && slotType === 'window'))) {
       this.addWindowFeature(panelGroup, opening, rhythm?.itemId ?? slot?.itemId, userData);
     } else if (slotType === 'gate') {
       this.addGateFeature(panelGroup, panelWidth, band.height, wallThick, slot?.itemId, userData);

@@ -610,7 +610,10 @@ import {
   mergeWallSlots,
   freeLowerRunForRhythm,
   freeBandRunForRhythm,
-  bandSlotId
+  bandSlotId,
+  windowRowOnBand,
+  alignWindowsOnBand,
+  clearWindowsOnBand
 } from './wallSlots';
 import { clearWindowRhythmSlots, releaseWindowRhythmSlots } from './slotMove';
 
@@ -629,7 +632,9 @@ export {
   paabyggnadWallSlots,
   freeLowerRunForRhythm,
   freeBandRunForRhythm,
-  bandSlotId
+  bandSlotId,
+  windowRowOnBand,
+  alignWindowsOnBand
 };
 export {
   STUGAN_V4_SIZE_ID,
@@ -2608,6 +2613,10 @@ export const useConfigStore = defineStore('config', () => {
     clearWindowRhythmSlots(wallSlots.value, hostId);
   }
 
+  /**
+   * Apply a window rhythm on a free run (used by catalog / programmatic placement).
+   * Align UI goes through alignWallWindows → alignWindowsOnBand only.
+   */
   const setWallWindowRhythm = (
     wall: WallSlot['wall'],
     count: WindowRhythmCount,
@@ -2621,23 +2630,14 @@ export const useConfigStore = defineStore('config', () => {
       ?? (selected && selected.wall === wall && Boolean(selected.isUpper) === isUpper
         ? selected.index
         : 0);
+    // Clear windows first so free-run measurement and placement never stack panes.
+    clearWindowsOnBand(wallSlots.value, wall, panelCount, isUpper);
     const run = freeBandRunForRhythm(wallSlots.value, wall, panelCount, anchor, isUpper);
     if (run.length < 2) return;
     const n = Math.min(count, run.length, 4) as WindowRhythmCount;
     if (n < 2) return;
 
-    // Drop any existing rhythm on this wall band before rebuilding the run.
-    for (let i = 0; i < panelCount; i += 1) {
-      const id = bandSlotId(wall, i, isUpper);
-      const s = wallSlots.value[id];
-      if (!s) continue;
-      if (s.windowRhythm) clearWallWindowRhythm(id);
-      else if (s.coveredBy && wallSlots.value[s.coveredBy]?.windowRhythm) {
-        clearWallWindowRhythm(s.coveredBy);
-      }
-    }
-
-    const hostIndex = run[0];
+    const hostIndex = run[0]!;
     const hostId = bandSlotId(wall, hostIndex, isUpper);
     for (const i of run) {
       const id = bandSlotId(wall, i, isUpper);
@@ -2664,31 +2664,7 @@ export const useConfigStore = defineStore('config', () => {
   /** Count windows on a wall band (a rhythm host counts as its pane count). */
   const windowRowCount = (wall: WallSlot['wall'], isUpper: boolean) => {
     const panelCount = panelCountForWall(wall, buildingWidth.value, buildingDepth.value);
-    let count = 0;
-    let itemId: string | undefined;
-    let anchor = 0;
-    let aligned = false;
-    for (let i = 0; i < panelCount; i += 1) {
-      const s = wallSlots.value[bandSlotId(wall, i, isUpper)];
-      if (!s) continue;
-      if (s.windowRhythm) {
-        return {
-          count: s.windowRhythm,
-          itemId: s.itemId,
-          anchor: s.index,
-          aligned: true,
-          hostId: s.id
-        };
-      }
-      if (s.type === 'window' && s.itemId) {
-        count += 1;
-        if (!itemId) {
-          itemId = s.itemId;
-          anchor = s.index;
-        }
-      }
-    }
-    return { count, itemId, anchor, aligned, hostId: null as string | null };
+    return windowRowOnBand(wallSlots.value, wall, panelCount, isUpper);
   }
 
   /** @deprecated Use windowRowCount(wall, false). */
@@ -2696,16 +2672,17 @@ export const useConfigStore = defineStore('config', () => {
 
   /**
    * Evenly space every window on this wall band (lower or upper).
-   * Keeps the current window count and type; click any panel on the row to use it.
+   * Single UI entry → alignWindowsOnBand (clears orphans, one rhythm host).
    */
   const alignWallWindows = (slotId: string) => {
     const slot = wallSlots.value[slotId];
     if (!slot) return;
     const isUpper = slot.isUpper === true || slotId.endsWith('u');
-    const row = windowRowCount(slot.wall, isUpper);
-    if (row.aligned || row.count < 2 || !row.itemId) return;
-    const n = Math.min(4, Math.max(2, row.count)) as WindowRhythmCount;
-    setWallWindowRhythm(slot.wall, n, row.itemId, slot.index, isUpper);
+    const panelCount = panelCountForWall(slot.wall, buildingWidth.value, buildingDepth.value);
+    const result = alignWindowsOnBand(wallSlots.value, slot.wall, panelCount, slot.index, isUpper);
+    if (!result.ok || !result.hostId) return;
+    selectedSlotId.value = result.hostId;
+    saveSnapshot();
   }
 
   const assignSlotItem = (slotId: string, type: 'empty' | 'door' | 'window' | 'gate', itemId?: string) => {

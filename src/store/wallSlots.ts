@@ -101,6 +101,120 @@ export function freeLowerRunForRhythm(
   return freeBandRunForRhythm(slots, wall, panelCount, anchorIndex, false);
 }
 
+export interface WindowRowInfo {
+  count: number;
+  itemId: string | undefined;
+  anchor: number;
+  aligned: boolean;
+  hostId: string | null;
+}
+
+/** Count windows on a wall band. A rhythm host counts as its pane count. */
+export function windowRowOnBand(
+  slots: Record<string, WallSlot>,
+  wall: WallSlot['wall'],
+  panelCount: number,
+  isUpper: boolean
+): WindowRowInfo {
+  let count = 0;
+  let itemId: string | undefined;
+  let anchor = 0;
+  for (let i = 0; i < panelCount; i += 1) {
+    const s = slots[bandSlotId(wall, i, isUpper)];
+    if (!s) continue;
+    if (s.windowRhythm) {
+      return {
+        count: s.windowRhythm,
+        itemId: s.itemId,
+        anchor: s.index,
+        aligned: true,
+        hostId: s.id
+      };
+    }
+    if (s.type === 'window' && s.itemId) {
+      count += 1;
+      if (!itemId) {
+        itemId = s.itemId;
+        anchor = s.index;
+      }
+    }
+  }
+  return { count, itemId, anchor, aligned: false, hostId: null };
+}
+
+/**
+ * Clear every window and window-rhythm on this wall band (lower or upper).
+ * Leaves doors, gates, and sliding-door coverage untouched.
+ */
+export function clearWindowsOnBand(
+  slots: Record<string, WallSlot>,
+  wall: WallSlot['wall'],
+  panelCount: number,
+  isUpper: boolean
+) {
+  for (let i = 0; i < panelCount; i += 1) {
+    const id = bandSlotId(wall, i, isUpper);
+    const s = slots[id];
+    if (!s) continue;
+    const coveredByRhythm = Boolean(s.coveredBy && slots[s.coveredBy]?.windowRhythm);
+    if (!s.windowRhythm && s.type !== 'window' && !coveredByRhythm) continue;
+    s.type = 'empty';
+    s.itemId = undefined;
+    s.coveredBy = undefined;
+    s.fitToWall = undefined;
+    s.windowRhythm = undefined;
+  }
+}
+
+/**
+ * Evenly space every window on this wall band into one rhythm host.
+ * Single implementation used by the Align control — clears orphans first so
+ * individual panes cannot draw on top of the rhythm.
+ */
+export function alignWindowsOnBand(
+  slots: Record<string, WallSlot>,
+  wall: WallSlot['wall'],
+  panelCount: number,
+  anchorIndex: number,
+  isUpper: boolean
+): { ok: boolean; hostId: string | null; count: number } {
+  const row = windowRowOnBand(slots, wall, panelCount, isUpper);
+  if (row.aligned || row.count < 2 || !row.itemId) {
+    return { ok: false, hostId: row.hostId, count: row.count };
+  }
+  const itemId = row.itemId;
+  const windowCount = row.count;
+
+  // Wipe windows first so the free run is measured on a clean band (doors stay).
+  clearWindowsOnBand(slots, wall, panelCount, isUpper);
+
+  const run = freeBandRunForRhythm(slots, wall, panelCount, anchorIndex, isUpper);
+  if (run.length < 2) return { ok: false, hostId: null, count: windowCount };
+
+  const n = Math.min(4, Math.max(2, Math.min(windowCount, run.length))) as WindowRhythmCount;
+  const hostIndex = run[0]!;
+  const hostId = bandSlotId(wall, hostIndex, isUpper);
+  for (const i of run) {
+    const id = bandSlotId(wall, i, isUpper);
+    const s = slots[id];
+    if (!s) continue;
+    if (i === hostIndex) {
+      s.type = 'window';
+      s.itemId = itemId;
+      s.windowRhythm = n;
+      s.coveredBy = undefined;
+      s.fitToWall = true;
+    } else {
+      s.type = 'empty';
+      s.itemId = undefined;
+      s.windowRhythm = undefined;
+      s.coveredBy = hostId;
+      s.fitToWall = undefined;
+    }
+  }
+  return { ok: true, hostId, count: n };
+}
+
 export const PANEL_COUNTS = { front: 4, back: 4, left: 3, right: 3 } as const;
 
 export function panelCountForWall(

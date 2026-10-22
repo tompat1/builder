@@ -295,3 +295,152 @@ test('dragging a gate to an upper clerestory bay is rejected while ground bay mo
   assert.equal(slots['front-1'].type, 'gate');
   assert.equal(slots['front-0'].type, 'empty');
 });
+
+function makeFrontBand(types) {
+  /** @type {Record<string, import('../src/store/wallSlots.ts').WallSlot>} */
+  const slots = {};
+  for (let i = 0; i < types.length; i += 1) {
+    const t = types[i];
+    slots[`front-${i}`] = {
+      id: `front-${i}`,
+      wall: 'front',
+      index: i,
+      type: t.type,
+      itemId: t.itemId,
+      canAcceptDoor: true,
+      coveredBy: t.coveredBy,
+      windowRhythm: t.windowRhythm,
+      fitToWall: t.fitToWall
+    };
+  }
+  return slots;
+}
+
+test('alignWindowsOnBand consolidates loose windows into one rhythm host with no leftover panes', async () => {
+  const {
+    alignWindowsOnBand,
+    windowRowOnBand,
+    clearWindowsOnBand
+  } = await import('../src/store/wallSlots.ts');
+  const {
+    rhythmOpeningsAlongRun,
+    rhythmOpeningForPanel,
+    rhythmOpeningsDoNotOverlap
+  } = await import('../src/three-engine/windowFit.ts');
+
+  const slots = makeFrontBand([
+    { type: 'window', itemId: 'standard-single' },
+    { type: 'empty' },
+    { type: 'window', itemId: 'standard-single' },
+    { type: 'window', itemId: 'standard-single' }
+  ]);
+
+  const before = windowRowOnBand(slots, 'front', 4, false);
+  assert.equal(before.count, 3);
+  assert.equal(before.aligned, false);
+
+  const result = alignWindowsOnBand(slots, 'front', 4, 2, false);
+  assert.equal(result.ok, true);
+  assert.equal(result.count, 3);
+  assert.equal(result.hostId, 'front-0');
+
+  const hosts = Object.values(slots).filter((s) => s.windowRhythm);
+  assert.equal(hosts.length, 1);
+  assert.equal(hosts[0].windowRhythm, 3);
+  assert.equal(hosts[0].type, 'window');
+  assert.equal(hosts[0].itemId, 'standard-single');
+
+  const loose = Object.values(slots).filter(
+    (s) => s.type === 'window' && !s.windowRhythm
+  );
+  assert.equal(loose.length, 0, 'no orphan window panes after Align');
+
+  for (const s of Object.values(slots)) {
+    if (s.id === result.hostId) {
+      assert.equal(s.coveredBy, undefined);
+      continue;
+    }
+    assert.equal(s.type, 'empty');
+    assert.equal(s.coveredBy, result.hostId);
+    assert.equal(s.windowRhythm, undefined);
+    assert.equal(s.itemId, undefined);
+  }
+
+  const after = windowRowOnBand(slots, 'front', 4, false);
+  assert.equal(after.aligned, true);
+  assert.equal(after.count, 3);
+  assert.equal(after.hostId, result.hostId);
+
+  // Geometry: three non-overlapping panes, exactly three drawFeature owners.
+  const panelWidth = 1.5;
+  const along = rhythmOpeningsAlongRun(4, 3, panelWidth, 1.0, 0.32);
+  assert.equal(along.length, 3);
+  assert.equal(rhythmOpeningsDoNotOverlap(along), true);
+  const drawn = [];
+  for (let i = 0; i < 4; i += 1) {
+    const mapped = rhythmOpeningForPanel(along, 0, 4, i, panelWidth);
+    if (mapped?.drawFeature) drawn.push(mapped);
+  }
+  assert.equal(drawn.length, 3);
+
+  // Second Align is a no-op once already aligned.
+  const again = alignWindowsOnBand(slots, 'front', 4, 1, false);
+  assert.equal(again.ok, false);
+  assert.equal(again.hostId, result.hostId);
+
+  // clearWindowsOnBand must not wipe a sliding-door neighbour on the same band.
+  const withSlider = makeFrontBand([
+    { type: 'door', itemId: 'SKJUTDORR' },
+    { type: 'empty', coveredBy: 'front-0' },
+    { type: 'window', itemId: 'standard-single' },
+    { type: 'window', itemId: 'standard-single' }
+  ]);
+  clearWindowsOnBand(withSlider, 'front', 4, false);
+  assert.equal(withSlider['front-0'].type, 'door');
+  assert.equal(withSlider['front-0'].itemId, 'SKJUTDORR');
+  assert.equal(withSlider['front-1'].coveredBy, 'front-0');
+  assert.equal(withSlider['front-2'].type, 'empty');
+  assert.equal(withSlider['front-3'].type, 'empty');
+});
+
+test('alignWindowsOnBand on an upper band keeps lower openings untouched', async () => {
+  const { alignWindowsOnBand, windowRowOnBand } = await import('../src/store/wallSlots.ts');
+  const slots = {
+    'left-0': { id: 'left-0', wall: 'left', index: 0, type: 'window', itemId: 'panorama', canAcceptDoor: true },
+    'left-1': { id: 'left-1', wall: 'left', index: 1, type: 'window', itemId: 'panorama', canAcceptDoor: true },
+    'left-2': { id: 'left-2', wall: 'left', index: 2, type: 'empty', canAcceptDoor: true },
+    'left-0u': { id: 'left-0u', wall: 'left', index: 0, type: 'window', itemId: 'standard-single', canAcceptDoor: false, isUpper: true },
+    'left-1u': { id: 'left-1u', wall: 'left', index: 1, type: 'window', itemId: 'standard-single', canAcceptDoor: false, isUpper: true },
+    'left-2u': { id: 'left-2u', wall: 'left', index: 2, type: 'empty', canAcceptDoor: false, isUpper: true }
+  };
+
+  const result = alignWindowsOnBand(slots, 'left', 3, 0, true);
+  assert.equal(result.ok, true);
+  assert.equal(result.count, 2);
+  assert.equal(slots['left-0u'].windowRhythm, 2);
+  assert.equal(slots['left-1u'].coveredBy, 'left-0u');
+  assert.equal(slots['left-2u'].coveredBy, 'left-0u');
+  // Lower band unchanged.
+  assert.equal(slots['left-0'].type, 'window');
+  assert.equal(slots['left-1'].type, 'window');
+  assert.equal(slots['left-0'].windowRhythm, undefined);
+  assert.equal(windowRowOnBand(slots, 'left', 3, false).aligned, false);
+});
+
+test('Align UI path is only alignWallWindows → alignWindowsOnBand', async () => {
+  const fs = await import('node:fs');
+  const path = await import('node:path');
+  const root = path.resolve(import.meta.dirname, '..');
+  const overlay = fs.readFileSync(path.join(root, 'src/components/PanelSlotOverlay.vue'), 'utf8');
+  const store = fs.readFileSync(path.join(root, 'src/store/useConfigStore.ts'), 'utf8');
+  const wallSlots = fs.readFileSync(path.join(root, 'src/store/wallSlots.ts'), 'utf8');
+
+  assert.match(overlay, /store\.alignWallWindows\(/);
+  assert.doesNotMatch(overlay, /setWallWindowRhythm\(/);
+  assert.doesNotMatch(overlay, /alignWindowsOnBand\(/);
+
+  assert.match(store, /alignWindowsOnBand\(wallSlots\.value/);
+  assert.match(wallSlots, /export function alignWindowsOnBand/);
+  // One export of the core Align implementation.
+  assert.equal((wallSlots.match(/export function alignWindowsOnBand/g) || []).length, 1);
+});

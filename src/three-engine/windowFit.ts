@@ -570,28 +570,47 @@ export function rhythmOpeningForPanel(
   if (panelIndex < runStart || panelIndex >= runStart + runLength) return null;
   const runLocal = panelIndex - runStart;
   const panelCenterAlong = (runLocal + 0.5) * panelWidth;
-  const half = panelWidth / 2;
-  let best: RhythmPanelOpening | null = null;
+  const panelLeft = runLocal * panelWidth;
+  const panelRight = panelLeft + panelWidth;
+  const isLast = runLocal === runLength - 1;
+  let owner: RhythmPanelOpening | null = null;
+  let cutOnly: RhythmPanelOpening | null = null;
   for (const win of openings) {
     const left = win.along - win.winW / 2;
     const right = win.along + win.winW / 2;
-    const panelLeft = runLocal * panelWidth;
-    const panelRight = panelLeft + panelWidth;
     if (right <= panelLeft + 0.01 || left >= panelRight - 0.01) continue;
     const x = win.along - panelCenterAlong;
-    const drawFeature = win.along >= panelLeft && win.along < panelRight
-      || (runLocal === runLength - 1 && win.along >= panelLeft);
+    // Exactly one panel owns each centre: [panelLeft, panelRight), last panel includes the end.
+    const drawFeature = isLast
+      ? win.along >= panelLeft && win.along <= panelRight + 1e-9
+      : win.along >= panelLeft && win.along < panelRight;
     const candidate: RhythmPanelOpening = {
       panelIndex,
       x,
       winW: win.winW,
       drawFeature
     };
-    // Prefer the opening whose centre is in this panel; otherwise keep a cut-only hole.
-    if (drawFeature) return candidate;
-    if (!best) best = candidate;
+    if (drawFeature) {
+      // If two centres land in one bay (degenerate layout), keep the nearer to mid-bay.
+      if (!owner || Math.abs(candidate.x) < Math.abs(owner.x)) owner = candidate;
+    } else if (!cutOnly) {
+      cutOnly = candidate;
+    }
   }
-  return best;
+  return owner ?? cutOnly;
+}
+
+/** True when every pair of openings has a clear gap (no overlapping frames). */
+export function rhythmOpeningsDoNotOverlap(openings: RhythmWallOpening[], minGap = 0.08): boolean {
+  if (openings.length < 2) return true;
+  const sorted = [...openings].sort((a, b) => a.along - b.along);
+  for (let i = 1; i < sorted.length; i += 1) {
+    const prev = sorted[i - 1]!;
+    const next = sorted[i]!;
+    const gap = (next.along - next.winW / 2) - (prev.along + prev.winW / 2);
+    if (gap < minGap - 1e-6) return false;
+  }
+  return true;
 }
 
 /** @deprecated Prefer rhythmOpeningsAlongRun + rhythmOpeningForPanel. */
