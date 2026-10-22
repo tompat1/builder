@@ -434,6 +434,7 @@ test('Align UI path is only alignWallWindows → alignWindowsOnBand', async () =
   const overlay = fs.readFileSync(path.join(root, 'src/components/PanelSlotOverlay.vue'), 'utf8');
   const store = fs.readFileSync(path.join(root, 'src/store/useConfigStore.ts'), 'utf8');
   const wallSlots = fs.readFileSync(path.join(root, 'src/store/wallSlots.ts'), 'utf8');
+  const scene = fs.readFileSync(path.join(root, 'src/three-engine/HouseScene.ts'), 'utf8');
 
   assert.match(overlay, /store\.alignWallWindows\(/);
   assert.doesNotMatch(overlay, /setWallWindowRhythm\(/);
@@ -443,4 +444,55 @@ test('Align UI path is only alignWallWindows → alignWindowsOnBand', async () =
   assert.match(wallSlots, /export function alignWindowsOnBand/);
   // One export of the core Align implementation.
   assert.equal((wallSlots.match(/export function alignWindowsOnBand/g) || []).length, 1);
+  // Renderer resolves every seam-crossing rhythm pane, not one opening per panel.
+  assert.match(scene, /rhythmOpeningsForPanel/);
+  assert.match(scene, /addCladdingAroundOpenings/);
+  assert.match(scene, /windowRhythmOpeningsForPanel/);
+});
+
+test('seam-crossing rhythm panes map to both neighbours with one feature owner', async () => {
+  const {
+    rhythmOpeningsAlongRun,
+    rhythmOpeningsForPanel,
+    rhythmOpeningForPanel,
+    clipOpeningToPanel,
+    openingSpansPastPanel,
+    rhythmOpeningsDoNotOverlap
+  } = await import('../src/three-engine/windowFit.ts');
+
+  // Three standard panes on four 1.5 m bays: the middle centre sits on a seam.
+  const panelWidth = 1.5;
+  const along = rhythmOpeningsAlongRun(4, 3, panelWidth, 1.05, 0.32);
+  assert.equal(along.length, 3);
+  assert.equal(rhythmOpeningsDoNotOverlap(along), true);
+
+  const mid = along[1];
+  assert.ok(mid);
+  assert.ok(Math.abs(mid.along - 3) < 1e-6, 'middle centre lands on the panel 1/2 seam');
+
+  const perPanel = [0, 1, 2, 3].map((i) =>
+    rhythmOpeningsForPanel(along, 0, 4, i, panelWidth)
+  );
+  // Old contract returned one opening and dropped the neighbour cut — both sides must see the mid pane.
+  assert.equal(perPanel[1].length, 1);
+  assert.equal(perPanel[2].length, 1);
+  assert.equal(perPanel[1][0].drawFeature || perPanel[2][0].drawFeature, true);
+  assert.equal(perPanel[1][0].drawFeature && perPanel[2][0].drawFeature, false);
+  assert.equal(perPanel[1][0].winW, mid.winW);
+  assert.equal(perPanel[2][0].winW, mid.winW);
+
+  const owners = perPanel.flat().filter((o) => o.drawFeature);
+  assert.equal(owners.length, 3);
+
+  // Single-opening helper still returns the primary, but must not be the only API.
+  assert.ok(rhythmOpeningForPanel(along, 0, 4, 1, panelWidth));
+  assert.ok(rhythmOpeningForPanel(along, 0, 4, 2, panelWidth));
+
+  const owner = owners.find((o) => Math.abs(o.x + 0.75) < 0.05 || Math.abs(o.x - 0.75) < 0.05);
+  assert.ok(owner);
+  assert.equal(openingSpansPastPanel(owner, panelWidth), true);
+  const clipped = clipOpeningToPanel(owner, panelWidth);
+  assert.ok(clipped);
+  assert.ok(clipped.winW < owner.winW);
+  assert.ok(clipped.winW > 0.2);
 });

@@ -557,24 +557,24 @@ export function rhythmOpeningsAlongRun(
 }
 
 /**
- * Maps wall-run openings onto a single panel: local X for cladding (may straddle the
- * bay edge) and whether this panel owns the window feature.
+ * Maps every wall-run opening that intersects a panel.
+ * A pane that crosses a seam appears on both neighbours: the centre owner draws
+ * the feature; the other only cuts cladding. Callers must not assume one opening.
  */
-export function rhythmOpeningForPanel(
+export function rhythmOpeningsForPanel(
   openings: RhythmWallOpening[],
   runStart: number,
   runLength: number,
   panelIndex: number,
   panelWidth: number
-): RhythmPanelOpening | null {
-  if (panelIndex < runStart || panelIndex >= runStart + runLength) return null;
+): RhythmPanelOpening[] {
+  if (panelIndex < runStart || panelIndex >= runStart + runLength) return [];
   const runLocal = panelIndex - runStart;
   const panelCenterAlong = (runLocal + 0.5) * panelWidth;
   const panelLeft = runLocal * panelWidth;
   const panelRight = panelLeft + panelWidth;
   const isLast = runLocal === runLength - 1;
-  let owner: RhythmPanelOpening | null = null;
-  let cutOnly: RhythmPanelOpening | null = null;
+  const out: RhythmPanelOpening[] = [];
   for (const win of openings) {
     const left = win.along - win.winW / 2;
     const right = win.along + win.winW / 2;
@@ -584,20 +584,56 @@ export function rhythmOpeningForPanel(
     const drawFeature = isLast
       ? win.along >= panelLeft && win.along <= panelRight + 1e-9
       : win.along >= panelLeft && win.along < panelRight;
-    const candidate: RhythmPanelOpening = {
+    out.push({
       panelIndex,
       x,
       winW: win.winW,
       drawFeature
-    };
-    if (drawFeature) {
-      // If two centres land in one bay (degenerate layout), keep the nearer to mid-bay.
-      if (!owner || Math.abs(candidate.x) < Math.abs(owner.x)) owner = candidate;
-    } else if (!cutOnly) {
-      cutOnly = candidate;
-    }
+    });
   }
-  return owner ?? cutOnly;
+  // Prefer centre-owners first, then left-to-right for stable cladding strips.
+  out.sort((a, b) => Number(b.drawFeature) - Number(a.drawFeature) || a.x - b.x);
+  return out;
+}
+
+/**
+ * Primary opening for a panel (feature owner if any, else first cut).
+ * Prefer {@link rhythmOpeningsForPanel} when cladding must cut every seam-crossing pane.
+ */
+export function rhythmOpeningForPanel(
+  openings: RhythmWallOpening[],
+  runStart: number,
+  runLength: number,
+  panelIndex: number,
+  panelWidth: number
+): RhythmPanelOpening | null {
+  const all = rhythmOpeningsForPanel(openings, runStart, runLength, panelIndex, panelWidth);
+  return all.find((o) => o.drawFeature) ?? all[0] ?? null;
+}
+
+/** Clip an opening's width to the panel face; null when nothing remains inside the bay. */
+export function clipOpeningToPanel(
+  opening: { x: number; winW: number },
+  panelWidth: number
+): { x: number; winW: number } | null {
+  const half = panelWidth / 2;
+  const left = Math.max(-half, opening.x - opening.winW / 2);
+  const right = Math.min(half, opening.x + opening.winW / 2);
+  if (right - left < 0.02) return null;
+  return { x: (left + right) / 2, winW: right - left };
+}
+
+/** True when the opening extends past either bay edge (needs a neighbour cladding cut). */
+export function openingSpansPastPanel(
+  opening: { x: number; winW: number },
+  panelWidth: number,
+  epsilon = 0.01
+): boolean {
+  const half = panelWidth / 2;
+  return (
+    opening.x - opening.winW / 2 < -half + epsilon
+    || opening.x + opening.winW / 2 > half - epsilon
+  );
 }
 
 /** True when every pair of openings has a clear gap (no overlapping frames). */

@@ -252,6 +252,11 @@ test('even window centres keep equal gaps and clear end margins', async () => {
     if (mapped?.drawFeature) drawn.push(mapped);
   }
   assert.equal(drawn.length, 3);
+
+  // Seam-crossing mid pane must be visible to both neighbouring panels.
+  const { rhythmOpeningsForPanel } = await import('../src/three-engine/windowFit.ts');
+  const cuts = [0, 1, 2, 3].map((i) => rhythmOpeningsForPanel(along, 0, 4, i, 1.5));
+  assert.ok(cuts.some((list) => list.length > 0 && list.some((o) => !o.drawFeature)));
 });
 
 test('walled loft bedrooms block the open-edge rail along their frontage', () => {

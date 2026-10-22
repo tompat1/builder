@@ -62,7 +62,7 @@ import {
   type LoftBounds
 } from './loftLevel';
 import { ceilingStations, loftCeilingY, sliceStations, type CeilingStation, type RoofSlope } from './roofClearance';
-import { NARROW_TALL, OVERLIGHT, PORTRAIT_PANORAMA, containWindowInPanel, fittedDoorOpening, fittedWindowOpening, narrowTallPane, openingClearOfRoof, overlightHeight, portraitPane, rhythmOpeningsAlongRun, rhythmOpeningForPanel, windowOpeningChanged } from './windowFit';
+import { NARROW_TALL, OVERLIGHT, PORTRAIT_PANORAMA, containWindowInPanel, fittedDoorOpening, fittedWindowOpening, narrowTallPane, openingClearOfRoof, overlightHeight, portraitPane, rhythmOpeningsAlongRun, rhythmOpeningsForPanel, windowOpeningChanged } from './windowFit';
 import { fitRoom, innerHalf, roomFootprint, roomWallRuns, shellSides, SHELL_TOUCH, bedroomBedPlacement, type RoomBox, type ShellSides, type RoomBounds } from './roomWalls';
 import {
   CONCRETE_WALL_THICK_M,
@@ -2429,7 +2429,7 @@ export class HouseScene {
     panelGroup.rotation.y = rotY;
     panelGroup.userData = { slotId: band.slotId, wall: wallSide, index };
 
-    const rhythm = this.windowRhythmOpeningForPanel(
+    const rhythmPanes = this.windowRhythmOpeningsForPanel(
       wallSide,
       index,
       panelWidth,
@@ -2438,7 +2438,9 @@ export class HouseScene {
       panelCount,
       band.upper
     );
-    const wide = band.upper || rhythm
+    const rhythmHostId = rhythmPanes[0]?.hostId;
+    const rhythmItemId = rhythmPanes[0]?.itemId;
+    const wide = band.upper || rhythmPanes.length
       ? null
       : this.wideOpeningForPanel(wallSide, index, panelWidth, band.height, band.base);
     const lowerBay = this.currentConfig.wallSlots[`${wallSide}-${index}`];
@@ -2460,22 +2462,30 @@ export class HouseScene {
     const facadeSpan = facadeTop == null ? null : this.concreteSpanLocal(wallSide, px, pz, panelWidth);
     const isConcreteLower = Boolean(facadeTop && facadeSpan && !band.upper);
 
-    const fitted: { winW: number; winH: number; winY: number; x?: number; sill?: number; head?: number; casingSide?: number } | null = rhythm
-      ? rhythm.opening
-      : wide
-        ?? ((slotType === 'window' || slotType === 'door')
-          ? this.fittedOpening(slotType, slot?.itemId, band.upper, panelWidth, band.height, band.base, aboveDoor, cornerSide, facadeSpan)
-          : null);
-    const preferred = fitted && band.reachesRoof
+    type Opening = { winW: number; winH: number; winY: number; x?: number; sill?: number; head?: number; casingSide?: number };
+    const rhythmEntries = rhythmPanes.map((pane) => {
+      const cleared = band.reachesRoof
+        ? openingClearOfRoof(pane.opening, band.height, slope, { pinSill: false, minHeight: 0.28 })
+        : pane.opening;
+      return { pane, opening: cleared as Opening };
+    });
+    const claddingOpenings: Opening[] = rhythmEntries.map((entry) => entry.opening);
+    const fitted: Opening | null = claddingOpenings[0]
+      ?? wide
+      ?? ((slotType === 'window' || slotType === 'door')
+        ? this.fittedOpening(slotType, slot?.itemId, band.upper, panelWidth, band.height, band.base, aboveDoor, cornerSide, facadeSpan)
+        : null);
+    const preferred = fitted && band.reachesRoof && !rhythmPanes.length
       ? openingClearOfRoof(fitted, band.height, slope, {
           pinSill: Boolean(wide) || slotType === 'door',
           minHeight: wide || slotType === 'door' ? 0.9 : 0.28
         })
       : fitted;
-    const opening = preferred && !rhythm
+    const opening = preferred && !rhythmPanes.length
       ? this.resolveWindowOpening(preferred, slot, panelWidth, band.height, cornerSide, facadeSpan, band.upper, slope, true)
       : preferred;
-    const selectId = rhythm?.hostId ?? band.slotId;
+    if (!rhythmPanes.length && opening) claddingOpenings.push(opening);
+    const selectId = rhythmHostId ?? band.slotId;
     const userData = {
       slotId: selectId,
       wall: wallSide,
@@ -2486,41 +2496,57 @@ export class HouseScene {
     const sloped = band.reachesRoof && Math.abs(slope) > 0.0001;
 
     if (sloped) {
-      this.addSlopedCladding(panelGroup, panelWidth, band.height, slope, claddingThick, exteriorMat, userData, opening, facadeTop);
-    } else if (opening) {
-      this.addCladdingAroundOpening(panelGroup, panelWidth, band.height, claddingThick, exteriorMat, opening, userData, facadeTop, facadeSpan);
+      this.addSlopedCladding(panelGroup, panelWidth, band.height, slope, claddingThick, exteriorMat, userData, claddingOpenings, facadeTop);
+    } else if (claddingOpenings.length) {
+      this.addCladdingAroundOpenings(panelGroup, panelWidth, band.height, claddingThick, exteriorMat, claddingOpenings, userData, facadeTop, facadeSpan);
     } else {
       this.addSolidCladding(panelGroup, panelWidth, band.height, claddingThick, exteriorMat, userData, facadeTop, facadeSpan);
     }
 
-    // Rhythm: only the panel that owns the pane centre draws casing/glass.
-    // Host slots stay type=window for selection, but must not also draw a second frame.
-    const rhythmDraw = Boolean(rhythm?.drawFeature);
-    const ownsOpening = rhythm
-      ? rhythmDraw
-      : (wide ? wide.drawDoor : (slotType === 'door' || slotType === 'window'));
-    if (ownsOpening && opening) {
-      // Sliding doors span two bays — clamp casing to the full opening, not the host panel alone.
-      const casingSpan = wide?.drawDoor
-        ? Math.max(panelWidth, Math.abs(opening.x ?? 0) * 2 + opening.winW + 0.28)
-        : panelWidth;
-      this.addOpeningCasing(
-        panelGroup,
-        opening,
-        wide || slotType === 'door' ? 'door' : 'window',
-        casingMat,
-        // Rhythm panes already keep clear of corner boards via end margins.
-        rhythmDraw ? null : (wide?.drawDoor ? null : cornerSide),
-        casingSpan,
-        wide?.drawDoor ? null : facadeSpan
-      );
-    }
-    if (ownsOpening && opening && (wide || slotType === 'door') && !rhythm) {
-      this.addDoorFeature(panelGroup, opening, slot?.itemId, userData);
-    } else if (ownsOpening && opening && (rhythmDraw || (!rhythm && slotType === 'window'))) {
-      this.addWindowFeature(panelGroup, opening, rhythm?.itemId ?? slot?.itemId, userData);
-    } else if (slotType === 'gate') {
-      this.addGateFeature(panelGroup, panelWidth, band.height, wallThick, slot?.itemId, userData);
+    // Rhythm: only the panel that owns each pane centre draws casing/glass.
+    // Seam-crossing panes keep full winW here so casing can span into the neighbour hole.
+    const rhythmFeatures = rhythmEntries.filter((entry) => entry.pane.drawFeature);
+    if (rhythmFeatures.length) {
+      for (const entry of rhythmFeatures) {
+        const feat = entry.opening;
+        const casingSpan = Math.max(
+          panelWidth,
+          Math.abs(feat.x ?? 0) * 2 + feat.winW + 0.28
+        );
+        this.addOpeningCasing(
+          panelGroup,
+          feat,
+          'window',
+          casingMat,
+          null,
+          casingSpan,
+          null
+        );
+        this.addWindowFeature(panelGroup, feat, rhythmItemId ?? entry.pane.itemId, userData);
+      }
+    } else {
+      const ownsOpening = wide ? wide.drawDoor : (slotType === 'door' || slotType === 'window');
+      if (ownsOpening && opening) {
+        const casingSpan = wide?.drawDoor
+          ? Math.max(panelWidth, Math.abs(opening.x ?? 0) * 2 + opening.winW + 0.28)
+          : panelWidth;
+        this.addOpeningCasing(
+          panelGroup,
+          opening,
+          wide || slotType === 'door' ? 'door' : 'window',
+          casingMat,
+          wide?.drawDoor ? null : cornerSide,
+          casingSpan,
+          wide?.drawDoor ? null : facadeSpan
+        );
+      }
+      if (ownsOpening && opening && (wide || slotType === 'door')) {
+        this.addDoorFeature(panelGroup, opening, slot?.itemId, userData);
+      } else if (ownsOpening && opening && slotType === 'window') {
+        this.addWindowFeature(panelGroup, opening, slot?.itemId, userData);
+      } else if (slotType === 'gate') {
+        this.addGateFeature(panelGroup, panelWidth, band.height, wallThick, slot?.itemId, userData);
+      }
     }
 
     if (!isConcreteLower) {
@@ -2531,8 +2557,8 @@ export class HouseScene {
         rotY,
         panelWidth,
         slope,
-        opening,
-        ownsOpening && (Boolean(wide) || slotType === 'door') && !rhythm,
+        claddingOpenings,
+        Boolean(wide?.drawDoor || slotType === 'door') && !rhythmPanes.length,
         slotType === 'gate'
       );
     }
@@ -3405,9 +3431,9 @@ export class HouseScene {
 
   /**
    * Evenly spaced windows hosted on one slot and covering sibling bays (lower or upper).
-   * Returns the opening that belongs on this panel index, or null.
+   * Returns every opening that intersects this panel (seam-crossing panes appear twice).
    */
-  private windowRhythmOpeningForPanel(
+  private windowRhythmOpeningsForPanel(
     wall: 'front' | 'back' | 'left' | 'right',
     index: number,
     panelWidth: number,
@@ -3420,26 +3446,26 @@ export class HouseScene {
     itemId: string | undefined;
     drawFeature: boolean;
     opening: { winW: number; winH: number; winY: number; x: number; sill: number; head: number; casingSide?: number };
-  } | null {
+  }[] {
     const slots = this.currentConfig.wallSlots;
     const slotId = isUpper ? `${wall}-${index}u` : `${wall}-${index}`;
     const slot = slots[slotId];
-    if (!slot) return null;
+    if (!slot) return [];
     let hostId: string | null = null;
     if (slot.windowRhythm) hostId = slot.id;
     else if (slot.coveredBy && slots[slot.coveredBy]?.windowRhythm) hostId = slot.coveredBy;
-    if (!hostId) return null;
+    if (!hostId) return [];
     const host = slots[hostId];
-    if (!host?.windowRhythm) return null;
+    if (!host?.windowRhythm) return [];
 
     const run: number[] = [];
     for (let i = 0; i < panelCount; i += 1) {
       const s = slots[isUpper ? `${wall}-${i}u` : `${wall}-${i}`];
       if (s && (s.id === hostId || s.coveredBy === hostId)) run.push(i);
     }
-    if (run.length < 2) return null;
+    if (run.length < 2) return [];
 
-    const runStart = run[0];
+    const runStart = run[0]!;
     const runLength = run.length;
     const cornerSide = this.cornerSideForPanel(wall, index, panelCount);
     const fitted = this.fittedOpening(
@@ -3460,9 +3486,7 @@ export class HouseScene {
       fitted.winW,
       runStart === 0 || runStart + runLength >= panelCount ? 0.32 : 0.2
     );
-    const mine = rhythmOpeningForPanel(along, runStart, runLength, index, panelWidth);
-    if (!mine) return null;
-    return {
+    return rhythmOpeningsForPanel(along, runStart, runLength, index, panelWidth).map((mine) => ({
       hostId,
       itemId: host.itemId,
       drawFeature: mine.drawFeature,
@@ -3475,7 +3499,7 @@ export class HouseScene {
         head: fitted.head,
         casingSide: cornerSide ? 0.07 : fitted.casingSide
       }
-    };
+    }));
   }
 
   /**
@@ -4322,7 +4346,7 @@ export class HouseScene {
         : [{ id: `${wall}-${p}`, upper: false, panelH: panelWallH, panelBase: base }];
       for (const band of bands) {
         const slot = this.currentConfig.wallSlots[band.id];
-        const rhythm = this.windowRhythmOpeningForPanel(
+        const rhythmPanes = this.windowRhythmOpeningsForPanel(
           wall,
           p,
           panelW,
@@ -4331,22 +4355,26 @@ export class HouseScene {
           count,
           band.upper
         );
-        if (rhythm) {
+        if (rhythmPanes.length) {
           const slope = this.alongWallSlope(wall);
-          const fit = openingClearOfRoof(rhythm.opening, band.panelH, slope, {
-            pinSill: false,
-            minHeight: 0.28
-          });
-          const local = fit.x ?? 0;
-          const x = wall === 'front' || wall === 'left' ? center + local : center - local;
-          openings.push({
-            x,
-            winW: fit.winW,
-            winH: fit.winH,
-            winY: fit.winY,
-            sill: fit.sill,
-            head: fit.head
-          });
+          // One world opening per pane centre — skip cut-only halves so framing is not doubled.
+          for (const pane of rhythmPanes) {
+            if (!pane.drawFeature) continue;
+            const fit = openingClearOfRoof(pane.opening, band.panelH, slope, {
+              pinSill: false,
+              minHeight: 0.28
+            });
+            const local = fit.x ?? 0;
+            const x = wall === 'front' || wall === 'left' ? center + local : center - local;
+            openings.push({
+              x,
+              winW: fit.winW,
+              winH: fit.winH,
+              winY: fit.winY,
+              sill: fit.sill,
+              head: fit.head
+            });
+          }
           continue;
         }
         if (slot?.coveredBy && this.currentConfig.wallSlots[slot.coveredBy]?.windowRhythm) {
@@ -4564,7 +4592,7 @@ export class HouseScene {
     claddingThick: number,
     material: THREE.Material,
     userData: Record<string, unknown>,
-    opening: { winW: number; winH: number; winY: number; x?: number } | null,
+    openings: { winW: number; winH: number; winY: number; x?: number }[] | { winW: number; winH: number; winY: number; x?: number } | null,
     facadeTop: number | null = null
   ) {
     const halfW = panelWidth / 2;
@@ -4579,23 +4607,22 @@ export class HouseScene {
     shape.lineTo(halfW, topAt(halfW));
     shape.lineTo(-halfW, topAt(-halfW));
     shape.closePath();
-    if (opening) {
+    const list = !openings ? [] : Array.isArray(openings) ? openings : [openings];
+    for (const opening of list) {
       const cx = opening.x ?? 0;
       const left = Math.max(-halfW, cx - opening.winW / 2);
       const right = Math.min(halfW, cx + opening.winW / 2);
-      if (right - left > 0.02) {
-        const hole = new THREE.Path();
-        const bottom = Math.max(bottomY, opening.winY - opening.winH / 2);
-        const top = opening.winY + opening.winH / 2;
-        if (top - bottom > 0.02) {
-          hole.moveTo(left, bottom);
-          hole.lineTo(left, top);
-          hole.lineTo(right, top);
-          hole.lineTo(right, bottom);
-          hole.closePath();
-          shape.holes.push(hole);
-        }
-      }
+      if (right - left <= 0.02) continue;
+      const hole = new THREE.Path();
+      const bottom = Math.max(bottomY, opening.winY - opening.winH / 2);
+      const top = opening.winY + opening.winH / 2;
+      if (top - bottom <= 0.02) continue;
+      hole.moveTo(left, bottom);
+      hole.lineTo(left, top);
+      hole.lineTo(right, top);
+      hole.lineTo(right, bottom);
+      hole.closePath();
+      shape.holes.push(hole);
     }
     const geo = new THREE.ExtrudeGeometry(shape, { depth: claddingThick, bevelEnabled: false });
     geo.translate(0, 0, -claddingThick / 2);
@@ -4689,28 +4716,79 @@ export class HouseScene {
     facadeTop: number | null = null,
     facadeSpan: { from: number; to: number } | null = null
   ) {
-    const { winW, winH, winY } = opening;
+    return this.addCladdingAroundOpenings(
+      parent,
+      panelWidth,
+      panelHeight,
+      claddingThick,
+      material,
+      [opening],
+      userData,
+      facadeTop,
+      facadeSpan
+    );
+  }
+
+  /**
+   * Punch every opening that intersects this bay. Seam-crossing rhythm panes
+   * contribute a clipped hole on each neighbour so cladding does not fill the slit.
+   */
+  private addCladdingAroundOpenings(
+    parent: THREE.Group,
+    panelWidth: number,
+    panelHeight: number,
+    claddingThick: number,
+    material: THREE.Material,
+    openings: { winW: number; winH: number; winY: number; x?: number }[],
+    userData: Record<string, unknown>,
+    facadeTop: number | null = null,
+    facadeSpan: { from: number; to: number } | null = null
+  ) {
     const half = panelWidth / 2;
     const halfH = panelHeight / 2;
-    const cx = opening.x ?? 0;
-    const left = Math.max(-half, cx - winW / 2);
-    const right = Math.min(half, cx + winW / 2);
+    type Hole = { left: number; right: number; bottom: number; top: number };
+    const holes: Hole[] = [];
+    for (const opening of openings) {
+      const cx = opening.x ?? 0;
+      const left = Math.max(-half, cx - opening.winW / 2);
+      const right = Math.min(half, cx + opening.winW / 2);
+      if (right - left < 0.01) continue;
+      holes.push({
+        left,
+        right,
+        bottom: opening.winY - opening.winH / 2,
+        top: opening.winY + opening.winH / 2
+      });
+    }
+    holes.sort((a, b) => a.left - b.left);
+
     const boards: { x: number; y: number; w: number; h: number }[] = [];
-    const leftW = left + half;
-    if (leftW > 0.01) boards.push({ x: -half + leftW / 2, y: 0, w: leftW, h: panelHeight });
-    const rightW = half - right;
-    if (rightW > 0.01) boards.push({ x: right + rightW / 2, y: 0, w: rightW, h: panelHeight });
-    const span = right - left;
-    const bottom = winY - winH / 2;
-    const top = winY + winH / 2;
-    if (span > 0.01) {
-      const bottomH = bottom + halfH;
-      if (bottomH > 0.01) {
-        boards.push({ x: (left + right) / 2, y: -halfH + bottomH / 2, w: span, h: bottomH });
+    if (holes.length === 0) {
+      boards.push({ x: 0, y: 0, w: panelWidth, h: panelHeight });
+    } else {
+      const rawEdges = [-half, ...holes.flatMap((h) => [h.left, h.right]), half].sort((a, b) => a - b);
+      const edges: number[] = [];
+      for (const v of rawEdges) {
+        if (!edges.length || Math.abs(v - edges[edges.length - 1]!) > 1e-6) edges.push(v);
       }
-      const topH = halfH - top;
-      if (topH > 0.01) {
-        boards.push({ x: (left + right) / 2, y: top + topH / 2, w: span, h: topH });
+      for (let i = 0; i < edges.length - 1; i += 1) {
+        const from = edges[i]!;
+        const to = edges[i + 1]!;
+        if (to - from < 0.01) continue;
+        const mid = (from + to) / 2;
+        const hole = holes.find((h) => mid > h.left - 1e-6 && mid < h.right + 1e-6);
+        if (!hole) {
+          boards.push({ x: mid, y: 0, w: to - from, h: panelHeight });
+          continue;
+        }
+        const bottomH = hole.bottom + halfH;
+        if (bottomH > 0.01) {
+          boards.push({ x: mid, y: -halfH + bottomH / 2, w: to - from, h: bottomH });
+        }
+        const topH = halfH - hole.top;
+        if (topH > 0.01) {
+          boards.push({ x: mid, y: hole.top + topH / 2, w: to - from, h: topH });
+        }
       }
     }
 
@@ -4766,7 +4844,7 @@ export class HouseScene {
     rotY: number,
     panelWidth: number,
     slope: number,
-    opening: { winW: number; winH: number; winY: number; x?: number } | null,
+    openings: { winW: number; winH: number; winY: number; x?: number }[] | { winW: number; winH: number; winY: number; x?: number } | null,
     isDoor: boolean,
     isGate = false
   ) {
@@ -4783,14 +4861,19 @@ export class HouseScene {
     const gateOpening = isGate
       ? { winW: panelWidth * 0.9, winH: band.height * 0.85, winY: -band.height / 2 + (band.height * 0.85) / 2 }
       : null;
-    const effectiveOpening = opening ?? gateOpening;
+    const list = !openings
+      ? []
+      : Array.isArray(openings)
+        ? openings
+        : [openings];
+    const effectiveOpenings = list.length ? list : gateOpening ? [gateOpening] : [];
     const effectiveDoor = isDoor || isGate;
 
     const sloped = band.reachesRoof && Math.abs(slope) > 0.0001;
     if (sloped) {
-      this.addSlopedDrywall(drywallGroup, panelWidth, band.height, slope, drywallThick, dz, this.drywallMat, effectiveOpening, effectiveDoor);
-    } else if (effectiveOpening) {
-      this.addDrywallAroundOpening(drywallGroup, panelWidth, band.height, drywallThick, dz, this.drywallMat, effectiveOpening, effectiveDoor);
+      this.addSlopedDrywall(drywallGroup, panelWidth, band.height, slope, drywallThick, dz, this.drywallMat, effectiveOpenings, effectiveDoor);
+    } else if (effectiveOpenings.length) {
+      this.addDrywallAroundOpenings(drywallGroup, panelWidth, band.height, drywallThick, dz, this.drywallMat, effectiveOpenings, effectiveDoor);
     } else {
       this.addSolidDrywall(drywallGroup, panelWidth, band.height, drywallThick, dz, this.drywallMat);
     }
@@ -4825,33 +4908,65 @@ export class HouseScene {
     opening: { winW: number; winH: number; winY: number; x?: number },
     isDoor: boolean
   ) {
-    const { winW, winH, winY } = opening;
+    this.addDrywallAroundOpenings(parent, panelWidth, panelHeight, drywallThick, dz, material, [opening], isDoor);
+  }
+
+  private addDrywallAroundOpenings(
+    parent: THREE.Group,
+    panelWidth: number,
+    panelHeight: number,
+    drywallThick: number,
+    dz: number,
+    material: THREE.Material,
+    openings: { winW: number; winH: number; winY: number; x?: number }[],
+    isDoor: boolean
+  ) {
     const half = panelWidth / 2;
     const halfH = panelHeight / 2;
-    const cx = opening.x ?? 0;
-    const left = Math.max(-half, cx - winW / 2);
-    const right = Math.min(half, cx + winW / 2);
-    const boards: { x: number; y: number; w: number; h: number }[] = [];
+    type Hole = { left: number; right: number; bottom: number; top: number; source: (typeof openings)[number] };
+    const holes: Hole[] = [];
+    for (const opening of openings) {
+      const cx = opening.x ?? 0;
+      const left = Math.max(-half, cx - opening.winW / 2);
+      const right = Math.min(half, cx + opening.winW / 2);
+      if (right - left < 0.005) continue;
+      holes.push({
+        left,
+        right,
+        bottom: opening.winY - opening.winH / 2,
+        top: opening.winY + opening.winH / 2,
+        source: opening
+      });
+    }
+    holes.sort((a, b) => a.left - b.left);
 
-    const leftW = left + half;
-    if (leftW > 0.005) {
-      boards.push({ x: -half + leftW / 2, y: 0, w: leftW, h: panelHeight });
-    }
-    const rightW = half - right;
-    if (rightW > 0.005) {
-      boards.push({ x: right + rightW / 2, y: 0, w: rightW, h: panelHeight });
-    }
-    const span = right - left;
-    const bottom = winY - winH / 2;
-    const top = winY + winH / 2;
-    if (span > 0.005) {
-      const bottomH = bottom + halfH;
-      if (bottomH > 0.005) {
-        boards.push({ x: (left + right) / 2, y: -halfH + bottomH / 2, w: span, h: bottomH });
+    const boards: { x: number; y: number; w: number; h: number }[] = [];
+    if (holes.length === 0) {
+      boards.push({ x: 0, y: 0, w: panelWidth, h: panelHeight });
+    } else {
+      const rawEdges = [-half, ...holes.flatMap((h) => [h.left, h.right]), half].sort((a, b) => a - b);
+      const edges: number[] = [];
+      for (const v of rawEdges) {
+        if (!edges.length || Math.abs(v - edges[edges.length - 1]!) > 1e-6) edges.push(v);
       }
-      const topH = halfH - top;
-      if (topH > 0.005) {
-        boards.push({ x: (left + right) / 2, y: top + topH / 2, w: span, h: topH });
+      for (let i = 0; i < edges.length - 1; i += 1) {
+        const from = edges[i]!;
+        const to = edges[i + 1]!;
+        if (to - from < 0.005) continue;
+        const mid = (from + to) / 2;
+        const hole = holes.find((h) => mid > h.left - 1e-6 && mid < h.right + 1e-6);
+        if (!hole) {
+          boards.push({ x: mid, y: 0, w: to - from, h: panelHeight });
+          continue;
+        }
+        const bottomH = hole.bottom + halfH;
+        if (bottomH > 0.005) {
+          boards.push({ x: mid, y: -halfH + bottomH / 2, w: to - from, h: bottomH });
+        }
+        const topH = halfH - hole.top;
+        if (topH > 0.005) {
+          boards.push({ x: mid, y: hole.top + topH / 2, w: to - from, h: topH });
+        }
       }
     }
 
@@ -4864,8 +4979,18 @@ export class HouseScene {
       parent.add(mesh);
     }
 
-    if (span > 0.005) {
-      this.addOpeningReveals(parent, opening, left, right, half, dz, drywallThick, material, isDoor);
+    for (const hole of holes) {
+      this.addOpeningReveals(
+        parent,
+        hole.source,
+        hole.left,
+        hole.right,
+        half,
+        dz,
+        drywallThick,
+        material,
+        isDoor
+      );
     }
   }
 
@@ -4929,7 +5054,7 @@ export class HouseScene {
     drywallThick: number,
     dz: number,
     material: THREE.Material,
-    opening: { winW: number; winH: number; winY: number; x?: number } | null,
+    openings: { winW: number; winH: number; winY: number; x?: number }[] | { winW: number; winH: number; winY: number; x?: number } | null,
     isDoor: boolean
   ) {
     const halfW = panelWidth / 2;
@@ -4942,23 +5067,23 @@ export class HouseScene {
     shape.lineTo(-halfW, topAt(-halfW));
     shape.closePath();
 
-    let left = -halfW;
-    let right = halfW;
-    if (opening) {
+    const list = !openings ? [] : Array.isArray(openings) ? openings : [openings];
+    const reveals: { opening: (typeof list)[number]; left: number; right: number }[] = [];
+    for (const opening of list) {
       const cx = opening.x ?? 0;
-      left = Math.max(-halfW, cx - opening.winW / 2);
-      right = Math.min(halfW, cx + opening.winW / 2);
-      if (right - left > 0.02) {
-        const hole = new THREE.Path();
-        const bottom = opening.winY - opening.winH / 2;
-        const top = opening.winY + opening.winH / 2;
-        hole.moveTo(left, bottom);
-        hole.lineTo(left, top);
-        hole.lineTo(right, top);
-        hole.lineTo(right, bottom);
-        hole.closePath();
-        shape.holes.push(hole);
-      }
+      const left = Math.max(-halfW, cx - opening.winW / 2);
+      const right = Math.min(halfW, cx + opening.winW / 2);
+      if (right - left <= 0.02) continue;
+      const hole = new THREE.Path();
+      const bottom = opening.winY - opening.winH / 2;
+      const top = opening.winY + opening.winH / 2;
+      hole.moveTo(left, bottom);
+      hole.lineTo(left, top);
+      hole.lineTo(right, top);
+      hole.lineTo(right, bottom);
+      hole.closePath();
+      shape.holes.push(hole);
+      reveals.push({ opening, left, right });
     }
 
     const geo = new THREE.ExtrudeGeometry(shape, { depth: drywallThick, bevelEnabled: false });
@@ -4968,8 +5093,18 @@ export class HouseScene {
     mesh.receiveShadow = true;
     parent.add(mesh);
 
-    if (opening && right - left > 0.02) {
-      this.addOpeningReveals(parent, opening, left, right, halfW, dz, drywallThick, material, isDoor);
+    for (const reveal of reveals) {
+      this.addOpeningReveals(
+        parent,
+        reveal.opening,
+        reveal.left,
+        reveal.right,
+        halfW,
+        dz,
+        drywallThick,
+        material,
+        isDoor
+      );
     }
     return mesh;
   }
