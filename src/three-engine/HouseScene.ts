@@ -1398,9 +1398,10 @@ export class HouseScene {
       const isPulpet = this.currentConfig.roofType === 'pulpettak';
       const isFlackt = this.currentConfig.roofType === 'flackt';
       const flacktDrop = isFlackt ? (d / 2) * Math.tan((2 * Math.PI) / 180) : 0;
-      const roofTrimDrop = isPulpet ? 0.08 : (isFlackt ? 0.13 : 0.06);
-      const pitch = this.pulpetPitchRad();
       const widthFall = this.roofFallsAlongWidth();
+      // Width-fall flush eaves: keep corner boards tight under the fascia (no mid-gap).
+      const roofTrimDrop = widthFall ? 0.02 : (isPulpet ? 0.08 : (isFlackt ? 0.13 : 0.06));
+      const pitch = this.pulpetPitchRad();
       const highTop = (isFlackt ? h + flacktDrop : h) - roofTrimDrop;
       const lowTop = (isPulpet
         ? Math.max(h - Math.tan(pitch) * (widthFall ? w : d), 2.4)
@@ -1662,7 +1663,13 @@ export class HouseScene {
 
       const belt = this.beltRise(h);
       const upperId = `${wallSide}-${i}u`;
-      const split = Boolean(this.currentConfig.wallSlots[upperId]) && panelWallH > belt + 0.4;
+      const upperSlot = this.currentConfig.wallSlots[upperId];
+      // Horizontal cladding stays one continuous face unless an upper bay actually has a window.
+      // Empty upper slots must not open a mid-rail seam (reads as a white metal belt).
+      const split =
+        Boolean(upperSlot)
+        && (upperSlot.type === 'window' || this.currentConfig.panelOrientation !== 'liggande')
+        && panelWallH > belt + 0.4;
       const bands = split
         ? [
             { slotId, height: belt, base: baseElev, upper: false, reachesRoof: false },
@@ -1701,8 +1708,12 @@ export class HouseScene {
       }
     }
 
-    // A flush metal roof covers the wall top with its own band.
-    if (!this.currentConfig.flushRoof && (wallSide === 'left' || wallSide === 'right')) {
+    // Depth-fall pulpet/flackt: a metal band on the wall top. Width-fall (Stugan) already
+    // has fascia/barge on the roof assembly — this band would sit at mid-height and look
+    // like a white mid-rail on horizontal cladding, or float above the low eave.
+    if (this.roofFallsAlongWidth()) {
+      // no wall-top eaves trim
+    } else if (!this.currentConfig.flushRoof && (wallSide === 'left' || wallSide === 'right')) {
       const roof = this.currentConfig.roofType;
       if (!this.interiorCut() && (roof === 'pulpettak' || roof === 'flackt')) {
         const pitch = this.alongWallSlope('left');
@@ -5185,8 +5196,11 @@ export class HouseScene {
       const fasciaH = fasciaTop - fasciaBottom;
       const fasciaY = (fasciaBottom + fasciaTop) / 2;
       const bargeT = 0.032;
+      // Flush side eaves: keep end fascias under the roof sheet so they meet the corner boards cleanly.
+      const sideFlush = edges.left < 0.05 && edges.right < 0.05;
+      const endFasciaOut = sideFlush ? -fasciaT / 2 : fasciaT / 2;
 
-      const bargeGeo = new THREE.BoxGeometry(slopeLen + fasciaT * 2, fasciaH, bargeT);
+      const bargeGeo = new THREE.BoxGeometry(slopeLen + (sideFlush ? 0 : fasciaT * 2), fasciaH, bargeT);
       const frontBarge = new THREE.Mesh(bargeGeo, whiteTrimMat);
       frontBarge.position.set(0, fasciaY, roofDepth / 2 + bargeT / 2);
       frontBarge.castShadow = true;
@@ -5198,11 +5212,11 @@ export class HouseScene {
 
       const fasciaGeo = new THREE.BoxGeometry(fasciaT, fasciaH, roofDepth + bargeT * 2);
       const westFascia = new THREE.Mesh(fasciaGeo, whiteTrimMat);
-      westFascia.position.set(-(slopeLen / 2 + fasciaT / 2), fasciaY, 0);
+      westFascia.position.set(-(slopeLen / 2) + endFasciaOut, fasciaY, 0);
       westFascia.castShadow = true;
       assembly.add(westFascia);
       const eastFascia = new THREE.Mesh(fasciaGeo, whiteTrimMat);
-      eastFascia.position.set(slopeLen / 2 + fasciaT / 2, fasciaY, 0);
+      eastFascia.position.set(slopeLen / 2 - endFasciaOut, fasciaY, 0);
       eastFascia.castShadow = true;
       assembly.add(eastFascia);
 
