@@ -267,8 +267,8 @@ export function stuganV4Conflicts(stair = solveStuganV4Stair()): StuganConflict[
       severity: 'hold',
       titleSv: `Söderutsprång ${STUGAN_V4_SOUTH_OVERHANG_MM} mm`,
       titleEn: `South overhang ${STUGAN_V4_SOUTH_OVERHANG_MM} mm`,
-      detailSv: 'Kant i vägglinjen öst/väst/norr. Två stolpar + balk under söderutsprånget — projektera bärning.',
-      detailEn: 'Flush eaves east/west/north. Two posts + beam under the south overhang — design for loads.'
+      detailSv: 'Kant i vägglinjen öst/väst/norr. Stolpar 150×150, limträbalk 140×225, taksparrar 45×195 cc 600 och knäfästen under söderutsprånget — projektera bärning.',
+      detailEn: 'Flush eaves east/west/north. 150×150 posts, 140×225 glulam header, 45×195 rafters cc 600 and knee braces under the south overhang — design for loads.'
     },
     {
       id: 'cladding-colour',

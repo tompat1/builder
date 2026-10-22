@@ -5397,6 +5397,157 @@ export class HouseScene {
     }
   }
 
+  /**
+   * Structural south canopy under a deep width-fall overhang.
+   * Posts + pitched header + wall ledger + N–S rafters (on edge) + knee braces.
+   * Sizes follow common Swedish timber: 150×150 posts, 140×225 header, 45×195 rafters cc 600.
+   */
+  private addSouthCanopyFraming(
+    w: number,
+    d: number,
+    _h: number,
+    frontOverhang: number,
+    angleRad: number,
+    yMid: number
+  ) {
+    const timber = new THREE.MeshStandardMaterial({
+      color: '#b8956a',
+      roughness: 0.68,
+      metalness: 0.04
+    });
+    const darkTimber = new THREE.MeshStandardMaterial({
+      color: '#8f734f',
+      roughness: 0.7,
+      metalness: 0.05
+    });
+    const shoeMat = new THREE.MeshStandardMaterial({
+      color: '#6b7280',
+      roughness: 0.4,
+      metalness: 0.75
+    });
+
+    // Realistic structural sections (metres).
+    const postSize = 0.15; // 150×150
+    const beamH = 0.225; // 140×225 glulam header
+    const beamD = 0.14;
+    const ledgerH = 0.195;
+    const ledgerD = 0.095;
+    const rafterW = 0.045; // 45×195 on edge
+    const rafterH = 0.195;
+    const braceSection = 0.07; // ~70×145 brace
+    const braceDepth = 0.145;
+    const rafterClear = 0.014; // air under roof sheet
+    const eavePast = 0.25; // rafters past the header
+    const postInset = eavePast + beamD / 2 + 0.02;
+    const postZ = d / 2 + frontOverhang - postInset;
+    const wallLedgerZ = d / 2 + 0.05;
+    const deckTop = 0.32;
+    const shoeH = 0.08;
+
+    const plateY = (x: number) => yMid + x * Math.tan(angleRad);
+    // Header seats under the rafters; rafters sit on the header top.
+    const beamSeat = rafterClear + rafterH + beamH / 2;
+    const beamCentreY = yMid - beamSeat;
+
+    const mark = (mesh: THREE.Mesh) => {
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      mesh.userData.outsideAddition = true;
+      this.roofGroup.add(mesh);
+    };
+
+    // Posts along the eave — roughly cc 2.0 m, always at least three for a 3 m canopy.
+    const postMargin = Math.max(postSize, 0.28);
+    const clearW = Math.max(postSize * 2, w - postMargin * 2);
+    const postCount = Math.max(3, Math.ceil(clearW / 2.0) + 1);
+    const postXs: number[] = [];
+    for (let i = 0; i < postCount; i++) {
+      postXs.push(-clearW / 2 + (i * clearW) / (postCount - 1));
+    }
+
+    const beamLen = (clearW + postSize * 1.2) / Math.cos(angleRad);
+    const eaveBeam = new THREE.Mesh(new THREE.BoxGeometry(beamLen, beamH, beamD), darkTimber);
+    eaveBeam.position.set(0, beamCentreY, postZ);
+    eaveBeam.rotation.z = angleRad;
+    mark(eaveBeam);
+
+    const ledgerLen = (w - 0.12) / Math.cos(angleRad);
+    const ledgerSeat = rafterClear + rafterH / 2 + ledgerH / 2;
+    const ledger = new THREE.Mesh(new THREE.BoxGeometry(ledgerLen, ledgerH, ledgerD), darkTimber);
+    ledger.position.set(0, yMid - ledgerSeat, wallLedgerZ);
+    ledger.rotation.z = angleRad;
+    mark(ledger);
+
+    // Rafters N–S under the canopy, cc 600, bearing on ledger + header, past the eave.
+    const rafterMargin = 0.12;
+    const rafterSpan = Math.max(rafterW * 2, w - rafterMargin * 2);
+    const rafterCount = Math.max(4, Math.floor(rafterSpan / 0.6) + 1);
+    const rafterLen = Math.max(0.5, postZ + eavePast - wallLedgerZ + ledgerD / 2);
+    const rafterMidZ = wallLedgerZ - ledgerD / 2 + rafterLen / 2;
+    for (let i = 0; i < rafterCount; i++) {
+      const x =
+        rafterCount === 1
+          ? 0
+          : -rafterSpan / 2 + (i * rafterSpan) / (rafterCount - 1);
+      const rafter = new THREE.Mesh(new THREE.BoxGeometry(rafterW, rafterH, rafterLen), timber);
+      rafter.position.set(x, plateY(x) - rafterClear - rafterH / 2, rafterMidZ);
+      mark(rafter);
+    }
+
+    for (const x of postXs) {
+      const underBeam = plateY(x) - beamSeat - beamH / 2;
+      const postTop = underBeam;
+      const postBottom = deckTop + shoeH;
+      const postH = Math.max(1.2, postTop - postBottom);
+
+      const shoe = new THREE.Mesh(
+        new THREE.BoxGeometry(postSize + 0.04, shoeH, postSize + 0.04),
+        shoeMat
+      );
+      shoe.position.set(x, deckTop + shoeH / 2, postZ);
+      mark(shoe);
+
+      const post = new THREE.Mesh(new THREE.BoxGeometry(postSize, postH, postSize), darkTimber);
+      post.position.set(x, postBottom + postH / 2, postZ);
+      mark(post);
+
+      // Knee braces in the eave plane (±X), ~45°, post → header.
+      const braceReach = 0.42;
+      const braceLen = braceReach * Math.SQRT2;
+      for (const dir of [-1, 1] as const) {
+        // Skip a brace that would run past the end of the header.
+        if (dir < 0 && x <= postXs[0]! + 0.05) continue;
+        if (dir > 0 && x >= postXs[postXs.length - 1]! - 0.05) continue;
+        const brace = new THREE.Mesh(
+          new THREE.BoxGeometry(braceLen, braceDepth, braceSection),
+          timber
+        );
+        const braceMidX = x + dir * (braceReach / 2);
+        const braceMidY = postTop - braceReach / 2;
+        brace.position.set(braceMidX, braceMidY, postZ);
+        brace.rotation.z = dir > 0 ? -Math.PI / 4 : Math.PI / 4;
+        mark(brace);
+      }
+
+      // Depth brace toward the wall — stiffens the 3 m projection.
+      const depthReach = Math.min(0.55, (postZ - wallLedgerZ) * 0.35);
+      if (depthReach > 0.25) {
+        const depthLen = depthReach * Math.SQRT2;
+        const depthBrace = new THREE.Mesh(
+          new THREE.BoxGeometry(braceSection, braceDepth, depthLen),
+          timber
+        );
+        depthBrace.position.set(
+          x,
+          postTop - depthReach / 2,
+          postZ - depthReach / 2
+        );
+        depthBrace.rotation.x = Math.PI / 4;
+        mark(depthBrace);
+      }
+    }
+  }
+
   private buildRoof(w: number, d: number, h: number) {
     const { roofType } = this.currentConfig;
     const edges = this.roofEdgeOverhangs(w, d);
@@ -5468,8 +5619,9 @@ export class HouseScene {
       eastFascia.castShadow = true;
       assembly.add(eastFascia);
 
-      // South canopy soffit — closes the underside so posts meet a finished roof plane.
-      if (edges.front > 0.05) {
+      // Short south eaves keep a closed soffit. Deep canopies leave the underside open
+      // so posts, header, and rafters read as structure (see south canopy timber below).
+      if (edges.front > 0.05 && edges.front < 1.5) {
         const soffitT = 0.018;
         const soffitMat = new THREE.MeshStandardMaterial({
           color: '#f4f1ea',
@@ -5491,65 +5643,9 @@ export class HouseScene {
 
       this.roofGroup.add(assembly);
 
-      // South canopy timber: posts seat under a sloping eave beam that follows the roof fall.
+      // South canopy timber — posts + header + rafters + knee braces (structural sizes).
       if (edges.front >= 1.5) {
-        const timber = new THREE.MeshStandardMaterial({
-          color: '#c4a574',
-          roughness: 0.72,
-          metalness: 0.05
-        });
-        const postSize = 0.14;
-        const beamH = 0.16;
-        const beamD = 0.14;
-        const postInset = 0.22;
-        const postZ = d / 2 + edges.front - postInset;
-        const wallLedgerZ = d / 2 + 0.06;
-        const deckTop = 0.32;
-        // Underside of roof sheet at world X (width-fall): yMid + x·tan(θ)
-        const plateY = (x: number) => yMid + x * Math.tan(angleRad);
-        // Beam centre: rotate around (0, yMid − seat) so it tracks the soffit at every X.
-        const beamSeat = 0.018 + beamH / 2;
-        const beamCentreY = yMid - beamSeat;
-        const postXs = [-w / 4, w / 4] as const;
-        const worldSpan = Math.abs(postXs[1] - postXs[0]) + postSize;
-        const beamLen = worldSpan / Math.cos(angleRad);
-
-        const eaveBeam = new THREE.Mesh(new THREE.BoxGeometry(beamLen, beamH, beamD), timber);
-        eaveBeam.position.set(0, beamCentreY, postZ);
-        eaveBeam.rotation.z = angleRad;
-        eaveBeam.castShadow = true;
-        eaveBeam.receiveShadow = true;
-        eaveBeam.userData.outsideAddition = true;
-        this.roofGroup.add(eaveBeam);
-
-        // Wall ledger under the soffit start — ties the canopy back to the facade.
-        const ledgerLen = (w - 0.2) / Math.cos(angleRad);
-        const ledger = new THREE.Mesh(new THREE.BoxGeometry(ledgerLen, beamH * 0.85, beamD * 0.7), timber);
-        ledger.position.set(0, beamCentreY, wallLedgerZ);
-        ledger.rotation.z = angleRad;
-        ledger.castShadow = true;
-        ledger.userData.outsideAddition = true;
-        this.roofGroup.add(ledger);
-
-        for (const x of postXs) {
-          // Post head seats on the beam underside at this X.
-          const underBeam = plateY(x) - beamSeat - beamH / 2;
-          const postH = Math.max(1.2, underBeam - deckTop);
-          const post = new THREE.Mesh(new THREE.BoxGeometry(postSize, postH, postSize), timber);
-          post.position.set(x, deckTop + postH / 2, postZ);
-          post.castShadow = true;
-          post.receiveShadow = true;
-          post.userData.outsideAddition = true;
-          this.roofGroup.add(post);
-
-          // Joist from eave beam back to the wall ledger (same pitch height at this X).
-          const strutLen = Math.max(0.4, postZ - wallLedgerZ - 0.06);
-          const strut = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.09, strutLen), timber);
-          strut.position.set(x, plateY(x) - beamSeat - 0.02, (postZ + wallLedgerZ) / 2);
-          strut.castShadow = true;
-          strut.userData.outsideAddition = true;
-          this.roofGroup.add(strut);
-        }
+        this.addSouthCanopyFraming(w, d, h, edges.front, angleRad, yMid);
       }
     } else {
       // Pulpettak. The slab, barge boards, and fascia share one rotated assembly
