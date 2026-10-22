@@ -1664,12 +1664,8 @@ export class HouseScene {
       const belt = this.beltRise(h);
       const upperId = `${wallSide}-${i}u`;
       const upperSlot = this.currentConfig.wallSlots[upperId];
-      // Horizontal cladding stays one continuous face unless an upper bay actually has a window.
-      // Empty upper slots must not open a mid-rail seam (reads as a white metal belt).
-      const split =
-        Boolean(upperSlot)
-        && (upperSlot.type === 'window' || this.currentConfig.panelOrientation !== 'liggande')
-        && panelWallH > belt + 0.4;
+      // Two selectable levels (lower + upper) whenever an upper bay exists and the wall is tall enough.
+      const split = Boolean(upperSlot) && panelWallH > belt + 0.4;
       const bands = split
         ? [
             { slotId, height: belt, base: baseElev, upper: false, reachesRoof: false },
@@ -2331,14 +2327,18 @@ export class HouseScene {
 
     const ownsOpening = wide ? wide.drawDoor : (slotType === 'door' || slotType === 'window');
     if (ownsOpening && opening && (wide || slotType === 'door' || slotType === 'window')) {
+      // Sliding doors span two bays — clamp casing to the full opening, not the host panel alone.
+      const casingSpan = wide?.drawDoor
+        ? Math.max(panelWidth, Math.abs(opening.x ?? 0) * 2 + opening.winW + 0.28)
+        : panelWidth;
       this.addOpeningCasing(
         panelGroup,
         opening,
         wide || slotType === 'door' ? 'door' : 'window',
         casingMat,
-        cornerSide,
-        panelWidth,
-        facadeSpan
+        wide?.drawDoor ? null : cornerSide,
+        casingSpan,
+        wide?.drawDoor ? null : facadeSpan
       );
     }
     if (ownsOpening && opening && (wide || slotType === 'door')) {
@@ -5220,43 +5220,88 @@ export class HouseScene {
       eastFascia.castShadow = true;
       assembly.add(eastFascia);
 
+      // South canopy soffit — closes the underside so posts meet a finished roof plane.
+      if (edges.front > 0.05) {
+        const soffitT = 0.018;
+        const soffitMat = new THREE.MeshStandardMaterial({
+          color: '#f4f1ea',
+          roughness: 0.7,
+          emissive: '#efebe4',
+          emissiveIntensity: 0.35
+        });
+        const localWallFrontZ = d / 2 - zShift;
+        const frontSoffitLen = Math.max(0.05, roofDepth / 2 - (localWallFrontZ - 0.02));
+        const soffitY = -roofThick / 2 - soffitT / 2;
+        const frontSoffit = new THREE.Mesh(
+          new THREE.BoxGeometry(slopeLen - 0.02, soffitT, frontSoffitLen),
+          soffitMat
+        );
+        frontSoffit.position.set(0, soffitY, roofDepth / 2 - frontSoffitLen / 2);
+        frontSoffit.receiveShadow = true;
+        assembly.add(frontSoffit);
+      }
+
       this.roofGroup.add(assembly);
 
-      // Two posts + outer beam under the south canopy (over the terrace).
+      // South canopy timber: posts seat under a sloping eave beam that follows the roof fall.
       if (edges.front >= 1.5) {
         const timber = new THREE.MeshStandardMaterial({
           color: '#c4a574',
           roughness: 0.72,
           metalness: 0.05
         });
-        const postInset = 0.18;
+        const postSize = 0.14;
+        const beamH = 0.16;
+        const beamD = 0.14;
+        const postInset = 0.22;
         const postZ = d / 2 + edges.front - postInset;
+        const wallLedgerZ = d / 2 + 0.06;
         const deckTop = 0.32;
-        const soffitClear = roofThick / 2 + eavesDrop + 0.04;
+        // Underside of roof sheet at world X (width-fall): yMid + x·tan(θ)
+        const plateY = (x: number) => yMid + x * Math.tan(angleRad);
+        // Beam centre: rotate around (0, yMid − seat) so it tracks the soffit at every X.
+        const beamSeat = 0.018 + beamH / 2;
+        const beamCentreY = yMid - beamSeat;
         const postXs = [-w / 4, w / 4] as const;
-        const postTops: number[] = [];
+        const worldSpan = Math.abs(postXs[1] - postXs[0]) + postSize;
+        const beamLen = worldSpan / Math.cos(angleRad);
+
+        const eaveBeam = new THREE.Mesh(new THREE.BoxGeometry(beamLen, beamH, beamD), timber);
+        eaveBeam.position.set(0, beamCentreY, postZ);
+        eaveBeam.rotation.z = angleRad;
+        eaveBeam.castShadow = true;
+        eaveBeam.receiveShadow = true;
+        eaveBeam.userData.outsideAddition = true;
+        this.roofGroup.add(eaveBeam);
+
+        // Wall ledger under the soffit start — ties the canopy back to the facade.
+        const ledgerLen = (w - 0.2) / Math.cos(angleRad);
+        const ledger = new THREE.Mesh(new THREE.BoxGeometry(ledgerLen, beamH * 0.85, beamD * 0.7), timber);
+        ledger.position.set(0, beamCentreY, wallLedgerZ);
+        ledger.rotation.z = angleRad;
+        ledger.castShadow = true;
+        ledger.userData.outsideAddition = true;
+        this.roofGroup.add(ledger);
+
         for (const x of postXs) {
-          // Underside of the rotated roof plate at this X (constant along Z).
-          const plateY = yMid + x * Math.sin(angleRad);
-          const postTop = plateY - soffitClear;
-          postTops.push(postTop);
-          const postH = Math.max(1.2, postTop - deckTop);
-          const post = new THREE.Mesh(new THREE.BoxGeometry(0.12, postH, 0.12), timber);
+          // Post head seats on the beam underside at this X.
+          const underBeam = plateY(x) - beamSeat - beamH / 2;
+          const postH = Math.max(1.2, underBeam - deckTop);
+          const post = new THREE.Mesh(new THREE.BoxGeometry(postSize, postH, postSize), timber);
           post.position.set(x, deckTop + postH / 2, postZ);
           post.castShadow = true;
           post.receiveShadow = true;
           post.userData.outsideAddition = true;
           this.roofGroup.add(post);
+
+          // Joist from eave beam back to the wall ledger (same pitch height at this X).
+          const strutLen = Math.max(0.4, postZ - wallLedgerZ - 0.06);
+          const strut = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.09, strutLen), timber);
+          strut.position.set(x, plateY(x) - beamSeat - 0.02, (postZ + wallLedgerZ) / 2);
+          strut.castShadow = true;
+          strut.userData.outsideAddition = true;
+          this.roofGroup.add(strut);
         }
-        const beamY = Math.min(...postTops) - 0.05;
-        const beam = new THREE.Mesh(
-          new THREE.BoxGeometry(Math.abs(postXs[1] - postXs[0]) + 0.24, 0.12, 0.12),
-          timber
-        );
-        beam.position.set(0, beamY, postZ);
-        beam.castShadow = true;
-        beam.userData.outsideAddition = true;
-        this.roofGroup.add(beam);
       }
     } else {
       // Pulpettak. The slab, barge boards, and fascia share one rotated assembly
