@@ -25,20 +25,33 @@ export interface WallSlot {
   /** Size and place the window inside the bay instead of letting it run past the wall. */
   fitToWall?: boolean;
   /**
-   * Host of an evenly spaced lower-bay window row on this wall.
+   * Host of an evenly spaced window row on this wall band (lower or upper).
    * Sibling bays in the run use coveredBy pointing at this slot.
    */
   windowRhythm?: WindowRhythmCount;
 }
 
-/** Lower bays blocked by a door, gate, or door slider (not a window rhythm). */
-export function lowerBayBlockedForRhythm(
+export function bandSlotId(wall: WallSlot['wall'], index: number, isUpper: boolean) {
+  return isUpper ? `${wall}-${index}u` : `${wall}-${index}`;
+}
+
+/** Bays blocked for a window rhythm on the given band. */
+export function bandBayBlockedForRhythm(
   slots: Record<string, WallSlot>,
   wall: WallSlot['wall'],
-  index: number
+  index: number,
+  isUpper: boolean
 ): boolean {
-  const slot = slots[`${wall}-${index}`];
-  if (!slot || slot.isUpper) return true;
+  const slot = slots[bandSlotId(wall, index, isUpper)];
+  if (!slot) return true;
+  if (isUpper) {
+    // Upper bays are window-only; doors never live here.
+    if (!slot.coveredBy) return false;
+    const host = slots[slot.coveredBy];
+    if (!host) return false;
+    return !host.windowRhythm;
+  }
+  if (slot.isUpper) return true;
   if (slot.type === 'door' || slot.type === 'gate') return true;
   if (!slot.coveredBy) return false;
   const host = slots[slot.coveredBy];
@@ -47,25 +60,45 @@ export function lowerBayBlockedForRhythm(
   return host.type === 'door' || host.itemId === 'SKJUTDORR' || host.itemId === 'SKJUTDORR3';
 }
 
+/** @deprecated Use bandBayBlockedForRhythm(..., false). */
+export function lowerBayBlockedForRhythm(
+  slots: Record<string, WallSlot>,
+  wall: WallSlot['wall'],
+  index: number
+): boolean {
+  return bandBayBlockedForRhythm(slots, wall, index, false);
+}
+
 /**
- * Contiguous free lower bays around anchorIndex for a wall window rhythm.
+ * Contiguous free bays around anchorIndex for a wall window rhythm (lower or upper).
  * Empty, window, and existing rhythm-covered bays are free; doors/gates are not.
  */
+export function freeBandRunForRhythm(
+  slots: Record<string, WallSlot>,
+  wall: WallSlot['wall'],
+  panelCount: number,
+  anchorIndex: number,
+  isUpper: boolean
+): number[] {
+  const anchor = Math.max(0, Math.min(panelCount - 1, anchorIndex));
+  if (bandBayBlockedForRhythm(slots, wall, anchor, isUpper)) return [];
+  let lo = anchor;
+  let hi = anchor;
+  while (lo > 0 && !bandBayBlockedForRhythm(slots, wall, lo - 1, isUpper)) lo -= 1;
+  while (hi < panelCount - 1 && !bandBayBlockedForRhythm(slots, wall, hi + 1, isUpper)) hi += 1;
+  const run: number[] = [];
+  for (let i = lo; i <= hi; i += 1) run.push(i);
+  return run;
+}
+
+/** @deprecated Use freeBandRunForRhythm(..., false). */
 export function freeLowerRunForRhythm(
   slots: Record<string, WallSlot>,
   wall: WallSlot['wall'],
   panelCount: number,
   anchorIndex: number
 ): number[] {
-  const anchor = Math.max(0, Math.min(panelCount - 1, anchorIndex));
-  if (lowerBayBlockedForRhythm(slots, wall, anchor)) return [];
-  let lo = anchor;
-  let hi = anchor;
-  while (lo > 0 && !lowerBayBlockedForRhythm(slots, wall, lo - 1)) lo -= 1;
-  while (hi < panelCount - 1 && !lowerBayBlockedForRhythm(slots, wall, hi + 1)) hi += 1;
-  const run: number[] = [];
-  for (let i = lo; i <= hi; i += 1) run.push(i);
-  return run;
+  return freeBandRunForRhythm(slots, wall, panelCount, anchorIndex, false);
 }
 
 export const PANEL_COUNTS = { front: 4, back: 4, left: 3, right: 3 } as const;

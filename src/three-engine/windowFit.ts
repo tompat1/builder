@@ -500,25 +500,31 @@ export function containWindowInPanel<T extends RoofOpening & { casingSide?: numb
   return next;
 }
 
-/** Panel indices (0..panelCount-1 within a run) for an evenly spaced window rhythm. */
-export function evenlySpacedPanelIndices(panelCount: number, windowCount: number): number[] {
-  const n = Math.max(1, Math.min(panelCount, windowCount));
-  if (n >= panelCount) {
-    return Array.from({ length: panelCount }, (_, i) => i);
-  }
-  if (n === 1) return [Math.floor((panelCount - 1) / 2)];
-  return Array.from({ length: n }, (_, i) => Math.round((i * (panelCount - 1)) / (n - 1)));
-}
-
 /**
- * Centers along a wall run measured from the start of the run (0 … span).
- * Equal end gaps: gap = (span − n·winW) / (n + 1).
+ * Centers along a wall run (0 … span), with equal end margins and equal centre spacing.
+ * `endMargin` keeps panes clear of corner boards and casing.
  */
-export function evenWindowCentersAlongRun(span: number, count: number, winW: number): number[] {
+export function evenWindowCentersAlongRun(
+  span: number,
+  count: number,
+  winW: number,
+  endMargin = 0.28
+): number[] {
   if (count < 1 || span <= 0 || winW <= 0) return [];
   const n = count;
-  const gap = Math.max(0.04, (span - n * winW) / (n + 1));
-  return Array.from({ length: n }, (_, i) => gap * (i + 1) + winW * i + winW / 2);
+  const margin = Math.max(0.12, endMargin);
+  const maxW = Math.max(0.28, (span - 2 * margin - (n - 1) * 0.12) / n);
+  const usedW = Math.min(winW, maxW);
+  const first = margin + usedW / 2;
+  const last = span - margin - usedW / 2;
+  if (n === 1 || last <= first) return [span / 2];
+  return Array.from({ length: n }, (_, i) => first + ((last - first) * i) / (n - 1));
+}
+
+export interface RhythmWallOpening {
+  /** Centre along the run, measured from the start of the run (0 … span). */
+  along: number;
+  winW: number;
 }
 
 export interface RhythmPanelOpening {
@@ -527,35 +533,87 @@ export interface RhythmPanelOpening {
   /** Local X in the panel group (0 = panel centre). */
   x: number;
   winW: number;
+  /** Draw frame/glass on this panel (centre lies here). Neighbours may only cut cladding. */
+  drawFeature: boolean;
 }
 
 /**
- * Places `windowCount` windows across a contiguous panel run, one panel each when possible,
- * shifting each pane toward the ideal even centre within its panel.
+ * Even centres along the run with equal gaps and corner-safe end margins.
+ * Returns wall-run coordinates (not snapped to panel centres).
  */
+export function rhythmOpeningsAlongRun(
+  runLength: number,
+  windowCount: number,
+  panelWidth: number,
+  winW: number,
+  endMargin = 0.3
+): RhythmWallOpening[] {
+  if (runLength < 1 || windowCount < 1 || panelWidth <= 0) return [];
+  const span = runLength * panelWidth;
+  // Keep panes clear of corner boards; also leave a little air between panes.
+  const maxW = Math.max(0.32, Math.min(winW, (span - 2 * endMargin - (windowCount - 1) * 0.2) / windowCount));
+  const centers = evenWindowCentersAlongRun(span, windowCount, maxW, endMargin);
+  return centers.map((along) => ({ along, winW: maxW }));
+}
+
+/**
+ * Maps wall-run openings onto a single panel: local X for cladding (may straddle the
+ * bay edge) and whether this panel owns the window feature.
+ */
+export function rhythmOpeningForPanel(
+  openings: RhythmWallOpening[],
+  runStart: number,
+  runLength: number,
+  panelIndex: number,
+  panelWidth: number
+): RhythmPanelOpening | null {
+  if (panelIndex < runStart || panelIndex >= runStart + runLength) return null;
+  const runLocal = panelIndex - runStart;
+  const panelCenterAlong = (runLocal + 0.5) * panelWidth;
+  const half = panelWidth / 2;
+  let best: RhythmPanelOpening | null = null;
+  for (const win of openings) {
+    const left = win.along - win.winW / 2;
+    const right = win.along + win.winW / 2;
+    const panelLeft = runLocal * panelWidth;
+    const panelRight = panelLeft + panelWidth;
+    if (right <= panelLeft + 0.01 || left >= panelRight - 0.01) continue;
+    const x = win.along - panelCenterAlong;
+    const drawFeature = win.along >= panelLeft && win.along < panelRight
+      || (runLocal === runLength - 1 && win.along >= panelLeft);
+    const candidate: RhythmPanelOpening = {
+      panelIndex,
+      x,
+      winW: win.winW,
+      drawFeature
+    };
+    // Prefer the opening whose centre is in this panel; otherwise keep a cut-only hole.
+    if (drawFeature) return candidate;
+    if (!best) best = candidate;
+  }
+  return best;
+}
+
+/** @deprecated Prefer rhythmOpeningsAlongRun + rhythmOpeningForPanel. */
 export function rhythmOpeningsInRun(
   runStart: number,
   runLength: number,
   windowCount: number,
   panelWidth: number,
-  winW: number
+  winW: number,
+  options?: { endMargin?: number }
 ): RhythmPanelOpening[] {
-  if (runLength < 1 || windowCount < 1 || panelWidth <= 0) return [];
-  const n = Math.min(windowCount, runLength);
-  const span = runLength * panelWidth;
-  const centers = evenWindowCentersAlongRun(span, n, Math.min(winW, panelWidth * 0.85));
-  const indices = evenlySpacedPanelIndices(runLength, n);
-  const half = panelWidth / 2;
-  const maxShift = Math.max(0, half - winW / 2 - 0.05);
-  const usedW = Math.min(winW, panelWidth * 0.85);
-  return indices.map((runLocal, i) => {
-    const panelCenterAlong = (runLocal + 0.5) * panelWidth;
-    const ideal = centers[i] ?? panelCenterAlong;
-    const x = Math.max(-maxShift, Math.min(maxShift, ideal - panelCenterAlong));
-    return {
-      panelIndex: runStart + runLocal,
-      x,
-      winW: usedW
-    };
-  });
+  const along = rhythmOpeningsAlongRun(
+    runLength,
+    windowCount,
+    panelWidth,
+    winW,
+    options?.endMargin ?? 0.3
+  );
+  const out: RhythmPanelOpening[] = [];
+  for (let i = 0; i < runLength; i += 1) {
+    const mapped = rhythmOpeningForPanel(along, runStart, runLength, runStart + i, panelWidth);
+    if (mapped?.drawFeature) out.push(mapped);
+  }
+  return out;
 }

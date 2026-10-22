@@ -608,7 +608,9 @@ import {
   garageWallSlots,
   stuganV4WallSlots,
   mergeWallSlots,
-  freeLowerRunForRhythm
+  freeLowerRunForRhythm,
+  freeBandRunForRhythm,
+  bandSlotId
 } from './wallSlots';
 import { clearWindowRhythmSlots, releaseWindowRhythmSlots } from './slotMove';
 
@@ -625,7 +627,9 @@ export {
   stuganV4WallSlots,
   mergeWallSlots,
   paabyggnadWallSlots,
-  freeLowerRunForRhythm
+  freeLowerRunForRhythm,
+  freeBandRunForRhythm,
+  bandSlotId
 };
 export {
   STUGAN_V4_SIZE_ID,
@@ -2585,20 +2589,23 @@ export const useConfigStore = defineStore('config', () => {
     wall: WallSlot['wall'],
     count: WindowRhythmCount,
     itemId: string,
-    anchorIndex?: number
+    anchorIndex?: number,
+    isUpper = false
   ) => {
     const panelCount = panelCountForWall(wall, buildingWidth.value, buildingDepth.value);
     const selected = selectedSlotId.value ? wallSlots.value[selectedSlotId.value] : null;
     const anchor = anchorIndex
-      ?? (selected && selected.wall === wall && !selected.isUpper ? selected.index : 0);
-    const run = freeLowerRunForRhythm(wallSlots.value, wall, panelCount, anchor);
+      ?? (selected && selected.wall === wall && Boolean(selected.isUpper) === isUpper
+        ? selected.index
+        : 0);
+    const run = freeBandRunForRhythm(wallSlots.value, wall, panelCount, anchor, isUpper);
     if (run.length < 2) return;
     const n = Math.min(count, run.length, 4) as WindowRhythmCount;
     if (n < 2) return;
 
-    // Drop any existing rhythm on this wall before rebuilding the run.
+    // Drop any existing rhythm on this wall band before rebuilding the run.
     for (let i = 0; i < panelCount; i += 1) {
-      const id = `${wall}-${i}`;
+      const id = bandSlotId(wall, i, isUpper);
       const s = wallSlots.value[id];
       if (!s) continue;
       if (s.windowRhythm) clearWallWindowRhythm(id);
@@ -2608,9 +2615,9 @@ export const useConfigStore = defineStore('config', () => {
     }
 
     const hostIndex = run[0];
-    const hostId = `${wall}-${hostIndex}`;
+    const hostId = bandSlotId(wall, hostIndex, isUpper);
     for (const i of run) {
-      const id = `${wall}-${i}`;
+      const id = bandSlotId(wall, i, isUpper);
       const s = wallSlots.value[id];
       if (!s) continue;
       if (i === hostIndex) {
@@ -2631,17 +2638,24 @@ export const useConfigStore = defineStore('config', () => {
     saveSnapshot();
   }
 
-  /** Count lower-bay windows on a wall (a rhythm host counts as its pane count). */
-  const lowerWindowRowCount = (wall: WallSlot['wall']) => {
+  /** Count windows on a wall band (a rhythm host counts as its pane count). */
+  const windowRowCount = (wall: WallSlot['wall'], isUpper: boolean) => {
     const panelCount = panelCountForWall(wall, buildingWidth.value, buildingDepth.value);
     let count = 0;
     let itemId: string | undefined;
     let anchor = 0;
+    let aligned = false;
     for (let i = 0; i < panelCount; i += 1) {
-      const s = wallSlots.value[`${wall}-${i}`];
+      const s = wallSlots.value[bandSlotId(wall, i, isUpper)];
       if (!s) continue;
       if (s.windowRhythm) {
-        return { count: s.windowRhythm, itemId: s.itemId, anchor: s.index };
+        return {
+          count: s.windowRhythm,
+          itemId: s.itemId,
+          anchor: s.index,
+          aligned: true,
+          hostId: s.id
+        };
       }
       if (s.type === 'window' && s.itemId) {
         count += 1;
@@ -2651,20 +2665,24 @@ export const useConfigStore = defineStore('config', () => {
         }
       }
     }
-    return { count, itemId, anchor };
+    return { count, itemId, anchor, aligned, hostId: null as string | null };
   }
 
+  /** @deprecated Use windowRowCount(wall, false). */
+  const lowerWindowRowCount = (wall: WallSlot['wall']) => windowRowCount(wall, false);
+
   /**
-   * Evenly space every lower window on this wall row.
-   * Keeps the current window count and type; click any panel on the wall to use it.
+   * Evenly space every window on this wall band (lower or upper).
+   * Keeps the current window count and type; click any panel on the row to use it.
    */
   const alignWallWindows = (slotId: string) => {
     const slot = wallSlots.value[slotId];
-    if (!slot || slot.isUpper) return;
-    const row = lowerWindowRowCount(slot.wall);
-    if (row.count < 2 || !row.itemId) return;
+    if (!slot) return;
+    const isUpper = slot.isUpper === true || slotId.endsWith('u');
+    const row = windowRowCount(slot.wall, isUpper);
+    if (row.aligned || row.count < 2 || !row.itemId) return;
     const n = Math.min(4, Math.max(2, row.count)) as WindowRhythmCount;
-    setWallWindowRhythm(slot.wall, n, row.itemId, slot.index);
+    setWallWindowRhythm(slot.wall, n, row.itemId, slot.index, isUpper);
   }
 
   const assignSlotItem = (slotId: string, type: 'empty' | 'door' | 'window' | 'gate', itemId?: string) => {
@@ -3059,6 +3077,7 @@ export const useConfigStore = defineStore('config', () => {
     setWallWindowRhythm,
     clearWallWindowRhythm,
     alignWallWindows,
+    windowRowCount,
     lowerWindowRowCount,
     moveSlotItem,
     toggleDimensions,

@@ -51,7 +51,7 @@ import {
   type LoftBounds
 } from './loftLevel';
 import { ceilingStations, loftCeilingY, sliceStations, type CeilingStation, type RoofSlope } from './roofClearance';
-import { NARROW_TALL, OVERLIGHT, PORTRAIT_PANORAMA, containWindowInPanel, fittedDoorOpening, fittedWindowOpening, narrowTallPane, openingClearOfRoof, overlightHeight, portraitPane, rhythmOpeningsInRun, windowOpeningChanged } from './windowFit';
+import { NARROW_TALL, OVERLIGHT, PORTRAIT_PANORAMA, containWindowInPanel, fittedDoorOpening, fittedWindowOpening, narrowTallPane, openingClearOfRoof, overlightHeight, portraitPane, rhythmOpeningsAlongRun, rhythmOpeningForPanel, windowOpeningChanged } from './windowFit';
 import { fitRoom, innerHalf, roomFootprint, roomWallRuns, shellSides, SHELL_TOUCH, bedroomBedPlacement, type RoomBox, type ShellSides, type RoomBounds } from './roomWalls';
 import {
   CONCRETE_WALL_THICK_M,
@@ -2399,9 +2399,15 @@ export class HouseScene {
     panelGroup.rotation.y = rotY;
     panelGroup.userData = { slotId: band.slotId, wall: wallSide, index };
 
-    const rhythm = band.upper
-      ? null
-      : this.windowRhythmOpeningForPanel(wallSide, index, panelWidth, band.height, band.base, panelCount);
+    const rhythm = this.windowRhythmOpeningForPanel(
+      wallSide,
+      index,
+      panelWidth,
+      band.height,
+      band.base,
+      panelCount,
+      band.upper
+    );
     const wide = band.upper || rhythm
       ? null
       : this.wideOpeningForPanel(wallSide, index, panelWidth, band.height, band.base);
@@ -2457,9 +2463,10 @@ export class HouseScene {
       this.addSolidCladding(panelGroup, panelWidth, band.height, claddingThick, exteriorMat, userData, facadeTop, facadeSpan);
     }
 
-    const ownsOpening = Boolean(rhythm)
+    const rhythmDraw = Boolean(rhythm?.drawFeature);
+    const ownsOpening = rhythmDraw
       || (wide ? wide.drawDoor : (slotType === 'door' || slotType === 'window'));
-    if (ownsOpening && opening && (rhythm || wide || slotType === 'door' || slotType === 'window')) {
+    if (ownsOpening && opening && (rhythmDraw || wide || slotType === 'door' || slotType === 'window')) {
       // Sliding doors span two bays — clamp casing to the full opening, not the host panel alone.
       const casingSpan = wide?.drawDoor
         ? Math.max(panelWidth, Math.abs(opening.x ?? 0) * 2 + opening.winW + 0.28)
@@ -2469,14 +2476,15 @@ export class HouseScene {
         opening,
         wide || slotType === 'door' ? 'door' : 'window',
         casingMat,
-        wide?.drawDoor ? null : cornerSide,
+        // Rhythm panes already keep clear of corner boards via end margins.
+        rhythmDraw ? null : (wide?.drawDoor ? null : cornerSide),
         casingSpan,
         wide?.drawDoor ? null : facadeSpan
       );
     }
     if (ownsOpening && opening && (wide || slotType === 'door') && !rhythm) {
       this.addDoorFeature(panelGroup, opening, slot?.itemId, userData);
-    } else if ((rhythm || slotType === 'window') && opening) {
+    } else if ((rhythmDraw || (!rhythm && slotType === 'window')) && opening) {
       this.addWindowFeature(panelGroup, opening, rhythm?.itemId ?? slot?.itemId, userData);
     } else if (slotType === 'gate') {
       this.addGateFeature(panelGroup, panelWidth, band.height, wallThick, slot?.itemId, userData);
@@ -3363,7 +3371,7 @@ export class HouseScene {
   }
 
   /**
-   * Evenly spaced lower windows hosted on one slot and covering sibling bays.
+   * Evenly spaced windows hosted on one slot and covering sibling bays (lower or upper).
    * Returns the opening that belongs on this panel index, or null.
    */
   private windowRhythmOpeningForPanel(
@@ -3372,15 +3380,18 @@ export class HouseScene {
     panelWidth: number,
     panelHeight: number,
     panelBase: number,
-    panelCount: number
+    panelCount: number,
+    isUpper = false
   ): {
     hostId: string;
     itemId: string | undefined;
+    drawFeature: boolean;
     opening: { winW: number; winH: number; winY: number; x: number; sill: number; head: number; casingSide?: number };
   } | null {
     const slots = this.currentConfig.wallSlots;
-    const slot = slots[`${wall}-${index}`];
-    if (!slot || slot.isUpper) return null;
+    const slotId = isUpper ? `${wall}-${index}u` : `${wall}-${index}`;
+    const slot = slots[slotId];
+    if (!slot) return null;
     let hostId: string | null = null;
     if (slot.windowRhythm) hostId = slot.id;
     else if (slot.coveredBy && slots[slot.coveredBy]?.windowRhythm) hostId = slot.coveredBy;
@@ -3390,7 +3401,7 @@ export class HouseScene {
 
     const run: number[] = [];
     for (let i = 0; i < panelCount; i += 1) {
-      const s = slots[`${wall}-${i}`];
+      const s = slots[isUpper ? `${wall}-${i}u` : `${wall}-${i}`];
       if (s && (s.id === hostId || s.coveredBy === hostId)) run.push(i);
     }
     if (run.length < 2) return null;
@@ -3401,26 +3412,27 @@ export class HouseScene {
     const fitted = this.fittedOpening(
       'window',
       host.itemId,
-      false,
+      isUpper,
       panelWidth,
       panelHeight,
       panelBase,
       false,
-      cornerSide,
+      null,
       null
     );
-    const placed = rhythmOpeningsInRun(
-      runStart,
+    const along = rhythmOpeningsAlongRun(
       runLength,
       host.windowRhythm,
       panelWidth,
-      fitted.winW
+      fitted.winW,
+      runStart === 0 || runStart + runLength >= panelCount ? 0.32 : 0.2
     );
-    const mine = placed.find((p) => p.panelIndex === index);
+    const mine = rhythmOpeningForPanel(along, runStart, runLength, index, panelWidth);
     if (!mine) return null;
     return {
       hostId,
       itemId: host.itemId,
+      drawFeature: mine.drawFeature,
       opening: {
         winW: mine.winW,
         winH: fitted.winH,
@@ -3428,7 +3440,7 @@ export class HouseScene {
         x: mine.x,
         sill: fitted.sill,
         head: fitted.head,
-        casingSide: fitted.casingSide
+        casingSide: cornerSide ? 0.07 : fitted.casingSide
       }
     };
   }
@@ -4277,29 +4289,35 @@ export class HouseScene {
         : [{ id: `${wall}-${p}`, upper: false, panelH: panelWallH, panelBase: base }];
       for (const band of bands) {
         const slot = this.currentConfig.wallSlots[band.id];
-        if (!band.upper) {
-          const rhythm = this.windowRhythmOpeningForPanel(wall, p, panelW, band.panelH, band.panelBase, count);
-          if (rhythm) {
-            const slope = this.alongWallSlope(wall);
-            const fit = openingClearOfRoof(rhythm.opening, band.panelH, slope, {
-              pinSill: false,
-              minHeight: 0.28
-            });
-            const local = fit.x ?? 0;
-            const x = wall === 'front' || wall === 'left' ? center + local : center - local;
-            openings.push({
-              x,
-              winW: fit.winW,
-              winH: fit.winH,
-              winY: fit.winY,
-              sill: fit.sill,
-              head: fit.head
-            });
-            continue;
-          }
-          if (slot?.coveredBy && this.currentConfig.wallSlots[slot.coveredBy]?.windowRhythm) {
-            continue;
-          }
+        const rhythm = this.windowRhythmOpeningForPanel(
+          wall,
+          p,
+          panelW,
+          band.panelH,
+          band.panelBase,
+          count,
+          band.upper
+        );
+        if (rhythm) {
+          const slope = this.alongWallSlope(wall);
+          const fit = openingClearOfRoof(rhythm.opening, band.panelH, slope, {
+            pinSill: false,
+            minHeight: 0.28
+          });
+          const local = fit.x ?? 0;
+          const x = wall === 'front' || wall === 'left' ? center + local : center - local;
+          openings.push({
+            x,
+            winW: fit.winW,
+            winH: fit.winH,
+            winY: fit.winY,
+            sill: fit.sill,
+            head: fit.head
+          });
+          continue;
+        }
+        if (slot?.coveredBy && this.currentConfig.wallSlots[slot.coveredBy]?.windowRhythm) {
+          continue;
         }
         if (!slot || (slot.type !== 'door' && slot.type !== 'window')) continue;
         const wide = band.upper
@@ -4316,7 +4334,7 @@ export class HouseScene {
           continue;
         }
         // Rhythm host alone would otherwise place a single centred pane — skip; rhythm branch above owns it.
-        if (slot.windowRhythm && !band.upper) continue;
+        if (slot.windowRhythm) continue;
         const lower = this.currentConfig.wallSlots[`${wall}-${p}`];
         const aboveDoor = Boolean(
           band.upper
@@ -6559,18 +6577,17 @@ export class HouseScene {
       stairGroup.add(stringer);
     }
 
+    // Omit the coplanar loft landing tread — the loft floor is the landing.
     const risers = loftStairTreads(rise) + 1;
     const treadW = flight.width - stringerThick * 2;
-    for (let step = 1; step <= risers; step++) {
+    for (let step = 1; step < risers; step++) {
       const fraction = step / risers;
-      const landing = step === risers;
       const tread = new THREE.Mesh(
-        new THREE.BoxGeometry(landing ? 0.28 : 0.22, LOFT_FLOORBOARD, treadW),
+        new THREE.BoxGeometry(0.22, LOFT_FLOORBOARD, treadW),
         pineMat
       );
       tread.position.set(
-        flight.xBottom + (flight.xTop - flight.xBottom) * fraction
-          - (landing ? plan.openSign * 0.15 : 0),
+        flight.xBottom + (flight.xTop - flight.xBottom) * fraction,
         flight.yBottom + rise * fraction - LOFT_FLOORBOARD / 2,
         flight.z
       );
@@ -6668,7 +6685,8 @@ export class HouseScene {
     stairGroup.add(column);
 
     const railPoints: THREE.Vector3[] = [];
-    for (let step = 0; step < stepCount; step++) {
+    // Last step is coplanar with the loft floor — skip that tread to avoid z-fighting.
+    for (let step = 0; step < stepCount - 1; step++) {
       const fraction = (step + 1) / stepCount;
       const angle = spiral.topAngle - spiral.direction * spiral.sweep * (1 - fraction);
       const y = spiral.yBottom + plan.rise * fraction;
@@ -6688,12 +6706,24 @@ export class HouseScene {
       const outerZ = spiral.centerZ + Math.sin(angle) * (spiral.radius + 0.03);
       railPoints.push(new THREE.Vector3(outerX, y + 0.9, outerZ));
 
-      if (step % 3 === 0 || step === stepCount - 1) {
+      if (step % 3 === 0 || step === stepCount - 2) {
         const post = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.9, 0.03), pineMat);
         post.position.set(outerX, y + 0.45, outerZ);
         post.castShadow = true;
         stairGroup.add(post);
       }
+    }
+    // Cap rail/post at loft level even without a top tread.
+    {
+      const angle = spiral.topAngle;
+      const y = spiral.yTop;
+      const outerX = spiral.centerX + Math.cos(angle) * (spiral.radius + 0.03);
+      const outerZ = spiral.centerZ + Math.sin(angle) * (spiral.radius + 0.03);
+      railPoints.push(new THREE.Vector3(outerX, y + 0.9, outerZ));
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.9, 0.03), pineMat);
+      post.position.set(outerX, y + 0.45, outerZ);
+      post.castShadow = true;
+      stairGroup.add(post);
     }
 
     if (railPoints.length > 1) {
@@ -7435,17 +7465,16 @@ export class HouseScene {
 
   /**
    * Ceiling height in room-local Y above a loft floor.
-   * Depth-fall roofs vary with Z; width-fall (Stugan) uses the lowest plate over the room's X span
-   * so partition walls never pierce the mono-pitch.
+   * Depth-fall roofs vary with local Z; width-fall (Stugan) varies with local X.
    */
-  private loftCeiling(roomZ: number, baseY: number, roomX = 0, roomW = 0) {
+  private loftCeiling(roomZ: number, baseY: number, roomX = 0, _roomW = 0) {
     const wallTop = this.wallTopM();
     if (this.roofFallsAlongWidth()) {
-      const half = Math.max(roomW / 2, 0.01);
-      const minX = roomX - half;
-      const clear = this.widthFallPlateY(minX) - 0.16 - baseY;
-      const capped = Math.max(0.6, Math.min(2.4, clear));
-      return (_localZ: number) => capped;
+      // Caller samples along local X for width-fall; localZ argument is unused.
+      return (localX: number) => {
+        const clear = this.widthFallPlateY(roomX + localX) - 0.16 - baseY;
+        return Math.max(0.6, clear);
+      };
     }
     const depth = this.currentConfig.depthMm / 1000;
     const slope = this.roofSlope();
@@ -7457,6 +7486,19 @@ export class HouseScene {
       at,
       top: ceiling(at)
     }));
+  }
+
+  /** Stations along local X for a width-fall (east–west) mono-pitch. */
+  private widthFallCeilingProfile(
+    roomX: number,
+    x0: number,
+    x1: number,
+    ceiling: (localX: number) => number
+  ): CeilingStation[] {
+    const start = Math.min(x0, x1);
+    const end = Math.max(x0, x1);
+    const mid = (start + end) / 2;
+    return [start, mid, end].map((at) => ({ at, top: ceiling(at) }));
   }
 
   /** A wall whose top follows the roof. The profile runs along Z and the thickness is along X. */
@@ -7483,6 +7525,36 @@ export class HouseScene {
     geo.rotateY(-Math.PI / 2);
     const mesh = new THREE.Mesh(geo, wallMat);
     mesh.position.x = x;
+    mesh.userData.partition = side;
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), edgeMat));
+    group.add(mesh);
+  }
+
+  /** Width-fall: profile runs along X; thickness is along Z (front/back partitions). */
+  private addProfileWallAlongX(
+    group: THREE.Group,
+    stations: CeilingStation[],
+    base: number,
+    thick: number,
+    z: number,
+    side: string,
+    wallMat: THREE.Material,
+    edgeMat: THREE.Material
+  ) {
+    if (stations.length < 2) return;
+    if (!stations.some((station) => station.top - base > 0.02)) return;
+    const shape = new THREE.Shape();
+    shape.moveTo(stations[0].at, base);
+    shape.lineTo(stations[stations.length - 1].at, base);
+    for (let i = stations.length - 1; i >= 0; i--) {
+      shape.lineTo(stations[i].at, Math.max(stations[i].top, base));
+    }
+    const geo = new THREE.ExtrudeGeometry(shape, { depth: thick, bevelEnabled: false });
+    geo.translate(0, 0, -thick / 2);
+    const mesh = new THREE.Mesh(geo, wallMat);
+    mesh.position.z = z;
     mesh.userData.partition = side;
     mesh.castShadow = true;
     mesh.receiveShadow = true;
@@ -7533,10 +7605,34 @@ export class HouseScene {
     group: THREE.Group,
     w: number,
     roomZ: number,
-    ceiling: (localZ: number) => number,
+    ceiling: (along: number) => number,
     wallMat: THREE.Material,
-    edgeMat: THREE.Material
+    edgeMat: THREE.Material,
+    alongWidth = false,
+    roomX = 0
   ) {
+    if (alongWidth) {
+      const half = Number(group.userData.w) / 2;
+      const d = Number(group.userData.d);
+      const stations = this.widthFallCeilingProfile(roomX, -half, half, ceiling);
+      for (let i = 0; i < stations.length - 1; i++) {
+        const from = stations[i];
+        const to = stations[i + 1];
+        const length = to.at - from.at;
+        if (length < 0.02) continue;
+        const rise = to.top - from.top;
+        const geo = new THREE.BoxGeometry(Math.hypot(length, rise), 0.02, d);
+        const mesh = new THREE.Mesh(geo, wallMat);
+        mesh.position.set((from.at + to.at) / 2, (from.top + to.top) / 2 - 0.01, 0);
+        mesh.rotation.z = Math.atan2(rise, length);
+        mesh.userData.part = 'ceiling';
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), edgeMat));
+        group.add(mesh);
+      }
+      return;
+    }
     const half = Number(group.userData.d) / 2;
     const stations = this.ceilingProfile(roomZ, -half, half, ceiling);
     for (let i = 0; i < stations.length - 1; i++) {
@@ -7555,6 +7651,64 @@ export class HouseScene {
       mesh.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo), edgeMat));
       group.add(mesh);
     }
+  }
+
+  /** Width-fall front/back wall: top follows the mono-pitch along X. */
+  private addLoftFrontBack(
+    group: THREE.Group,
+    side: 'front' | 'back',
+    z: number,
+    x0: number,
+    x1: number,
+    roomX: number,
+    ceiling: (localX: number) => number,
+    withDoor: boolean,
+    wallThick: number,
+    wallBase: number,
+    wallMat: THREE.Material,
+    edgeMat: THREE.Material
+  ) {
+    if (x1 - x0 < 0.02) return;
+    const stations = this.widthFallCeilingProfile(roomX, x0, x1, ceiling);
+    const minTop = Math.min(...stations.map((station) => station.top));
+    const doorW = 0.8;
+    const doorClear = minTop - wallBase;
+    if (!withDoor || x1 - x0 < doorW + 0.24 || doorClear < 1.35) {
+      this.addProfileWallAlongX(group, stations, wallBase, wallThick, z, side, wallMat, edgeMat);
+      return;
+    }
+    const head = wallBase + Math.min(2.0, doorClear - 0.05);
+    const mid = (x0 + x1) / 2;
+    this.addProfileWallAlongX(
+      group,
+      this.widthFallCeilingProfile(roomX, x0, mid - doorW / 2, ceiling),
+      wallBase,
+      wallThick,
+      z,
+      side,
+      wallMat,
+      edgeMat
+    );
+    this.addProfileWallAlongX(
+      group,
+      this.widthFallCeilingProfile(roomX, mid + doorW / 2, x1, ceiling),
+      wallBase,
+      wallThick,
+      z,
+      side,
+      wallMat,
+      edgeMat
+    );
+    this.addProfileWallAlongX(
+      group,
+      this.widthFallCeilingProfile(roomX, mid - doorW / 2, mid + doorW / 2, ceiling),
+      head,
+      wallThick,
+      z,
+      side,
+      wallMat,
+      edgeMat
+    );
   }
 
   /** Loft rooms keep their plan when the house is rebuilt, and take the new roof. */
@@ -7653,18 +7807,52 @@ export class HouseScene {
 
     const doorOrder = (ceiling ? ['front', 'back', 'right', 'left'] : ['front', 'right', 'back', 'left']) as readonly (keyof ShellSides)[];
     const doorSide = doorOrder.find((side) => !open[side]);
-    const edgeHeight = (localZ: number) => (ceiling ? ceiling(localZ) - wallBase : wallH);
+    const edgeHeight = (localAlong: number) => (ceiling ? ceiling(localAlong) - wallBase : wallH);
     if (wallsVisible && !open.back) {
       const { size, center } = wallRuns.back;
       const z = -d / 2 + wallThick / 2;
-      const height = edgeHeight(z);
-      if (height > 0.02) addRun('back', size, center, z, 'x', doorSide === 'back' && height >= 1.35, height);
+      if (ceiling && loft && widthFallLoft) {
+        this.addLoftFrontBack(
+          group,
+          'back',
+          z,
+          center - size / 2,
+          center + size / 2,
+          loft.x ?? 0,
+          ceiling,
+          doorSide === 'back',
+          wallThick,
+          wallBase,
+          wallMat,
+          edgeMat
+        );
+      } else {
+        const height = edgeHeight(z);
+        if (height > 0.02) addRun('back', size, center, z, 'x', doorSide === 'back' && height >= 1.35, height);
+      }
     }
     if (wallsVisible && !open.front) {
       const { size, center } = wallRuns.front;
       const z = d / 2 - wallThick / 2;
-      const height = edgeHeight(z);
-      if (height > 0.02) addRun('front', size, center, z, 'x', doorSide === 'front' && height >= 1.35, height);
+      if (ceiling && loft && widthFallLoft) {
+        this.addLoftFrontBack(
+          group,
+          'front',
+          z,
+          center - size / 2,
+          center + size / 2,
+          loft.x ?? 0,
+          ceiling,
+          doorSide === 'front',
+          wallThick,
+          wallBase,
+          wallMat,
+          edgeMat
+        );
+      } else {
+        const height = edgeHeight(z);
+        if (height > 0.02) addRun('front', size, center, z, 'x', doorSide === 'front' && height >= 1.35, height);
+      }
     }
     if (wallsVisible && !open.left) {
       if (ceiling && loft && !widthFallLoft) {
@@ -7673,6 +7861,11 @@ export class HouseScene {
           wallRuns.left.center - wallRuns.left.size / 2, wallRuns.left.center + wallRuns.left.size / 2,
           loft.z, ceiling, doorSide === 'left', wallThick, wallBase, wallMat, edgeMat
         );
+      } else if (ceiling && loft && widthFallLoft) {
+        // Constant height at this X — mono-pitch falls along width, not depth.
+        const { size, center } = wallRuns.left;
+        const hLeft = Math.max(0.6, ceiling(-w / 2 + wallThick / 2) - wallBase);
+        addRun('left', size, center, -w / 2 + wallThick / 2, 'z', doorSide === 'left', hLeft);
       } else {
         const { size, center } = wallRuns.left;
         const hLeft = ceiling ? Math.min(wallH, Math.max(0.6, ceiling(0))) : wallH;
@@ -7686,18 +7879,27 @@ export class HouseScene {
           wallRuns.right.center - wallRuns.right.size / 2, wallRuns.right.center + wallRuns.right.size / 2,
           loft.z, ceiling, doorSide === 'right', wallThick, wallBase, wallMat, edgeMat
         );
+      } else if (ceiling && loft && widthFallLoft) {
+        const { size, center } = wallRuns.right;
+        const hRight = Math.max(0.6, ceiling(w / 2 - wallThick / 2) - wallBase);
+        addRun('right', size, center, w / 2 - wallThick / 2, 'z', doorSide === 'right', hRight);
       } else {
         const { size, center } = wallRuns.right;
         const hRight = ceiling ? Math.min(wallH, Math.max(0.6, ceiling(0))) : wallH;
         addRun('right', size, center, w / 2 - wallThick / 2, 'z', doorSide === 'right', hRight);
       }
     }
-    if (wallsVisible && ceiling && loft) this.addLoftCeiling(group, w, loft.z, ceiling, wallMat, edgeMat);
+    if (wallsVisible && ceiling && loft) {
+      this.addLoftCeiling(group, w, loft.z, ceiling, wallMat, edgeMat, widthFallLoft, loft.x ?? 0);
+    }
 
     const edge = (againstShell: boolean) => (againstShell ? 0.08 : wallThick);
     const fitUp = (height: number, bottom: number, currentY: number) => {
       if (!ceiling) return { h: height, y: currentY };
-      const limit = Math.min(ceiling(-d / 2), ceiling(0), ceiling(d / 2)) - 0.06;
+      const samples = widthFallLoft
+        ? [ceiling(-w / 2), ceiling(0), ceiling(w / 2)]
+        : [ceiling(-d / 2), ceiling(0), ceiling(d / 2)];
+      const limit = Math.min(...samples) - 0.06;
       const h = Math.min(height, Math.max(0.05, limit - bottom));
       return { h, y: bottom + h / 2 };
     };

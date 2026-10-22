@@ -51,12 +51,16 @@
           <p class="truncate text-sm leading-5 text-slate-600">{{ placedLabel }}</p>
           <div class="mt-3 flex flex-col gap-1.5">
             <button
-              v-if="canAlignWindows"
+              v-if="showAlignWindows"
               type="button"
               id="btn-align-windows"
               @click="alignWindows()"
-              class="h-11 rounded-xl bg-slate-900 px-3 text-sm font-semibold text-white hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
-              :title="t('slot.alignTitle')"
+              :disabled="windowsAlreadyAligned"
+              class="h-11 rounded-xl px-3 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
+              :class="windowsAlreadyAligned
+                ? 'cursor-not-allowed bg-slate-100 text-slate-400'
+                : 'bg-slate-900 text-white hover:bg-slate-800'"
+              :title="windowsAlreadyAligned ? t('slot.alignDoneTitle') : t('slot.alignTitle')"
             >
               <Cms k="slot.align" />
             </button>
@@ -64,7 +68,7 @@
               type="button"
               id="btn-replace-slot"
               @click="replacePlaced()"
-              :class="canAlignWindows
+              :class="showAlignWindows && !windowsAlreadyAligned
                 ? 'h-11 rounded-xl bg-slate-100 px-3 text-sm font-semibold text-slate-800 hover:bg-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2'
                 : 'h-11 rounded-xl bg-slate-900 px-3 text-sm font-semibold text-white hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2'"
             >
@@ -95,12 +99,16 @@
 
         <div v-else class="mt-2 flex flex-col gap-1.5">
           <button
-            v-if="canAlignWindows"
+            v-if="showAlignWindows"
             type="button"
             id="btn-align-windows-empty"
             @click="alignWindows()"
-            class="h-11 rounded-xl bg-slate-900 px-3 text-sm font-semibold text-white hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
-            :title="t('slot.alignTitle')"
+            :disabled="windowsAlreadyAligned"
+            class="h-11 rounded-xl px-3 text-sm font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2"
+            :class="windowsAlreadyAligned
+              ? 'cursor-not-allowed bg-slate-100 text-slate-400'
+              : 'bg-slate-900 text-white hover:bg-slate-800'"
+            :title="windowsAlreadyAligned ? t('slot.alignDoneTitle') : t('slot.alignTitle')"
           >
             <Cms k="slot.align" />
           </button>
@@ -109,7 +117,7 @@
             type="button"
             id="btn-choose-door"
             @click="openCategory('doors')"
-            :class="canAlignWindows
+            :class="(showAlignWindows && !windowsAlreadyAligned)
               ? 'h-11 rounded-xl bg-slate-100 px-3 text-sm font-semibold text-slate-800 hover:bg-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2'
               : 'h-11 rounded-xl bg-slate-900 px-3 text-sm font-semibold text-white hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2'"
           >
@@ -119,7 +127,7 @@
             type="button"
             id="btn-choose-window"
             @click="openCategory('windows')"
-            :class="(store.selectedSlotCanAcceptDoor || canAlignWindows)
+            :class="(store.selectedSlotCanAcceptDoor || (showAlignWindows && !windowsAlreadyAligned))
               ? 'h-11 rounded-xl bg-slate-100 px-3 text-sm font-semibold text-slate-800 hover:bg-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2'
               : 'h-11 rounded-xl bg-slate-900 px-3 text-sm font-semibold text-white hover:bg-slate-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2'"
           >
@@ -173,15 +181,26 @@ const activeSlot = computed(() => {
   return store.selectedSlotId ? store.wallSlots[store.selectedSlotId] : null;
 });
 
-/** Two or more lower windows on this wall → show Align. */
-const canAlignWindows = computed(() => {
+const activeBandIsUpper = computed(() => {
   const slot = activeSlot.value;
-  if (!slot || slot.isUpper) return false;
-  return store.lowerWindowRowCount(slot.wall).count >= 2;
+  if (!slot) return false;
+  return slot.isUpper === true || Boolean(store.selectedSlotId?.endsWith('u'));
 });
 
+const windowRow = computed(() => {
+  const slot = activeSlot.value;
+  if (!slot) return { count: 0, aligned: false, itemId: undefined as string | undefined };
+  return store.windowRowCount(slot.wall, activeBandIsUpper.value);
+});
+
+/** Two or more windows on this wall band → show Align (lower or upper). */
+const showAlignWindows = computed(() => windowRow.value.count >= 2);
+
+/** Already evenly spaced via Align — keep the control visible but disabled. */
+const windowsAlreadyAligned = computed(() => windowRow.value.aligned === true);
+
 function alignWindows() {
-  if (!store.selectedSlotId) return;
+  if (!store.selectedSlotId || windowsAlreadyAligned.value) return;
   store.alignWallWindows(store.selectedSlotId);
 }
 
