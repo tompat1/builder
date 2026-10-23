@@ -7,9 +7,11 @@ import {
   type TerraceBuildingRoof,
   type SaunaColor,
   type SaunaDoor,
+  type SaunaDoorWall,
   type SaunaWindow,
   type SaunaWindowPlacement,
-  type SaunaWindowSize
+  type SaunaWindowSize,
+  SAUNA_DOOR_WALLS
 } from '../outside/terrace';
 
 export interface TerraceCabinOptions {
@@ -30,6 +32,10 @@ export interface TerraceCabinOptions {
   houseDoor?: { along: number; width?: number; head?: number } | null;
   /** Door model choice for the sauna */
   doorId?: SaunaDoor;
+  /** Override which cabin wall gets the primary door. */
+  doorWall?: SaunaDoorWall;
+  /** Add a second door on the yard wall. */
+  yardDoor?: boolean;
   /** Window model choice for the sauna */
   windowId?: SaunaWindow;
   /** Window placement wall */
@@ -46,6 +52,8 @@ export interface TerraceCabinOptions {
   houseCasingHex?: string;
 }
 
+type WallHole = { from: number; to: number; sill: number; head: number };
+
 /**
  * Boarded sauna or shed. Wall tops follow the roof, and the roof bites into
  * that line so the joint does not open into a gap.
@@ -55,6 +63,9 @@ export function addTerraceCabin(group: THREE.Group, options: TerraceCabinOptions
   const sauna = type === 'sauna';
   const colorId = options.colorId ?? 'natural';
   const doorId: SaunaDoor = options.doorId ?? (sauna ? 'glass' : 'solid');
+  const doorWallOpt =
+    options.doorWall && SAUNA_DOOR_WALLS.includes(options.doorWall) ? options.doorWall : null;
+  const yardDoor = options.yardDoor === true && doorWallOpt !== 'yard';
   const windowId: SaunaWindow = options.windowId ?? 'standard';
   const windowPlacement: SaunaWindowPlacement = options.windowPlacement ?? 'yard';
   const windowSize: SaunaWindowSize = options.windowSize ?? 'standard';
@@ -129,13 +140,19 @@ export function addTerraceCabin(group: THREE.Group, options: TerraceCabinOptions
   const houseZ = 0;
   const yardZ = outward * bD;
 
-  const facing = sauna && houseDoor
+  let facing = sauna && houseDoor
     ? { bench: (isLeft ? 'right' : 'left') as CabinWall, window: 'yard' as CabinWall, door: 'house' as CabinWall }
     : (sauna && turn ? saunaFacing(turn, isLeft) : saunaFacing(0, isLeft));
+  if (sauna && doorWallOpt) {
+    facing = { ...facing, door: doorWallOpt };
+  }
   const walls = cabinWalls(x0, x1, houseZ, yardZ, outward, bD, topAt, yardTop);
 
-  // Compute window holes for candidate walls
-  const windowHoles: Partial<Record<CabinWall, { from: number; to: number; sill: number; head: number } | null>> = {};
+  const doorWallIds: CabinWall[] = [facing.door];
+  if (sauna && yardDoor && facing.door !== 'yard') doorWallIds.push('yard');
+
+  // Window holes — skip walls that already carry a door unless we can split the span.
+  const windowHoles: Partial<Record<CabinWall, WallHole | null>> = {};
   if (windowId !== 'none' && windowPlacement !== 'none') {
     const candidateWalls: CabinWall[] = [];
     if (windowPlacement === 'yard' || windowPlacement === 'both') {
@@ -146,18 +163,48 @@ export function addTerraceCabin(group: THREE.Group, options: TerraceCabinOptions
       if (!candidateWalls.includes(sideWall)) candidateWalls.push(sideWall);
     }
     for (const wId of candidateWalls) {
-      if (wId !== facing.door && wId !== 'house') {
-        windowHoles[wId] = openingOn(walls[wId], 'window', bD, deckTop, outward, openFront, undefined, undefined, windowId, windowSize);
-      }
+      if (wId === 'house') continue;
+      const sharesDoor = doorWallIds.includes(wId);
+      // Keep a window beside a door on the same wall (offset toward the far end).
+      const targetAlong = sharesDoor ? wallFractionAlong(walls[wId], 0.28) : undefined;
+      windowHoles[wId] = openingOn(
+        walls[wId],
+        'window',
+        bD,
+        deckTop,
+        outward,
+        openFront,
+        targetAlong,
+        undefined,
+        windowId,
+        windowSize
+      );
     }
   }
 
-  const targetAlong = facing.door === 'house' && houseDoor ? houseDoor.along : undefined;
-  const targetWidth = facing.door === 'house' && houseDoor ? houseDoor.width : undefined;
-  const doorOpening = openingOn(walls[facing.door], 'door', bD, deckTop, outward, openFront, targetAlong, targetWidth);
+  const doorOpenings: { wall: CabinWall; hole: WallHole }[] = [];
+  for (const wallId of doorWallIds) {
+    const isPrimary = wallId === facing.door;
+    const targetAlong =
+      isPrimary && wallId === 'house' && houseDoor
+        ? houseDoor.along
+        : doorWallIds.length > 1 && wallId === 'yard'
+          ? wallFractionAlong(walls[wallId], 0.72)
+          : windowHoles[wallId]
+            ? wallFractionAlong(walls[wallId], 0.72)
+            : undefined;
+    const targetWidth = isPrimary && wallId === 'house' && houseDoor ? houseDoor.width : undefined;
+    const hole = openingOn(walls[wallId], 'door', bD, deckTop, outward, openFront, targetAlong, targetWidth);
+    if (hole) doorOpenings.push({ wall: wallId, hole });
+  }
+
   for (const wall of Object.values(walls)) {
+    const holes: WallHole[] = [];
     const windowHere = windowHoles[wall.id] ?? null;
-    const doorHere = wall.id === facing.door ? doorOpening : null;
+    if (windowHere) holes.push(windowHere);
+    for (const entry of doorOpenings) {
+      if (entry.wall === wall.id) holes.push(entry.hole);
+    }
     addCladWall(group, {
       along: wall.along,
       from: wall.from,
@@ -171,9 +218,10 @@ export function addTerraceCabin(group: THREE.Group, options: TerraceCabinOptions
       recessMat,
       innerMat,
       trimMat: casingMat,
-      hole: windowHere ?? doorHere,
+      holes,
       frameHole: windowHere != null,
-      windowId: windowHere != null ? windowId : undefined
+      windowId: windowHere != null ? windowId : undefined,
+      windowHole: windowHere
     });
   }
 
@@ -211,17 +259,17 @@ export function addTerraceCabin(group: THREE.Group, options: TerraceCabinOptions
     });
   }
 
-  if (doorOpening) {
-    const doorWall = walls[facing.door];
-    const isGlass = doorId === 'glass';
+  const isGlass = doorId === 'glass';
+  for (const entry of doorOpenings) {
+    const doorWall = walls[entry.wall];
     addDoor(group, {
       normal: doorWall.along === 'z' ? 'x' : 'z',
       face: doorWall.face,
       sign: doorWall.faceSign,
-      along: (doorOpening.from + doorOpening.to) / 2,
-      sill: doorOpening.sill,
-      head: doorOpening.head,
-      width: Math.abs(doorOpening.to - doorOpening.from),
+      along: (entry.hole.from + entry.hole.to) / 2,
+      sill: entry.hole.sill,
+      head: entry.hole.head,
+      width: Math.abs(entry.hole.to - entry.hole.from),
       glass: isGlass,
       doorType: doorId,
       sauna,
@@ -240,6 +288,12 @@ interface CabinWallSpec {
   face: number;
   faceSign: number;
   top: (along: number) => number;
+}
+
+function wallFractionAlong(wall: { from: number; to: number }, fraction: number): number {
+  const lo = Math.min(wall.from, wall.to);
+  const hi = Math.max(wall.from, wall.to);
+  return lo + (hi - lo) * fraction;
 }
 
 function cabinWalls(
@@ -276,7 +330,7 @@ function openingOn(
   windowSize: SaunaWindowSize = 'standard'
 ) {
   if (openFront && wall.id === 'yard') return null;
-  if (kind === 'window') return windowOnWall(wall, deckTop, windowId, windowSize);
+  if (kind === 'window') return windowOnWall(wall, deckTop, windowId, windowSize, targetAlong);
   if (wall.along === 'z') {
     const door = doorHole(depth, deckTop, (along) => wall.top(outward * along));
     if (!door) return null;
@@ -289,7 +343,8 @@ function windowOnWall(
   wall: CabinWallSpec,
   deckTop: number,
   windowId: SaunaWindow = 'standard',
-  windowSize: SaunaWindowSize = 'standard'
+  windowSize: SaunaWindowSize = 'standard',
+  targetAlong?: number
 ) {
   if (windowId === 'none') return null;
   const lo = Math.min(wall.from, wall.to);
@@ -320,7 +375,13 @@ function windowOnWall(
     sill = Math.max(deckTop + 0.35, sill - 0.08);
   }
 
-  const mid = (lo + hi) / 2;
+  // When sharing a wall with a door, shrink so both openings fit.
+  if (targetAlong != null) width = Math.min(width, Math.max(0.55, span * 0.42));
+
+  let mid = targetAlong != null ? targetAlong : (lo + hi) / 2;
+  const minMid = lo + width / 2 + 0.05;
+  const maxMid = hi - width / 2 - 0.05;
+  if (minMid <= maxMid) mid = Math.max(minMid, Math.min(maxMid, mid));
   const clearance = Math.min(wall.top(mid - width / 2), wall.top(mid + width / 2));
   head = Math.min(head, clearance - 0.06);
   if (head - sill < 0.3) return null;
@@ -382,9 +443,10 @@ interface CladWall {
   recessMat: THREE.Material;
   innerMat: THREE.Material;
   trimMat: THREE.Material;
-  hole: { from: number; to: number; sill: number; head: number } | null;
+  holes: WallHole[];
   frameHole: boolean;
   windowId?: SaunaWindow;
+  windowHole?: WallHole | null;
 }
 
 function addCladWall(group: THREE.Group, wall: CladWall) {
@@ -399,12 +461,14 @@ function addCladWall(group: THREE.Group, wall: CladWall) {
   const step = run / count;
   const faceT = 0.02;
   const recessT = 0.012;
-  const hole = snapHole(wall.hole, from, step);
-  let framedHole = false;
+  const holes = wall.holes
+    .map((hole) => snapHole(hole, from, step))
+    .filter((hole): hole is WallHole => hole != null);
   for (let index = 0; index < count; index += 1) {
     const a0 = from + index * step;
     const a1 = a0 + step;
     const proud = index % 2 === 0 ? wall.outerMat : wall.altMat;
+    const hole = holes.find((h) => overlaps(a0, a1, h.from, h.to)) ?? null;
     for (const segment of slopedSegments(wall, a0, a1, hole)) {
       addSlopedBoard(group, wall, segment, wall.face, recessT, wall.recessMat, false);
       addSlopedBoard(
@@ -419,13 +483,13 @@ function addCladWall(group: THREE.Group, wall: CladWall) {
       addSlopedBoard(group, wall, insetSegment(segment, 0.005), wall.face - wall.faceSign * 0.07, 0.014, wall.innerMat, false);
     }
   }
-  if (hole && wall.frameHole && !framedHole) {
-    framedHole = true;
-    addOpeningFrame(group, wall, hole, wall.trimMat, wall.windowId);
+  if (wall.frameHole && wall.windowHole) {
+    const framed = snapHole(wall.windowHole, from, step);
+    if (framed) addOpeningFrame(group, wall, framed, wall.trimMat, wall.windowId);
   }
 }
 
-function snapHole(hole: CladWall['hole'], origin: number, step: number): CladWall['hole'] {
+function snapHole(hole: WallHole | null | undefined, origin: number, step: number): WallHole | null {
   if (!hole) return null;
   const snap = (value: number) => origin + Math.round((value - origin) / step) * step;
   const from = snap(Math.min(hole.from, hole.to));
@@ -442,7 +506,7 @@ interface BoardSegment {
   top1: number;
 }
 
-function slopedSegments(wall: CladWall, from: number, to: number, hole: CladWall['hole']): BoardSegment[] {
+function slopedSegments(wall: CladWall, from: number, to: number, hole: WallHole | null): BoardSegment[] {
   const top0 = wall.top(from);
   const top1 = wall.top(to);
   if (!hole || !overlaps(from, to, hole.from, hole.to) || hole.head - hole.sill < 0.2) {

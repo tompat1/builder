@@ -38,6 +38,10 @@ export const SAUNA_COLORS = ['natural', 'svart', 'falurod', 'gra', 'vit', 'match
 export type SaunaDoor = 'glass' | 'lervik' | 'stehag' | 'solid';
 export const SAUNA_DOORS = ['glass', 'lervik', 'stehag', 'solid'] as const;
 
+/** Which cabin wall gets the primary sauna door. */
+export type SaunaDoorWall = 'house' | 'left' | 'right' | 'yard';
+export const SAUNA_DOOR_WALLS = ['house', 'left', 'right', 'yard'] as const;
+
 export type SaunaWindow = 'panorama' | 'standard' | 'sprojat' | 'frost' | 'none';
 export const SAUNA_WINDOWS = ['panorama', 'standard', 'sprojat', 'frost', 'none'] as const;
 
@@ -122,6 +126,10 @@ export interface HouseTerrace {
   buildingColor?: SaunaColor;
   /** Door model choice for the sauna */
   buildingDoor?: SaunaDoor;
+  /** Cabin wall for the primary sauna door. */
+  buildingDoorWall?: SaunaDoorWall;
+  /** Second door on the yard wall (when the primary door is elsewhere). */
+  buildingYardDoor?: boolean;
   /** Window style choice for the sauna */
   buildingWindow?: SaunaWindow;
   /** Which wall(s) have windows */
@@ -340,6 +348,11 @@ export function acceptTerraces(value: unknown): HouseTerrace[] {
       row.buildingDoor && SAUNA_DOORS.includes(row.buildingDoor as SaunaDoor)
         ? (row.buildingDoor as SaunaDoor)
         : undefined;
+    const buildingDoorWall: SaunaDoorWall | undefined =
+      row.buildingDoorWall && SAUNA_DOOR_WALLS.includes(row.buildingDoorWall as SaunaDoorWall)
+        ? (row.buildingDoorWall as SaunaDoorWall)
+        : undefined;
+    const buildingYardDoor = row.buildingYardDoor === true;
     const buildingWindow: SaunaWindow | undefined =
       row.buildingWindow && SAUNA_WINDOWS.includes(row.buildingWindow as SaunaWindow)
         ? (row.buildingWindow as SaunaWindow)
@@ -373,6 +386,8 @@ export function acceptTerraces(value: unknown): HouseTerrace[] {
       ...(buildingTurn ? { buildingTurn } : {}),
       ...(buildingColor ? { buildingColor } : {}),
       ...(buildingDoor ? { buildingDoor } : {}),
+      ...(buildingDoorWall ? { buildingDoorWall } : {}),
+      ...(buildingYardDoor ? { buildingYardDoor: true } : {}),
       ...(buildingWindow ? { buildingWindow } : {}),
       ...(buildingWindowPlacement ? { buildingWindowPlacement } : {}),
       ...(buildingSize ? { buildingSize } : {}),

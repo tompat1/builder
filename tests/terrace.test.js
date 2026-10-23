@@ -257,6 +257,33 @@ test('sauna wall tops meet the chosen roof with no open joint', () => {
   assert.ok(pulpetRise > lowRise);
 });
 
+test('a sauna accepts a door wall, yard door, and drops unknown door walls', () => {
+  const kept = acceptTerraces([
+    {
+      side: 'front',
+      depth: 2.2,
+      span: 'full',
+      roof: false,
+      building: 'sauna',
+      buildingDoorWall: 'left',
+      buildingYardDoor: true
+    },
+    {
+      side: 'back',
+      depth: 2.2,
+      span: 'full',
+      roof: false,
+      building: 'sauna',
+      buildingDoorWall: 'porch',
+      buildingYardDoor: 'yes'
+    }
+  ]);
+  assert.equal(kept[0].buildingDoorWall, 'left');
+  assert.equal(kept[0].buildingYardDoor, true);
+  assert.equal(kept[1].buildingDoorWall, undefined);
+  assert.equal(kept[1].buildingYardDoor, undefined);
+});
+
 test('a sauna accepts custom door, window, placement, and color, and drops unknown values', () => {
   const terraces = acceptTerraces([
     {

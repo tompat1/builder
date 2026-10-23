@@ -2330,6 +2330,55 @@
             <Cms :k="`category.saunaDoor_${d}`" />
           </button>
         </div>
+        <div class="pt-1">
+          <p class="mb-1 text-[11px] font-bold text-amber-950">
+            <Cms k="category.terraceSaunaDoorWall" />
+          </p>
+          <p class="mb-1.5 text-[10px] text-amber-800/80 leading-snug">
+            <Cms k="category.saunaDoorWallHint" />
+          </p>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+            <button
+              v-for="wall in saunaDoorWalls"
+              :key="wall"
+              type="button"
+              :id="`doors-quick-sauna-door-wall-${wall}`"
+              :aria-pressed="(terraceWithSauna.buildingDoorWall ?? 'house') === wall"
+              :class="terraceChoiceClass((terraceWithSauna.buildingDoorWall ?? 'house') === wall)"
+              @click="store.setTerraceBuildingDoorWall(terraceWithSauna.side, wall)"
+            >
+              <Cms :k="`category.saunaDoorWall_${wall}`" />
+            </button>
+          </div>
+        </div>
+        <div v-if="(terraceWithSauna.buildingDoorWall ?? 'house') !== 'yard'" class="pt-1">
+          <p class="mb-1 text-[11px] font-bold text-amber-950">
+            <Cms k="category.terraceSaunaYardDoor" />
+          </p>
+          <p class="mb-1.5 text-[10px] text-amber-800/80 leading-snug">
+            <Cms k="category.saunaYardDoorHint" />
+          </p>
+          <div class="grid grid-cols-2 gap-1.5">
+            <button
+              type="button"
+              id="doors-quick-sauna-yard-door-on"
+              :aria-pressed="terraceWithSauna.buildingYardDoor === true"
+              :class="terraceChoiceClass(terraceWithSauna.buildingYardDoor === true)"
+              @click="store.setTerraceBuildingYardDoor(terraceWithSauna.side, true)"
+            >
+              <Cms k="category.saunaYardDoorOn" />
+            </button>
+            <button
+              type="button"
+              id="doors-quick-sauna-yard-door-off"
+              :aria-pressed="!terraceWithSauna.buildingYardDoor"
+              :class="terraceChoiceClass(!terraceWithSauna.buildingYardDoor)"
+              @click="store.setTerraceBuildingYardDoor(terraceWithSauna.side, false)"
+            >
+              <Cms k="category.saunaYardDoorOff" />
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- Category Title matching other sections -->
@@ -3083,6 +3132,51 @@
 
                 <div>
                   <p class="mb-1 text-[11px] font-bold text-slate-700">
+                    <Cms k="category.terraceSaunaDoorWall" />
+                  </p>
+                  <div class="grid grid-cols-2 gap-1.5">
+                    <button
+                      v-for="wall in saunaDoorWalls"
+                      :key="wall"
+                      type="button"
+                      :id="`terrace-${deck.side}-sauna-door-wall-${wall}`"
+                      :aria-pressed="(deck.buildingDoorWall ?? 'house') === wall"
+                      :class="terraceChoiceClass((deck.buildingDoorWall ?? 'house') === wall)"
+                      @click="store.setTerraceBuildingDoorWall(deck.side, wall)"
+                    >
+                      <Cms :k="`category.saunaDoorWall_${wall}`" />
+                    </button>
+                  </div>
+                </div>
+
+                <div v-if="(deck.buildingDoorWall ?? 'house') !== 'yard'">
+                  <p class="mb-1 text-[11px] font-bold text-slate-700">
+                    <Cms k="category.terraceSaunaYardDoor" />
+                  </p>
+                  <div class="grid grid-cols-2 gap-1.5">
+                    <button
+                      type="button"
+                      :id="`terrace-${deck.side}-sauna-yard-door-on`"
+                      :aria-pressed="deck.buildingYardDoor === true"
+                      :class="terraceChoiceClass(deck.buildingYardDoor === true)"
+                      @click="store.setTerraceBuildingYardDoor(deck.side, true)"
+                    >
+                      <Cms k="category.saunaYardDoorOn" />
+                    </button>
+                    <button
+                      type="button"
+                      :id="`terrace-${deck.side}-sauna-yard-door-off`"
+                      :aria-pressed="!deck.buildingYardDoor"
+                      :class="terraceChoiceClass(!deck.buildingYardDoor)"
+                      @click="store.setTerraceBuildingYardDoor(deck.side, false)"
+                    >
+                      <Cms k="category.saunaYardDoorOff" />
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <p class="mb-1 text-[11px] font-bold text-slate-700">
                     <Cms k="category.terraceSaunaWindow" />
                   </p>
                   <div class="grid grid-cols-3 gap-1.5">
@@ -3184,6 +3278,7 @@ import {
   SAUNA_TURNS,
   SAUNA_COLORS,
   SAUNA_DOORS,
+  SAUNA_DOOR_WALLS,
   SAUNA_WINDOWS,
   SAUNA_WINDOW_PLACEMENTS,
   SAUNA_SIZES,
@@ -3310,6 +3405,7 @@ function terraceRoofKey(roof: TerraceBuildingRoof) {
 const terraceDepths = TERRACE_DEPTHS;
 const saunaColors = SAUNA_COLORS;
 const saunaDoors = SAUNA_DOORS;
+const saunaDoorWalls = SAUNA_DOOR_WALLS;
 const saunaWindows = SAUNA_WINDOWS;
 const saunaPlacements = SAUNA_WINDOW_PLACEMENTS.filter((p) => p !== 'none');
 const saunaSizes = SAUNA_SIZES;

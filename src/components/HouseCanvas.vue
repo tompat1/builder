@@ -627,7 +627,7 @@ watch(
 watch(
   [
     () => store.doorCanopy,
-    () => store.terraces.map((item) => `${item.side}:${item.depth}:${item.span}:${item.roof ? 1 : 0}:${item.building ?? 'none'}:${item.hotTub ? 1 : 0}:${item.buildingPlacement ?? 'right'}:${item.buildingRoof ?? 'pulpet'}:${item.buildingTurn ?? 0}:${item.buildingColor ?? 'natural'}:${item.buildingDoor ?? 'glass'}:${item.buildingWindow ?? 'panorama'}:${item.buildingWindowPlacement ?? 'yard'}:${item.buildingSize ?? 'standard'}:${item.buildingWindowSize ?? 'standard'}`).join('|')
+    () => store.terraces.map((item) => `${item.side}:${item.depth}:${item.span}:${item.roof ? 1 : 0}:${item.building ?? 'none'}:${item.hotTub ? 1 : 0}:${item.buildingPlacement ?? 'right'}:${item.buildingRoof ?? 'pulpet'}:${item.buildingTurn ?? 0}:${item.buildingColor ?? 'natural'}:${item.buildingDoor ?? 'glass'}:${item.buildingDoorWall ?? 'auto'}:${item.buildingYardDoor ? 1 : 0}:${item.buildingWindow ?? 'panorama'}:${item.buildingWindowPlacement ?? 'yard'}:${item.buildingSize ?? 'standard'}:${item.buildingWindowSize ?? 'standard'}`).join('|')
   ],
   () => {
     engine?.updateConfig({

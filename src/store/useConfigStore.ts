@@ -97,6 +97,8 @@ import {
   SAUNA_COLORS,
   type SaunaDoor,
   SAUNA_DOORS,
+  type SaunaDoorWall,
+  SAUNA_DOOR_WALLS,
   type SaunaWindow,
   SAUNA_WINDOWS,
   type SaunaWindowPlacement,
@@ -603,8 +605,8 @@ export const OUTSIDE_PRICES = {
   bigTerrace: 72600
 } as const;
 
-export type { HouseTerrace, TerraceDepth, TerraceSide, TerraceSpan, TerraceBuilding, TerraceBuildingPlacement, TerraceBuildingRoof, SaunaTurn };
-export { TERRACE_BUILDINGS, TERRACE_BUILDING_PLACEMENTS, SAUNA_BUILDING_PRICE, SHED_BUILDING_PRICE, HOT_TUB_BUILDING_PRICE };
+export type { HouseTerrace, TerraceDepth, TerraceSide, TerraceSpan, TerraceBuilding, TerraceBuildingPlacement, TerraceBuildingRoof, SaunaTurn, SaunaDoorWall };
+export { TERRACE_BUILDINGS, TERRACE_BUILDING_PLACEMENTS, SAUNA_BUILDING_PRICE, SHED_BUILDING_PRICE, HOT_TUB_BUILDING_PRICE, SAUNA_DOOR_WALLS };
 
 import {
   type WallSlot,
@@ -2063,6 +2065,8 @@ export const useConfigStore = defineStore('config', () => {
     const buildingTurnChanged = (next.buildingTurn ?? 0) !== (current.buildingTurn ?? 0);
     const buildingColorChanged = (next.buildingColor ?? 'natural') !== (current.buildingColor ?? 'natural');
     const buildingDoorChanged = (next.buildingDoor ?? 'glass') !== (current.buildingDoor ?? 'glass');
+    const buildingDoorWallChanged = (next.buildingDoorWall ?? null) !== (current.buildingDoorWall ?? null);
+    const buildingYardDoorChanged = Boolean(next.buildingYardDoor) !== Boolean(current.buildingYardDoor);
     const buildingWindowChanged = (next.buildingWindow ?? 'panorama') !== (current.buildingWindow ?? 'panorama');
     const buildingWindowPlacementChanged = (next.buildingWindowPlacement ?? 'yard') !== (current.buildingWindowPlacement ?? 'yard');
     const buildingSizeChanged = (next.buildingSize ?? 'standard') !== (current.buildingSize ?? 'standard');
@@ -2079,6 +2083,8 @@ export const useConfigStore = defineStore('config', () => {
       !buildingTurnChanged &&
       !buildingColorChanged &&
       !buildingDoorChanged &&
+      !buildingDoorWallChanged &&
+      !buildingYardDoorChanged &&
       !buildingWindowChanged &&
       !buildingWindowPlacementChanged &&
       !buildingSizeChanged &&
@@ -2174,7 +2180,21 @@ export const useConfigStore = defineStore('config', () => {
   const setTerraceBuildingDoor = (side: TerraceSide, buildingDoor: SaunaDoor) => {
     if (!SAUNA_DOORS.includes(buildingDoor)) return;
     replaceTerrace(side, { buildingDoor });
-  }
+  };
+
+  const setTerraceBuildingDoorWall = (side: TerraceSide, buildingDoorWall: SaunaDoorWall) => {
+    if (!SAUNA_DOOR_WALLS.includes(buildingDoorWall)) return;
+    const patch: Partial<HouseTerrace> = { buildingDoorWall };
+    // Primary already on the yard — a separate yard door is redundant.
+    if (buildingDoorWall === 'yard') patch.buildingYardDoor = false;
+    replaceTerrace(side, patch);
+  };
+
+  const setTerraceBuildingYardDoor = (side: TerraceSide, buildingYardDoor: boolean) => {
+    const current = terraces.value.find((item) => item.side === side);
+    if (buildingYardDoor && (current?.buildingDoorWall ?? 'house') === 'yard') return;
+    replaceTerrace(side, { buildingYardDoor });
+  };
 
   const setTerraceBuildingWindow = (side: TerraceSide, buildingWindow: SaunaWindow) => {
     if (!SAUNA_WINDOWS.includes(buildingWindow)) return;
@@ -3117,6 +3137,8 @@ export const useConfigStore = defineStore('config', () => {
     setTerraceBuildingTurn,
     setTerraceBuildingColor,
     setTerraceBuildingDoor,
+    setTerraceBuildingDoorWall,
+    setTerraceBuildingYardDoor,
     setTerraceBuildingWindow,
     setTerraceBuildingWindowPlacement,
     setTerraceBuildingSize,

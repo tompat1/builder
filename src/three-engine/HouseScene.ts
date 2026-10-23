@@ -4091,6 +4091,8 @@ export class HouseScene {
         openFront: this.interiorCut(),
         houseDoor: houseDoorSpec,
         doorId: terrace.buildingDoor,
+        doorWall: terrace.buildingDoorWall,
+        yardDoor: terrace.buildingYardDoor,
         windowId: terrace.buildingWindow,
         windowPlacement: terrace.buildingWindowPlacement,
         windowSize: terrace.buildingWindowSize,
