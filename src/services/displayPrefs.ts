@@ -59,8 +59,15 @@ export function saveDisplayPrefs(prefs: DisplayPrefs) {
 }
 
 export const DEFAULT_PANEL_WIDTH = 410;
-export const MIN_PANEL_WIDTH = 380;
+/** Narrow enough for one option-card column (and one scrollable nav slot). */
+export const MIN_PANEL_WIDTH = 200;
 export const MAX_PANEL_WIDTH = 960;
+/** At or below this width, option grids collapse to a single column. */
+export const SINGLE_COLUMN_PANEL_WIDTH = 320;
+
+export function isSingleColumnPanelWidth(width: number): boolean {
+  return Number.isFinite(width) && width <= SINGLE_COLUMN_PANEL_WIDTH;
+}
 
 export function clampPanelWidth(width: number, viewportWidth = 1280): number {
   if (!Number.isFinite(width)) return DEFAULT_PANEL_WIDTH;
@@ -86,6 +93,45 @@ export function savePanelWidth(width: number) {
   if (!store) return;
   try {
     store.setItem('builder:panel-width', String(Math.round(width)));
+  } catch {
+    // Ignore
+  }
+}
+
+/** Desktop config panel height: one scrollable category row (four items visible). */
+export const MIN_PANEL_HEIGHT = 88;
+/** Top (top-24) + bottom (1.5rem) margins used when filling the viewport. */
+export const PANEL_HEIGHT_CHROME = 120;
+
+export function maxPanelHeight(viewportHeight = 800): number {
+  if (!Number.isFinite(viewportHeight)) return MIN_PANEL_HEIGHT;
+  return Math.max(MIN_PANEL_HEIGHT, Math.round(viewportHeight - PANEL_HEIGHT_CHROME));
+}
+
+export function clampPanelHeight(height: number, viewportHeight = 800): number {
+  if (!Number.isFinite(height)) return maxPanelHeight(viewportHeight);
+  const maxAllowed = maxPanelHeight(viewportHeight);
+  return Math.round(Math.max(MIN_PANEL_HEIGHT, Math.min(maxAllowed, height)));
+}
+
+export function loadPanelHeight(viewportHeight = 800): number {
+  const store = readStore();
+  if (!store) return maxPanelHeight(viewportHeight);
+  try {
+    const raw = store.getItem('builder:panel-height');
+    if (!raw) return maxPanelHeight(viewportHeight);
+    const parsed = Number.parseInt(raw, 10);
+    return clampPanelHeight(parsed, viewportHeight);
+  } catch {
+    return maxPanelHeight(viewportHeight);
+  }
+}
+
+export function savePanelHeight(height: number) {
+  const store = readStore();
+  if (!store) return;
+  try {
+    store.setItem('builder:panel-height', String(Math.round(height)));
   } catch {
     // Ignore
   }

@@ -386,7 +386,8 @@ const sv = {
     show: 'Visa panel ▲',
     hide: 'Minimera ▼',
     export: 'Exportera',
-    resizeHandle: 'Dra för att ändra panelens bredd (dubbelklicka för att återställa)'
+    resizeHandle: 'Dra för att ändra panelens bredd (dubbelklicka för att återställa)',
+    resizeHeightHandle: 'Dra för att ändra panelens höjd (dubbelklicka för att återställa)'
   },
   nav: {
     label: 'Konfigurationssteg',
@@ -1412,7 +1413,8 @@ const en = {
     show: 'Show panel ▲',
     hide: 'Minimise ▼',
     export: 'Export',
-    resizeHandle: 'Drag to resize panel width (double-click to reset)'
+    resizeHandle: 'Drag to resize panel width (double-click to reset)',
+    resizeHeightHandle: 'Drag to resize panel height (double-click to reset)'
   },
   nav: {
     label: 'Configuration steps',

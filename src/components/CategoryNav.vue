@@ -1,7 +1,7 @@
 <template>
   <nav
     ref="navEl"
-    class="flex w-full min-w-0 gap-1.5 overflow-x-auto overscroll-x-contain min-[1180px]:grid min-[1180px]:grid-cols-4 min-[1180px]:gap-1.5 min-[1180px]:overflow-visible min-[1180px]:max-w-[420px] min-[1180px]:mx-auto"
+    class="flex w-full min-w-0 gap-1.5 overflow-x-auto overscroll-x-contain scroll-smooth [scrollbar-width:thin]"
     :aria-label="t('nav.label')"
   >
     <button
@@ -12,11 +12,12 @@
       @click="pick(cat.id)"
       :aria-expanded="store.selectedCategory === cat.id ? expanded : undefined"
       :class="[
-        'flex w-[4.75rem] shrink-0 flex-col items-center justify-center min-h-11 py-2 px-1 rounded-xl transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 min-[1180px]:w-auto min-[1180px]:shrink min-[1180px]:min-h-[3rem] min-[1180px]:py-1.5',
+        'flex w-[4.75rem] shrink-0 flex-col items-center justify-center min-h-11 py-2 px-1 rounded-xl transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 min-[1180px]:min-h-[3rem] min-[1180px]:py-1.5',
         store.selectedCategory === cat.id
           ? 'bg-slate-900 text-white shadow-sm border border-slate-900'
           : 'bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-slate-200/60 hover:border-[#FF5A00]'
       ]"
+      :style="desktopItemStyle"
       :aria-current="store.selectedCategory === cat.id ? 'step' : undefined"
     >
       <!-- Authored SVG Architectural Icons (No Emojis) -->
@@ -92,7 +93,7 @@
 </template>
 
 <script setup lang="ts">
-import { nextTick, ref, watch } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import { useConfigStore, type CategoryKey } from '../store/useConfigStore';
 import { useLabels } from '../i18n';
 import Cms from './Cms.vue';
@@ -101,13 +102,26 @@ const store = useConfigStore();
 const { t } = useLabels();
 const navEl = ref<HTMLElement | null>(null);
 
-defineProps<{
-  expanded: boolean;
-}>();
+const props = withDefaults(
+  defineProps<{
+    expanded: boolean;
+    /** How many category slots fit in the desktop panel before scrolling. */
+    desktopSlots?: number;
+  }>(),
+  { desktopSlots: 4 }
+);
 
 const emit = defineEmits<{
   (e: 'pick', id: CategoryKey): void;
 }>();
+
+const desktopItemStyle = computed(() => {
+  const slots = Math.max(1, Math.round(props.desktopSlots));
+  const gapTotal = `${(slots - 1) * 0.375}rem`;
+  return {
+    '--nav-slot-width': `calc((100% - ${gapTotal}) / ${slots})`
+  } as Record<string, string>;
+});
 
 function pick(id: CategoryKey) {
   emit('pick', id);
@@ -133,3 +147,11 @@ const categories: { id: CategoryKey }[] = [
   { id: 'interior' }
 ];
 </script>
+
+<style scoped>
+@media (min-width: 1180px) {
+  button {
+    width: var(--nav-slot-width);
+  }
+}
+</style>

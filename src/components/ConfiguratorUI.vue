@@ -91,7 +91,8 @@
     <aside
       v-if="!store.isFullscreen && !store.framingWalkthrough"
       id="config-panel"
-      class="pointer-events-auto z-40 mt-auto flex w-full flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 shadow-xl backdrop-blur-md max-[1179px]:max-h-[min(68dvh,calc(100dvh-11rem))] min-[1180px]:absolute min-[1180px]:bottom-[max(1.5rem,env(safe-area-inset-bottom))] min-[1180px]:right-6 min-[1180px]:top-24 min-[1180px]:h-auto min-[1180px]:max-h-[calc(100dvh-7.5rem)] min-[1180px]:justify-between"
+      class="pointer-events-auto z-40 mt-auto flex w-full flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-white/95 shadow-xl backdrop-blur-md max-[1179px]:max-h-[min(68dvh,calc(100dvh-11rem))] min-[1180px]:absolute min-[1180px]:bottom-[max(1.5rem,env(safe-area-inset-bottom))] min-[1180px]:right-6 min-[1180px]:top-auto min-[1180px]:max-h-[calc(100dvh-7.5rem)] min-[1180px]:justify-between"
+      :data-panel-cols="panelSingleColumn ? '1' : 'multi'"
       :style="panelInlineStyle"
       :aria-label="t('panel.label')"
     >
@@ -119,8 +120,35 @@
         />
       </div>
 
+      <!-- Top Height Resize Handle (Desktop only) -->
+      <div
+        id="config-panel-height-resizer"
+        role="separator"
+        aria-orientation="horizontal"
+        tabindex="0"
+        :aria-valuenow="desktopPanelHeight"
+        :aria-valuemin="MIN_PANEL_HEIGHT"
+        :aria-valuemax="maxDesktopPanelHeight"
+        :aria-label="t('panel.resizeHeightHandle')"
+        :title="t('panel.resizeHeightHandle')"
+        class="hidden min-[1180px]:flex absolute left-0 right-0 top-0 h-3.5 cursor-row-resize items-center justify-center z-50 select-none group touch-none focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF5A00]"
+        @pointerdown="onHeightResizeStart"
+        @dblclick="onHeightResizeReset"
+        @keydown="onHeightResizeKeydown"
+      >
+        <div
+          class="w-10 h-1 rounded-full transition-all duration-150 shadow-2xs"
+          :class="isHeightResizing
+            ? 'w-16 h-1.5 bg-[#FF5A00] ring-2 ring-[#FF5A00]/30 shadow-md'
+            : 'bg-slate-300/80 group-hover:w-14 group-hover:h-1.5 group-hover:bg-[#FF5A00] group-hover:shadow-sm'"
+        />
+      </div>
+
       <!-- Main Panel Title (Desktop) -->
-      <div class="hidden min-[1180px]:block shrink-0 border-b border-slate-100 px-5 pb-2 pt-4">
+      <div
+        v-show="!panelCompact"
+        class="hidden min-[1180px]:block shrink-0 border-b border-slate-100 px-5 pb-2 pt-4"
+      >
         <h2 class="text-base font-extrabold tracking-tight text-slate-900">
           <Cms k="panel.title" />
         </h2>
@@ -128,16 +156,18 @@
 
       <!-- Options sit above the icon row on a phone, and under it on a wide screen. -->
       <div
+        v-show="narrow || !panelCompact"
         id="config-sheet-options"
         class="sheet-reveal min-h-0 max-[1179px]:order-1 min-[1180px]:flex min-[1180px]:min-h-0 min-[1180px]:flex-1 min-[1180px]:flex-col"
         :class="sheetOpen ? 'is-open' : ''"
-        :aria-hidden="narrow && !sheetOpen ? true : undefined"
-        :inert="narrow && !sheetOpen ? true : undefined"
+        :aria-hidden="(narrow && !sheetOpen) || (!narrow && panelCompact) ? true : undefined"
+        :inert="(narrow && !sheetOpen) || (!narrow && panelCompact) ? true : undefined"
       >
         <div class="min-h-0 max-[1179px]:overflow-hidden min-[1180px]:flex min-[1180px]:min-h-0 min-[1180px]:flex-1 min-[1180px]:flex-col">
           <div
             ref="optionsScroll"
             class="panel-scrollbar max-h-[calc(min(68dvh,100dvh-11rem)-6.25rem)] space-y-4 overflow-y-auto overscroll-contain p-4 min-[1180px]:max-h-none min-[1180px]:min-h-0 min-[1180px]:flex-1 md:p-5"
+            :class="panelSingleColumn ? 'min-[1180px]:!p-3' : ''"
           >
             <OptionsGrid @placed="closeMobilePicker" />
             <AIAssistantBar />
@@ -146,12 +176,22 @@
       </div>
 
       <!-- Category icons. On a phone this row is the whole bar until a step is chosen. -->
-      <div class="w-full min-w-0 shrink-0 border-t border-slate-100/80 bg-white/50 px-3 py-2.5 max-[1179px]:order-2 max-[1179px]:pb-[max(0.625rem,env(safe-area-inset-bottom))] min-[1180px]:border-b min-[1180px]:border-t-0 min-[1180px]:px-3.5 min-[1180px]:py-2.5">
-        <CategoryNav :expanded="narrow ? sheetOpen : true" @pick="onPickCategory" />
+      <div
+        class="w-full min-w-0 shrink-0 border-t border-slate-100/80 bg-white/50 px-3 py-2.5 max-[1179px]:order-2 max-[1179px]:pb-[max(0.625rem,env(safe-area-inset-bottom))] min-[1180px]:border-b min-[1180px]:border-t-0 min-[1180px]:px-3.5 min-[1180px]:py-2.5"
+        :class="panelCompact ? 'min-[1180px]:border-t-0 min-[1180px]:pt-3.5' : ''"
+      >
+        <CategoryNav
+          :expanded="narrow ? sheetOpen : !panelCompact"
+          :desktop-slots="panelSingleColumn ? 1 : 4"
+          @pick="onPickCategory"
+        />
       </div>
 
       <!-- Footer Quick Status Summary -->
-      <div class="hidden shrink-0 items-center rounded-b-2xl border-t border-slate-100 bg-slate-50/90 p-3 min-[1180px]:flex md:p-4">
+      <div
+        v-show="!panelCompact"
+        class="hidden shrink-0 items-center rounded-b-2xl border-t border-slate-100 bg-slate-50/90 p-3 min-[1180px]:flex md:p-4"
+      >
         <div class="flex items-center gap-2 min-w-0">
           <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-2xs shrink-0"></span>
           <span class="text-xs text-slate-700 font-semibold truncate">
@@ -190,9 +230,15 @@ import { searchAction, searchRequest } from '../search/run';
 import {
   DEFAULT_PANEL_WIDTH,
   MIN_PANEL_WIDTH,
+  MIN_PANEL_HEIGHT,
   clampPanelWidth,
+  clampPanelHeight,
+  maxPanelHeight,
+  isSingleColumnPanelWidth,
   loadPanelWidth,
-  savePanelWidth
+  loadPanelHeight,
+  savePanelWidth,
+  savePanelHeight
 } from '../services/displayPrefs';
 
 const store = useConfigStore();
@@ -210,20 +256,38 @@ const narrow = ref(false);
 const optionsScroll = ref<HTMLElement | null>(null);
 
 const windowWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1280);
+const windowHeight = ref(typeof window !== 'undefined' ? window.innerHeight : 800);
 const desktopPanelWidth = ref(loadPanelWidth(windowWidth.value));
+const desktopPanelHeight = ref(loadPanelHeight(windowHeight.value));
 const isResizing = ref(false);
+const isHeightResizing = ref(false);
 let resizeStartX = 0;
 let resizeStartWidth = 0;
+let resizeStartY = 0;
+let resizeStartHeight = 0;
 
 const maxPanelWidth = computed(() => {
   return Math.min(960, Math.max(MIN_PANEL_WIDTH, windowWidth.value - 120));
 });
 
+const maxDesktopPanelHeight = computed(() => maxPanelHeight(windowHeight.value));
+
+/** Collapsed to chrome for one scrollable category row (four items visible). */
+const panelCompact = computed(
+  () => !narrow.value && desktopPanelHeight.value <= MIN_PANEL_HEIGHT + 8
+);
+
+/** Narrow enough for one option-card column (and one scrollable nav slot). */
+const panelSingleColumn = computed(
+  () => !narrow.value && isSingleColumnPanelWidth(desktopPanelWidth.value)
+);
+
 const panelInlineStyle = computed(() => {
   if (narrow.value) return undefined;
   return {
     width: `${desktopPanelWidth.value}px`,
-    maxWidth: 'calc(100vw - 3rem)'
+    maxWidth: 'calc(100vw - 3rem)',
+    height: `${desktopPanelHeight.value}px`
   };
 });
 
@@ -285,11 +349,93 @@ function onResizeKeydown(event: KeyboardEvent) {
   }
 }
 
+function onHeightResizeStart(event: PointerEvent) {
+  if (event.button !== 0) return;
+  isHeightResizing.value = true;
+  resizeStartY = event.clientY;
+  resizeStartHeight = desktopPanelHeight.value;
+  document.body.style.userSelect = 'none';
+  document.body.style.cursor = 'row-resize';
+  window.addEventListener('pointermove', onHeightResizeMove);
+  window.addEventListener('pointerup', onHeightResizeEnd);
+  window.addEventListener('pointercancel', onHeightResizeEnd);
+}
+
+function onHeightResizeMove(event: PointerEvent) {
+  if (!isHeightResizing.value) return;
+  // Dragging the top edge down shrinks the panel.
+  const deltaY = event.clientY - resizeStartY;
+  desktopPanelHeight.value = clampPanelHeight(
+    resizeStartHeight - deltaY,
+    windowHeight.value
+  );
+}
+
+function onHeightResizeEnd() {
+  if (!isHeightResizing.value) return;
+  isHeightResizing.value = false;
+  document.body.style.userSelect = '';
+  document.body.style.cursor = '';
+  window.removeEventListener('pointermove', onHeightResizeMove);
+  window.removeEventListener('pointerup', onHeightResizeEnd);
+  window.removeEventListener('pointercancel', onHeightResizeEnd);
+  savePanelHeight(desktopPanelHeight.value);
+}
+
+function onHeightResizeReset() {
+  desktopPanelHeight.value = maxDesktopPanelHeight.value;
+  savePanelHeight(desktopPanelHeight.value);
+}
+
+function onHeightResizeKeydown(event: KeyboardEvent) {
+  const step = event.shiftKey ? 50 : 20;
+  if (event.key === 'ArrowUp') {
+    event.preventDefault();
+    desktopPanelHeight.value = clampPanelHeight(
+      desktopPanelHeight.value + step,
+      windowHeight.value
+    );
+    savePanelHeight(desktopPanelHeight.value);
+  } else if (event.key === 'ArrowDown') {
+    event.preventDefault();
+    desktopPanelHeight.value = clampPanelHeight(
+      desktopPanelHeight.value - step,
+      windowHeight.value
+    );
+    savePanelHeight(desktopPanelHeight.value);
+  } else if (event.key === 'Home') {
+    event.preventDefault();
+    desktopPanelHeight.value = MIN_PANEL_HEIGHT;
+    savePanelHeight(desktopPanelHeight.value);
+  } else if (event.key === 'End') {
+    event.preventDefault();
+    desktopPanelHeight.value = maxDesktopPanelHeight.value;
+    savePanelHeight(desktopPanelHeight.value);
+  } else if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault();
+    onHeightResizeReset();
+  }
+}
+
+function expandPanelForOptions() {
+  if (narrow.value || !panelCompact.value) return;
+  const target = Math.max(
+    Math.round(maxDesktopPanelHeight.value * 0.55),
+    Math.min(420, maxDesktopPanelHeight.value)
+  );
+  desktopPanelHeight.value = clampPanelHeight(target, windowHeight.value);
+  savePanelHeight(desktopPanelHeight.value);
+}
+
 function readNarrow() {
   narrow.value = window.matchMedia('(max-width: 1179px)').matches;
   windowWidth.value = window.innerWidth;
+  windowHeight.value = window.innerHeight;
   if (desktopPanelWidth.value > maxPanelWidth.value) {
     desktopPanelWidth.value = maxPanelWidth.value;
+  }
+  if (desktopPanelHeight.value > maxDesktopPanelHeight.value) {
+    desktopPanelHeight.value = maxDesktopPanelHeight.value;
   }
 }
 
@@ -304,6 +450,7 @@ function onPickCategory(id: CategoryKey) {
     sheetOpen.value = false;
     return;
   }
+  expandPanelForOptions();
   store.selectCategory(id);
 }
 
@@ -343,6 +490,9 @@ onBeforeUnmount(() => {
   window.removeEventListener('pointermove', onResizeMove);
   window.removeEventListener('pointerup', onResizeEnd);
   window.removeEventListener('pointercancel', onResizeEnd);
+  window.removeEventListener('pointermove', onHeightResizeMove);
+  window.removeEventListener('pointerup', onHeightResizeEnd);
+  window.removeEventListener('pointercancel', onHeightResizeEnd);
   document.body.style.userSelect = '';
   document.body.style.cursor = '';
 });
@@ -436,5 +586,25 @@ defineEmits<{
 
 .panel-scrollbar::-webkit-scrollbar-thumb:hover {
   background-color: #94a3b8;
+}
+
+/*
+ * Viewport `sm:` breakpoints still see a wide desktop, so force option card
+ * grids to one column when the panel itself is resized narrow.
+ * Dense chip/swatch grids stay at two columns so they remain usable.
+ */
+#config-panel[data-panel-cols='1'] :deep(#config-sheet-options .grid.grid-cols-2),
+#config-panel[data-panel-cols='1'] :deep(#config-sheet-options .grid.sm\:grid-cols-2),
+#config-panel[data-panel-cols='1'] :deep(#config-sheet-options .grid.sm\:grid-cols-3) {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+#config-panel[data-panel-cols='1'] :deep(#config-sheet-options .grid.grid-cols-3),
+#config-panel[data-panel-cols='1'] :deep(#config-sheet-options .grid.grid-cols-4),
+#config-panel[data-panel-cols='1'] :deep(#config-sheet-options .grid.grid-cols-5),
+#config-panel[data-panel-cols='1'] :deep(#config-sheet-options .grid.grid-cols-6),
+#config-panel[data-panel-cols='1'] :deep(#config-sheet-options .grid.sm\:grid-cols-4),
+#config-panel[data-panel-cols='1'] :deep(#config-sheet-options .grid.sm\:grid-cols-5) {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
 }
 </style>
