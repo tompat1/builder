@@ -312,13 +312,13 @@ const actions: SearchEntry[] = [
   }),
   entry({
     id: 'canopy',
-    topic: 'openings',
+    topic: 'roof',
     titleKey: 'search.canopy',
     title: 'Skärmtak',
     hint: '',
-    keywords: ['skärmtak', 'canopy', 'porch', 'entré'],
+    keywords: ['skärmtak', 'canopy', 'porch', 'entré', 'door roof', 'dörrtak'],
     path: '/build',
-    category: 'extras',
+    category: 'roof',
     focus: 'option-door-canopy'
   }),
   entry({

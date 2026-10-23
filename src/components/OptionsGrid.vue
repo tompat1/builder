@@ -1529,6 +1529,33 @@
           </button>
         </div>
       </div>
+
+      <div class="pt-1 space-y-2">
+        <p class="text-xs font-bold text-slate-900"><Cms k="category.doorCanopy" /></p>
+        <p class="text-[11px] text-slate-500"><Cms k="category.outsidePlace" /></p>
+        <button
+          type="button"
+          id="option-door-canopy"
+          @click="store.setDoorCanopy(!store.doorCanopy)"
+          :aria-pressed="store.doorCanopy"
+          :class="outsideCardClass(store.doorCanopy)"
+        >
+          <div class="w-full h-24 bg-slate-100/80 rounded-lg flex items-center justify-center mb-2">
+            <svg class="w-full h-full text-slate-700" viewBox="0 0 160 80" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M28 34h104" />
+              <path d="M36 34 48 22h64l12 12" />
+              <path d="M52 34v22" />
+              <path d="M108 34v22" />
+              <rect x="70" y="40" width="20" height="22" />
+            </svg>
+          </div>
+          <div class="flex items-center justify-between gap-2">
+            <p class="text-xs font-bold text-slate-900"><Cms k="category.doorCanopy" /></p>
+            <span class="text-xs font-extrabold text-slate-900 tabular-nums whitespace-nowrap">{{ delta(OUTSIDE_PRICES.doorCanopy) }}</span>
+          </div>
+          <p class="text-[11px] text-slate-500 mt-0.5"><Cms k="category.doorCanopyBody" /></p>
+        </button>
+      </div>
     </template>
 
     <!-- Loft Options (Matching Skånska Byggvaror Reference Images 4 & 5) -->
@@ -2703,33 +2730,6 @@
     </template>
 
     <template v-else-if="store.selectedCategory === 'extras'">
-      <p class="text-[11px] text-slate-500"><Cms k="category.outsidePlace" /></p>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-        <button
-          type="button"
-          id="option-door-canopy"
-          @click="store.setDoorCanopy(!store.doorCanopy)"
-          :aria-pressed="store.doorCanopy"
-          :class="outsideCardClass(store.doorCanopy)"
-        >
-          <div class="w-full h-24 bg-slate-100/80 rounded-lg flex items-center justify-center mb-2">
-            <svg class="w-full h-full text-slate-700" viewBox="0 0 160 80" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M28 34h104" />
-              <path d="M36 34 48 22h64l12 12" />
-              <path d="M52 34v22" />
-              <path d="M108 34v22" />
-              <rect x="70" y="40" width="20" height="22" />
-            </svg>
-          </div>
-          <div class="flex items-center justify-between gap-2">
-            <p class="text-xs font-bold text-slate-900"><Cms k="category.doorCanopy" /></p>
-            <span class="text-xs font-extrabold text-slate-900 tabular-nums whitespace-nowrap">{{ delta(OUTSIDE_PRICES.doorCanopy) }}</span>
-          </div>
-          <p class="text-[11px] text-slate-500 mt-0.5"><Cms k="category.doorCanopyBody" /></p>
-        </button>
-
-      </div>
-
       <section class="space-y-2">
         <div class="flex items-center justify-between gap-2">
           <p class="text-xs font-bold text-slate-800"><Cms k="category.terrace" /></p>

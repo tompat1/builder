@@ -68,7 +68,7 @@
           <path d="M12 3v18" />
           <path d="M3 12h18" />
         </svg>
-        <!-- Ute (Door roof and terrace) -->
+        <!-- Ute (Terrace) -->
         <svg v-else-if="cat.id === 'extras'" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <path d="M3 10.5 12 5l9 5.5" />
           <path d="M6 10.5V16" />
