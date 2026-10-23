@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   DEFAULT_HOUSE_LIGHTS,
   DAYLIGHT_MODES,
+  FIXTURE_CLEARANCE_M,
   acceptDaylightMode,
   evenWallSeeds,
   facadeSconceCountForWall,
@@ -57,23 +58,23 @@ test('front wall gets two sconces; other walls scale with length', () => {
   assert.ok(Math.abs(seeds[1] - 0.8) < 1e-9);
 });
 
-test('facade sconces slide beside doors and windows instead of sitting on them', () => {
+test('fixture clearance is 50 cm from openings and between lights', () => {
+  assert.equal(FIXTURE_CLEARANCE_M, 0.5);
   const door = { x: -1.2, width: 1.0 };
   const slider = { x: 1.4, width: 2.4 };
-  const clearance = 0.16;
   const spots = placeFacadeSconcesAlongWall({
-    wallLength: 6,
+    wallLength: 8,
     openings: [door, slider],
-    count: 2,
-    clearance
+    count: 2
   });
   assert.equal(spots.length, 2);
+  assert.ok(Math.abs(spots[1] - spots[0]) >= FIXTURE_CLEARANCE_M - 0.01);
   for (const x of spots) {
     for (const opening of [door, slider]) {
       const edge = opening.width / 2;
       assert.ok(
-        Math.abs(x - opening.x) >= edge + clearance - 0.02,
-        `sconce at ${x} overlaps opening at ${opening.x}`
+        Math.abs(x - opening.x) >= edge + FIXTURE_CLEARANCE_M - 0.02,
+        `sconce at ${x} closer than 50 cm to opening at ${opening.x}`
       );
     }
   }
@@ -81,18 +82,18 @@ test('facade sconces slide beside doors and windows instead of sitting on them',
 
 test('nudgeOffOpenings moves a seed onto free cladding next to the opening', () => {
   const openings = [{ x: 0, width: 2 }];
-  const left = nudgeOffOpenings(0, openings, -3, 3, 0.2);
+  const left = nudgeOffOpenings(0, openings, -4, 4, FIXTURE_CLEARANCE_M);
   assert.ok(left != null);
-  assert.ok(Math.abs(left) >= 1.2);
-  assert.equal(nudgeOffOpenings(-2.5, openings, -3, 3, 0.2), -2.5);
+  assert.ok(Math.abs(left) >= 1 + FIXTURE_CLEARANCE_M - 0.02);
+  assert.equal(nudgeOffOpenings(-2.5, openings, -4, 4, FIXTURE_CLEARANCE_M), -2.5);
 });
 
 test('door sconce sits beside the leaf, not on the door centre', () => {
   const openings = [{ x: 0, width: 1 }];
-  const beside = placeDoorSconceBeside(0, 1, -3, 3, openings, 0.22);
+  const beside = placeDoorSconceBeside(0, 1, -4, 4, openings);
   assert.ok(beside != null);
-  assert.ok(Math.abs(beside) >= 0.5 + 0.2 - 0.01);
-  assert.ok(Math.abs(beside) < 1.5);
+  assert.ok(Math.abs(beside) >= 0.5 + FIXTURE_CLEARANCE_M - 0.01);
+  assert.ok(Math.abs(beside) < 2);
 });
 
 test('Outside lights UI and store wiring are present', async () => {
@@ -102,6 +103,7 @@ test('Outside lights UI and store wiring are present', async () => {
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
   const store = fs.readFileSync(path.join(root, 'src/store/useConfigStore.ts'), 'utf8');
   const scene = fs.readFileSync(path.join(root, 'src/three-engine/HouseScene.ts'), 'utf8');
+  const lighting = fs.readFileSync(path.join(root, 'src/three-engine/lighting.ts'), 'utf8');
   const overlay = fs.readFileSync(path.join(root, 'src/components/OptionsGrid.vue'), 'utf8');
   const tools = fs.readFileSync(path.join(root, 'src/components/ToolSet.vue'), 'utf8');
 
@@ -110,6 +112,9 @@ test('Outside lights UI and store wiring are present', async () => {
   assert.match(store, /houseLights/);
   assert.match(scene, /buildHouseLights/);
   assert.match(scene, /fixtureLights/);
+  assert.match(scene, /FIXTURE_CLEARANCE_M/);
+  assert.match(lighting, /createStarfield/);
+  assert.match(lighting, /syncStarfield/);
   assert.match(overlay, /option-light-\$\{light\.key\}/);
   assert.match(overlay, /HOUSE_LIGHT_OPTIONS/);
   assert.match(tools, /daylight-\$\{mode\.id\}/);

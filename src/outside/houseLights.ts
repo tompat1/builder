@@ -72,6 +72,9 @@ export function fixtureEmissiveIntensity(base: number, nightGain: number): numbe
   return base * (0.2 + 0.8 * nightGain);
 }
 
+/** Minimum gap from openings, corners, and other fixtures (metres). */
+export const FIXTURE_CLEARANCE_M = 0.5;
+
 /** Opening span along a wall (doors, windows). Centre + clear width. */
 export interface WallOpeningSpan {
   x: number;
@@ -121,7 +124,7 @@ export function nudgeOffOpenings(
   openings: WallOpeningSpan[],
   wallLo: number,
   wallHi: number,
-  clearance = 0.22
+  clearance = FIXTURE_CLEARANCE_M
 ): number | null {
   const blocks = openingBlocks(openings, clearance);
   let cur = x;
@@ -175,17 +178,18 @@ export function placeFacadeSconcesAlongWall(opts: FacadeSconcePlaceOpts): number
     wallLength,
     openings,
     count,
-    endInset = 0.45,
-    clearance = 0.16,
-    minSpacing = 0.7
+    endInset = FIXTURE_CLEARANCE_M,
+    clearance = FIXTURE_CLEARANCE_M,
+    minSpacing = FIXTURE_CLEARANCE_M
   } = opts;
   if (count <= 0 || wallLength < endInset * 2 + 0.2) return [];
 
   const half = wallLength / 2;
-  const hardLo = -half + 0.22;
-  const hardHi = half - 0.22;
-  const wallLo = Math.max(hardLo, -half + endInset);
-  const wallHi = Math.min(hardHi, half - endInset);
+  const edgePad = Math.max(clearance, endInset, FIXTURE_CLEARANCE_M);
+  const hardLo = -half + edgePad;
+  const hardHi = half - edgePad;
+  const wallLo = hardLo;
+  const wallHi = hardHi;
   if (hardHi <= hardLo) return [];
 
   const seeds = evenWallSeeds(count, wallLo, wallHi);
@@ -243,7 +247,7 @@ export function placeDoorSconceBeside(
   wallLo: number,
   wallHi: number,
   openings: WallOpeningSpan[],
-  clearance = 0.22
+  clearance = FIXTURE_CLEARANCE_M
 ): number | null {
   const half = doorWidth / 2;
   const left = doorX - half - clearance;

@@ -48,6 +48,7 @@ import {
 } from './lighting';
 import {
   DEFAULT_HOUSE_LIGHTS,
+  FIXTURE_CLEARANCE_M,
   facadeSconceCountForWall,
   fixtureEmissiveIntensity,
   fixtureLightIntensity,
@@ -313,6 +314,7 @@ export class HouseScene {
   private hemisphereLight!: THREE.HemisphereLight;
   private ambientLight!: THREE.AmbientLight;
   private interiorFillLight!: THREE.PointLight;
+  private starfield: THREE.Points | null = null;
   private fixtureLights: THREE.PointLight[] = [];
   /** Lens / LED meshes whose emissive tracks nightGain with the PointLights. */
   private fixtureGlows: { mesh: THREE.Mesh; base: number }[] = [];
@@ -619,7 +621,7 @@ export class HouseScene {
 
 
   private setupLighting() {
-    const { sunLight, skyFill, sunTarget, groundMesh, hemisphere, ambient, interiorFill } =
+    const { sunLight, skyFill, sunTarget, groundMesh, hemisphere, ambient, interiorFill, starfield } =
       createSceneLighting(this.scene);
     this.sunLight = sunLight;
     this.skyFill = skyFill;
@@ -628,6 +630,7 @@ export class HouseScene {
     this.hemisphereLight = hemisphere;
     this.ambientLight = ambient;
     this.interiorFillLight = interiorFill;
+    this.starfield = starfield;
     this.placeSun();
   }
 
@@ -673,7 +676,8 @@ export class HouseScene {
         ambient: this.ambientLight,
         interiorFill: this.interiorFillLight,
         groundMesh: this.groundMesh,
-        scene: this.scene
+        scene: this.scene,
+        starfield: this.starfield
       }
     );
     this.sunUp = result.sunUp;
@@ -4427,6 +4431,19 @@ export class HouseScene {
         metalness: 0.1
       });
 
+    const clearSq = FIXTURE_CLEARANCE_M * FIXTURE_CLEARANCE_M;
+    const placedWorld: { x: number; y: number; z: number }[] = [];
+    const farFromFixtures = (x: number, y: number, z: number) =>
+      placedWorld.every((p) => {
+        const dx = p.x - x;
+        const dy = p.y - y;
+        const dz = p.z - z;
+        return dx * dx + dy * dy + dz * dz >= clearSq;
+      });
+    const rememberFixture = (x: number, y: number, z: number) => {
+      placedWorld.push({ x, y, z });
+    };
+
     const addFixtureLight = (x: number, y: number, z: number, base: number, distance = 5) => {
       const light = new THREE.PointLight(0xffe8b8, fixtureLightIntensity(base, this.nightGain), distance, 2);
       light.position.set(x, y, z);
@@ -4437,6 +4454,7 @@ export class HouseScene {
     };
 
     const addWallSconce = (x: number, y: number, z: number, rotY: number, outward: number) => {
+      if (!farFromFixtures(x, y, z)) return false;
       const body = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.22, 0.08), housing);
       body.position.set(x, y, z);
       body.rotation.y = rotY;
@@ -4450,6 +4468,8 @@ export class HouseScene {
       group.add(glass);
       addGlow(glass, 0.55);
       addFixtureLight(x + ox * 2, y - 0.02, z + oz * 2, 0.7, 6);
+      rememberFixture(x, y, z);
+      return true;
     };
 
     const openingSpans = (wall: 'front' | 'back' | 'left' | 'right'): WallOpeningSpan[] =>
@@ -4492,7 +4512,10 @@ export class HouseScene {
         const along = placeFacadeSconcesAlongWall({
           wallLength: side.length,
           openings: openingSpans(side.wall),
-          count: facadeSconceCountForWall(side.wall, side.length)
+          count: facadeSconceCountForWall(side.wall, side.length),
+          clearance: FIXTURE_CLEARANCE_M,
+          minSpacing: FIXTURE_CLEARANCE_M,
+          endInset: FIXTURE_CLEARANCE_M
         });
         const outward = this.outwardSign(side.wall);
         for (const t of along) {
@@ -4504,12 +4527,11 @@ export class HouseScene {
 
     if (lights.doorLight) {
       const doors = this.outsideAnchors(w, d, h);
-      const used: { wall: string; along: number }[] = [];
       for (const door of doors) {
         const wallSpan = door.wall === 'front' || door.wall === 'back' ? w : d;
         const half = wallSpan / 2;
-        const wallLo = -half + 0.35;
-        const wallHi = half - 0.35;
+        const wallLo = -half + FIXTURE_CLEARANCE_M;
+        const wallHi = half - FIXTURE_CLEARANCE_M;
         const spans = openingSpans(door.wall);
         // World along-wall coord matching wallOpenings().
         const dx = door.doorX ?? 0;
@@ -4518,10 +4540,15 @@ export class HouseScene {
             : door.wall === 'back' ? door.px - dx
               : door.wall === 'left' ? door.pz + dx
                 : door.pz - dx;
-        const beside = placeDoorSconceBeside(doorAlong, door.width, wallLo, wallHi, spans);
+        const beside = placeDoorSconceBeside(
+          doorAlong,
+          door.width,
+          wallLo,
+          wallHi,
+          spans,
+          FIXTURE_CLEARANCE_M
+        );
         if (beside == null) continue;
-        if (used.some((u) => u.wall === door.wall && Math.abs(u.along - beside) < 0.45)) continue;
-        used.push({ wall: door.wall, along: beside });
 
         const outward = this.outwardSign(door.wall);
         const y = Math.min(Math.max((door.head ?? 2.2) - 0.35, 1.7), h - 0.25);
@@ -4575,13 +4602,15 @@ export class HouseScene {
     }
 
     if (lights.gardenLights) {
+      const standOff = FIXTURE_CLEARANCE_M + 0.05;
       const posts = [
-        { x: -w / 2 - 0.55, z: d / 2 + 1.1 },
-        { x: w / 2 + 0.55, z: d / 2 + 1.1 },
-        { x: -w / 2 + 0.8, z: d / 2 + 2.2 },
-        { x: w / 2 - 0.8, z: d / 2 + 2.2 }
+        { x: -w / 2 - standOff, z: d / 2 + standOff + 0.55 },
+        { x: w / 2 + standOff, z: d / 2 + standOff + 0.55 },
+        { x: -w / 2 + Math.max(standOff, 0.8), z: d / 2 + standOff + 1.55 },
+        { x: w / 2 - Math.max(standOff, 0.8), z: d / 2 + standOff + 1.55 }
       ];
       for (const post of posts) {
+        if (!farFromFixtures(post.x, 0.72, post.z)) continue;
         const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.04, 0.7, 8), bollardMat);
         stem.position.set(post.x, 0.35, post.z);
         stem.castShadow = true;
@@ -4591,6 +4620,7 @@ export class HouseScene {
         group.add(cap);
         addGlow(cap, 0.55);
         addFixtureLight(post.x, 0.75, post.z, 0.55, 5);
+        rememberFixture(post.x, 0.72, post.z);
       }
     }
 

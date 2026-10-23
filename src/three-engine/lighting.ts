@@ -16,6 +16,7 @@ export interface SceneLighting {
   hemisphere: THREE.HemisphereLight;
   ambient: THREE.AmbientLight;
   interiorFill: THREE.PointLight;
+  starfield: THREE.Points;
 }
 
 export interface DaylightResult {
@@ -97,7 +98,61 @@ export function createSceneLighting(scene: THREE.Scene): SceneLighting {
   grid.position.y = 0;
   scene.add(grid);
 
-  return { sunLight, skyFill, sunTarget, groundMesh, hemisphere, ambient, interiorFill };
+  const starfield = createStarfield(scene);
+
+  return { sunLight, skyFill, sunTarget, groundMesh, hemisphere, ambient, interiorFill, starfield };
+}
+
+/** Distant star points for night / moon — opacity follows nightGain. */
+export function createStarfield(scene: THREE.Scene): THREE.Points {
+  const count = 1400;
+  const positions = new Float32Array(count * 3);
+  const colors = new Float32Array(count * 3);
+  const radius = 90;
+  for (let i = 0; i < count; i++) {
+    const u = Math.random();
+    const v = Math.random();
+    const theta = 2 * Math.PI * u;
+    // Bias toward the upper sky dome.
+    const phi = Math.acos(1 - v * 0.92);
+    const r = radius * (0.88 + Math.random() * 0.12);
+    const y = Math.abs(r * Math.cos(phi)) + 8;
+    positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+    positions[i * 3 + 1] = y;
+    positions[i * 3 + 2] = r * Math.sin(phi) * Math.sin(theta);
+    const warm = Math.random() > 0.85;
+    const bright = 0.65 + Math.random() * 0.35;
+    colors[i * 3] = bright;
+    colors[i * 3 + 1] = warm ? bright * 0.92 : bright;
+    colors[i * 3 + 2] = warm ? bright * 0.75 : bright * (0.95 + Math.random() * 0.05);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  const mat = new THREE.PointsMaterial({
+    size: 0.42,
+    sizeAttenuation: true,
+    vertexColors: true,
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending
+  });
+  const stars = new THREE.Points(geo, mat);
+  stars.name = 'starfield';
+  stars.frustumCulled = false;
+  stars.visible = false;
+  stars.renderOrder = -1;
+  scene.add(stars);
+  return stars;
+}
+
+export function syncStarfield(stars: THREE.Points | null | undefined, nightGain: number) {
+  if (!stars) return;
+  const mat = stars.material as THREE.PointsMaterial;
+  const show = nightGain > 0.28;
+  stars.visible = show;
+  mat.opacity = show ? Math.min(1, (nightGain - 0.28) / 0.5) : 0;
 }
 
 /** Update sun / sky / ambient for sun, moon, or neutral daylight. */
@@ -114,6 +169,7 @@ export function updateSunPosition(
     interiorFill?: THREE.PointLight;
     groundMesh?: THREE.Mesh | null;
     scene?: THREE.Scene | null;
+    starfield?: THREE.Points | null;
   }
 ): DaylightResult {
   const placement = sunPlacement(sunHour, facingDeg);
@@ -187,6 +243,7 @@ export function updateSunPosition(
   if (extras?.scene) {
     extras.scene.background = new THREE.Color(nightGain > 0.5 ? NIGHT.bg : DAY.bg);
   }
+  syncStarfield(extras?.starfield, nightGain);
 
   return { sunUp, nightGain };
 }
