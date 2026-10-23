@@ -48,6 +48,7 @@ import {
 } from './lighting';
 import {
   DEFAULT_HOUSE_LIGHTS,
+  fixtureEmissiveIntensity,
   fixtureLightIntensity,
   parseHouseLights,
   placeDoorSconceBeside,
@@ -312,6 +313,8 @@ export class HouseScene {
   private ambientLight!: THREE.AmbientLight;
   private interiorFillLight!: THREE.PointLight;
   private fixtureLights: THREE.PointLight[] = [];
+  /** Lens / LED meshes whose emissive tracks nightGain with the PointLights. */
+  private fixtureGlows: { mesh: THREE.Mesh; base: number }[] = [];
   private sunHour = 12;
   private facingDeg = 180;
   private daylightMode: DaylightMode = 'sun';
@@ -681,6 +684,15 @@ export class HouseScene {
     for (const light of this.fixtureLights) {
       const base = typeof light.userData.baseIntensity === 'number' ? light.userData.baseIntensity : 0.6;
       light.intensity = fixtureLightIntensity(base, this.nightGain);
+    }
+    for (const glow of this.fixtureGlows) {
+      const mat = glow.mesh.material;
+      if (mat && !Array.isArray(mat) && 'emissiveIntensity' in mat) {
+        (mat as THREE.MeshStandardMaterial).emissiveIntensity = fixtureEmissiveIntensity(
+          glow.base,
+          this.nightGain
+        );
+      }
     }
   }
 
@@ -4371,6 +4383,7 @@ export class HouseScene {
    */
   private buildHouseLights(w: number, d: number, h: number) {
     this.fixtureLights = [];
+    this.fixtureGlows = [];
     const lights = parseHouseLights(this.currentConfig.houseLights ?? DEFAULT_HOUSE_LIGHTS);
     if (!lights.facadeLights && !lights.doorLight && !lights.ledStrips && !lights.gardenLights) {
       return;
@@ -4383,25 +4396,35 @@ export class HouseScene {
       roughness: 0.45,
       metalness: 0.35
     });
-    const lens = new THREE.MeshStandardMaterial({
-      color: '#fff6e0',
-      emissive: '#fff1c2',
-      emissiveIntensity: 0.55,
-      roughness: 0.35,
-      metalness: 0.05
-    });
-    const ledMat = new THREE.MeshStandardMaterial({
-      color: '#f7fafc',
-      emissive: '#ffe9a8',
-      emissiveIntensity: 0.9,
-      roughness: 0.4,
-      metalness: 0.1
-    });
+    const lensGlow = fixtureEmissiveIntensity(0.55, this.nightGain);
+    const ledGlow = fixtureEmissiveIntensity(0.9, this.nightGain);
     const bollardMat = new THREE.MeshStandardMaterial({
       color: '#3f3f46',
       roughness: 0.55,
       metalness: 0.2
     });
+
+    const addGlow = (mesh: THREE.Mesh, base: number) => {
+      this.fixtureGlows.push({ mesh, base });
+    };
+
+    const makeLensMat = () =>
+      new THREE.MeshStandardMaterial({
+        color: '#fff6e0',
+        emissive: '#fff1c2',
+        emissiveIntensity: lensGlow,
+        roughness: 0.35,
+        metalness: 0.05
+      });
+
+    const makeLedMat = () =>
+      new THREE.MeshStandardMaterial({
+        color: '#f7fafc',
+        emissive: '#ffe9a8',
+        emissiveIntensity: ledGlow,
+        roughness: 0.4,
+        metalness: 0.1
+      });
 
     const addFixtureLight = (x: number, y: number, z: number, base: number, distance = 5) => {
       const light = new THREE.PointLight(0xffe8b8, fixtureLightIntensity(base, this.nightGain), distance, 2);
@@ -4418,12 +4441,13 @@ export class HouseScene {
       body.rotation.y = rotY;
       body.castShadow = true;
       group.add(body);
-      const glass = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.14, 0.05), lens);
+      const glass = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.14, 0.05), makeLensMat());
       const ox = Math.sin(rotY) * outward * 0.05;
       const oz = Math.cos(rotY) * outward * 0.05;
       glass.position.set(x + ox, y, z + oz);
       glass.rotation.y = rotY;
       group.add(glass);
+      addGlow(glass, 0.55);
       addFixtureLight(x + ox * 2, y - 0.02, z + oz * 2, 0.7, 6);
     };
 
@@ -4487,9 +4511,10 @@ export class HouseScene {
 
     if (lights.ledStrips) {
       const stripY = Math.min(h - 0.08, 2.45);
-      const strip = new THREE.Mesh(new THREE.BoxGeometry(Math.max(1.2, w * 0.55), 0.02, 0.04), ledMat);
+      const strip = new THREE.Mesh(new THREE.BoxGeometry(Math.max(1.2, w * 0.55), 0.02, 0.04), makeLedMat());
       strip.position.set(0, stripY, d / 2 + 0.06);
       group.add(strip);
+      addGlow(strip, 0.9);
       addFixtureLight(0, stripY - 0.05, d / 2 + 0.2, 0.45, 7);
       if (this.currentConfig.doorCanopy) {
         const doors = this.outsideAnchors(w, d, h);
@@ -4503,11 +4528,12 @@ export class HouseScene {
           const cz = door.pz - along * sin + cos * outward * 0.45;
           const canopyStrip = new THREE.Mesh(
             new THREE.BoxGeometry(Math.max(0.9, door.width + 0.3), 0.015, 0.03),
-            ledMat
+            makeLedMat()
           );
           canopyStrip.position.set(cx, (door.head ?? 2.2) + 0.05, cz);
           canopyStrip.rotation.y = door.rotY;
           group.add(canopyStrip);
+          addGlow(canopyStrip, 0.9);
           addFixtureLight(cx, (door.head ?? 2.2) - 0.05, cz, 0.35, 4);
         }
       }
@@ -4525,9 +4551,10 @@ export class HouseScene {
         stem.position.set(post.x, 0.35, post.z);
         stem.castShadow = true;
         group.add(stem);
-        const cap = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), lens);
+        const cap = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), makeLensMat());
         cap.position.set(post.x, 0.72, post.z);
         group.add(cap);
+        addGlow(cap, 0.55);
         addFixtureLight(post.x, 0.75, post.z, 0.55, 5);
       }
     }

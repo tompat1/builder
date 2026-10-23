@@ -57,9 +57,19 @@ export function nightGainForHour(hour: number, altitude: number): number {
   return 0;
 }
 
-/** Exterior fixture PointLight intensity scales up as the sky goes dark. */
+/**
+ * Exterior fixture PointLight intensity. Off in full day; ramps up with nightGain.
+ * (Was a small residual glow even at noon — that read as “lights on” during sun.)
+ */
 export function fixtureLightIntensity(base: number, nightGain: number): number {
-  return base * (0.15 + 0.85 * Math.max(nightGain, 0.08));
+  if (nightGain <= 0.04) return 0;
+  return base * (0.12 + 0.88 * nightGain);
+}
+
+/** Matching emissive glow on the fixture lens / LED mesh. */
+export function fixtureEmissiveIntensity(base: number, nightGain: number): number {
+  if (nightGain <= 0.04) return 0;
+  return base * (0.2 + 0.8 * nightGain);
 }
 
 /** Opening span along a wall (doors, windows). Centre + clear width. */

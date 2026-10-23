@@ -32,16 +32,16 @@ test('daylight mode accepts sun, moon, and neutral', () => {
   assert.equal(acceptDaylightMode('nope'), 'sun');
 });
 
-test('evening and night hours darken the sky; fixtures brighten with nightGain', () => {
+test('evening and night hours darken the sky; fixtures are off by day and bright at night', () => {
   assert.equal(nightGainForHour(12, 0.8), 0);
   assert.ok(nightGainForHour(18.5, 0.2) > 0);
   assert.ok(nightGainForHour(20.5, 0.01) >= 0.9);
   assert.equal(nightGainForHour(12, 0.01), 1);
 
-  const day = fixtureLightIntensity(0.7, 0);
+  assert.equal(fixtureLightIntensity(0.7, 0), 0);
+  assert.equal(fixtureLightIntensity(0.7, 0.02), 0);
   const night = fixtureLightIntensity(0.7, 1);
-  assert.ok(night > day);
-  assert.ok(day > 0);
+  assert.ok(night > 0.5);
 });
 
 test('facade sconces slide beside doors and windows instead of sitting on them', () => {

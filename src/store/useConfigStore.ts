@@ -2276,12 +2276,21 @@ export const useConfigStore = defineStore('config', () => {
 
   const previewSunHour = (hour: number) => {
     sunHour.value = clampSunHour(hour);
+    // Dragging out of night while on moon switches back to sun.
+    if (daylightMode.value === 'moon' && sunHour.value < 19) {
+      daylightMode.value = 'sun';
+    }
   }
 
   const commitSunHour = (hour: number) => {
     const next = clampSunHour(hour);
     sunHour.value = next;
-    if (next === sunHourAtSnapshot) return;
+    let modeChanged = false;
+    if (daylightMode.value === 'moon' && next < 19) {
+      daylightMode.value = 'sun';
+      modeChanged = true;
+    }
+    if (next === sunHourAtSnapshot && !modeChanged) return;
     sunHourAtSnapshot = next;
     saveSnapshot();
   }
@@ -2289,10 +2298,15 @@ export const useConfigStore = defineStore('config', () => {
   const setDaylightMode = (mode: DaylightMode) => {
     const next = acceptDaylightMode(mode);
     if (daylightMode.value === next) return;
+    const prev = daylightMode.value;
     daylightMode.value = next;
     if (next === 'moon' && sunHour.value < 19) {
       sunHour.value = 20;
       sunHourAtSnapshot = 20;
+    } else if (next === 'sun' && (prev === 'moon' || sunHour.value >= 19)) {
+      // Back from night: noon so the time slider matches daytime sun.
+      sunHour.value = 12;
+      sunHourAtSnapshot = 12;
     }
     saveSnapshot();
   }
