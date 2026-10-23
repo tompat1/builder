@@ -135,6 +135,30 @@ export function usesBlackFasciaCasing(
   return version === 'v3' && frontOverhangM >= 1.5;
 }
 
+/** How far the fascia hangs below the roof slab underside (metres). */
+export const FASCIA_EAVES_DROP_WHITE_M = 0.08;
+export const FASCIA_EAVES_DROP_BLACK_M = 0.16;
+
+export function fasciaEavesDropM(blackCasing: boolean): number {
+  return blackCasing ? FASCIA_EAVES_DROP_BLACK_M : FASCIA_EAVES_DROP_WHITE_M;
+}
+
+/**
+ * How far below the wall plate / eave line corner boards stop so their tops
+ * sit under the fascia instead of poking through it.
+ */
+export function cornerBoardRoofTrimDropM(opts: {
+  roofFallsAlongWidth: boolean;
+  roofType: string;
+  blackFasciaCasing: boolean;
+}): number {
+  const { roofFallsAlongWidth, roofType, blackFasciaCasing } = opts;
+  if (roofFallsAlongWidth) return fasciaEavesDropM(blackFasciaCasing);
+  if (roofType === 'pulpettak') return FASCIA_EAVES_DROP_WHITE_M;
+  if (roofType === 'flackt') return 0.13;
+  return 0.06;
+}
+
 /** Deep structural side walls carry the east–west beams of the v3 overhang. */
 export function usesOverhangSideWalls(
   version: RoofOverhangVersion,

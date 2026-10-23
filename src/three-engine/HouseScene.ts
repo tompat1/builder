@@ -26,6 +26,8 @@ import { addTerraceHotTub } from './terraceHotTub';
 import { computeDoorCanopyLayout, isDoorCoveredByAddition } from '../outside/canopy';
 import {
   acceptRoofOverhangVersion,
+  cornerBoardRoofTrimDropM,
+  fasciaEavesDropM,
   recessedSoffitLightCenterY,
   roofBeamsAlongDepthForOverhang,
   usesBlackFasciaCasing,
@@ -1535,8 +1537,15 @@ export class HouseScene {
       const isFlackt = this.currentConfig.roofType === 'flackt';
       const flacktDrop = isFlackt ? (d / 2) * Math.tan((2 * Math.PI) / 180) : 0;
       const widthFall = this.roofFallsAlongWidth();
-      // Width-fall flush eaves: keep corner boards tight under the fascia (no mid-gap).
-      const roofTrimDrop = widthFall ? 0.02 : (isPulpet ? 0.08 : (isFlackt ? 0.13 : 0.06));
+      const edges = this.roofEdgeOverhangs(w, d);
+      const overhangVersion = acceptRoofOverhangVersion(this.currentConfig.roofOverhangVersion);
+      const blackCasing = usesBlackFasciaCasing(overhangVersion, edges.front);
+      // Match fascia eaves drop so knutbrädor stop under the fascia, not through it.
+      const roofTrimDrop = cornerBoardRoofTrimDropM({
+        roofFallsAlongWidth: widthFall,
+        roofType: this.currentConfig.roofType,
+        blackFasciaCasing: blackCasing
+      });
       const pitch = this.pulpetPitchRad();
       const highTop = (isFlackt ? h + flacktDrop : h) - roofTrimDrop;
       const lowTop = (isPulpet
@@ -6053,7 +6062,7 @@ export class HouseScene {
         : whiteTrimMat;
       // v3: deeper black fascia band reads as a continuous outer casing around the eave.
       const fasciaT = blackCasing ? 0.04 : 0.022;
-      const eavesDrop = blackCasing ? 0.16 : 0.08;
+      const eavesDrop = fasciaEavesDropM(blackCasing);
       const fasciaBottom = -roofThick / 2 - eavesDrop;
       const fasciaTop = roofThick / 2 + 0.008;
       const fasciaH = fasciaTop - fasciaBottom;
@@ -6190,7 +6199,7 @@ export class HouseScene {
 
       const fasciaT = 0.022;
       const soffitT = 0.016;
-      const eavesDrop = 0.08;
+      const eavesDrop = fasciaEavesDropM(false);
       const fasciaBottom = -roofThick / 2 - eavesDrop;
       const fasciaTop = roofThick / 2 + 0.008;
       const fasciaH = fasciaTop - fasciaBottom;

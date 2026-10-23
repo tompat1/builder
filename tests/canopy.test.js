@@ -3,6 +3,10 @@ import assert from 'node:assert/strict';
 import { computeDoorCanopyLayout, isDoorCoveredByAddition } from '../src/outside/canopy.ts';
 import {
   acceptRoofOverhangVersion,
+  cornerBoardRoofTrimDropM,
+  fasciaEavesDropM,
+  FASCIA_EAVES_DROP_BLACK_M,
+  FASCIA_EAVES_DROP_WHITE_M,
   recessedSoffitLightCenterY,
   roofBeamsAlongDepthForOverhang,
   usesBlackFasciaCasing,
@@ -202,6 +206,62 @@ test('roof overhang v1 timber, v2 post soffit, v3 framed side walls', () => {
   assert.equal(roofBeamsAlongDepthForOverhang('v3', false), false);
 });
 
+test('corner boards stop under the fascia eaves drop (no poke-through at roof joints)', () => {
+  assert.equal(fasciaEavesDropM(false), FASCIA_EAVES_DROP_WHITE_M);
+  assert.equal(fasciaEavesDropM(true), FASCIA_EAVES_DROP_BLACK_M);
+
+  // Width-fall (Stugan): trim drop must match the fascia band, not a 2 cm stub.
+  assert.equal(
+    cornerBoardRoofTrimDropM({
+      roofFallsAlongWidth: true,
+      roofType: 'pulpettak',
+      blackFasciaCasing: false
+    }),
+    FASCIA_EAVES_DROP_WHITE_M
+  );
+  assert.equal(
+    cornerBoardRoofTrimDropM({
+      roofFallsAlongWidth: true,
+      roofType: 'pulpettak',
+      blackFasciaCasing: true
+    }),
+    FASCIA_EAVES_DROP_BLACK_M
+  );
+  assert.ok(
+    cornerBoardRoofTrimDropM({
+      roofFallsAlongWidth: true,
+      roofType: 'pulpettak',
+      blackFasciaCasing: false
+    }) > 0.02,
+    'width-fall boards must clear the fascia height, not sit inside it'
+  );
+
+  assert.equal(
+    cornerBoardRoofTrimDropM({
+      roofFallsAlongWidth: false,
+      roofType: 'pulpettak',
+      blackFasciaCasing: false
+    }),
+    FASCIA_EAVES_DROP_WHITE_M
+  );
+  assert.equal(
+    cornerBoardRoofTrimDropM({
+      roofFallsAlongWidth: false,
+      roofType: 'flackt',
+      blackFasciaCasing: false
+    }),
+    0.13
+  );
+  assert.equal(
+    cornerBoardRoofTrimDropM({
+      roofFallsAlongWidth: false,
+      roofType: 'sadeltak',
+      blackFasciaCasing: false
+    }),
+    0.06
+  );
+});
+
 test('HouseScene wires all three overhang versions', async () => {
   const fs = await import('node:fs');
   const path = await import('node:path');
@@ -215,7 +275,10 @@ test('HouseScene wires all three overhang versions', async () => {
   assert.match(scene, /addSouthSoffitCanopyPost/);
   assert.match(scene, /addSouthOverhangSideWalls/);
   assert.match(scene, /usesBlackFasciaCasing/);
+  assert.match(scene, /cornerBoardRoofTrimDropM/);
+  assert.match(scene, /fasciaEavesDropM/);
   assert.match(scene, /roofBeamsAlongDepthForOverhang/);
+  assert.doesNotMatch(scene, /widthFall \? 0\.02/);
   assert.match(scene, /Takbjälke \(utsprång norr→söder\)/);
   assert.match(scene, /Takstol \/ takbalk \(pulpettak öst→väst\)/);
   assert.match(store, /setRoofEdge/);
