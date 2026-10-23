@@ -1649,7 +1649,8 @@ export class HouseScene {
     return new THREE.MeshBasicMaterial({
       color: '#fffaf4',
       transparent: true,
-      opacity: 0.22,
+      // Loft mode needs beams see-through so the deck and rooms stay readable.
+      opacity: 0.1,
       depthWrite: false,
       side: THREE.DoubleSide
     });
@@ -6550,6 +6551,13 @@ export class HouseScene {
     const rearH = isPulpettak ? Math.max(h - Math.tan(angleRad) * d, 2.4) : h;
     const beamParent = ghost ? this.trussesGroup : this.framingGroup;
     const showClips = !ghost && Boolean(this.currentConfig.framingWalkthrough || this.framingVisible());
+    // Stamp ownMaterial so syncFramingWalkthrough does not replace ghost beams with opaque timber.
+    const placeBeam = (mesh: THREE.Mesh) => {
+      mesh.userData.ownMaterial = rafterMat;
+      mesh.userData.framingStep = 6;
+      mesh.castShadow = !ghost;
+      beamParent.add(mesh);
+    };
 
     const rafterW = 0.045;
     const rafterH = ghost ? 0.145 : 0.195;
@@ -6583,12 +6591,10 @@ export class HouseScene {
           const rx = -w / 2 + rafterInset + i * xSpacing;
           const rafter = new THREE.Mesh(rafterGeo, rafterMat);
           rafter.position.set(rx, plateY(rx) - depth / 2 - (ghost ? 0 : 0.016), midZ);
-          rafter.castShadow = !ghost;
-          rafter.userData.framingStep = 6;
           rafter.userData.framingNameSv = 'Takbjälke (utsprång norr→söder)';
           rafter.userData.framingNameEn = 'Roof Beam (Overhang north→south)';
           rafter.userData.dimension = `${Math.round(rafterW * 1000)}×${Math.round(depth * 1000)} mm C24 cc 600 mm`;
-          beamParent.add(rafter);
+          placeBeam(rafter);
           if (showClips) {
             this.addRafterSeatClip(beamParent, rx, plateY(rx) - 0.04, d / 2 - 0.1, 'z');
             this.addRafterSeatClip(beamParent, rx, plateY(rx) - 0.04, -(d / 2 - 0.1), 'z');
@@ -6618,12 +6624,10 @@ export class HouseScene {
           rafter.position.set(0, midY, rz);
           // Lift +X (east) to match the width-fall roof plate.
           rafter.rotation.z = slopeAngle;
-          rafter.castShadow = !ghost;
-          rafter.userData.framingStep = 6;
           rafter.userData.framingNameSv = 'Takstol / takbalk (pulpettak öst→väst)';
           rafter.userData.framingNameEn = 'Rafter / Roof Beam (Mono-pitch east→west)';
           rafter.userData.dimension = `${Math.round(rafterW * 1000)}×${Math.round(depth * 1000)} mm C24 cc 600 mm`;
-          beamParent.add(rafter);
+          placeBeam(rafter);
           if (showClips) {
             this.addRafterSeatClip(beamParent, w / 2 - 0.12, h - 0.04, rz, 'x');
             this.addRafterSeatClip(beamParent, -(w / 2 - 0.12), lowH - 0.04, rz, 'x');
@@ -6650,12 +6654,10 @@ export class HouseScene {
           Math.cos(slopeAngle) * shift
         );
         rafter.rotation.x = -slopeAngle;
-        rafter.castShadow = !ghost;
-        rafter.userData.framingStep = 6;
         rafter.userData.framingNameSv = 'Takstol / takbalk (pulpettak)';
         rafter.userData.framingNameEn = 'Rafter / Roof Beam (Mono-pitch)';
         rafter.userData.dimension = `${Math.round(rafterW * 1000)}×${Math.round(depth * 1000)} mm C24 cc 600 mm`;
-        beamParent.add(rafter);
+        placeBeam(rafter);
         if (showClips) {
           this.addRafterSeatClip(beamParent, rx, h - 0.04, d / 2 - 0.1, 'z');
           this.addRafterSeatClip(beamParent, rx, rearH - 0.04, -(d / 2 - 0.1), 'z');
@@ -6671,12 +6673,10 @@ export class HouseScene {
         const rafter = new THREE.Mesh(rafterGeo, rafterMat);
         rafter.position.set(rx, h - (ghost ? rafterH / 2 - 0.04 : 0.12), 0);
         rafter.rotation.x = -shallowAngle;
-        rafter.castShadow = !ghost;
-        rafter.userData.framingStep = 6;
         rafter.userData.framingNameSv = 'Flack takbjälke';
         rafter.userData.framingNameEn = 'Flat Roof Joist';
         rafter.userData.dimension = `${Math.round(rafterW * 1000)}×${Math.round(depth * 1000)} mm C24 cc 600 mm`;
-        beamParent.add(rafter);
+        placeBeam(rafter);
         if (showClips) {
           this.addRafterSeatClip(beamParent, rx, h - 0.08, d / 2 - 0.12, 'z');
           this.addRafterSeatClip(beamParent, rx, h - 0.08, -(d / 2 - 0.12), 'z');
@@ -6694,22 +6694,18 @@ export class HouseScene {
         const frontRafter = new THREE.Mesh(rafterGeo, rafterMat);
         frontRafter.position.set(rx, y, d / 4);
         frontRafter.rotation.x = gableAngle;
-        frontRafter.castShadow = !ghost;
-        frontRafter.userData.framingStep = 6;
         frontRafter.userData.framingNameSv = 'Takstol / taksparre (fram)';
         frontRafter.userData.framingNameEn = 'Rafter / Truss Member (Front)';
         frontRafter.userData.dimension = `${Math.round(rafterW * 1000)}×${Math.round(rafterH * 1000)} mm C24 cc 600 mm`;
-        beamParent.add(frontRafter);
+        placeBeam(frontRafter);
 
         const rearRafter = new THREE.Mesh(rafterGeo, rafterMat);
         rearRafter.position.set(rx, y, -d / 4);
         rearRafter.rotation.x = -gableAngle;
-        rearRafter.castShadow = !ghost;
-        rearRafter.userData.framingStep = 6;
         rearRafter.userData.framingNameSv = 'Takstol / taksparre (bak)';
         rearRafter.userData.framingNameEn = 'Rafter / Truss Member (Rear)';
         rearRafter.userData.dimension = `${Math.round(rafterW * 1000)}×${Math.round(rafterH * 1000)} mm C24 cc 600 mm`;
-        beamParent.add(rearRafter);
+        placeBeam(rearRafter);
         if (showClips) {
           this.addRafterSeatClip(beamParent, rx, h - 0.02, d / 2 - 0.08, 'z');
           this.addRafterSeatClip(beamParent, rx, h - 0.02, -(d / 2 - 0.08), 'z');
@@ -9134,11 +9130,19 @@ export class HouseScene {
     const isWalkthrough = Boolean(this.currentConfig.framingWalkthrough);
     const step = Math.max(1, Math.min(7, this.currentConfig.framingStep ?? 1));
 
+    const loftGhost = this.loftCutaway();
     const processGroup = (group: THREE.Group) => {
       group.traverse((obj) => {
         if (obj instanceof THREE.Mesh && obj.userData && typeof obj.userData.framingStep === 'number') {
           const meshStep = obj.userData.framingStep;
-          const ownMat = (obj.userData.ownMaterial as THREE.Material | undefined) ?? this.builtFramingMat;
+          let ownMat = (obj.userData.ownMaterial as THREE.Material | undefined) ?? this.builtFramingMat;
+          // Loft mode: keep roof beams see-through even if ownMaterial was never stamped.
+          if (loftGhost && group === this.trussesGroup && meshStep === 6) {
+            if (!(ownMat instanceof THREE.MeshBasicMaterial) || !ownMat.transparent) {
+              ownMat = this.ghostBeamMaterial();
+              obj.userData.ownMaterial = ownMat;
+            }
+          }
           if (!isWalkthrough) {
             obj.visible = true;
             obj.material = ownMat;
