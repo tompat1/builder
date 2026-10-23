@@ -700,6 +700,10 @@ export class HouseScene {
     this.sunUp = result.sunUp;
     this.nightGain = result.nightGain;
     this.syncFixtureLightIntensity();
+    if (this.daylightMode === 'moon') {
+      this.updateHoverBox(null);
+      this.onPanelHover?.(null, 0, 0);
+    }
   }
 
   private fixturePowerGain(fixtureId?: string): number {
@@ -1013,6 +1017,13 @@ export class HouseScene {
       if (this.renderer?.domElement) {
         this.renderer.domElement.style.cursor = 'crosshair';
       }
+      this.updateHoverBox(null);
+      this.onPanelHover?.(null, 0, 0);
+      this.updateRoomPreview(null);
+      return;
+    }
+    // Night / moon: no bay hover outline — keeps the facade clean for light try-out.
+    if (this.daylightMode === 'moon') {
       this.updateHoverBox(null);
       this.onPanelHover?.(null, 0, 0);
       this.updateRoomPreview(null);
