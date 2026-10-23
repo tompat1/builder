@@ -135,6 +135,7 @@ import { useConfigStore } from '../store/useConfigStore';
 import { useLabels } from '../i18n';
 import { captureSiteHouseReference, requestSitePicture, type SiteFacing } from '../services/houseRender';
 import { siteHouseFacts } from '../services/siteHouseFacts';
+import { clearOldStructureFromCanvas } from '../services/sitePhotoPrep';
 
 const SITE_PHOTO_LIMIT = 3;
 const DATA_URL_LIMIT = 270_000;
@@ -213,7 +214,7 @@ function blobDataUrl(blob: Blob) {
   });
 }
 
-async function shrinkScene(file: File) {
+async function shrinkScene(file: File, clearPlacement?: { x: number; y: number }) {
   const bitmap = await createImageBitmap(file);
   const aspectRatio = bitmap.width / bitmap.height;
   const attempts = [
@@ -231,6 +232,8 @@ async function shrinkScene(file: File) {
       const context = canvas.getContext('2d');
       if (!context) throw new Error('canvas');
       context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      // Wipe the old shed so the model cannot recolor it — only garden remains.
+      if (clearPlacement) clearOldStructureFromCanvas(context, canvas.width, canvas.height, clearPlacement);
       const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', attempt.quality));
       if (!blob) throw new Error('blob');
       const dataUrl = await blobDataUrl(blob);
@@ -300,8 +303,9 @@ async function renderSite() {
   error.value = false;
   try {
     const ordered = [sitePhotos.value[primaryIndex.value], ...sitePhotos.value.filter((_, index) => index !== primaryIndex.value)];
-    const primary = await shrinkScene(ordered[0]);
-    // Image 0 = garden photo; image 1 = facade + overview diptych of the live 3D house.
+    // Clear the old building from the primary garden photo around the pin.
+    const primary = await shrinkScene(ordered[0], placement.value);
+    // Image 0 = cleared garden; image 1 = facade + overview diptych of the live 3D house.
     const images = [primary.dataUrl, await houseReference()];
     for (const file of ordered.slice(1)) {
       if (images.length >= 4) break;

@@ -100,8 +100,8 @@ export function acceptFacing(input) {
 }
 
 /**
- * Image 0 is the garden photo. Image 1 is the configured 3D house — often a
- * two-panel sheet (left = matching facade, right = wider overview with terrace).
+ * Image 0 is the garden photo with the old building already cleared.
+ * Image 1 is the configured 3D house (often a two-panel facade + overview sheet).
  * Later images are extra site context only.
  */
 export function sitePrompt(facts, imageCount, placement, facing) {
@@ -121,19 +121,20 @@ export function sitePrompt(facts, imageCount, placement, facing) {
   }
 
   return [
-    'Create a single photoreal architectural composite using image 0 as the base garden photograph only for background, terrain, plants, neighbours, sky, and camera viewpoint.',
-    `The photograph was taken from the ${side} of the real house, looking at its ${facade}.`,
-    `Image 1 is a still of the exact configured 3D house (often two panels: left = that same ${facade}, right = a wider overview). Copy its architecture, proportions, roof silhouette, openings, cladding, and colours from image 1 — do not redesign it, simplify it, or invent a different box.`,
+    'Create a single photoreal architectural composite.',
+    'Image 0 is the garden site photograph with the old building already removed — keep only its surroundings: lawn, plants, fences, neighbouring buildings, path, sky, weather, and camera viewpoint.',
+    'Do not recreate, recolor, reshape, or leave any remnant of the old shed or previous house that used to stand in image 0.',
+    `The photograph was taken from the ${side}, looking toward the ${facade} of where the new house will stand.`,
+    `Image 1 is the authoritative still of the exact configured NEW 3D house (often two panels: left = that same ${facade}, right = a wider overview). Insert THAT house into the cleared footprint — copy its tall proportions, roof silhouette, window and door layout, cladding colour, terrace deck, sauna cabin, hot tub, and flue exactly.`,
+    'The output must look like the house from image 1 standing in the garden from image 0, not like a paint-over of any prior structure.',
     'If image 1 or the configured house facts show a wooden terrace, sauna cabin, shed, hot tub, flue, or distinctive roof, those attached parts MUST appear in the composite on the correct side of the house.',
     imageCount > 2
       ? 'Images 2 and later are extra site photos only. Use them to understand the property; keep image 0 as the output viewpoint.'
       : '',
-    'Do NOT merely recolor, darken, or reshape the existing building already in image 0. Fully replace the structure at the placement point with the new house from image 1.',
     roofRule,
     `Place the new house with its ground contact around ${point.x}% from the left and ${point.y}% from the top of image 0.`,
     'Match the base photograph camera perspective, believable real-world scale, terrain, daylight, colour temperature, occlusion, and contact shadows.',
-    'Keep the garden, boundaries, mature plants, neighbouring buildings, sky, weather, and photographic texture from image 0 unchanged wherever the new house does not physically cover them.',
-    'If an existing shed or small structure overlaps the placement area, replace only that structure. Do not clear or redesign the rest of the garden.',
+    'Keep every surrounding element from image 0 that the new house does not cover. Do not redesign the rest of the garden.',
     note ? `Configured house facts: ${note}` : '',
     NO_FIGURES
   ].filter(Boolean).join(' ');
