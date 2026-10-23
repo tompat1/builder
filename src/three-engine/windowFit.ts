@@ -29,6 +29,11 @@ const EDGE = 0.045;
 const HEAD_BOARD = 0.085;
 const SILL_BOARD = 0.065;
 
+/** Clearance from an exterior corner board (and overhang side walls) to a door leaf. */
+export const DOOR_CORNER_CLEARANCE_M = 0.170;
+/** Extra inset when the front facade has deep overhang side walls (v3). */
+export const DOOR_OVERHANG_WALL_EXTRA_M = 0.05;
+
 export interface PortraitPane {
   width: number;
   height: number;
@@ -68,8 +73,8 @@ export function fittedDoorOpening(
     const available = Math.max(0.46, panelWidth - 0.08);
     return { width: Math.min(wanted, available), shift: 0 };
   }
-  const cornerClearance = 0.170;
-  const edge = 0.045;
+  const cornerClearance = DOOR_CORNER_CLEARANCE_M;
+  const edge = EDGE;
   const half = panelWidth / 2;
   const minLeft = cornerSide === 'left' ? -half + cornerClearance : -half + edge;
   const maxRight = cornerSide === 'right' ? half - cornerClearance : half - edge;
@@ -81,6 +86,50 @@ export function fittedDoorOpening(
   const maxShift = maxRight - width / 2;
   if (minShift <= maxShift) shift = Math.min(maxShift, Math.max(minShift, shift));
   return { width, shift };
+}
+
+/**
+ * A two-bay sliding door centred on the host–partner joint.
+ * When either end of the span is an exterior corner (or an overhang side wall),
+ * the leaf is inset so it keeps a safe distance from that edge.
+ *
+ * `xHost` is the opening centre in the host panel's local along-wall frame
+ * (positive toward higher panel index before the wall `sign` is applied).
+ */
+export function fittedWideDoorOpening(opts: {
+  leafSpanM: number;
+  panelWidth: number;
+  hostIndex: number;
+  partnerIndex: number;
+  panelCount: number;
+  /** Corner / overhang clearance at exterior ends of the two-bay span. */
+  cornerClearanceM?: number;
+}): { width: number; xHost: number } {
+  const {
+    leafSpanM,
+    panelWidth,
+    hostIndex,
+    partnerIndex,
+    panelCount,
+    cornerClearanceM = DOOR_CORNER_CLEARANCE_M
+  } = opts;
+  const leftIndex = Math.min(hostIndex, partnerIndex);
+  const rightIndex = Math.max(hostIndex, partnerIndex);
+  const spanLeft = leftIndex * panelWidth;
+  const spanRight = (rightIndex + 1) * panelWidth;
+  const jointAlong = (leftIndex + 1) * panelWidth;
+  const minAlong = spanLeft + (leftIndex === 0 ? cornerClearanceM : EDGE);
+  const maxAlong = spanRight - (rightIndex === panelCount - 1 ? cornerClearanceM : EDGE);
+  const maxByInset = panelWidth * 2 - SIDE * 2 - EDGE * 2;
+  const width = Math.min(leafSpanM, maxByInset, Math.max(0.46, maxAlong - minAlong));
+  let centerAlong = jointAlong;
+  const minCenter = minAlong + width / 2;
+  const maxCenter = maxAlong - width / 2;
+  if (minCenter <= maxCenter) {
+    centerAlong = Math.min(maxCenter, Math.max(minCenter, centerAlong));
+  }
+  const hostCenterAlong = (hostIndex + 0.5) * panelWidth;
+  return { width, xHost: centerAlong - hostCenterAlong };
 }
 
 /** Opening head stays this far under the roof, including the head board. */

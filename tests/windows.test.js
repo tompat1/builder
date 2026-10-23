@@ -1,6 +1,19 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { NARROW_TALL, containWindowInPanel, fittedDoorOpening, fittedWindowOpening, narrowTallPane, openingClearOfRoof, overlightHeight, overlightItem, portraitPane } from '../src/three-engine/windowFit.ts';
+import {
+  DOOR_CORNER_CLEARANCE_M,
+  DOOR_OVERHANG_WALL_EXTRA_M,
+  NARROW_TALL,
+  containWindowInPanel,
+  fittedDoorOpening,
+  fittedWideDoorOpening,
+  fittedWindowOpening,
+  narrowTallPane,
+  openingClearOfRoof,
+  overlightHeight,
+  overlightItem,
+  portraitPane
+} from '../src/three-engine/windowFit.ts';
 
 test('a portrait panorama in a tall panel stays portrait inside the smaller pane', () => {
   const pane = portraitPane(1.86, 2.3, true);
@@ -146,13 +159,61 @@ test('a door keeps its sill and shortens when the roof would cut the head', () =
 test('a door on a wider bay stays a 10×21, and a slider stays a 20×21', () => {
   const corner = fittedDoorOpening('STEHAG', 1.51, 'left');
   assert.equal(corner.width, 1);
-  assert.ok(Math.abs(corner.shift - (0.170 - 0.045) / 2) < 1e-9);
+  assert.ok(Math.abs(corner.shift - (DOOR_CORNER_CLEARANCE_M - 0.045) / 2) < 1e-9);
   const right = fittedDoorOpening('STEHAG', 1.51, 'right');
   assert.equal(right.shift, -corner.shift);
   assert.equal(fittedDoorOpening('LERVIK', 1.2, null).width, 1);
   assert.equal(fittedDoorOpening('BASTUDORR', 1.2, null).width, 0.9);
   assert.equal(fittedDoorOpening('SKJUTDORR', 2.4, null).width, 2);
   assert.equal(fittedDoorOpening('SVANSHALL', 2.2, null).width, 1.6);
+});
+
+test('a sliding door on a front corner bay keeps clear of the corner and overhang wall', () => {
+  const panelWidth = 1.8;
+  const mid = fittedWideDoorOpening({
+    leafSpanM: 3,
+    panelWidth,
+    hostIndex: 1,
+    partnerIndex: 2,
+    panelCount: 4
+  });
+  assert.equal(mid.width, 3);
+  assert.ok(Math.abs(mid.xHost - panelWidth / 2) < 1e-9);
+
+  const leftCorner = fittedWideDoorOpening({
+    leafSpanM: 3,
+    panelWidth,
+    hostIndex: 0,
+    partnerIndex: 1,
+    panelCount: 4
+  });
+  const leftEdge = panelWidth / 2 + leftCorner.xHost - leftCorner.width / 2;
+  assert.ok(leftEdge >= DOOR_CORNER_CLEARANCE_M - 1e-9);
+  assert.ok(leftCorner.xHost > panelWidth / 2 - 1e-9, 'door shifts away from the left corner');
+
+  const overhangClear = DOOR_CORNER_CLEARANCE_M + DOOR_OVERHANG_WALL_EXTRA_M;
+  const leftOverhang = fittedWideDoorOpening({
+    leafSpanM: 3,
+    panelWidth,
+    hostIndex: 0,
+    partnerIndex: 1,
+    panelCount: 4,
+    cornerClearanceM: overhangClear
+  });
+  const leftOverhangEdge = panelWidth / 2 + leftOverhang.xHost - leftOverhang.width / 2;
+  assert.ok(leftOverhangEdge >= overhangClear - 1e-9);
+  assert.ok(leftOverhang.xHost >= leftCorner.xHost - 1e-9);
+
+  const rightCorner = fittedWideDoorOpening({
+    leafSpanM: 3,
+    panelWidth,
+    hostIndex: 3,
+    partnerIndex: 2,
+    panelCount: 4
+  });
+  const rightDoorRight = (3 + 0.5) * panelWidth + rightCorner.xHost + rightCorner.width / 2;
+  assert.ok(rightDoorRight <= 4 * panelWidth - DOOR_CORNER_CLEARANCE_M + 1e-9);
+  assert.ok(rightCorner.xHost < -panelWidth / 2 + 1e-9, 'door shifts away from the right corner');
 });
 
 test('a narrow-tall window stays narrow and tall with standard modular 6×18 proportions', () => {

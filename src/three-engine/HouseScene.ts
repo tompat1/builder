@@ -67,7 +67,25 @@ import {
   type LoftBounds
 } from './loftLevel';
 import { ceilingStations, loftCeilingY, sliceStations, type CeilingStation, type RoofSlope } from './roofClearance';
-import { NARROW_TALL, OVERLIGHT, PORTRAIT_PANORAMA, clampRectHoleToSlopedRoof, containWindowInPanel, fittedDoorOpening, fittedWindowOpening, narrowTallPane, openingClearOfRoof, overlightHeight, portraitPane, rhythmOpeningsAlongRun, rhythmOpeningsForPanel, windowOpeningChanged } from './windowFit';
+import {
+  DOOR_CORNER_CLEARANCE_M,
+  DOOR_OVERHANG_WALL_EXTRA_M,
+  NARROW_TALL,
+  OVERLIGHT,
+  PORTRAIT_PANORAMA,
+  clampRectHoleToSlopedRoof,
+  containWindowInPanel,
+  fittedDoorOpening,
+  fittedWideDoorOpening,
+  fittedWindowOpening,
+  narrowTallPane,
+  openingClearOfRoof,
+  overlightHeight,
+  portraitPane,
+  rhythmOpeningsAlongRun,
+  rhythmOpeningsForPanel,
+  windowOpeningChanged
+} from './windowFit';
 import { fitRoom, innerHalf, roomFootprint, roomWallRuns, shellSides, SHELL_TOUCH, bedroomBedPlacement, type RoomBox, type ShellSides, type RoomBounds } from './roomWalls';
 import {
   CONCRETE_WALL_THICK_M,
@@ -2564,7 +2582,7 @@ export class HouseScene {
           opening,
           wide || slotType === 'door' ? 'door' : 'window',
           casingMat,
-          wide?.drawDoor ? null : cornerSide,
+          cornerSide,
           casingSpan,
           wide?.drawDoor ? null : facadeSpan,
           slope,
@@ -3579,23 +3597,37 @@ export class HouseScene {
     if (partner == null) return null;
 
     const sign = wall === 'left' || wall === 'right' ? -1 : 1;
-    const towardPartner = Math.sign(partner - host) * sign * panelWidth / 2;
     const panelFromHost = (index - host) * sign * panelWidth;
-    const side = 0.09;
-    const edge = 0.045;
     const headBoard = 0.085;
     const hostSlot = slots[`${wall}-${host}`];
-    const leafSpan = hostSlot?.itemId === 'SKJUTDORR' ? 2 : 3;
-    const doorW = Math.min(leafSpan, panelWidth * 2 - side * 2 - edge * 2);
+    const leafSpan = hostSlot?.itemId === 'SKJUTDORR3' ? 3 : 2;
+    const edges = this.roofEdgeOverhangs(
+      this.currentConfig.widthMm / 1000,
+      this.currentConfig.depthMm / 1000
+    );
+    const overhangVersion = acceptRoofOverhangVersion(this.currentConfig.roofOverhangVersion);
+    const frontOverhangWalls =
+      wall === 'front' && usesOverhangSideWalls(overhangVersion, edges.front);
+    const cornerClearance = frontOverhangWalls
+      ? DOOR_CORNER_CLEARANCE_M + DOOR_OVERHANG_WALL_EXTRA_M
+      : DOOR_CORNER_CLEARANCE_M;
+    const fitted = fittedWideDoorOpening({
+      leafSpanM: leafSpan,
+      panelWidth,
+      hostIndex: host,
+      partnerIndex: partner,
+      panelCount: count,
+      cornerClearanceM: cornerClearance
+    });
     const doorH = Math.min(2.1, Math.max(1.7, panelHeight - headBoard - 0.06));
     const sill = panelBase;
     const head = sill + doorH;
     const centerY = panelBase + panelHeight / 2;
     return {
-      winW: doorW,
+      winW: fitted.width,
       winH: doorH,
       winY: (sill + head) / 2 - centerY,
-      x: towardPartner - panelFromHost,
+      x: fitted.xHost * sign - panelFromHost,
       sill,
       head,
       drawDoor: index === host
