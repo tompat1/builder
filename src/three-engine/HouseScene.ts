@@ -50,8 +50,11 @@ import {
   DEFAULT_HOUSE_LIGHTS,
   fixtureLightIntensity,
   parseHouseLights,
+  placeDoorSconceBeside,
+  placeFacadeSconcesAlongWall,
   type DaylightMode,
-  type HouseLightsConfig
+  type HouseLightsConfig,
+  type WallOpeningSpan
 } from '../outside/houseLights';
 import { eaveLiftMm, gablePitchDegrees, isGableRoof, wallPlateHeightM, type RoofId } from '../store/roof';
 import { inferNoteNormal, noteAxes, noteCameraTransform, noteSheetTransform, noteTiltRadians, stickFacing, NOTE_SURFACE_SCALE } from '../notes/surface';
@@ -4424,25 +4427,61 @@ export class HouseScene {
       addFixtureLight(x + ox * 2, y - 0.02, z + oz * 2, 0.7, 6);
     };
 
+    const openingSpans = (wall: 'front' | 'back' | 'left' | 'right'): WallOpeningSpan[] =>
+      this.wallOpenings(wall, w, d, h, 0.25).map((o) => ({ x: o.x, width: o.winW }));
+
     if (lights.facadeLights) {
       const y = Math.min(h - 0.35, 2.15);
-      const inset = 0.55;
-      addWallSconce(-w / 2 + inset, y, d / 2 + 0.04, 0, 1);
-      addWallSconce(w / 2 - inset, y, d / 2 + 0.04, 0, 1);
-      if (w > 4.5) addWallSconce(0, y, d / 2 + 0.04, 0, 1);
+      const frontSpans = openingSpans('front');
+      const along = placeFacadeSconcesAlongWall({
+        wallLength: w,
+        openings: frontSpans,
+        count: w > 4.5 ? 3 : 2
+      });
+      for (const x of along) {
+        addWallSconce(x, y, d / 2 + 0.04, 0, 1);
+      }
     }
 
     if (lights.doorLight) {
       const doors = this.outsideAnchors(w, d, h);
+      const used: { wall: string; along: number }[] = [];
       for (const door of doors) {
+        const wallSpan = door.wall === 'front' || door.wall === 'back' ? w : d;
+        const half = wallSpan / 2;
+        const wallLo = -half + 0.35;
+        const wallHi = half - 0.35;
+        const spans = openingSpans(door.wall);
+        // World along-wall coord matching wallOpenings().
+        const dx = door.doorX ?? 0;
+        const doorAlong =
+          door.wall === 'front' ? door.px + dx
+            : door.wall === 'back' ? door.px - dx
+              : door.wall === 'left' ? door.pz + dx
+                : door.pz - dx;
+        const beside = placeDoorSconceBeside(doorAlong, door.width, wallLo, wallHi, spans);
+        if (beside == null) continue;
+        if (used.some((u) => u.wall === door.wall && Math.abs(u.along - beside) < 0.45)) continue;
+        used.push({ wall: door.wall, along: beside });
+
         const outward = this.outwardSign(door.wall);
-        const along = door.doorX ?? 0;
-        const cos = Math.cos(door.rotY);
-        const sin = Math.sin(door.rotY);
-        const x = door.px + along * cos;
-        const z = door.pz - along * sin;
-        const y = Math.min((door.head ?? 2.2) + 0.18, h - 0.2);
-        addWallSconce(x + sin * outward * 0.02, y, z + cos * outward * 0.02, door.rotY, outward);
+        const y = Math.min(Math.max((door.head ?? 2.2) - 0.35, 1.7), h - 0.25);
+        let x = 0;
+        let z = 0;
+        if (door.wall === 'front') {
+          x = beside;
+          z = d / 2 + 0.04;
+        } else if (door.wall === 'back') {
+          x = beside;
+          z = -d / 2 - 0.04;
+        } else if (door.wall === 'left') {
+          x = -w / 2 - 0.04;
+          z = beside;
+        } else {
+          x = w / 2 + 0.04;
+          z = beside;
+        }
+        addWallSconce(x, y, z, door.rotY, outward);
       }
     }
 

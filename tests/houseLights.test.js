@@ -6,7 +6,10 @@ import {
   acceptDaylightMode,
   fixtureLightIntensity,
   nightGainForHour,
-  parseHouseLights
+  nudgeOffOpenings,
+  parseHouseLights,
+  placeDoorSconceBeside,
+  placeFacadeSconcesAlongWall
 } from '../src/outside/houseLights.ts';
 
 test('house lights default to facade washers on and other fixtures off', () => {
@@ -39,6 +42,45 @@ test('evening and night hours darken the sky; fixtures brighten with nightGain',
   const night = fixtureLightIntensity(0.7, 1);
   assert.ok(night > day);
   assert.ok(day > 0);
+});
+
+test('facade sconces slide beside doors and windows instead of sitting on them', () => {
+  const door = { x: -1.2, width: 1.0 };
+  const slider = { x: 1.4, width: 2.4 };
+  const clearance = 0.16;
+  const spots = placeFacadeSconcesAlongWall({
+    wallLength: 6,
+    openings: [door, slider],
+    count: 3,
+    clearance
+  });
+  assert.ok(spots.length >= 2);
+  assert.equal(spots.length, 3);
+  for (const x of spots) {
+    for (const opening of [door, slider]) {
+      const edge = opening.width / 2;
+      assert.ok(
+        Math.abs(x - opening.x) >= edge + clearance - 0.02,
+        `sconce at ${x} overlaps opening at ${opening.x}`
+      );
+    }
+  }
+});
+
+test('nudgeOffOpenings moves a seed onto free cladding next to the opening', () => {
+  const openings = [{ x: 0, width: 2 }];
+  const left = nudgeOffOpenings(0, openings, -3, 3, 0.2);
+  assert.ok(left != null);
+  assert.ok(Math.abs(left) >= 1.2);
+  assert.equal(nudgeOffOpenings(-2.5, openings, -3, 3, 0.2), -2.5);
+});
+
+test('door sconce sits beside the leaf, not on the door centre', () => {
+  const openings = [{ x: 0, width: 1 }];
+  const beside = placeDoorSconceBeside(0, 1, -3, 3, openings, 0.22);
+  assert.ok(beside != null);
+  assert.ok(Math.abs(beside) >= 0.5 + 0.2 - 0.01);
+  assert.ok(Math.abs(beside) < 1.5);
 });
 
 test('Outside lights UI and store wiring are present', async () => {
