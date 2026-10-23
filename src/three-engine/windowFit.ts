@@ -651,6 +651,31 @@ export function clipOpeningToPanel(
   return { x: (left + right) / 2, winW: right - left };
 }
 
+/**
+ * Keep a rectangular cladding/drywall hole under a sloping panel top.
+ * A hole that pokes past `topAt(x)` makes ExtrudeGeometry notch the eave
+ * (bright rectangles under the fascia) and can clip casing into a half-frame.
+ */
+export function clampRectHoleToSlopedRoof(
+  left: number,
+  right: number,
+  bottom: number,
+  top: number,
+  panelHeight: number,
+  slope: number,
+  margin = 0.012
+): { bottom: number; top: number } | null {
+  if (!(right - left > 0.02) || !(top - bottom > 0.02)) return null;
+  if (!(panelHeight > 0) || Math.abs(slope) < 1e-6) {
+    return { bottom, top };
+  }
+  const halfH = panelHeight / 2;
+  const roofLow = halfH + Math.min(left * slope, right * slope) - margin;
+  const nextTop = Math.min(top, roofLow);
+  if (nextTop - bottom <= 0.02) return null;
+  return { bottom, top: nextTop };
+}
+
 /** True when the opening extends past either bay edge (needs a neighbour cladding cut). */
 export function openingSpansPastPanel(
   opening: { x: number; winW: number },

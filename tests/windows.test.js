@@ -451,6 +451,33 @@ test('Align UI path is only alignWallWindows → alignWindowsOnBand', async () =
   assert.match(scene, /rhythmOpeningsForPanel/);
   assert.match(scene, /addCladdingAroundOpenings/);
   assert.match(scene, /windowRhythmOpeningsForPanel/);
+  // Sloped holes must stay under the eave (half-frame / fascia light-leak guard).
+  assert.match(scene, /clampRectHoleToSlopedRoof/);
+});
+
+test('sloped cladding holes stay under the roof line so eaves are not notched', async () => {
+  const { clampRectHoleToSlopedRoof } = await import('../src/three-engine/windowFit.ts');
+  const panelHeight = 3.2;
+  const slope = Math.tan((10 * Math.PI) / 180);
+  const half = panelHeight / 2;
+  // Opening head deliberately above the low side of the roof across the bay.
+  const left = -0.6;
+  const right = 0.6;
+  const bottom = 0.2;
+  const top = half + 0.1;
+  const clamped = clampRectHoleToSlopedRoof(left, right, bottom, top, panelHeight, slope);
+  assert.ok(clamped);
+  const roofLow = half + Math.min(left * slope, right * slope) - 0.012;
+  assert.ok(clamped.top <= roofLow + 1e-9);
+  assert.equal(clamped.bottom, bottom);
+  // Fully above the roof → no hole (avoids ExtrudeGeometry eave notches).
+  assert.equal(
+    clampRectHoleToSlopedRoof(left, right, roofLow + 0.05, roofLow + 0.4, panelHeight, slope),
+    null
+  );
+  // Level wall leaves the rectangle alone.
+  const level = clampRectHoleToSlopedRoof(-0.5, 0.5, -0.4, 0.5, 3, 0);
+  assert.deepEqual(level, { bottom: -0.4, top: 0.5 });
 });
 
 test('Align rhythm snaps panes into whole bays so frames never cross seams', async () => {

@@ -62,7 +62,7 @@ import {
   type LoftBounds
 } from './loftLevel';
 import { ceilingStations, loftCeilingY, sliceStations, type CeilingStation, type RoofSlope } from './roofClearance';
-import { NARROW_TALL, OVERLIGHT, PORTRAIT_PANORAMA, containWindowInPanel, fittedDoorOpening, fittedWindowOpening, narrowTallPane, openingClearOfRoof, overlightHeight, portraitPane, rhythmOpeningsAlongRun, rhythmOpeningsForPanel, windowOpeningChanged } from './windowFit';
+import { NARROW_TALL, OVERLIGHT, PORTRAIT_PANORAMA, clampRectHoleToSlopedRoof, containWindowInPanel, fittedDoorOpening, fittedWindowOpening, narrowTallPane, openingClearOfRoof, overlightHeight, portraitPane, rhythmOpeningsAlongRun, rhythmOpeningsForPanel, windowOpeningChanged } from './windowFit';
 import { fitRoom, innerHalf, roomFootprint, roomWallRuns, shellSides, SHELL_TOUCH, bedroomBedPlacement, type RoomBox, type ShellSides, type RoomBounds } from './roomWalls';
 import {
   CONCRETE_WALL_THICK_M,
@@ -2360,7 +2360,9 @@ export class HouseScene {
     if (recordOffer && !slot.fitToWall && windowOpeningChanged(opening, seated)) {
       this.windowFitOfferIds.push(slot.id);
     }
-    return slot.fitToWall ? seated : opening;
+    // Always draw the seated opening. Showing the raw size while cladding/casing
+    // clip to the bay produces half-frames and eave notches under a sloped roof.
+    return seated;
   }
 
   publishWindowFitOffers() {
@@ -2467,7 +2469,16 @@ export class HouseScene {
       const cleared = band.reachesRoof
         ? openingClearOfRoof(pane.opening, band.height, slope, { pinSill: false, minHeight: 0.28 })
         : pane.opening;
-      return { pane, opening: cleared as Opening };
+      // Seat to bay + roof so cladding holes and casing share the same rectangle.
+      const seated = containWindowInPanel(
+        cleared,
+        panelWidth,
+        band.height,
+        cornerSide,
+        this.woodSpanBeside(panelWidth, facadeSpan, band.upper),
+        slope
+      );
+      return { pane, opening: seated as Opening };
     });
     const claddingOpenings: Opening[] = rhythmEntries.map((entry) => entry.opening);
     const fitted: Opening | null = claddingOpenings[0]
@@ -2520,7 +2531,9 @@ export class HouseScene {
           casingMat,
           null,
           casingSpan,
-          null
+          null,
+          slope,
+          band.height
         );
         this.addWindowFeature(panelGroup, feat, rhythmItemId ?? entry.pane.itemId, userData);
       }
@@ -2537,7 +2550,9 @@ export class HouseScene {
           casingMat,
           wide?.drawDoor ? null : cornerSide,
           casingSpan,
-          wide?.drawDoor ? null : facadeSpan
+          wide?.drawDoor ? null : facadeSpan,
+          slope,
+          band.height
         );
       }
       if (ownsOpening && opening && (wide || slotType === 'door')) {
@@ -4478,7 +4493,9 @@ export class HouseScene {
     material: THREE.Material,
     cornerSide?: 'left' | 'right' | null,
     panelWidth?: number,
-    facadeSpan?: { from: number; to: number } | null
+    facadeSpan?: { from: number; to: number } | null,
+    slope = 0,
+    panelHeight?: number
   ) {
     const { winW, winH, winY } = opening;
     const shift = opening.x ?? 0;
@@ -4523,15 +4540,28 @@ export class HouseScene {
       }
     }
 
+    const halfH = panelHeight != null && panelHeight > 0 ? panelHeight / 2 : null;
+    const clampToRoof = halfH != null && Math.abs(slope) > 1e-6;
+
     for (const board of boards) {
       let bLeft = board.x - board.w / 2;
       let bRight = board.x + board.w / 2;
       if (bLeft < minX) bLeft = minX;
       if (bRight > maxX) bRight = maxX;
-      const w = Math.max(0.02, bRight - bLeft);
+      const w = bRight - bLeft;
+      if (w < 0.02) continue;
       const x = (bLeft + bRight) / 2;
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, board.h, board.d), material);
-      mesh.position.set(x, board.y, board.z);
+      let bBottom = board.y - board.h / 2;
+      let bTop = board.y + board.h / 2;
+      if (clampToRoof) {
+        const roofLimit = halfH! + Math.min(bLeft * slope, bRight * slope) - 0.02;
+        if (bTop > roofLimit) bTop = roofLimit;
+        if (bTop - bBottom < 0.02) continue;
+      }
+      const h = bTop - bBottom;
+      const y = (bTop + bBottom) / 2;
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, board.d), material);
+      mesh.position.set(x, y, board.z);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       mesh.userData = { ...parent.userData, panelGroup: parent };
@@ -4613,14 +4643,20 @@ export class HouseScene {
       const left = Math.max(-halfW, cx - opening.winW / 2);
       const right = Math.min(halfW, cx + opening.winW / 2);
       if (right - left <= 0.02) continue;
+      const clamped = clampRectHoleToSlopedRoof(
+        left,
+        right,
+        Math.max(bottomY, opening.winY - opening.winH / 2),
+        opening.winY + opening.winH / 2,
+        panelHeight,
+        slope
+      );
+      if (!clamped) continue;
       const hole = new THREE.Path();
-      const bottom = Math.max(bottomY, opening.winY - opening.winH / 2);
-      const top = opening.winY + opening.winH / 2;
-      if (top - bottom <= 0.02) continue;
-      hole.moveTo(left, bottom);
-      hole.lineTo(left, top);
-      hole.lineTo(right, top);
-      hole.lineTo(right, bottom);
+      hole.moveTo(left, clamped.bottom);
+      hole.lineTo(left, clamped.top);
+      hole.lineTo(right, clamped.top);
+      hole.lineTo(right, clamped.bottom);
       hole.closePath();
       shape.holes.push(hole);
     }
@@ -5074,13 +5110,20 @@ export class HouseScene {
       const left = Math.max(-halfW, cx - opening.winW / 2);
       const right = Math.min(halfW, cx + opening.winW / 2);
       if (right - left <= 0.02) continue;
+      const clamped = clampRectHoleToSlopedRoof(
+        left,
+        right,
+        opening.winY - opening.winH / 2,
+        opening.winY + opening.winH / 2,
+        panelHeight,
+        slope
+      );
+      if (!clamped) continue;
       const hole = new THREE.Path();
-      const bottom = opening.winY - opening.winH / 2;
-      const top = opening.winY + opening.winH / 2;
-      hole.moveTo(left, bottom);
-      hole.lineTo(left, top);
-      hole.lineTo(right, top);
-      hole.lineTo(right, bottom);
+      hole.moveTo(left, clamped.bottom);
+      hole.lineTo(left, clamped.top);
+      hole.lineTo(right, clamped.top);
+      hole.lineTo(right, clamped.bottom);
       hole.closePath();
       shape.holes.push(hole);
       reveals.push({ opening, left, right });
