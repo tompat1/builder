@@ -810,20 +810,13 @@ export const useConfigStore = defineStore('config', () => {
     commitHouse();
   }
 
-  const toggleRoomWalls = (id: string) => {
-    const room = placedRooms.value[id];
-    if (!room) return;
-    const wallsVisible = !room.wallsVisible;
-    let next = { ...room, wallsVisible };
-    // Turning walls on for a loft bedroom: fill the deck zone and keep the stair clear.
-    if (
-      wallsVisible
-      && room.type === 'bedroom'
-      && isLoftRoom(room.y)
-      && hasLoft.value
-    ) {
-      const widthM = buildingWidth.value / 1000;
-      const depthM = buildingDepth.value / 1000;
+  /** Fill available plan space: loft zones leave the stair clear; ground rooms grow to the shell. */
+  const maximizeRoomFootprint = (room: PlacedRoom): Pick<PlacedRoom, 'x' | 'z' | 'w' | 'd'> => {
+    const widthM = buildingWidth.value / 1000;
+    const depthM = buildingDepth.value / 1000;
+    const { hx, hz } = innerHalf(widthM, depthM);
+
+    if (isLoftRoom(room.y) && hasLoft.value) {
       const loft = loftDeckBounds(
         widthM,
         depthM,
@@ -844,21 +837,47 @@ export const useConfigStore = defineStore('config', () => {
           hasStair: hasLoftStair.value
         })
       });
-      const { hx, hz } = innerHalf(widthM, depthM);
-      const fitted = fitRoom(maximized, hx, hz, {
+      return fitRoom(maximized, hx, hz, {
         minX: loft.minX,
         maxX: loft.maxX,
         minZ: loft.minZ,
         maxZ: loft.maxZ
       });
-      next = { ...next, ...fitted };
+    }
+
+    // Grow from the room centre until the nearest shell walls.
+    const maxW = Math.max(room.w, 2 * Math.min(room.x - (-hx), hx - room.x));
+    const maxD = Math.max(room.d, 2 * Math.min(room.z - (-hz), hz - room.z));
+    return fitRoom({ x: room.x, z: room.z, w: maxW, d: maxD }, hx, hz);
+  };
+
+  const maximizePlacedRoom = (id: string) => {
+    const room = placedRooms.value[id];
+    if (!room) return;
+    const fitted = maximizeRoomFootprint(room);
+    placedRooms.value = {
+      ...placedRooms.value,
+      [id]: { ...room, ...fitted }
+    };
+    selectRoom(id);
+    commitHouse();
+  };
+
+  const toggleRoomWalls = (id: string) => {
+    const room = placedRooms.value[id];
+    if (!room) return;
+    const wallsVisible = !room.wallsVisible;
+    let next = { ...room, wallsVisible };
+    // Turning walls on for a loft bedroom: fill the deck zone and keep the stair clear.
+    if (wallsVisible && room.type === 'bedroom' && isLoftRoom(room.y) && hasLoft.value) {
+      next = { ...next, ...maximizeRoomFootprint(room) };
     }
     placedRooms.value = {
       ...placedRooms.value,
       [id]: next
     };
     commitHouse();
-  }
+  };
 
   const commitRooms = () => {
     commitHouse();
@@ -3027,6 +3046,7 @@ export const useConfigStore = defineStore('config', () => {
     selectedRoomId,
     selectRoom,
     removePlacedRoom,
+    maximizePlacedRoom,
     toggleRoomWalls,
     commitRooms,
     availableLoftSizes,

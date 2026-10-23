@@ -2157,6 +2157,14 @@
                     <span class="text-[10px] tabular-nums">{{ room.w.toFixed(1) }} × {{ room.d.toFixed(1) }} m</span>
                     <button
                       type="button"
+                      class="text-[11px] font-semibold text-slate-700 hover:text-slate-900"
+                      :title="t('interior.maximizeRoomHint')"
+                      @click="store.maximizePlacedRoom(String(id))"
+                    >
+                      <Cms k="interior.maximizeRoom" fallback="Maximera" />
+                    </button>
+                    <button
+                      type="button"
                       class="text-[11px] font-semibold text-slate-500 hover:text-slate-900"
                       @click="store.removePlacedRoom(String(id))"
                     >
