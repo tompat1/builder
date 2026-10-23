@@ -13,7 +13,7 @@ import { MERCH } from '../site/merch';
 
 export type SearchTopic = 'size' | 'colour' | 'roof' | 'openings' | 'inside' | 'tools' | 'projects' | 'shop' | 'site';
 
-export type SearchTool = 'sun' | 'view' | 'ruler' | 'notes' | 'mood' | 'ai' | 'projects';
+export type SearchTool = 'sun' | 'view' | 'ruler' | 'notes' | 'color' | 'mood' | 'ai' | 'projects';
 
 export interface SearchEntry {
   id: string;
@@ -408,6 +408,17 @@ const actions: SearchEntry[] = [
     keywords: ['anteckning', 'notes', 'lapp', 'sticky'],
     path: '/build',
     tool: 'notes'
+  }),
+  entry({
+    id: 'tool-colors',
+    topic: 'tools',
+    titleKey: 'tools.colors',
+    title: 'Kulörer',
+    hintKey: 'tools.paintBrushHint',
+    hint: '',
+    keywords: ['kulör', 'färg', 'color', 'colour', 'paint', 'pensel', 'brush', 'fasad', 'karm', 'knut'],
+    path: '/build',
+    tool: 'color'
   }),
   entry({
     id: 'tool-ai',

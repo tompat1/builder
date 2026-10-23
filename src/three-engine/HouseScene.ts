@@ -41,7 +41,18 @@ import {
   type RoofOverhangVersion
 } from '../outside/roofOverhang';
 import { headingForFacing, type CompassFacing } from './sunPosition';
-import { calculateCompassHeading, createSceneLighting, updateSunPosition } from './lighting';
+import {
+  calculateCompassHeading,
+  createSceneLighting,
+  updateSunPosition
+} from './lighting';
+import {
+  DEFAULT_HOUSE_LIGHTS,
+  fixtureLightIntensity,
+  parseHouseLights,
+  type DaylightMode,
+  type HouseLightsConfig
+} from '../outside/houseLights';
 import { eaveLiftMm, gablePitchDegrees, isGableRoof, wallPlateHeightM, type RoofId } from '../store/roof';
 import { inferNoteNormal, noteAxes, noteCameraTransform, noteSheetTransform, noteTiltRadians, stickFacing, NOTE_SURFACE_SCALE } from '../notes/surface';
 import { paintBoards } from '../color/paint';
@@ -162,6 +173,10 @@ export interface SceneConfig {
   isFullscreen?: boolean;
   /** Small roof over each exterior door. */
   doorCanopy?: boolean;
+  /** Exterior try-out lights (facade / door / LED / garden). */
+  houseLights?: HouseLightsConfig;
+  /** Sun / moon / neutral sky presentation. */
+  daylightMode?: DaylightMode;
   /** Roof sheet ends at the walls. A metal band covers the edge and the wall top. */
   flushRoof?: boolean;
   /** Decks around the house. At most one on each side. */
@@ -290,8 +305,14 @@ export class HouseScene {
   private sunLight!: THREE.DirectionalLight;
   private skyFill!: THREE.DirectionalLight;
   private sunTarget!: THREE.Object3D;
+  private hemisphereLight!: THREE.HemisphereLight;
+  private ambientLight!: THREE.AmbientLight;
+  private interiorFillLight!: THREE.PointLight;
+  private fixtureLights: THREE.PointLight[] = [];
   private sunHour = 12;
   private facingDeg = 180;
+  private daylightMode: DaylightMode = 'sun';
+  private nightGain = 0;
   private sunUp = true;
   private compassSent = Number.NaN;
   private defaultView: CameraView | null = null;
@@ -353,6 +374,8 @@ export class HouseScene {
   /** Screen compass. Degrees clockwise from the top of the view to world north. */
   public onCompassDial?: (degrees: number) => void;
   public onMeasurePick?: (point: { x: number; y: number; z: number }) => void;
+  /** Paint-brush hit: which house part was clicked. */
+  public onPaintPick?: (target: 'facade' | 'frame' | 'corner') => void;
   public onMeasureCursor?: (point: { x: number; y: number; z: number } | null) => void;
   public onMeasureScreen?: (screen: {
     start: { x: number; y: number; visible: boolean };
@@ -374,6 +397,7 @@ export class HouseScene {
   private dragTargetBox: THREE.Object3D | null = null;
   private hoveredTargetSlotId: string | null = null;
   private measuring = false;
+  private painting = false;
   private measureDown: { x: number; y: number } | null = null;
   private measureFrom: THREE.Vector3 | null = null;
   private measureTo: THREE.Vector3 | null = null;
@@ -420,6 +444,10 @@ export class HouseScene {
       selectedSlotId: initialConfig?.selectedSlotId ?? null,
       wallSlots: initialConfig?.wallSlots ?? {},
       doorCanopy: initialConfig?.doorCanopy ?? false,
+      houseLights: parseHouseLights(initialConfig?.houseLights ?? DEFAULT_HOUSE_LIGHTS),
+      daylightMode: initialConfig?.daylightMode === 'moon' || initialConfig?.daylightMode === 'neutral'
+        ? initialConfig.daylightMode
+        : 'sun',
       flushRoof: initialConfig?.flushRoof ?? false,
       roofOverhangVersion: acceptRoofOverhangVersion(initialConfig?.roofOverhangVersion),
       terraces: initialConfig?.terraces ?? [],
@@ -584,11 +612,15 @@ export class HouseScene {
 
 
   private setupLighting() {
-    const { sunLight, skyFill, sunTarget, groundMesh } = createSceneLighting(this.scene);
+    const { sunLight, skyFill, sunTarget, groundMesh, hemisphere, ambient, interiorFill } =
+      createSceneLighting(this.scene);
     this.sunLight = sunLight;
     this.skyFill = skyFill;
     this.sunTarget = sunTarget;
     this.groundMesh = groundMesh;
+    this.hemisphereLight = hemisphere;
+    this.ambientLight = ambient;
+    this.interiorFillLight = interiorFill;
     this.placeSun();
   }
 
@@ -596,12 +628,19 @@ export class HouseScene {
   public setDaylight(
     hour: number,
     facing: CompassFacing,
-    _labels?: { north: string; east: string; south: string; west: string }
+    _labels?: { north: string; east: string; south: string; west: string },
+    mode?: DaylightMode
   ) {
     this.sunHour = hour;
     this.facingDeg = headingForFacing(facing);
+    if (mode) this.daylightMode = mode;
     this.placeSun();
     this.compassSent = Number.NaN;
+  }
+
+  public setDaylightMode(mode: DaylightMode) {
+    this.daylightMode = mode;
+    this.placeSun();
   }
 
   public setDefaultView(view: CameraView | null) {
@@ -615,13 +654,31 @@ export class HouseScene {
   }
 
   private placeSun() {
-    this.sunUp = updateSunPosition(
+    const result = updateSunPosition(
       this.sunLight,
       this.skyFill,
       this.sunTarget,
       this.sunHour,
-      this.facingDeg
+      this.facingDeg,
+      this.daylightMode,
+      {
+        hemisphere: this.hemisphereLight,
+        ambient: this.ambientLight,
+        interiorFill: this.interiorFillLight,
+        groundMesh: this.groundMesh,
+        scene: this.scene
+      }
     );
+    this.sunUp = result.sunUp;
+    this.nightGain = result.nightGain;
+    this.syncFixtureLightIntensity();
+  }
+
+  private syncFixtureLightIntensity() {
+    for (const light of this.fixtureLights) {
+      const base = typeof light.userData.baseIntensity === 'number' ? light.userData.baseIntensity : 0.6;
+      light.intensity = fixtureLightIntensity(base, this.nightGain);
+    }
   }
 
   /** Keep the corner compass pointing at world north as the camera orbits. */
@@ -885,6 +942,16 @@ export class HouseScene {
       this.container.style.cursor = MEASURE_CURSOR;
       if (this.renderer?.domElement) {
         this.renderer.domElement.style.cursor = MEASURE_CURSOR;
+      }
+      this.updateHoverBox(null);
+      this.onPanelHover?.(null, 0, 0);
+      this.updateRoomPreview(null);
+      return;
+    }
+    if (this.painting) {
+      this.container.style.cursor = 'crosshair';
+      if (this.renderer?.domElement) {
+        this.renderer.domElement.style.cursor = 'crosshair';
       }
       this.updateHoverBox(null);
       this.onPanelHover?.(null, 0, 0);
@@ -1172,6 +1239,21 @@ export class HouseScene {
     if (e.button !== 0 && e.pointerType === 'mouse') return;
     if (this.measuring) {
       this.measureDown = e.button === 0 ? { x: e.clientX, y: e.clientY } : null;
+      return;
+    }
+    if (this.painting) {
+      if (e.button !== 0) return;
+      const rect = this.container.getBoundingClientRect();
+      this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      this.raycaster.setFromCamera(this.mouse, this.camera);
+      const paintHits = this.raycaster.intersectObjects(this.interactivePanels, false);
+      if (paintHits.length > 0) {
+        const hit = paintHits[0].object as THREE.Mesh;
+        const target = (hit.userData.paintTarget as 'facade' | 'frame' | 'corner' | undefined) ?? 'facade';
+        this.onPaintPick?.(target);
+      }
+      e.stopPropagation();
       return;
     }
     if (this.currentConfig.isFullscreen) return;
@@ -1553,6 +1635,7 @@ export class HouseScene {
     this.publishWindowFitOffers();
     this.addConcreteWalls(concreteWallMat, whiteConcreteMat);
     this.buildOutsideAdditions(w, d, h);
+    this.buildHouseLights(w, d, h);
     if (!this.interiorCut() && this.currentConfig.panelOrientation !== 'liggande') {
       this.addBeltFlashing(w, d, h);
     }
@@ -2535,7 +2618,8 @@ export class HouseScene {
       slotId: selectId,
       wall: wallSide,
       index,
-      panelGroup
+      panelGroup,
+      paintTarget: 'facade' as const
     };
 
     const sloped = band.reachesRoof && Math.abs(slope) > 0.0001;
@@ -4278,6 +4362,140 @@ export class HouseScene {
     return { ...this.sideAnchor(side, w, d, h), width: 1 };
   }
 
+  /**
+   * Exterior try-out lights: facade washers, door sconces, LED strips, garden bollards.
+   * Fixture PointLights brighten as the sky goes dark (evening / moon mode).
+   */
+  private buildHouseLights(w: number, d: number, h: number) {
+    this.fixtureLights = [];
+    const lights = parseHouseLights(this.currentConfig.houseLights ?? DEFAULT_HOUSE_LIGHTS);
+    if (!lights.facadeLights && !lights.doorLight && !lights.ledStrips && !lights.gardenLights) {
+      return;
+    }
+
+    const group = new THREE.Group();
+    group.userData.outsideAddition = true;
+    const housing = new THREE.MeshStandardMaterial({
+      color: '#2a2a2a',
+      roughness: 0.45,
+      metalness: 0.35
+    });
+    const lens = new THREE.MeshStandardMaterial({
+      color: '#fff6e0',
+      emissive: '#fff1c2',
+      emissiveIntensity: 0.55,
+      roughness: 0.35,
+      metalness: 0.05
+    });
+    const ledMat = new THREE.MeshStandardMaterial({
+      color: '#f7fafc',
+      emissive: '#ffe9a8',
+      emissiveIntensity: 0.9,
+      roughness: 0.4,
+      metalness: 0.1
+    });
+    const bollardMat = new THREE.MeshStandardMaterial({
+      color: '#3f3f46',
+      roughness: 0.55,
+      metalness: 0.2
+    });
+
+    const addFixtureLight = (x: number, y: number, z: number, base: number, distance = 5) => {
+      const light = new THREE.PointLight(0xffe8b8, fixtureLightIntensity(base, this.nightGain), distance, 2);
+      light.position.set(x, y, z);
+      light.userData.baseIntensity = base;
+      light.userData.outsideAddition = true;
+      group.add(light);
+      this.fixtureLights.push(light);
+    };
+
+    const addWallSconce = (x: number, y: number, z: number, rotY: number, outward: number) => {
+      const body = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.22, 0.08), housing);
+      body.position.set(x, y, z);
+      body.rotation.y = rotY;
+      body.castShadow = true;
+      group.add(body);
+      const glass = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.14, 0.05), lens);
+      const ox = Math.sin(rotY) * outward * 0.05;
+      const oz = Math.cos(rotY) * outward * 0.05;
+      glass.position.set(x + ox, y, z + oz);
+      glass.rotation.y = rotY;
+      group.add(glass);
+      addFixtureLight(x + ox * 2, y - 0.02, z + oz * 2, 0.7, 6);
+    };
+
+    if (lights.facadeLights) {
+      const y = Math.min(h - 0.35, 2.15);
+      const inset = 0.55;
+      addWallSconce(-w / 2 + inset, y, d / 2 + 0.04, 0, 1);
+      addWallSconce(w / 2 - inset, y, d / 2 + 0.04, 0, 1);
+      if (w > 4.5) addWallSconce(0, y, d / 2 + 0.04, 0, 1);
+    }
+
+    if (lights.doorLight) {
+      const doors = this.outsideAnchors(w, d, h);
+      for (const door of doors) {
+        const outward = this.outwardSign(door.wall);
+        const along = door.doorX ?? 0;
+        const cos = Math.cos(door.rotY);
+        const sin = Math.sin(door.rotY);
+        const x = door.px + along * cos;
+        const z = door.pz - along * sin;
+        const y = Math.min((door.head ?? 2.2) + 0.18, h - 0.2);
+        addWallSconce(x + sin * outward * 0.02, y, z + cos * outward * 0.02, door.rotY, outward);
+      }
+    }
+
+    if (lights.ledStrips) {
+      const stripY = Math.min(h - 0.08, 2.45);
+      const strip = new THREE.Mesh(new THREE.BoxGeometry(Math.max(1.2, w * 0.55), 0.02, 0.04), ledMat);
+      strip.position.set(0, stripY, d / 2 + 0.06);
+      group.add(strip);
+      addFixtureLight(0, stripY - 0.05, d / 2 + 0.2, 0.45, 7);
+      if (this.currentConfig.doorCanopy) {
+        const doors = this.outsideAnchors(w, d, h);
+        for (const door of doors) {
+          if (door.itemId === 'SKJUTDORR' || door.itemId === 'SKJUTDORR3') continue;
+          const outward = this.outwardSign(door.wall);
+          const cos = Math.cos(door.rotY);
+          const sin = Math.sin(door.rotY);
+          const along = door.doorX ?? 0;
+          const cx = door.px + along * cos + sin * outward * 0.45;
+          const cz = door.pz - along * sin + cos * outward * 0.45;
+          const canopyStrip = new THREE.Mesh(
+            new THREE.BoxGeometry(Math.max(0.9, door.width + 0.3), 0.015, 0.03),
+            ledMat
+          );
+          canopyStrip.position.set(cx, (door.head ?? 2.2) + 0.05, cz);
+          canopyStrip.rotation.y = door.rotY;
+          group.add(canopyStrip);
+          addFixtureLight(cx, (door.head ?? 2.2) - 0.05, cz, 0.35, 4);
+        }
+      }
+    }
+
+    if (lights.gardenLights) {
+      const posts = [
+        { x: -w / 2 - 0.55, z: d / 2 + 1.1 },
+        { x: w / 2 + 0.55, z: d / 2 + 1.1 },
+        { x: -w / 2 + 0.8, z: d / 2 + 2.2 },
+        { x: w / 2 - 0.8, z: d / 2 + 2.2 }
+      ];
+      for (const post of posts) {
+        const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.04, 0.7, 8), bollardMat);
+        stem.position.set(post.x, 0.35, post.z);
+        stem.castShadow = true;
+        group.add(stem);
+        const cap = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), lens);
+        cap.position.set(post.x, 0.72, post.z);
+        group.add(cap);
+        addFixtureLight(post.x, 0.75, post.z, 0.55, 5);
+      }
+    }
+
+    this.wallsGroup.add(group);
+  }
+
   private buildOutsideAdditions(w: number, d: number, h: number) {
     const canopyOn = Boolean(this.currentConfig.doorCanopy);
     const terraces = this.currentConfig.terraces ?? [];
@@ -4614,7 +4832,7 @@ export class HouseScene {
       mesh.position.set(x, y, board.z);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
-      mesh.userData = { ...parent.userData, panelGroup: parent };
+      mesh.userData = { ...parent.userData, panelGroup: parent, paintTarget: 'frame' };
       parent.add(mesh);
       this.interactivePanels.push(mesh);
     }
@@ -4659,7 +4877,9 @@ export class HouseScene {
         this.writeSingleBoardUvs(board.geometry, y);
         board.castShadow = true;
         board.receiveShadow = true;
+        board.userData = { paintTarget: 'corner' };
         this.wallsGroup.add(board);
+        this.interactivePanels.push(board);
       }
     }
   }
@@ -5406,7 +5626,7 @@ export class HouseScene {
   }
 
   private markSelectable(mesh: THREE.Mesh, userData: Record<string, unknown>) {
-    mesh.userData = userData;
+    mesh.userData = { ...userData, paintTarget: 'frame' };
     this.interactivePanels.push(mesh);
   }
 
@@ -8131,6 +8351,12 @@ export class HouseScene {
       return;
     }
     Object.assign(this.currentConfig, config);
+    if (config.daylightMode) {
+      this.daylightMode = config.daylightMode;
+    }
+    if (config.houseLights) {
+      this.currentConfig.houseLights = parseHouseLights(config.houseLights);
+    }
     if (interactionChanged) {
       this.drawingWallPoints = [];
       if (this.drawingWallMesh) {
@@ -8796,9 +9022,10 @@ export class HouseScene {
   /** Arm the ruler. Orbit stays available once both ends are chosen. */
   public setMeasureMode(active: boolean, allowOrbit: boolean) {
     this.measuring = active;
+    if (active) this.painting = false;
     const placing = active && !allowOrbit;
-    this.controls.mouseButtons.LEFT = placing ? null : THREE.MOUSE.ROTATE;
-    this.controls.touches.ONE = placing ? null : THREE.TOUCH.ROTATE;
+    this.controls.mouseButtons.LEFT = placing || this.painting ? null : THREE.MOUSE.ROTATE;
+    this.controls.touches.ONE = placing || this.painting ? null : THREE.TOUCH.ROTATE;
     if (active) {
       this.container.style.cursor = MEASURE_CURSOR;
       if (this.renderer?.domElement) {
@@ -8806,10 +9033,34 @@ export class HouseScene {
       }
     } else {
       this.measureDown = null;
-      this.container.style.cursor = 'default';
-      if (this.renderer?.domElement) {
-        this.renderer.domElement.style.cursor = 'default';
+      if (!this.painting) {
+        this.container.style.cursor = 'default';
+        if (this.renderer?.domElement) {
+          this.renderer.domElement.style.cursor = 'default';
+        }
       }
+    }
+  }
+
+  /** Arm the colour brush — click facade, frames, or corners to apply the selected colour. */
+  public setPaintMode(active: boolean) {
+    this.painting = active;
+    if (active) {
+      this.measuring = false;
+      this.measureDown = null;
+      this.controls.mouseButtons.LEFT = null;
+      this.controls.touches.ONE = null;
+      this.container.style.cursor = 'crosshair';
+      if (this.renderer?.domElement) {
+        this.renderer.domElement.style.cursor = 'crosshair';
+      }
+      return;
+    }
+    this.controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
+    this.controls.touches.ONE = THREE.TOUCH.ROTATE;
+    this.container.style.cursor = 'default';
+    if (this.renderer?.domElement) {
+      this.renderer.domElement.style.cursor = 'default';
     }
   }
 

@@ -2834,6 +2834,87 @@
 
     <template v-else-if="store.selectedCategory === 'extras'">
       <section class="space-y-2">
+        <div>
+          <p class="text-xs font-bold text-slate-900"><Cms k="category.lights" /></p>
+          <p class="mt-0.5 text-[11px] text-slate-500"><Cms k="category.lightsHint" /></p>
+        </div>
+        <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <button
+            v-for="light in HOUSE_LIGHT_OPTIONS"
+            :key="light.key"
+            type="button"
+            :id="`option-light-${light.key}`"
+            :aria-pressed="store.houseLights[light.key]"
+            :class="outsideCardClass(store.houseLights[light.key])"
+            @click="store.toggleHouseLight(light.key)"
+          >
+            <div class="mb-2 flex h-16 w-full items-center justify-center rounded-lg bg-slate-100/80 text-slate-700">
+              <svg
+                v-if="light.key === 'facadeLights'"
+                class="h-10 w-14"
+                viewBox="0 0 56 40"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+              >
+                <path d="M8 32V14h40v18" />
+                <path d="M18 14v-4h4v4M34 14v-4h4v4" />
+                <circle cx="20" cy="8" r="2.5" fill="currentColor" stroke="none" />
+                <circle cx="36" cy="8" r="2.5" fill="currentColor" stroke="none" />
+              </svg>
+              <svg
+                v-else-if="light.key === 'doorLight'"
+                class="h-10 w-14"
+                viewBox="0 0 56 40"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+              >
+                <rect x="18" y="12" width="20" height="22" rx="1" />
+                <path d="M28 6v4" />
+                <circle cx="28" cy="5" r="2.5" fill="currentColor" stroke="none" />
+              </svg>
+              <svg
+                v-else-if="light.key === 'ledStrips'"
+                class="h-10 w-14"
+                viewBox="0 0 56 40"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+              >
+                <path d="M10 22h36" />
+                <path d="M14 22v6M22 22v6M30 22v6M38 22v6" stroke-width="2.2" />
+              </svg>
+              <svg
+                v-else
+                class="h-10 w-14"
+                viewBox="0 0 56 40"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+              >
+                <path d="M16 34V18M40 34V18" />
+                <circle cx="16" cy="15" r="3" fill="currentColor" stroke="none" />
+                <circle cx="40" cy="15" r="3" fill="currentColor" stroke="none" />
+                <path d="M8 34h40" />
+              </svg>
+            </div>
+            <div class="flex items-center justify-between gap-2">
+              <p class="text-xs font-bold text-slate-900"><Cms :k="`category.${light.key}`" /></p>
+              <span class="whitespace-nowrap text-xs font-extrabold tabular-nums text-slate-900">
+                {{ delta(OUTSIDE_PRICES[light.key]) }}
+              </span>
+            </div>
+            <p class="mt-0.5 text-[11px] text-slate-500"><Cms :k="`category.${light.key}Body`" /></p>
+          </button>
+        </div>
+      </section>
+
+      <section class="space-y-2 pt-2">
         <div class="flex items-center justify-between gap-2">
           <p class="text-xs font-bold text-slate-800"><Cms k="category.terrace" /></p>
           <button
@@ -3316,6 +3397,7 @@ import {
   fasciaTrimMaterialProps,
   type FasciaTrimColor
 } from '../outside/roofOverhang';
+import type { HouseLightKey } from '../outside/houseLights';
 
 const FASCIA_TRIM_SWATCHES: { id: FasciaTrimColor; hex: string; labelKey: string }[] = FASCIA_TRIM_COLORS.map(
   (id) => ({
@@ -3324,6 +3406,13 @@ const FASCIA_TRIM_SWATCHES: { id: FasciaTrimColor; hex: string; labelKey: string
     labelKey: id === 'white' ? 'White' : id === 'black' ? 'Black' : 'Metal'
   })
 );
+
+const HOUSE_LIGHT_OPTIONS: { key: HouseLightKey }[] = [
+  { key: 'facadeLights' },
+  { key: 'doorLight' },
+  { key: 'ledStrips' },
+  { key: 'gardenLights' }
+];
 import {
   TERRACE_DEPTHS,
   MIN_TERRACE_DEPTH,
@@ -3820,7 +3909,7 @@ const currentOptionsCount = computed(() => {
     case 'gates':
       return GATES_OPTIONS.length;
     case 'extras':
-      return 4;
+      return 4 + HOUSE_LIGHT_OPTIONS.length;
     default:
       return 0;
   }

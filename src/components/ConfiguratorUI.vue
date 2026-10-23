@@ -4,14 +4,17 @@
     <HeaderBar v-if="!store.isFullscreen" @open-export="isExportOpen = true" />
 
     <div
-      v-if="sunShown"
+      v-if="skyMarkerShown"
       class="pointer-events-none absolute inset-y-0 left-0 right-0 z-30"
       aria-hidden="true"
     >
       <div
         id="day-sun"
-        class="day-sun absolute -translate-x-1/2 -translate-y-1/2"
-        :class="store.isFullscreen ? 'top-10' : 'top-16 md:top-[5.5rem] min-[1180px]:max-xl:top-[8.75rem]'"
+        class="absolute -translate-x-1/2 -translate-y-1/2"
+        :class="[
+          store.daylightMode === 'moon' ? 'day-moon' : 'day-sun',
+          store.isFullscreen ? 'top-10' : 'top-16 md:top-[5.5rem] min-[1180px]:max-xl:top-[8.75rem]'
+        ]"
         :style="{ left: sunLeft }"
       ></div>
     </div>
@@ -243,9 +246,11 @@ import {
 
 const store = useConfigStore();
 const { t } = useLabels();
-const sunShown = computed(() => {
+const skyMarkerShown = computed(() => {
   if (!store.showSun) return false;
   if (store.viewMode !== 'utsida') return false;
+  if (store.daylightMode === 'moon') return true;
+  if (store.daylightMode === 'neutral') return true;
   return sunPlacement(store.sunHour, headingForFacing(store.facing)).altitude > 0.02;
 });
 const sunLeft = computed(() => `${(8 + sunAlongDay(store.sunHour) * 84).toFixed(1)}%`);
@@ -554,6 +559,23 @@ defineEmits<{
   box-shadow:
     0 0 16px 4px rgb(255 176 64 / 0.42),
     0 0 46px 18px rgb(255 140 32 / 0.28);
+  transition: left 220ms ease-out;
+}
+
+.day-moon {
+  width: 72px;
+  height: 72px;
+  border-radius: 999px;
+  background: radial-gradient(
+    circle,
+    rgb(226 232 240 / 0.75) 0%,
+    rgb(148 163 184 / 0.35) 32%,
+    rgb(71 85 105 / 0.12) 55%,
+    transparent 70%
+  );
+  box-shadow:
+    0 0 14px 3px rgb(148 163 184 / 0.35),
+    0 0 36px 12px rgb(51 65 85 / 0.22);
   transition: left 220ms ease-out;
 }
 

@@ -74,6 +74,14 @@ import {
   type RoofEdgeChoice,
   type RoofOverhangVersion
 } from '../outside/roofOverhang';
+import {
+  DEFAULT_HOUSE_LIGHTS,
+  acceptDaylightMode,
+  parseHouseLights,
+  type DaylightMode,
+  type HouseLightKey,
+  type HouseLightsConfig
+} from '../outside/houseLights';
 import { acceptPlacedRooms, type PlacedRoom } from '../three-engine/roomWalls';
 import {
   acceptTerraces,
@@ -136,6 +144,9 @@ export type CameraView = {
 export type ViewMode = 'utsida' | 'insida' | 'blueprint';
 export type CategoryKey = 'size' | 'color' | 'roof' | 'loft' | 'interior' | 'doors' | 'windows' | 'gates' | 'extras';
 export type MaterialKey = 'wood' | 'falurod' | 'grey' | 'white' | 'black';
+
+/** What the paint brush applies to when clicking the house. */
+export type PaintBrushTarget = 'auto' | 'facade' | 'frame' | 'corner';
 
 /** Saved facade + corner + frame combination. */
 export interface ColorCombo {
@@ -604,7 +615,11 @@ export const OUTSIDE_PRICES = {
   doorCanopy: 9600,
   terrace: 28400,
   terraceCeiling: 14200,
-  bigTerrace: 72600
+  bigTerrace: 72600,
+  facadeLights: 4800,
+  doorLight: 2400,
+  ledStrips: 3600,
+  gardenLights: 6200
 } as const;
 
 export type { HouseTerrace, TerraceDepth, TerraceSide, TerraceSpan, TerraceBuilding, TerraceBuildingPlacement, TerraceBuildingRoof, SaunaTurn, SaunaDoorWall };
@@ -774,6 +789,7 @@ export const useConfigStore = defineStore('config', () => {
   const activeWindow = ref<string>('standard-single');
   const activeGate = ref<string>('none');
   const doorCanopy = ref(false);
+  const houseLights = ref<HouseLightsConfig>({ ...DEFAULT_HOUSE_LIGHTS });
   /**
    * Roof edge: overhang | flush | none, or special deep-south v1–v3.
    * flushRoof / roofOverhangVersion stay derived for the scene and legacy saves.
@@ -786,6 +802,8 @@ export const useConfigStore = defineStore('config', () => {
   const terraces = ref<HouseTerrace[]>([]);
   const facing = ref<CompassFacing>('south');
   const sunHour = ref(12);
+  /** Sun / moon / neutral presentation of the sky and exterior fixtures. */
+  const daylightMode = ref<DaylightMode>('sun');
   let sunHourAtSnapshot = 12;
   const defaultView = ref<CameraView | null>(null);
 
@@ -985,12 +1003,14 @@ export const useConfigStore = defineStore('config', () => {
       activeWindow: activeWindow.value,
       activeGate: activeGate.value,
       doorCanopy: doorCanopy.value,
+      houseLights: { ...houseLights.value },
       roofEdge: roofEdge.value,
       flushRoof: flushRoof.value,
       roofOverhangVersion: roofOverhangVersion.value,
       terraces: terraces.value.map((item) => ({ ...item })),
       facing: facing.value,
       sunHour: sunHour.value,
+      daylightMode: daylightMode.value,
       defaultView: defaultView.value ? { ...defaultView.value } : null,
       activeMaterial: activeMaterial.value,
       savedPaints: savedPaints.value,
@@ -1087,6 +1107,7 @@ export const useConfigStore = defineStore('config', () => {
       if (data.activeWindow) activeWindow.value = data.activeWindow;
       if (data.activeGate) activeGate.value = data.activeGate;
       doorCanopy.value = data.doorCanopy === true;
+      houseLights.value = parseHouseLights(data.houseLights);
       if (data.roofEdge != null) {
         roofEdge.value = acceptRoofEdgeChoice(data.roofEdge);
       } else {
@@ -1100,6 +1121,7 @@ export const useConfigStore = defineStore('config', () => {
       facing.value = COMPASS_FACINGS.includes(data.facing) ? data.facing : 'south';
       sunHour.value = clampSunHour(typeof data.sunHour === 'number' ? data.sunHour : 12);
       sunHourAtSnapshot = sunHour.value;
+      daylightMode.value = acceptDaylightMode(data.daylightMode);
       defaultView.value = parseCameraView(data.defaultView);
       activeMaterial.value = MATERIAL_OPTIONS.some((item) => item.id === data.activeMaterial)
         ? data.activeMaterial
@@ -1438,6 +1460,10 @@ export const useConfigStore = defineStore('config', () => {
     });
 
     if (doorCanopy.value) total += OUTSIDE_PRICES.doorCanopy;
+    if (houseLights.value.facadeLights) total += OUTSIDE_PRICES.facadeLights;
+    if (houseLights.value.doorLight) total += OUTSIDE_PRICES.doorLight;
+    if (houseLights.value.ledStrips) total += OUTSIDE_PRICES.ledStrips;
+    if (houseLights.value.gardenLights) total += OUTSIDE_PRICES.gardenLights;
     for (const deck of terraces.value) total += terracePrice(deck);
 
     return total;
@@ -2066,6 +2092,16 @@ export const useConfigStore = defineStore('config', () => {
     saveSnapshot();
   }
 
+  const setHouseLight = (key: HouseLightKey, on: boolean) => {
+    if (houseLights.value[key] === on) return;
+    houseLights.value = { ...houseLights.value, [key]: on };
+    saveSnapshot();
+  }
+
+  const toggleHouseLight = (key: HouseLightKey) => {
+    setHouseLight(key, !houseLights.value[key]);
+  }
+
   const replaceTerrace = (side: TerraceSide, patch: Partial<HouseTerrace>) => {
     const current = terraces.value.find((item) => item.side === side);
     if (!current) return;
@@ -2247,6 +2283,17 @@ export const useConfigStore = defineStore('config', () => {
     sunHour.value = next;
     if (next === sunHourAtSnapshot) return;
     sunHourAtSnapshot = next;
+    saveSnapshot();
+  }
+
+  const setDaylightMode = (mode: DaylightMode) => {
+    const next = acceptDaylightMode(mode);
+    if (daylightMode.value === next) return;
+    daylightMode.value = next;
+    if (next === 'moon' && sunHour.value < 19) {
+      sunHour.value = 20;
+      sunHourAtSnapshot = 20;
+    }
     saveSnapshot();
   }
 
@@ -2865,8 +2912,68 @@ export const useConfigStore = defineStore('config', () => {
 
   const toggleMeasure = () => {
     measuring.value = !measuring.value;
+    if (measuring.value) setPaintBrushActive(false);
     clearMeasure();
   }
+
+  const paintBrushActive = ref(false);
+  const paintBrushTarget = ref<PaintBrushTarget>('auto');
+  /** Colour ready for the brush: material id, preset key, or #hex. */
+  const paintBrushColor = ref<string | null>(null);
+
+  const setPaintBrushActive = (on: boolean) => {
+    if (paintBrushActive.value === on) return;
+    paintBrushActive.value = on;
+    if (on && measuring.value) {
+      measuring.value = false;
+      clearMeasure();
+    }
+  };
+
+  const togglePaintBrush = () => {
+    setPaintBrushActive(!paintBrushActive.value);
+  };
+
+  const setPaintBrushTarget = (target: PaintBrushTarget) => {
+    paintBrushTarget.value = target;
+  };
+
+  const setPaintBrushColor = (color: string | null) => {
+    paintBrushColor.value = color;
+    if (color) setPaintBrushActive(true);
+  };
+
+  const resolvePaintBrushTarget = (hit: 'facade' | 'frame' | 'corner'): 'facade' | 'frame' | 'corner' => {
+    if (paintBrushTarget.value === 'auto') return hit;
+    return paintBrushTarget.value;
+  };
+
+  const applyPaintBrush = (hit: 'facade' | 'frame' | 'corner') => {
+    const color = paintBrushColor.value;
+    if (!color || !paintBrushActive.value) return;
+    const target = resolvePaintBrushTarget(hit);
+    if (target === 'facade') {
+      if (color.startsWith('#')) {
+        setCustomPaint({ hex: color, system: 'hex', pantone: '', ral: '' });
+      } else if (MATERIAL_OPTIONS.some((item) => item.id === color)) {
+        selectMaterial(color as MaterialKey);
+      } else {
+        const paint = savedPaints.value.find((item) => item.id === color);
+        if (paint) selectSavedPaint(paint.id);
+      }
+      return;
+    }
+    if (target === 'frame') {
+      selectFrameColor(color.startsWith('#') || ['same', 'white', 'falurod', 'grey', 'black', 'wood'].includes(color)
+        ? color
+        : MATERIAL_OPTIONS.find((item) => item.id === color)?.colorHex ?? color);
+      return;
+    }
+    if (!cornerBoards.value) setCornerBoards(true);
+    selectCornerColor(color.startsWith('#') || ['same', 'white', 'falurod', 'grey', 'black', 'wood'].includes(color)
+      ? color
+      : MATERIAL_OPTIONS.find((item) => item.id === color)?.colorHex ?? color);
+  };
 
   const placeMeasurePoint = (point: MeasurePoint) => {
     if (!measuring.value) return;
@@ -3048,12 +3155,14 @@ export const useConfigStore = defineStore('config', () => {
     activeWindow,
     activeGate,
     doorCanopy,
+    houseLights,
     roofEdge,
     flushRoof,
     roofOverhangVersion,
     terraces,
     facing,
     sunHour,
+    daylightMode,
     defaultView,
     currentSize,
     currentMaterial,
@@ -3139,6 +3248,9 @@ export const useConfigStore = defineStore('config', () => {
     selectWindow,
     selectGate,
     setDoorCanopy,
+    setHouseLight,
+    toggleHouseLight,
+    setDaylightMode,
     addTerrace,
     removeTerrace,
     setTerraceSide,
@@ -3188,6 +3300,14 @@ export const useConfigStore = defineStore('config', () => {
     setShowInnerWalls,
     toggleSunShown,
     measuring,
+    paintBrushActive,
+    paintBrushTarget,
+    paintBrushColor,
+    setPaintBrushActive,
+    togglePaintBrush,
+    setPaintBrushTarget,
+    setPaintBrushColor,
+    applyPaintBrush,
     measureStart,
     measureEnd,
     measureCursor,

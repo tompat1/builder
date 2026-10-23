@@ -1,9 +1,15 @@
 <template>
-  <div class="relative w-full h-full" :class="{ 'measuring-active': store.measuring }">
+  <div
+    class="relative w-full h-full"
+    :class="{
+      'measuring-active': store.measuring,
+      'painting-active': store.paintBrushActive
+    }"
+  >
     <div
       ref="canvasContainer"
       class="w-full h-full absolute inset-0 z-0"
-      :class="{ 'cursor-crosshair': store.measuring }"
+      :class="{ 'cursor-crosshair': store.measuring || store.paintBrushActive }"
     ></div>
 
     <div
@@ -246,6 +252,8 @@ onMounted(() => {
       selectedSlotId: store.selectedSlotId,
       wallSlots: store.wallSlots,
       doorCanopy: store.doorCanopy,
+      houseLights: { ...store.houseLights },
+      daylightMode: store.daylightMode,
       flushRoof: store.flushRoof,
       roofOverhangVersion: store.roofOverhangVersion,
       terraces: store.terraces.map((item) => ({ ...item })),
@@ -319,6 +327,9 @@ onMounted(() => {
     engine.onMeasureScreen = (screen) => {
       store.setMeasureScreen(screen);
     };
+    engine.onPaintPick = (target) => {
+      store.applyPaintBrush(target);
+    };
     engine.onRoomPlaced = (id, type, w, d, x, y, z) => {
       store.placedRooms[id] = { type, w, d, x, y, z, wallsVisible: true };
       store.selectRoom(id);
@@ -346,7 +357,7 @@ onMounted(() => {
     engine.onCompassDial = (degrees) => {
       compassDial.value = degrees;
     };
-    engine.setDaylight(store.sunHour, store.facing, compassLabels());
+    engine.setDaylight(store.sunHour, store.facing, compassLabels(), store.daylightMode);
     engine.setDefaultView(store.defaultView);
     if (typeof window !== 'undefined') {
       (window as any).__houseScene = engine;
@@ -433,6 +444,13 @@ watch(
     const end = store.measureEnd ?? (store.measuring ? store.measureCursor : null);
     engine?.setMeasureMode(store.measuring, Boolean(start && store.measureEnd));
     engine?.setMeasureLine(start, start && end ? end : null);
+  }
+);
+
+watch(
+  () => store.paintBrushActive,
+  (active) => {
+    engine?.setPaintMode(active);
   }
 );
 
@@ -614,13 +632,14 @@ watch(
   () => [
     store.sunHour,
     store.facing,
+    store.daylightMode,
     t('tools.letterNorth'),
     t('tools.letterEast'),
     t('tools.letterSouth'),
     t('tools.letterWest')
   ],
   () => {
-    engine?.setDaylight(store.sunHour, store.facing, compassLabels());
+    engine?.setDaylight(store.sunHour, store.facing, compassLabels(), store.daylightMode);
   }
 );
 
@@ -635,14 +654,17 @@ watch(
 watch(
   [
     () => store.doorCanopy,
+    () => store.houseLights,
     () => store.terraces.map((item) => `${item.side}:${item.depth}:${item.span}:${item.roof ? 1 : 0}:${item.building ?? 'none'}:${item.hotTub ? 1 : 0}:${item.buildingPlacement ?? 'right'}:${item.buildingRoof ?? 'pulpet'}:${item.buildingTurn ?? 0}:${item.buildingColor ?? 'natural'}:${item.buildingDoor ?? 'glass'}:${item.buildingDoorWall ?? 'auto'}:${item.buildingYardDoor ? 1 : 0}:${item.buildingWindow ?? 'panorama'}:${item.buildingWindowPlacement ?? 'yard'}:${item.buildingSize ?? 'standard'}:${item.buildingWindowSize ?? 'standard'}`).join('|')
   ],
   () => {
     engine?.updateConfig({
       doorCanopy: store.doorCanopy,
+      houseLights: { ...store.houseLights },
       terraces: store.terraces.map((item) => ({ ...item }))
     });
-  }
+  },
+  { deep: true }
 );
 
 watch(
@@ -778,5 +800,10 @@ defineExpose({
 .measuring-active,
 .measuring-active :deep(canvas) {
   cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none'%3E%3Cpath d='M12 3v18M3 12h18' stroke='%23ffffff' stroke-width='3.5' stroke-linecap='square'/%3E%3Cpath d='M12 3v18M3 12h18' stroke='%230f172a' stroke-width='1.5' stroke-linecap='square'/%3E%3C/svg%3E") 12 12, crosshair !important;
+}
+
+.painting-active,
+.painting-active :deep(canvas) {
+  cursor: crosshair !important;
 }
 </style>

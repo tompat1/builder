@@ -73,9 +73,70 @@
                 <span class="tool-tip"><Cms k="tools.sun" /></span>
               </button>
               <span class="min-w-0 flex-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                <Cms k="tools.facing" />
+                <Cms k="tools.daylightMode" />
               </span>
               <span id="sun-time-label" class="text-[11px] font-bold tabular-nums text-slate-900">{{ sunClock }}</span>
+            </div>
+            <div
+              class="mt-1.5 grid grid-cols-3 gap-1"
+              role="radiogroup"
+              :aria-label="t('tools.daylightMode')"
+            >
+              <button
+                v-for="mode in daylightModes"
+                :key="mode.id"
+                type="button"
+                :id="`daylight-${mode.id}`"
+                role="radio"
+                :aria-checked="store.daylightMode === mode.id"
+                :aria-label="t(mode.label)"
+                :title="t(mode.hint)"
+                @click="store.setDaylightMode(mode.id)"
+                :class="[
+                  'flex h-8 items-center justify-center gap-1 rounded-lg border text-[11px] font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
+                  store.daylightMode === mode.id
+                    ? 'border-slate-900 bg-slate-900 text-white'
+                    : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                ]"
+              >
+                <svg
+                  v-if="mode.id === 'sun'"
+                  class="h-3.5 w-3.5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                >
+                  <circle cx="12" cy="12" r="3.5" />
+                  <path d="M12 2.5v2M12 19.5V22M4.2 4.2l1.5 1.5M18.3 18.3l1.5 1.5M2.5 12H4.5M19.5 12H21.5M4.2 19.8l1.5-1.5M18.3 5.7l1.5-1.5" />
+                </svg>
+                <svg
+                  v-else-if="mode.id === 'moon'"
+                  class="h-3.5 w-3.5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M21 14.5A8.5 8.5 0 1 1 9.5 3a6.8 6.8 0 0 0 11.5 11.5Z" />
+                </svg>
+                <svg
+                  v-else
+                  class="h-3.5 w-3.5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                >
+                  <circle cx="12" cy="12" r="4" />
+                  <path d="M4 12h2M18 12h2" />
+                </svg>
+                <Cms :k="mode.label" />
+              </button>
             </div>
             <div class="mt-1.5 grid grid-cols-4 gap-1" role="group" :aria-label="t('tools.facing')">
               <button
@@ -106,6 +167,7 @@
                 step="0.25"
                 :value="store.sunHour"
                 class="sun-hour h-1.5 w-full cursor-pointer accent-slate-900"
+                :disabled="store.daylightMode === 'neutral'"
                 @input="onSunInput"
                 @change="onSunCommit"
               />
@@ -121,13 +183,34 @@
           :aria-expanded="sunOpen"
           aria-controls="sun-timebox"
         >
-          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <svg
+            v-if="store.daylightMode === 'moon'"
+            class="w-6 h-6"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M21 14.5A8.5 8.5 0 1 1 9.5 3a6.8 6.8 0 0 0 11.5 11.5Z" />
+          </svg>
+          <svg
+            v-else
+            class="w-6 h-6"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          >
             <circle cx="12" cy="12" r="4" />
             <path d="M12 2v2.2M12 19.8V22M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M2 12h2.2M19.8 12H22M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6" />
           </svg>
           <span
             v-if="!sunOpen"
-            class="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-[#8a6a2f]"
+            class="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full"
+            :class="store.daylightMode === 'moon' ? 'bg-sky-700' : 'bg-[#8a6a2f]'"
             aria-hidden="true"
           ></span>
           <span class="tool-tip"><Cms k="tools.sunTime" /></span>
@@ -525,6 +608,182 @@
 
       <div class="w-px h-7 bg-slate-200/60 my-auto"></div>
 
+      <div ref="colorBox" class="relative">
+        <div
+          id="color-tools"
+          ref="colorTray"
+          class="z-30 origin-bottom-left transition-[opacity,left] duration-200 ease-out"
+          :class="narrow && colorOpen
+            ? 'relative w-[min(320px,calc(100vw-2rem))] max-w-full opacity-100'
+            : ['absolute bottom-[calc(100%+8px)]', colorOpen ? 'left-16 opacity-100' : 'pointer-events-none left-0 opacity-0']"
+          :inert="!colorOpen"
+          :aria-hidden="!colorOpen"
+        >
+          <div class="bg-white/95 backdrop-blur-md rounded-2xl shadow-md border border-slate-200/80 p-2.5 w-[min(320px,calc(100vw-2rem))] space-y-2.5">
+            <div class="flex items-center justify-between gap-2">
+              <span class="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                <Cms k="tools.colors" />
+              </span>
+              <button
+                type="button"
+                id="btn-tool-paint-brush"
+                @click="store.togglePaintBrush()"
+                :class="[...toolButton(store.paintBrushActive), 'shrink-0 !w-10 !h-10']"
+                :aria-label="t('tools.paintBrush')"
+                :aria-pressed="store.paintBrushActive"
+              >
+                <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M9.5 21a3.5 3.5 0 0 1-3.5-3.5V14l8.5-8.5 3.5 3.5L9.5 17.5" />
+                  <path d="m14.5 5.5 3.5 3.5" />
+                  <path d="M5 21h4" />
+                </svg>
+                <span class="tool-tip"><Cms k="tools.paintBrush" /></span>
+              </button>
+            </div>
+
+            <div
+              class="grid grid-cols-4 gap-1"
+              role="radiogroup"
+              :aria-label="t('tools.paintTarget')"
+            >
+              <button
+                v-for="target in paintTargets"
+                :key="target.id"
+                type="button"
+                :id="`paint-target-${target.id}`"
+                role="radio"
+                :aria-checked="store.paintBrushTarget === target.id"
+                :aria-label="t(target.label)"
+                @click="store.setPaintBrushTarget(target.id)"
+                :class="[
+                  'h-7 rounded-lg border text-[10px] font-bold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
+                  store.paintBrushTarget === target.id
+                    ? 'border-slate-900 bg-slate-900 text-white'
+                    : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                ]"
+              >
+                <Cms :k="target.label" />
+              </button>
+            </div>
+
+            <div>
+              <p class="mb-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                <Cms k="tools.paintSwatches" />
+              </p>
+              <div class="flex flex-wrap gap-1.5">
+                <button
+                  v-for="mat in MATERIAL_OPTIONS"
+                  :key="mat.id"
+                  type="button"
+                  :id="`paint-swatch-${mat.id}`"
+                  class="h-8 w-8 rounded-lg border shadow-xs transition ring-offset-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+                  :class="store.paintBrushColor === mat.id
+                    ? 'border-slate-900 ring-2 ring-slate-900'
+                    : 'border-slate-300 hover:border-slate-400'"
+                  :style="{ backgroundColor: mat.colorHex }"
+                  :aria-label="mat.name"
+                  :aria-pressed="store.paintBrushColor === mat.id"
+                  @click="store.setPaintBrushColor(mat.id)"
+                />
+                <button
+                  v-for="paint in store.savedPaints"
+                  :key="paint.id"
+                  type="button"
+                  :id="`paint-swatch-saved-${paint.id}`"
+                  class="h-8 w-8 rounded-lg border shadow-xs transition ring-offset-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+                  :class="store.paintBrushColor === paint.id || store.paintBrushColor === paint.hex
+                    ? 'border-slate-900 ring-2 ring-slate-900'
+                    : 'border-slate-300 hover:border-slate-400'"
+                  :style="{ backgroundColor: paint.hex }"
+                  :aria-label="paint.hex"
+                  :aria-pressed="store.paintBrushColor === paint.id || store.paintBrushColor === paint.hex"
+                  @click="store.setPaintBrushColor(paint.id)"
+                />
+                <label
+                  class="relative h-8 w-8 cursor-pointer overflow-hidden rounded-lg border border-dashed border-slate-300 hover:border-slate-400"
+                  :aria-label="t('tools.paintCustom')"
+                >
+                  <span
+                    class="absolute inset-0"
+                    :style="{ background: store.paintBrushColor?.startsWith('#') ? store.paintBrushColor : 'conic-gradient(red, yellow, lime, aqua, blue, magenta, red)' }"
+                  />
+                  <input
+                    id="paint-swatch-custom"
+                    type="color"
+                    class="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                    :value="store.paintBrushColor?.startsWith('#') ? store.paintBrushColor : '#64748b'"
+                    @input="onPaintCustomColor"
+                  />
+                </label>
+              </div>
+            </div>
+
+            <div v-if="store.savedColorCombos.length">
+              <p class="mb-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                <Cms k="tools.paintCombos" />
+              </p>
+              <div class="flex max-h-28 flex-col gap-1 overflow-y-auto">
+                <button
+                  v-for="combo in store.savedColorCombos"
+                  :key="combo.id"
+                  type="button"
+                  :id="`paint-combo-${combo.id}`"
+                  class="flex items-center gap-2 rounded-xl border px-2 py-1.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+                  :class="store.activeColorComboId === combo.id
+                    ? 'border-slate-900 bg-slate-50'
+                    : 'border-slate-200 bg-white hover:border-slate-300'"
+                  @click="applyComboFromTray(combo.id)"
+                >
+                  <span class="flex shrink-0 -space-x-1" aria-hidden="true">
+                    <span
+                      class="h-5 w-5 rounded-md border border-slate-300"
+                      :style="{ backgroundColor: trayComboFacadeHex(combo) }"
+                    />
+                    <span
+                      class="h-5 w-5 rounded-md border border-slate-300"
+                      :style="{ backgroundColor: trayComboTrimHex(combo.cornerColor, trayComboFacadeHex(combo)) }"
+                    />
+                    <span
+                      class="h-5 w-5 rounded-md border border-slate-300"
+                      :style="{ backgroundColor: trayComboTrimHex(combo.frameColor, trayComboFacadeHex(combo)) }"
+                    />
+                  </span>
+                  <span class="min-w-0 flex-1 truncate text-[11px] font-bold text-slate-900">{{ combo.name }}</span>
+                </button>
+              </div>
+            </div>
+
+            <p class="text-[10px] leading-snug text-slate-500">
+              <Cms k="tools.paintBrushHint" />
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          id="btn-tool-colors"
+          @click="toggleColorTray"
+          :class="toolButton(colorOpen || store.paintBrushActive)"
+          :aria-label="t('tools.colors')"
+          :aria-expanded="colorOpen"
+          aria-controls="color-tools"
+        >
+          <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3a9 9 0 1 0 0 18c.7 0 1.2-.6 1-1.2-.3-.9.2-1.8 1.1-2.1A3.5 3.5 0 0 0 17 11a5 5 0 0 0-5-8Z" />
+            <circle cx="7.5" cy="11.5" r="1" fill="currentColor" stroke="none" />
+            <circle cx="10" cy="7.8" r="1" fill="currentColor" stroke="none" />
+            <circle cx="14.2" cy="7.8" r="1" fill="currentColor" stroke="none" />
+          </svg>
+          <span
+            v-if="!colorOpen"
+            class="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-[#8a6a2f]"
+            aria-hidden="true"
+          ></span>
+          <span class="tool-tip"><Cms k="tools.colors" /></span>
+        </button>
+      </div>
+
+      <div class="w-px h-7 bg-slate-200/60 my-auto"></div>
+
       <button
         type="button"
         id="btn-tool-ai-concierge"
@@ -549,7 +808,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
-import { useConfigStore } from '../store/useConfigStore';
+import { MATERIAL_OPTIONS, useConfigStore, type PaintBrushTarget } from '../store/useConfigStore';
 import { NOTE_LIMIT } from '../notes/board';
 import { formatSunHour } from '../three-engine/sunPosition';
 import { useLabels } from '../i18n';
@@ -564,6 +823,17 @@ const bearings = [
   { id: 'south', letter: 'tools.letterSouth', name: 'tools.south' },
   { id: 'west', letter: 'tools.letterWest', name: 'tools.west' }
 ] as const;
+const daylightModes = [
+  { id: 'sun', label: 'tools.daylightSun', hint: 'tools.daylightSunHint' },
+  { id: 'moon', label: 'tools.daylightMoon', hint: 'tools.daylightMoonHint' },
+  { id: 'neutral', label: 'tools.daylightNeutral', hint: 'tools.daylightNeutralHint' }
+] as const;
+const paintTargets: { id: PaintBrushTarget; label: string }[] = [
+  { id: 'auto', label: 'tools.paintTargetAuto' },
+  { id: 'facade', label: 'tools.paintTargetFacade' },
+  { id: 'frame', label: 'tools.paintTargetFrame' },
+  { id: 'corner', label: 'tools.paintTargetCorner' }
+];
 
 function onSunInput(event: Event) {
   store.previewSunHour(Number((event.target as HTMLInputElement).value));
@@ -572,20 +842,44 @@ function onSunInput(event: Event) {
 function onSunCommit(event: Event) {
   store.commitSunHour(Number((event.target as HTMLInputElement).value));
 }
+
+function onPaintCustomColor(event: Event) {
+  const value = (event.target as HTMLInputElement).value;
+  if (value) store.setPaintBrushColor(value);
+}
+
+function trayComboFacadeHex(combo: { material: string; paintHex: string | null }) {
+  if (combo.paintHex) return combo.paintHex;
+  return MATERIAL_OPTIONS.find((item) => item.id === combo.material)?.colorHex ?? '#e8d8be';
+}
+
+function trayComboTrimHex(key: string, facadeHex: string) {
+  if (key === 'same') return facadeHex;
+  if (key.startsWith('#')) return key;
+  return MATERIAL_OPTIONS.find((item) => item.id === key)?.colorHex ?? facadeHex;
+}
+
+function applyComboFromTray(id: string) {
+  store.applyColorCombo(id);
+  store.setPaintBrushActive(false);
+}
 const router = useRouter();
 const { t, locale } = useLabels();
 const rulerOpen = ref(false);
 const sunOpen = ref(false);
 const viewOpen = ref(false);
 const notesOpen = ref(false);
+const colorOpen = ref(false);
 const rulerBox = ref<HTMLElement | null>(null);
 const sunBox = ref<HTMLElement | null>(null);
 const viewBox = ref<HTMLElement | null>(null);
 const notesBox = ref<HTMLElement | null>(null);
+const colorBox = ref<HTMLElement | null>(null);
 const sunTray = ref<HTMLElement | null>(null);
 const viewTray = ref<HTMLElement | null>(null);
 const rulerTray = ref<HTMLElement | null>(null);
 const notesTray = ref<HTMLElement | null>(null);
+const colorTray = ref<HTMLElement | null>(null);
 const toolScroll = ref<HTMLElement | null>(null);
 let tipFromPointer = false;
 const toolsOpen = ref(true);
@@ -699,10 +993,12 @@ async function anchorOpenTray() {
   resetTrayStyle(viewTray.value);
   resetTrayStyle(rulerTray.value);
   resetTrayStyle(notesTray.value);
+  resetTrayStyle(colorTray.value);
   clampTray(sunTray.value, sunOpen.value);
   clampTray(viewTray.value, viewOpen.value);
   clampTray(rulerTray.value, rulerOpen.value);
   clampTray(notesTray.value, notesOpen.value);
+  clampTray(colorTray.value, colorOpen.value);
 }
 
 function closeTrays() {
@@ -710,10 +1006,12 @@ function closeTrays() {
   viewOpen.value = false;
   rulerOpen.value = false;
   notesOpen.value = false;
+  colorOpen.value = false;
   resetTrayStyle(sunTray.value);
   resetTrayStyle(viewTray.value);
   resetTrayStyle(rulerTray.value);
   resetTrayStyle(notesTray.value);
+  resetTrayStyle(colorTray.value);
 }
 
 function toggleTools() {
@@ -744,7 +1042,7 @@ function onToolScroll() {
   const moved = Math.abs(left - scrollLeft) > 2;
   scrollLeft = left;
   if (ignoreToolScroll || !moved) return;
-  if (sunOpen.value || viewOpen.value || rulerOpen.value || notesOpen.value) closeTrays();
+  if (sunOpen.value || viewOpen.value || rulerOpen.value || notesOpen.value || colorOpen.value) closeTrays();
 }
 
 function toggleSun() {
@@ -755,6 +1053,7 @@ function toggleSun() {
     viewOpen.value = false;
     rulerOpen.value = false;
     notesOpen.value = false;
+    colorOpen.value = false;
   }
   void anchorOpenTray();
 }
@@ -767,6 +1066,7 @@ function toggleView() {
     sunOpen.value = false;
     rulerOpen.value = false;
     notesOpen.value = false;
+    colorOpen.value = false;
   }
   void anchorOpenTray();
 }
@@ -779,6 +1079,7 @@ function toggleRuler() {
     sunOpen.value = false;
     viewOpen.value = false;
     notesOpen.value = false;
+    colorOpen.value = false;
   }
   void anchorOpenTray();
 }
@@ -791,6 +1092,20 @@ function toggleNotesTray() {
     sunOpen.value = false;
     viewOpen.value = false;
     rulerOpen.value = false;
+    colorOpen.value = false;
+  }
+  void anchorOpenTray();
+}
+
+function toggleColorTray() {
+  holdScrollClose();
+  colorOpen.value = !colorOpen.value;
+  if (colorOpen.value) {
+    emit('close-ai');
+    sunOpen.value = false;
+    viewOpen.value = false;
+    rulerOpen.value = false;
+    notesOpen.value = false;
   }
   void anchorOpenTray();
 }
@@ -810,6 +1125,7 @@ function toggleAi() {
   viewOpen.value = false;
   rulerOpen.value = false;
   notesOpen.value = false;
+  colorOpen.value = false;
   store.showMood = false;
   emit('toggle-ai');
 }
@@ -834,7 +1150,8 @@ function applySearchNavigation() {
   viewOpen.value = tool === 'view';
   rulerOpen.value = tool === 'ruler';
   notesOpen.value = tool === 'notes';
-  if (tool === 'sun' || tool === 'view' || tool === 'ruler' || tool === 'notes') {
+  colorOpen.value = tool === 'color';
+  if (tool === 'sun' || tool === 'view' || tool === 'ruler' || tool === 'notes' || tool === 'color') {
     if (narrowTools()) toolsOpen.value = true;
     void anchorOpenTray();
   } else {
@@ -847,12 +1164,13 @@ watch(searchRequest, applySearchNavigation);
 function onTourTools(event: Event) {
   const tray = (event as CustomEvent<{ tray?: string }>).detail?.tray ?? 'none';
   tourTray = tray === 'none' ? null : tray;
-  const showTools = tray === 'dock' || tray === 'sun' || tray === 'view' || tray === 'ruler' || tray === 'notes';
+  const showTools = tray === 'dock' || tray === 'sun' || tray === 'view' || tray === 'ruler' || tray === 'notes' || tray === 'color';
   if (narrowTools() && showTools) toolsOpen.value = true;
   sunOpen.value = tray === 'sun';
   viewOpen.value = tray === 'view';
   rulerOpen.value = tray === 'ruler';
   notesOpen.value = tray === 'notes';
+  colorOpen.value = tray === 'color';
   store.showMood = tray === 'mood';
   if (tray !== 'ai') emit('close-ai');
   void anchorOpenTray();
@@ -868,12 +1186,14 @@ function onDocumentPointerDown(event: PointerEvent) {
     if (sunOpen.value && !sunBox.value?.contains(target)) sunOpen.value = false;
     if (viewOpen.value && !viewBox.value?.contains(target)) viewOpen.value = false;
     if (notesOpen.value && !notesBox.value?.contains(target)) notesOpen.value = false;
+    if (colorOpen.value && !colorBox.value?.contains(target)) colorOpen.value = false;
   }, 0);
 }
 
 function onKey(event: KeyboardEvent) {
   if (event.key !== 'Escape' || tourTray) return;
   closeTrays();
+  store.setPaintBrushActive(false);
   emit('close-ai');
   if (manualFullscreen) exitManualFullscreen();
 }
@@ -1016,7 +1336,8 @@ button {
   #sun-timebox .tool-tip,
   #view-tools .tool-tip,
   #ruler-tools .tool-tip,
-  #note-tools .tool-tip {
+  #note-tools .tool-tip,
+  #color-tools .tool-tip {
     top: auto;
     bottom: calc(100% + 8px);
     left: 50%;
