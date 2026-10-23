@@ -34,21 +34,28 @@ export function captureCameraView(camera: THREE.Camera, controls: OrbitControls)
   };
 }
 
+export type FacingSide = 'front' | 'back' | 'left' | 'right';
+
+export type FacingOverhang = Partial<Record<FacingSide, number>>;
+
 /** Calculate camera position and target height for taking still facing snapshots. */
 export function calculateFacingPose(
-  facing: 'front' | 'back' | 'left' | 'right',
+  facing: FacingSide,
   widthMm = 6000,
   depthMm = 4000,
-  heightMm = 4000
+  heightMm = 4000,
+  overhang: FacingOverhang = {}
 ): { cameraPosition: [number, number, number]; targetY: number } {
   const width = Math.max((widthMm || 6000) / 1000, 4);
   const depth = Math.max((depthMm || 4000) / 1000, 3);
   const height = Math.max((heightMm || 4000) / 1000, 2.4);
-  const dist = Math.max(width, depth) * 1.05 + 3.5;
+  const out = Math.max(0, overhang[facing] ?? 0);
+  // Pull back far enough that a deep terrace with sauna/tub still fits in frame.
+  const dist = Math.max(width, depth) * 1.05 + 3.5 + out * 1.15 + 1.2;
   const skew = dist * 0.36;
   const y = Math.max(3.8, height * 0.92);
   const lookY = Math.max(1.6, height * 0.45);
-  const poses: Record<'front' | 'back' | 'left' | 'right', [number, number, number]> = {
+  const poses: Record<FacingSide, [number, number, number]> = {
     front: [skew, y, dist],
     back: [-skew, y, -dist],
     left: [-dist, y, skew],
@@ -57,6 +64,28 @@ export function calculateFacingPose(
   return {
     cameraPosition: poses[facing],
     targetY: lookY
+  };
+}
+
+/**
+ * Elevated 3/4 view that shows the whole shell plus terraces, sauna, and hot tub.
+ * Used as a second house reference for site placement renders.
+ */
+export function calculateOverviewPose(
+  widthMm = 6000,
+  depthMm = 4000,
+  heightMm = 4000,
+  overhang: FacingOverhang = {}
+): { cameraPosition: [number, number, number]; targetY: number } {
+  const width = Math.max((widthMm || 6000) / 1000, 4);
+  const depth = Math.max((depthMm || 4000) / 1000, 3);
+  const height = Math.max((heightMm || 4000) / 1000, 2.4);
+  const maxOut = Math.max(0, overhang.front ?? 0, overhang.back ?? 0, overhang.left ?? 0, overhang.right ?? 0);
+  const dist = Math.max(width, depth) * 1.35 + 5.5 + maxOut * 1.1;
+  const y = Math.max(5.2, height * 1.15 + 2.2);
+  return {
+    cameraPosition: [dist * 0.82, y, dist * 0.95],
+    targetY: Math.max(1.4, height * 0.38)
   };
 }
 

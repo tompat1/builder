@@ -215,15 +215,25 @@ test('reference photos stay inside the picture model size', () => {
 });
 
 test('a site preview preserves the first photo and installs the configured house', () => {
-  const prompt = sitePrompt('5800 × 4310 mm, red cladding.', 3, { x: 41.2, y: 72.8 }, 'back');
-  assert.match(prompt, /image 0 as the base photograph/i);
+  const prompt = sitePrompt(
+    'Image 1 is a two-panel still of the configured 3D house. Must include these attached outdoor parts from that still: a wooden terrace deck on the back with an attached compact sauna cabin and a round cedar hot tub. Roof: pulpettak. 5800 × 4310 mm, red cladding.',
+    3,
+    { x: 41.2, y: 72.8 },
+    'back'
+  );
+  assert.match(prompt, /image 0 as the base garden photograph/i);
   assert.match(prompt, /rear facade/);
   assert.match(prompt, /taken from the back/i);
   assert.match(prompt, /41% from the left and 73% from the top/);
-  assert.match(prompt, /5800 × 4310 mm, red cladding/);
+  assert.match(prompt, /sauna cabin/);
+  assert.match(prompt, /hot tub/);
+  assert.match(prompt, /often two panels/i);
+  assert.match(prompt, /Do NOT merely recolor/i);
   assert.match(prompt, /replace only that structure/i);
+  assert.match(prompt, /Images 2 and later are extra site photos/i);
   assert.match(sitePrompt('house facts', 2, { x: 50, y: 50 }), /front facade/);
   assert.match(sitePrompt('house facts', 2, { x: 50, y: 50 }, 'left'), /left-side facade/);
+  assert.doesNotMatch(sitePrompt('house facts', 2, { x: 50, y: 50 }), /Images 2 and later/);
   assert.equal(acceptFacing('right'), 'right');
   assert.equal(acceptFacing('above'), 'front');
   assert.equal(sitePrompt('house', 1, { x: 50, y: 50 }), '');

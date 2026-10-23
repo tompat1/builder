@@ -135,12 +135,14 @@ import {
 } from './materials';
 import {
   calculateFacingPose,
+  calculateOverviewPose,
   captureCameraView,
   easeInOutCubic,
   motionReduced,
   stepCameraFlight,
   type CameraFlight
 } from './cameraFlight';
+import { terraceOverhangBySide } from '../services/siteHouseFacts';
 const PULPET_PITCH_RAD = (PULPET_PITCH_DEG * Math.PI) / 180;
 const STUGAN_PULPET_PITCH_RAD = (STUGAN_V4_ROOF_PITCH_DEG * Math.PI) / 180;
 export { MEASURE_CURSOR };
@@ -10481,11 +10483,7 @@ export class HouseScene {
     return this.renderer.domElement;
   }
 
-  /**
-   * Point the camera at one exterior face and return a function that puts the
-   * user's view back. The capture reads the canvas before that restore runs.
-   */
-  public prepareFacingCapture(facing: 'front' | 'back' | 'left' | 'right') {
+  private beginStillCapture() {
     const position = this.camera.position.clone();
     const target = this.controls.target.clone();
     const { near } = this.camera;
@@ -10498,19 +10496,8 @@ export class HouseScene {
     this.roofGroup.visible = true;
     this.trussesGroup.visible = false;
     this.framingGroup.visible = false;
-
-    const { cameraPosition, targetY } = calculateFacingPose(
-      facing,
-      this.currentConfig.widthMm,
-      this.currentConfig.depthMm,
-      this.currentConfig.heightMm
-    );
     this.controls.minDistance = 0.1;
     this.camera.near = 0.1;
-    this.camera.position.set(...cameraPosition);
-    this.controls.target.set(0, targetY, 0);
-    this.camera.lookAt(0, targetY, 0);
-    this.camera.updateProjectionMatrix();
 
     return () => {
       this.roofGroup.visible = roof;
@@ -10525,6 +10512,50 @@ export class HouseScene {
       this.controls.update();
       this.renderer.render(this.scene, this.camera);
     };
+  }
+
+  private terraceCaptureOverhang() {
+    return terraceOverhangBySide(this.currentConfig.terraces);
+  }
+
+  private aimStillCamera(cameraPosition: [number, number, number], targetY: number) {
+    this.camera.position.set(...cameraPosition);
+    this.controls.target.set(0, targetY, 0);
+    this.camera.lookAt(0, targetY, 0);
+    this.camera.updateProjectionMatrix();
+  }
+
+  /**
+   * Point the camera at one exterior face and return a function that puts the
+   * user's view back. The capture reads the canvas before that restore runs.
+   */
+  public prepareFacingCapture(facing: 'front' | 'back' | 'left' | 'right') {
+    const restore = this.beginStillCapture();
+    const { cameraPosition, targetY } = calculateFacingPose(
+      facing,
+      this.currentConfig.widthMm,
+      this.currentConfig.depthMm,
+      this.currentConfig.heightMm,
+      this.terraceCaptureOverhang()
+    );
+    this.aimStillCamera(cameraPosition, targetY);
+    return restore;
+  }
+
+  /**
+   * Elevated 3/4 still that keeps terrace, sauna, and hot tub in frame for
+   * the site-placement AI (paired with a matching facade still).
+   */
+  public prepareOverviewCapture() {
+    const restore = this.beginStillCapture();
+    const { cameraPosition, targetY } = calculateOverviewPose(
+      this.currentConfig.widthMm,
+      this.currentConfig.depthMm,
+      this.currentConfig.heightMm,
+      this.terraceCaptureOverhang()
+    );
+    this.aimStillCamera(cameraPosition, targetY);
+    return restore;
   }
 
   /** Draw the current frame before a thumbnail read. The animation loop may not have painted yet. */

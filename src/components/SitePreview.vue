@@ -133,7 +133,8 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useConfigStore } from '../store/useConfigStore';
 import { useLabels } from '../i18n';
-import { captureHouseReference, requestSitePicture, type SiteFacing } from '../services/houseRender';
+import { captureSiteHouseReference, requestSitePicture, type SiteFacing } from '../services/houseRender';
+import { siteHouseFacts } from '../services/siteHouseFacts';
 
 const SITE_PHOTO_LIMIT = 3;
 const DATA_URL_LIMIT = 270_000;
@@ -243,76 +244,35 @@ async function shrinkScene(file: File) {
 
 function houseFacts() {
   const dimensions = store.dimensions;
-
-  // Explicit roof shape & covering in English architectural terms
-  const roofType = store.activeRoof;
-  const covering = store.roofCovering || 'metal';
-  const coveringText = {
-    metal: 'standing-seam sheet metal (plåttak)',
-    felt: 'smooth dark roofing felt (takpapp)',
-    tiles: 'concrete roof tiles (takpannor)',
-    shingles: 'architectural roof shingles (shingeltak)'
-  }[covering] || `${covering} roofing`;
-
-  let roofDesc = '';
-  if (roofType === 'pulpettak') {
-    roofDesc = `single-slope mono-pitch shed roof (pulpettak, 12° slope) with ${coveringText}, strictly NOT a gable roof, NO center ridge, NO triangular peak`;
-  } else if (roofType === 'flackt') {
-    roofDesc = `modern flat roof (flackt tak) with clean horizontal parapet trim and ${coveringText}, strictly NOT a gable roof`;
-  } else if (roofType === 'sadeltak14') {
-    roofDesc = `low-pitch dual-pitch gable roof (sadeltak 14°) with raised eaves and ${coveringText}`;
-  } else {
-    roofDesc = `classic dual-pitch symmetrical gable roof (sadeltak 22°) with ${coveringText}`;
-  }
-
-  // Wall materials & finishes
   let wallDesc = '';
   if (store.selectedSizeId === 'size-paabyggnad') {
     const concreteColor = store.concreteColor || '#b7b3ac';
     const timberColor = store.customPaint?.hex || store.currentMaterial?.colorHex || '#1e293b';
     wallDesc = `ground floor in concrete walls (${concreteColor}), upper level in vertical timber cladding (${timberColor})`;
   } else {
-    const matName = store.customPaint ? `custom painted timber (${store.customPaint.hex})` : `${store.currentMaterial.name} timber cladding`;
-    wallDesc = `${matName}`;
+    wallDesc = store.customPaint
+      ? `custom painted timber (${store.customPaint.hex})`
+      : `${store.currentMaterial.name} timber cladding`;
   }
 
-  // Terraces and outbuildings
-  const terraceParts: string[] = [];
-  if (store.terraces.length > 0) {
-    const t0 = store.terraces[0];
-    const deckBits: string[] = [];
-    if (t0.building === 'sauna') {
-      const colorWord = t0.buildingColor === 'svart' ? 'charcoal black'
-        : t0.buildingColor === 'falurod' ? 'Falu red'
-        : t0.buildingColor === 'gra' ? 'slate grey'
-        : t0.buildingColor === 'vit' ? 'white'
-        : t0.buildingColor === 'match' ? 'matching color'
-        : 'natural timber';
-      const doorWord = t0.buildingDoor === 'solid' ? 'solid wood door'
-        : t0.buildingDoor === 'lervik' ? 'timber door with vertical glass slit'
-        : t0.buildingDoor === 'stehag' ? 'framed glass door'
-        : 'full-glass sauna door';
-      const winWord = t0.buildingWindow === 'none' ? 'windowless walls'
-        : t0.buildingWindow === 'panorama' ? 'large panoramic glass view window'
-        : t0.buildingWindow === 'sprojat' ? 'mullioned window'
-        : t0.buildingWindow === 'frost' ? 'frosted ribbon window'
-        : 'standard framed window';
-      deckBits.push(`an attached compact ${colorWord} sauna box featuring a ${doorWord}, ${winWord}, a flat black roof and small chimney pipe`);
-    } else if (t0.building === 'shed') {
-      deckBits.push('an attached timber shed');
-    }
-    if (t0.hotTub) {
-      deckBits.push('a round cedar hot tub with stainless-steel hoops, built-in wood stove and tall metal flue');
-    }
-    if (deckBits.length) {
-      terraceParts.push(`wooden terrace deck with ${deckBits.join(' and ')}`);
-    } else {
-      terraceParts.push(`${store.terraces.length} terrace`);
-    }
-  }
-  const terraceText = terraceParts.length ? `, ${terraceParts.join(', ')}` : '';
-
-  return `${store.currentSize.name}, ${dimensions.width} × ${dimensions.depth} × ${dimensions.height} mm, ${wallDesc}, ${roofDesc}${terraceText}.`;
+  return siteHouseFacts({
+    sizeName: store.currentSize.name,
+    widthMm: dimensions.width,
+    depthMm: dimensions.depth,
+    heightMm: dimensions.height,
+    roofType: store.activeRoof,
+    roofCovering: store.roofCovering || 'metal',
+    wallDesc,
+    terraces: store.terraces.map((deck) => ({
+      side: deck.side,
+      depth: deck.depth,
+      building: deck.building,
+      buildingColor: deck.buildingColor,
+      buildingDoor: deck.buildingDoor,
+      buildingWindow: deck.buildingWindow,
+      hotTub: deck.hotTub
+    }))
+  });
 }
 
 async function houseReference() {
@@ -323,7 +283,7 @@ async function houseReference() {
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
   }
   try {
-    const image = captureHouseReference(facing.value);
+    const image = await captureSiteHouseReference(facing.value);
     if (!image || image.length > DATA_URL_LIMIT) throw new Error('house');
     return image;
   } finally {
@@ -341,6 +301,7 @@ async function renderSite() {
   try {
     const ordered = [sitePhotos.value[primaryIndex.value], ...sitePhotos.value.filter((_, index) => index !== primaryIndex.value)];
     const primary = await shrinkScene(ordered[0]);
+    // Image 0 = garden photo; image 1 = facade + overview diptych of the live 3D house.
     const images = [primary.dataUrl, await houseReference()];
     for (const file of ordered.slice(1)) {
       if (images.length >= 4) break;

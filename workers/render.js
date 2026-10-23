@@ -99,17 +99,21 @@ export function acceptFacing(input) {
   return Object.hasOwn(SITE_FACINGS, value) ? value : 'front';
 }
 
-/** Image 0 is the scene, image 1 is the configured house, and later images only add site context. */
+/**
+ * Image 0 is the garden photo. Image 1 is the configured 3D house — often a
+ * two-panel sheet (left = matching facade, right = wider overview with terrace).
+ * Later images are extra site context only.
+ */
 export function sitePrompt(facts, imageCount, placement, facing) {
   if (imageCount < 2) return '';
   const point = acceptPlacement(placement);
   const side = acceptFacing(facing);
   const facade = SITE_FACINGS[side];
-  const note = String(facts ?? '').replace(/\s+/g, ' ').trim().slice(0, 700);
+  const note = String(facts ?? '').replace(/\s+/g, ' ').trim().slice(0, 900);
 
-  let roofRule = 'Preserve the exact roof type and roofline from image 1.';
+  let roofRule = 'Preserve the exact roof type and roofline from image 1 of the configured 3D house.';
   if (/\b(?:mono-pitch|single-slope|shed|pulpettak|lean-to)\b/i.test(note)) {
-    roofRule = 'The house has a single-slope mono-pitch shed roof (pulpettak). Strictly preserve this single-slope roof: do NOT generate a gable roof, do NOT generate an A-frame peaked roof, and do NOT add a center ridge.';
+    roofRule = 'The house has a single-slope mono-pitch shed roof (pulpettak). Strictly preserve this single-slope roof from the 3D reference: do NOT generate a gable roof, do NOT generate an A-frame peaked roof, and do NOT add a center ridge.';
   } else if (/\b(?:flat roof|flackt|parapet)\b/i.test(note)) {
     roofRule = 'The house has a modern flat roof. Strictly preserve this flat roof: do NOT generate a sloped or gable roof.';
   } else if (/\b(?:gable|sadeltak)\b/i.test(note)) {
@@ -117,12 +121,16 @@ export function sitePrompt(facts, imageCount, placement, facing) {
   }
 
   return [
-    'Create a single photoreal architectural composite using image 0 as the base photograph.',
+    'Create a single photoreal architectural composite using image 0 as the base garden photograph only for background, terrain, plants, neighbours, sky, and camera viewpoint.',
     `The photograph was taken from the ${side} of the real house, looking at its ${facade}.`,
-    `Image 1 shows that same ${facade} of the exact configured 3D house. Preserve its architecture, proportions, roof, openings, cladding, colours, and details; do not redesign it or turn it to a different side.`,
+    `Image 1 is a still of the exact configured 3D house (often two panels: left = that same ${facade}, right = a wider overview). Copy its architecture, proportions, roof silhouette, openings, cladding, and colours from image 1 — do not redesign it, simplify it, or invent a different box.`,
+    'If image 1 or the configured house facts show a wooden terrace, sauna cabin, shed, hot tub, flue, or distinctive roof, those attached parts MUST appear in the composite on the correct side of the house.',
+    imageCount > 2
+      ? 'Images 2 and later are extra site photos only. Use them to understand the property; keep image 0 as the output viewpoint.'
+      : '',
+    'Do NOT merely recolor, darken, or reshape the existing building already in image 0. Fully replace the structure at the placement point with the new house from image 1.',
     roofRule,
-    imageCount > 2 ? 'Images 2 and later are supporting views of the same site. Use them only to understand the property; keep image 0 as the output viewpoint.' : '',
-    `Place the house with its ground contact around ${point.x}% from the left and ${point.y}% from the top of image 0.`,
+    `Place the new house with its ground contact around ${point.x}% from the left and ${point.y}% from the top of image 0.`,
     'Match the base photograph camera perspective, believable real-world scale, terrain, daylight, colour temperature, occlusion, and contact shadows.',
     'Keep the garden, boundaries, mature plants, neighbouring buildings, sky, weather, and photographic texture from image 0 unchanged wherever the new house does not physically cover them.',
     'If an existing shed or small structure overlaps the placement area, replace only that structure. Do not clear or redesign the rest of the garden.',
