@@ -107,7 +107,8 @@ import {
   SAUNA_WINDOW_SIZES,
   SAUNA_BUILDING_PRICE,
   SHED_BUILDING_PRICE,
-  HOT_TUB_BUILDING_PRICE
+  HOT_TUB_BUILDING_PRICE,
+  HOT_TUB_MIN_DEPTH_M
 } from '../outside/terrace';
 import {
   COMPASS_FACINGS,
@@ -2112,7 +2113,7 @@ export const useConfigStore = defineStore('config', () => {
   const setTerraceBuilding = (side: TerraceSide, building: TerraceBuilding) => {
     const current = terraces.value.find((item) => item.side === side);
     const hasCabin = building === 'sauna' || building === 'shed';
-    const minimumDepth = building === 'sauna' ? 2.0 : current?.hotTub ? 2.2 : 0;
+    const minimumDepth = building === 'sauna' ? 2.0 : current?.hotTub ? HOT_TUB_MIN_DEPTH_M : 0;
     const depth = current && minimumDepth > 0 && current.depth < minimumDepth ? minimumDepth : undefined;
     replaceTerrace(side, {
       building,
@@ -2123,7 +2124,7 @@ export const useConfigStore = defineStore('config', () => {
 
   const setTerraceHotTub = (side: TerraceSide, hotTub: boolean) => {
     const current = terraces.value.find((item) => item.side === side);
-    const minimumDepth = hotTub ? 2.2 : 0;
+    const minimumDepth = hotTub ? HOT_TUB_MIN_DEPTH_M : 0;
     const depth = current && hotTub && current.depth < minimumDepth ? minimumDepth : undefined;
     replaceTerrace(side, {
       hotTub,

@@ -9,6 +9,27 @@ export interface TerraceHotTubOptions {
   isLeft: boolean;
 }
 
+/** Clear gap from the house wall face to the nearest tub stave. */
+export const HOT_TUB_WALL_CLEARANCE_M = 1;
+
+/**
+ * Tub radius and distance from the wall to the tub centre.
+ * Always keeps {@link HOT_TUB_WALL_CLEARANCE_M} clear of the wall; shrinks the
+ * tub if the deck is too shallow to hold clearance + diameter.
+ */
+export function hotTubPlacementFromWall(
+  bW: number,
+  bD: number,
+  clearance = HOT_TUB_WALL_CLEARANCE_M
+): { radius: number; centreFromWall: number } {
+  let radius = Math.min(1, bW * 0.45, bD * 0.45);
+  const needed = clearance + 2 * radius;
+  if (needed > bD && bD > clearance + 0.4) {
+    radius = Math.max(0.4, (bD - clearance) / 2);
+  }
+  return { radius, centreFromWall: clearance + radius };
+}
+
 const shadow = (mesh: THREE.Mesh) => {
   mesh.castShadow = true;
   mesh.receiveShadow = true;
@@ -25,9 +46,9 @@ export function addTerraceHotTub(group: THREE.Group, options: TerraceHotTubOptio
   const tub = new THREE.Group();
   tub.name = 'terrace-hot-tub';
 
-  const radius = Math.min(1, bW * 0.45, bD * 0.45);
+  const { radius, centreFromWall } = hotTubPlacementFromWall(bW, bD);
   const height = Math.max(0.94, Math.min(1.12, radius * 1.14));
-  const centreZ = outward * (bD / 2);
+  const centreZ = outward * centreFromWall;
   tub.position.set(bX, deckTop, centreZ);
 
   const woodColors = ['#a94f24', '#bf6932', '#d18445', '#9a421f', '#c87538'];

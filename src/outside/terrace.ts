@@ -62,6 +62,50 @@ export function saunaFacing(turn: number, doorOnRight: boolean): { bench: CabinW
   };
 }
 
+function oppositeCabinWall(wall: CabinWall): CabinWall {
+  if (wall === 'house') return 'yard';
+  if (wall === 'yard') return 'house';
+  if (wall === 'left') return 'right';
+  return 'left';
+}
+
+function wallsAdjacentTo(wall: CabinWall): CabinWall[] {
+  if (wall === 'house' || wall === 'yard') return ['left', 'right'];
+  return ['house', 'yard'];
+}
+
+/**
+ * Heater UV in the cabin plan: u 0 = left … 1 = right, v 0 = house … 1 = yard.
+ * Sits in the window-wall corner opposite the benches, never in front of the door.
+ */
+export function saunaHeaterUV(facing: {
+  bench: CabinWall;
+  window: CabinWall;
+  door: CabinWall;
+}): { u: number; v: number } {
+  const inset = 0.16;
+  const at = (wall: CabinWall): { u?: number; v?: number } => {
+    if (wall === 'house') return { v: inset };
+    if (wall === 'yard') return { v: 1 - inset };
+    if (wall === 'left') return { u: inset };
+    return { u: 1 - inset };
+  };
+
+  const adjacent = wallsAdjacentTo(facing.window);
+  // Prefer opposite the benches; never pick the door wall when another edge exists.
+  const side =
+    adjacent.find((wall) => wall === oppositeCabinWall(facing.bench) && wall !== facing.door)
+    ?? adjacent.find((wall) => wall !== facing.door)
+    ?? adjacent[0]!;
+
+  const windowEdge = at(facing.window);
+  const sideEdge = at(side);
+  return {
+    u: windowEdge.u ?? sideEdge.u ?? 0.5,
+    v: windowEdge.v ?? sideEdge.v ?? 0.5
+  };
+}
+
 export interface HouseTerrace {
   side: TerraceSide;
   depth: TerraceDepth;
@@ -113,7 +157,9 @@ function cabinTargetSize(building: TerraceBuilding | undefined, size?: SaunaSize
   return null;
 }
 
-const HOT_TUB_TARGET = { w: 2.2, d: 2.2 };
+/** Footprint deep enough for a 1 m wall gap plus a ~2 m tub. */
+export const HOT_TUB_MIN_DEPTH_M = 3.2;
+const HOT_TUB_TARGET = { w: 2.2, d: HOT_TUB_MIN_DEPTH_M };
 
 function slotAlong(along: number, width: number, bW: number, isLeft: boolean): number {
   return isLeft ? along - width / 2 + bW / 2 : along + width / 2 - bW / 2;

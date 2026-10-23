@@ -145,6 +145,30 @@ test('sauna and hot tub sit on opposite ends of the terrace', () => {
   assert.equal(tubOnly.hotTub.isLeft, false);
 });
 
+test('wooden hot tub keeps 1 m clear of the house wall', async () => {
+  const { HOT_TUB_MIN_DEPTH_M } = await import('../src/outside/terrace.ts');
+  const {
+    HOT_TUB_WALL_CLEARANCE_M,
+    hotTubPlacementFromWall
+  } = await import('../src/three-engine/terraceHotTub.ts');
+
+  assert.equal(HOT_TUB_WALL_CLEARANCE_M, 1);
+  assert.ok(HOT_TUB_MIN_DEPTH_M >= HOT_TUB_WALL_CLEARANCE_M + 2);
+
+  const layout = terraceAdditionLayout({
+    along: 0,
+    width: 6,
+    depth: HOT_TUB_MIN_DEPTH_M,
+    buildingPlacement: 'right',
+    hotTub: true
+  });
+  assert.ok(layout.hotTub);
+  const { radius, centreFromWall } = hotTubPlacementFromWall(layout.hotTub.bW, layout.hotTub.bD);
+  const wallGap = centreFromWall - radius;
+  assert.ok(Math.abs(wallGap - HOT_TUB_WALL_CLEARANCE_M) < 1e-9);
+  assert.ok(centreFromWall + radius <= layout.hotTub.bD + 1e-9);
+});
+
 test('a sauna interior turns a quarter at a time and stays one room', () => {
   const kept = acceptTerraces([
     { side: 'front', depth: 1.8, span: 'door', roof: false, building: 'sauna', buildingTurn: 2 },
@@ -167,6 +191,43 @@ test('a sauna interior turns a quarter at a time and stays one room', () => {
   }
   assert.deepEqual(saunaFacing(0, true), { bench: 'house', window: 'yard', door: 'right' });
   assert.deepEqual(saunaFacing(1, true), { bench: 'left', window: 'right', door: 'house' });
+});
+
+test('sauna heater sits in the window corner opposite the benches, clear of the door', async () => {
+  const { saunaFacing, saunaHeaterUV } = await import('../src/outside/terrace.ts');
+
+  const near = (value, target) => Math.abs(value - target) < 1e-9;
+  const onWall = (coord, wall) => {
+    if (wall === 'house') return near(coord.v, 0.16);
+    if (wall === 'yard') return near(coord.v, 0.84);
+    if (wall === 'left') return near(coord.u, 0.16);
+    return near(coord.u, 0.84);
+  };
+  const clearOfDoor = (coord, door) => {
+    if (door === 'house') return coord.v > 0.4;
+    if (door === 'yard') return coord.v < 0.6;
+    if (door === 'left') return coord.u > 0.4;
+    return coord.u < 0.6;
+  };
+
+  for (const doorOnRight of [true, false]) {
+    for (let turn = 0; turn < 4; turn += 1) {
+      const facing = saunaFacing(turn, doorOnRight);
+      const heater = saunaHeaterUV(facing);
+      assert.equal(onWall(heater, facing.window), true, `turn ${turn} window`);
+      assert.equal(clearOfDoor(heater, facing.door), true, `turn ${turn} door`);
+      // Opposite the bench wall (not sitting on the benches).
+      if (facing.bench === 'house') assert.ok(heater.v > 0.5);
+      if (facing.bench === 'yard') assert.ok(heater.v < 0.5);
+      if (facing.bench === 'left') assert.ok(heater.u > 0.5);
+      if (facing.bench === 'right') assert.ok(heater.u < 0.5);
+    }
+  }
+
+  // Linked house-door layout: benches on a side wall, window to the yard.
+  const linked = saunaHeaterUV({ bench: 'left', window: 'yard', door: 'house' });
+  assert.ok(near(linked.u, 0.84));
+  assert.ok(near(linked.v, 0.84));
 });
 
 test('a sauna keeps its roof, and an unknown roof is dropped', () => {

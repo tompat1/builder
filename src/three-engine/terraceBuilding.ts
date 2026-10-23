@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import {
   buildingWallTop,
   saunaFacing,
+  saunaHeaterUV,
   type CabinWall,
   type TerraceBuildingRoof,
   type SaunaColor,
@@ -200,6 +201,8 @@ export function addTerraceCabin(group: THREE.Group, options: TerraceCabinOptions
       deckTop,
       outward,
       bench: facing.bench,
+      window: facing.window,
+      door: facing.door,
       doorOnRight: isLeft,
       topAt,
       innerMat,
@@ -943,6 +946,8 @@ function addSaunaInterior(
     deckTop: number;
     outward: number;
     bench: CabinWall;
+    window: CabinWall;
+    door: CabinWall;
     doorOnRight: boolean;
     topAt: (t: number) => number;
     innerMat: THREE.Material;
@@ -950,7 +955,7 @@ function addSaunaInterior(
     trimMat: THREE.Material;
   }
 ) {
-  const { bW, bD, x0, deckTop, outward, bench, doorOnRight, topAt, innerMat, metalMat } = spec;
+  const { bW, bD, x0, deckTop, outward, bench, window, door, doorOnRight, topAt, innerMat, metalMat } = spec;
   const alongWall = bench === 'house' || bench === 'yard';
   const span = (alongWall ? bW : bD) - 0.28;
   const intoLen = alongWall ? bD : bW;
@@ -982,7 +987,13 @@ function addSaunaInterior(
   }
   benchBox(0.42, 0.36, span, deckTop + 0.46, innerMat);
 
-  const stoveAt = place(0.22, 0.62);
+  // Window-wall corner opposite the benches — never in the door leaf.
+  const heater = saunaHeaterUV({ bench, window, door });
+  const stoveAt = {
+    x: x0 + heater.u * bW,
+    z: outward * heater.v * bD,
+    v: heater.v
+  };
   const stove = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.52, 0.42), metalMat);
   stove.position.set(stoveAt.x, deckTop + 0.3, stoveAt.z);
   stove.castShadow = true;
