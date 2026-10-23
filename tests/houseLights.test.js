@@ -4,6 +4,8 @@ import {
   DEFAULT_HOUSE_LIGHTS,
   DAYLIGHT_MODES,
   acceptDaylightMode,
+  evenWallSeeds,
+  facadeSconceCountForWall,
   fixtureLightIntensity,
   nightGainForHour,
   nudgeOffOpenings,
@@ -44,6 +46,17 @@ test('evening and night hours darken the sky; fixtures are off by day and bright
   assert.ok(night > 0.5);
 });
 
+test('front wall gets two sconces; other walls scale with length', () => {
+  assert.equal(facadeSconceCountForWall('front', 8), 2);
+  assert.equal(facadeSconceCountForWall('front', 4), 2);
+  assert.equal(facadeSconceCountForWall('back', 5), 2);
+  assert.equal(facadeSconceCountForWall('left', 8), 3);
+  const seeds = evenWallSeeds(2, -2.4, 2.4);
+  assert.equal(seeds.length, 2);
+  assert.ok(Math.abs(seeds[0] - -0.8) < 1e-9);
+  assert.ok(Math.abs(seeds[1] - 0.8) < 1e-9);
+});
+
 test('facade sconces slide beside doors and windows instead of sitting on them', () => {
   const door = { x: -1.2, width: 1.0 };
   const slider = { x: 1.4, width: 2.4 };
@@ -51,11 +64,10 @@ test('facade sconces slide beside doors and windows instead of sitting on them',
   const spots = placeFacadeSconcesAlongWall({
     wallLength: 6,
     openings: [door, slider],
-    count: 3,
+    count: 2,
     clearance
   });
-  assert.ok(spots.length >= 2);
-  assert.equal(spots.length, 3);
+  assert.equal(spots.length, 2);
   for (const x of spots) {
     for (const opening of [door, slider]) {
       const edge = opening.width / 2;

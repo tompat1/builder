@@ -48,6 +48,7 @@ import {
 } from './lighting';
 import {
   DEFAULT_HOUSE_LIGHTS,
+  facadeSconceCountForWall,
   fixtureEmissiveIntensity,
   fixtureLightIntensity,
   parseHouseLights,
@@ -4456,14 +4457,48 @@ export class HouseScene {
 
     if (lights.facadeLights) {
       const y = Math.min(h - 0.35, 2.15);
-      const frontSpans = openingSpans('front');
-      const along = placeFacadeSconcesAlongWall({
-        wallLength: w,
-        openings: frontSpans,
-        count: w > 4.5 ? 3 : 2
-      });
-      for (const x of along) {
-        addWallSconce(x, y, d / 2 + 0.04, 0, 1);
+      const walls: {
+        wall: 'front' | 'back' | 'left' | 'right';
+        length: number;
+        rotY: number;
+        place: (along: number) => { x: number; z: number };
+      }[] = [
+        {
+          wall: 'front',
+          length: w,
+          rotY: 0,
+          place: (along) => ({ x: along, z: d / 2 + 0.04 })
+        },
+        {
+          wall: 'back',
+          length: w,
+          rotY: Math.PI,
+          place: (along) => ({ x: along, z: -d / 2 - 0.04 })
+        },
+        {
+          wall: 'left',
+          length: d,
+          rotY: -Math.PI / 2,
+          place: (along) => ({ x: -w / 2 - 0.04, z: along })
+        },
+        {
+          wall: 'right',
+          length: d,
+          rotY: Math.PI / 2,
+          place: (along) => ({ x: w / 2 + 0.04, z: along })
+        }
+      ];
+      for (const side of walls) {
+        const along = placeFacadeSconcesAlongWall({
+          wallLength: side.length,
+          openings: openingSpans(side.wall),
+          count: facadeSconceCountForWall(side.wall, side.length)
+        });
+        const outward = this.outwardSign(side.wall);
+        for (const t of along) {
+          const { x, z } = side.place(t);
+          addWallSconce(x, y, z, side.rotY, outward);
+        }
       }
     }
 

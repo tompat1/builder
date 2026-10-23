@@ -144,41 +144,52 @@ export function nudgeOffOpenings(
   return overlapsBlock(cur, blocks) || !inBounds(cur, wallLo, wallHi) ? null : cur;
 }
 
+/** How many facade washers: front always 2; other walls keep even spacing by length. */
+export function facadeSconceCountForWall(
+  wall: 'front' | 'back' | 'left' | 'right',
+  wallLength: number
+): number {
+  if (wall === 'front') return 2;
+  if (wallLength > 7) return 3;
+  return 2;
+}
+
+/** Evenly spaced seeds along the usable wall strip (1/(n+1) … n/(n+1)). */
+export function evenWallSeeds(count: number, wallLo: number, wallHi: number): number[] {
+  if (count <= 0 || wallHi <= wallLo) return [];
+  const span = wallHi - wallLo;
+  const seeds: number[] = [];
+  for (let i = 1; i <= count; i++) {
+    seeds.push(wallLo + (span * i) / (count + 1));
+  }
+  return seeds;
+}
+
 /**
  * Place facade washers on free cladding — never on doors/windows.
- * Seeds near the corners (and centre on wide walls); each seed slides beside
- * any opening it would otherwise sit on. Opening flanks are preferred fill-ins.
+ * Starts from even spacing, then slides each seed beside any opening it hits.
+ * Opening flanks fill in if a seed cannot land.
  */
 export function placeFacadeSconcesAlongWall(opts: FacadeSconcePlaceOpts): number[] {
   const {
     wallLength,
     openings,
     count,
-    endInset = 0.4,
+    endInset = 0.45,
     clearance = 0.16,
     minSpacing = 0.7
   } = opts;
   if (count <= 0 || wallLength < endInset * 2 + 0.2) return [];
 
   const half = wallLength / 2;
-  // Soft outer limit — may place a little closer to the corner when an opening
-  // leaves only a narrow free strip of cladding.
   const hardLo = -half + 0.22;
   const hardHi = half - 0.22;
   const wallLo = Math.max(hardLo, -half + endInset);
   const wallHi = Math.min(hardHi, half - endInset);
   if (hardHi <= hardLo) return [];
 
-  const seeds: number[] = [];
-  if (count >= 3 && wallLength > 4.5) {
-    seeds.push(wallLo, 0, wallHi);
-  } else if (count >= 2) {
-    seeds.push(wallLo, wallHi);
-  } else {
-    seeds.push((wallLo + wallHi) / 2);
-  }
-
-  // Prefer sitting next to openings when filling gaps.
+  const seeds = evenWallSeeds(count, wallLo, wallHi);
+  // Front (and busy walls): also try flanks so lights sit next to doors/windows.
   for (const o of openings) {
     seeds.push(o.x - o.width / 2 - clearance, o.x + o.width / 2 + clearance);
   }
@@ -208,7 +219,8 @@ export function placeFacadeSconcesAlongWall(opts: FacadeSconcePlaceOpts): number
       if (g.hi - g.lo < 0.2) continue;
       candidates.push((g.lo + g.hi) / 2, g.lo + 0.08, g.hi - 0.08);
     }
-    candidates.sort((a, b) => Math.abs(a) - Math.abs(b));
+    // Prefer outermost free spots so a pair stays evenly spread.
+    candidates.sort((a, b) => Math.abs(b) - Math.abs(a));
 
     for (const mid of candidates) {
       if (placed.length >= count) break;
