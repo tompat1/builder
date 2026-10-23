@@ -30,6 +30,25 @@
       <span class="compass-hub" aria-hidden="true"></span>
     </div>
 
+    <transition
+      enter-active-class="transition duration-150 ease-out"
+      enter-from-class="opacity-0 translate-y-1 scale-95"
+      enter-to-class="opacity-100 translate-y-0 scale-100"
+      leave-active-class="transition duration-200 ease-in"
+      leave-from-class="opacity-100"
+      leave-to-class="opacity-0"
+    >
+      <div
+        v-if="fixturePowerReadout"
+        id="fixture-power-readout"
+        class="pointer-events-none absolute z-30 -translate-x-1/2 -translate-y-full rounded-full border border-slate-200/80 bg-white/95 px-3 py-1.5 text-xs font-bold tabular-nums text-slate-900 shadow-md"
+        :style="{ left: `${fixturePowerReadout.x}px`, top: `${fixturePowerReadout.y - 12}px` }"
+        role="status"
+      >
+        {{ fixturePowerReadout.label }}
+      </div>
+    </transition>
+
     <!-- Drag to orbit hint -->
     <transition
       enter-active-class="transition duration-500 ease-out"
@@ -131,6 +150,17 @@ let lastLoftRailKey = '';
 const showDragHint = ref(false);
 const compassDial = ref(0);
 const hoveredFramingItem = ref<FramingHoverItem | null>(null);
+const fixturePowerReadout = ref<{ label: string; x: number; y: number } | null>(null);
+let fixturePowerTimer: ReturnType<typeof setTimeout> | null = null;
+
+function showFixturePowerReadout(info: { label: string; x: number; y: number }) {
+  if (fixturePowerTimer) clearTimeout(fixturePowerTimer);
+  fixturePowerReadout.value = { label: info.label, x: info.x, y: info.y };
+  fixturePowerTimer = setTimeout(() => {
+    fixturePowerReadout.value = null;
+    fixturePowerTimer = null;
+  }, 1800);
+}
 
 const framingTooltipStyle = computed(() => {
   if (!hoveredFramingItem.value) return {};
@@ -329,6 +359,9 @@ onMounted(() => {
     };
     engine.onPaintPick = (target) => {
       store.applyPaintBrush(target);
+    };
+    engine.onFixturePowerReadout = (info) => {
+      showFixturePowerReadout(info);
     };
     engine.onRoomPlaced = (id, type, w, d, x, y, z) => {
       store.placedRooms[id] = { type, w, d, x, y, z, wallsVisible: true };
@@ -732,6 +765,8 @@ watch(
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onRoomKey);
+  if (fixturePowerTimer) clearTimeout(fixturePowerTimer);
+  fixturePowerReadout.value = null;
   hoveredFramingItem.value = null;
   engine?.destroy();
 });

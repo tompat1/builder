@@ -48,14 +48,19 @@ import {
 } from './lighting';
 import {
   DEFAULT_HOUSE_LIGHTS,
+  DEFAULT_FIXTURE_POWER_STEP,
   FIXTURE_CLEARANCE_M,
   facadeSconceCountForWall,
   fixtureEmissiveIntensity,
   fixtureLightIntensity,
+  fixturePowerSpec,
+  formatFixturePowerLabel,
+  nextFixturePowerStep,
   parseHouseLights,
   placeDoorSconceBeside,
   placeFacadeSconcesAlongWall,
   type DaylightMode,
+  type FixturePowerStep,
   type HouseLightsConfig,
   type WallOpeningSpan
 } from '../outside/houseLights';
@@ -317,7 +322,11 @@ export class HouseScene {
   private starfield: THREE.Points | null = null;
   private fixtureLights: THREE.PointLight[] = [];
   /** Lens / LED meshes whose emissive tracks nightGain with the PointLights. */
-  private fixtureGlows: { mesh: THREE.Mesh; base: number }[] = [];
+  private fixtureGlows: { mesh: THREE.Mesh; base: number; fixtureId?: string }[] = [];
+  /** Clickable fixture meshes (sconce body/lens, strips, bollards). */
+  private fixturePickMeshes: THREE.Mesh[] = [];
+  /** Per-fixture LED step survives rebuilds while the scene lives. */
+  private fixturePowerLevels = new Map<string, FixturePowerStep>();
   private sunHour = 12;
   private facingDeg = 180;
   private daylightMode: DaylightMode = 'sun';
@@ -385,6 +394,14 @@ export class HouseScene {
   public onMeasurePick?: (point: { x: number; y: number; z: number }) => void;
   /** Paint-brush hit: which house part was clicked. */
   public onPaintPick?: (target: 'facade' | 'frame' | 'corner') => void;
+  /** Brief LED readout after clicking a fixture (W · lm · K). */
+  public onFixturePowerReadout?: (info: {
+    id: string;
+    step: FixturePowerStep;
+    label: string;
+    x: number;
+    y: number;
+  }) => void;
   public onMeasureCursor?: (point: { x: number; y: number; z: number } | null) => void;
   public onMeasureScreen?: (screen: {
     start: { x: number; y: number; visible: boolean };
@@ -685,20 +702,43 @@ export class HouseScene {
     this.syncFixtureLightIntensity();
   }
 
+  private fixturePowerGain(fixtureId?: string): number {
+    if (!fixtureId) return 1;
+    const step = this.fixturePowerLevels.get(fixtureId) ?? DEFAULT_FIXTURE_POWER_STEP;
+    return fixturePowerSpec(step).gain;
+  }
+
   private syncFixtureLightIntensity() {
     for (const light of this.fixtureLights) {
       const base = typeof light.userData.baseIntensity === 'number' ? light.userData.baseIntensity : 0.6;
-      light.intensity = fixtureLightIntensity(base, this.nightGain);
+      const id = typeof light.userData.fixtureId === 'string' ? light.userData.fixtureId : undefined;
+      light.intensity = fixtureLightIntensity(base, this.nightGain, this.fixturePowerGain(id));
     }
     for (const glow of this.fixtureGlows) {
       const mat = glow.mesh.material;
       if (mat && !Array.isArray(mat) && 'emissiveIntensity' in mat) {
         (mat as THREE.MeshStandardMaterial).emissiveIntensity = fixtureEmissiveIntensity(
           glow.base,
-          this.nightGain
+          this.nightGain,
+          this.fixturePowerGain(glow.fixtureId)
         );
       }
     }
+  }
+
+  private cycleFixturePower(fixtureId: string, clientX: number, clientY: number) {
+    const prev = this.fixturePowerLevels.get(fixtureId) ?? DEFAULT_FIXTURE_POWER_STEP;
+    const step = nextFixturePowerStep(prev);
+    this.fixturePowerLevels.set(fixtureId, step);
+    this.syncFixtureLightIntensity();
+    const rect = this.container.getBoundingClientRect();
+    this.onFixturePowerReadout?.({
+      id: fixtureId,
+      step,
+      label: formatFixturePowerLabel(step),
+      x: clientX - rect.left,
+      y: clientY - rect.top
+    });
   }
 
   /** Keep the corner compass pointing at world north as the camera orbits. */
@@ -1260,6 +1300,22 @@ export class HouseScene {
     if (this.measuring) {
       this.measureDown = e.button === 0 ? { x: e.clientX, y: e.clientY } : null;
       return;
+    }
+    if (!this.painting && this.fixturePickMeshes.length > 0 && e.button === 0) {
+      const rect = this.container.getBoundingClientRect();
+      this.mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      this.mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      this.raycaster.setFromCamera(this.mouse, this.camera);
+      const fixtureHits = this.raycaster.intersectObjects(this.fixturePickMeshes, false);
+      if (fixtureHits.length > 0) {
+        const hit = fixtureHits[0].object as THREE.Mesh;
+        const fixtureId = hit.userData.fixtureId as string | undefined;
+        if (fixtureId) {
+          this.cycleFixturePower(fixtureId, e.clientX, e.clientY);
+          e.stopPropagation();
+          return;
+        }
+      }
     }
     if (this.painting) {
       if (e.button !== 0) return;
@@ -4389,6 +4445,7 @@ export class HouseScene {
   private buildHouseLights(w: number, d: number, h: number) {
     this.fixtureLights = [];
     this.fixtureGlows = [];
+    this.fixturePickMeshes = [];
     const lights = parseHouseLights(this.currentConfig.houseLights ?? DEFAULT_HOUSE_LIGHTS);
     if (!lights.facadeLights && !lights.doorLight && !lights.ledStrips && !lights.gardenLights) {
       return;
@@ -4401,32 +4458,45 @@ export class HouseScene {
       roughness: 0.45,
       metalness: 0.35
     });
-    const lensGlow = fixtureEmissiveIntensity(0.55, this.nightGain);
-    const ledGlow = fixtureEmissiveIntensity(0.9, this.nightGain);
     const bollardMat = new THREE.MeshStandardMaterial({
       color: '#3f3f46',
       roughness: 0.55,
       metalness: 0.2
     });
 
-    const addGlow = (mesh: THREE.Mesh, base: number) => {
-      this.fixtureGlows.push({ mesh, base });
+    const ensureStep = (fixtureId: string) => {
+      if (!this.fixturePowerLevels.has(fixtureId)) {
+        this.fixturePowerLevels.set(fixtureId, DEFAULT_FIXTURE_POWER_STEP);
+      }
+      return this.fixturePowerLevels.get(fixtureId)!;
     };
 
-    const makeLensMat = () =>
+    const addGlow = (mesh: THREE.Mesh, base: number, fixtureId: string) => {
+      this.fixtureGlows.push({ mesh, base, fixtureId });
+    };
+
+    const makeLensMat = (fixtureId: string) =>
       new THREE.MeshStandardMaterial({
         color: '#fff6e0',
         emissive: '#fff1c2',
-        emissiveIntensity: lensGlow,
+        emissiveIntensity: fixtureEmissiveIntensity(
+          0.55,
+          this.nightGain,
+          fixturePowerSpec(ensureStep(fixtureId)).gain
+        ),
         roughness: 0.35,
         metalness: 0.05
       });
 
-    const makeLedMat = () =>
+    const makeLedMat = (fixtureId: string) =>
       new THREE.MeshStandardMaterial({
         color: '#f7fafc',
         emissive: '#ffe9a8',
-        emissiveIntensity: ledGlow,
+        emissiveIntensity: fixtureEmissiveIntensity(
+          0.9,
+          this.nightGain,
+          fixturePowerSpec(ensureStep(fixtureId)).gain
+        ),
         roughness: 0.4,
         metalness: 0.1
       });
@@ -4444,30 +4514,62 @@ export class HouseScene {
       placedWorld.push({ x, y, z });
     };
 
-    const addFixtureLight = (x: number, y: number, z: number, base: number, distance = 5) => {
-      const light = new THREE.PointLight(0xffe8b8, fixtureLightIntensity(base, this.nightGain), distance, 2);
+    const markPickable = (mesh: THREE.Mesh, fixtureId: string) => {
+      mesh.userData.fixtureId = fixtureId;
+      mesh.userData.fixturePick = true;
+      this.fixturePickMeshes.push(mesh);
+    };
+
+    const addFixtureLight = (
+      x: number,
+      y: number,
+      z: number,
+      base: number,
+      fixtureId: string,
+      distance = 5
+    ) => {
+      const step = ensureStep(fixtureId);
+      const light = new THREE.PointLight(
+        0xffe8b8,
+        fixtureLightIntensity(base, this.nightGain, fixturePowerSpec(step).gain),
+        distance,
+        2
+      );
       light.position.set(x, y, z);
       light.userData.baseIntensity = base;
+      light.userData.fixtureId = fixtureId;
       light.userData.outsideAddition = true;
       group.add(light);
       this.fixtureLights.push(light);
     };
 
-    const addWallSconce = (x: number, y: number, z: number, rotY: number, outward: number) => {
+    let sconceSeq = 0;
+    const addWallSconce = (
+      x: number,
+      y: number,
+      z: number,
+      rotY: number,
+      outward: number,
+      kind: string
+    ) => {
       if (!farFromFixtures(x, y, z)) return false;
+      const fixtureId = `${kind}-${sconceSeq++}`;
+      ensureStep(fixtureId);
       const body = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.22, 0.08), housing);
       body.position.set(x, y, z);
       body.rotation.y = rotY;
       body.castShadow = true;
       group.add(body);
-      const glass = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.14, 0.05), makeLensMat());
+      markPickable(body, fixtureId);
+      const glass = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.14, 0.05), makeLensMat(fixtureId));
       const ox = Math.sin(rotY) * outward * 0.05;
       const oz = Math.cos(rotY) * outward * 0.05;
       glass.position.set(x + ox, y, z + oz);
       glass.rotation.y = rotY;
       group.add(glass);
-      addGlow(glass, 0.55);
-      addFixtureLight(x + ox * 2, y - 0.02, z + oz * 2, 0.7, 6);
+      markPickable(glass, fixtureId);
+      addGlow(glass, 0.55, fixtureId);
+      addFixtureLight(x + ox * 2, y - 0.02, z + oz * 2, 0.7, fixtureId, 6);
       rememberFixture(x, y, z);
       return true;
     };
@@ -4520,7 +4622,7 @@ export class HouseScene {
         const outward = this.outwardSign(side.wall);
         for (const t of along) {
           const { x, z } = side.place(t);
-          addWallSconce(x, y, z, side.rotY, outward);
+          addWallSconce(x, y, z, side.rotY, outward, `facade-${side.wall}`);
         }
       }
     }
@@ -4567,19 +4669,25 @@ export class HouseScene {
           x = w / 2 + 0.04;
           z = beside;
         }
-        addWallSconce(x, y, z, door.rotY, outward);
+        addWallSconce(x, y, z, door.rotY, outward, `door-${door.wall}`);
       }
     }
 
     if (lights.ledStrips) {
       const stripY = Math.min(h - 0.08, 2.45);
-      const strip = new THREE.Mesh(new THREE.BoxGeometry(Math.max(1.2, w * 0.55), 0.02, 0.04), makeLedMat());
+      const eaveId = 'led-eave-0';
+      const strip = new THREE.Mesh(
+        new THREE.BoxGeometry(Math.max(1.2, w * 0.55), 0.02, 0.04),
+        makeLedMat(eaveId)
+      );
       strip.position.set(0, stripY, d / 2 + 0.06);
       group.add(strip);
-      addGlow(strip, 0.9);
-      addFixtureLight(0, stripY - 0.05, d / 2 + 0.2, 0.45, 7);
+      markPickable(strip, eaveId);
+      addGlow(strip, 0.9, eaveId);
+      addFixtureLight(0, stripY - 0.05, d / 2 + 0.2, 0.45, eaveId, 7);
       if (this.currentConfig.doorCanopy) {
         const doors = this.outsideAnchors(w, d, h);
+        let canopySeq = 0;
         for (const door of doors) {
           if (door.itemId === 'SKJUTDORR' || door.itemId === 'SKJUTDORR3') continue;
           const outward = this.outwardSign(door.wall);
@@ -4588,15 +4696,17 @@ export class HouseScene {
           const along = door.doorX ?? 0;
           const cx = door.px + along * cos + sin * outward * 0.45;
           const cz = door.pz - along * sin + cos * outward * 0.45;
+          const canopyId = `led-canopy-${canopySeq++}`;
           const canopyStrip = new THREE.Mesh(
             new THREE.BoxGeometry(Math.max(0.9, door.width + 0.3), 0.015, 0.03),
-            makeLedMat()
+            makeLedMat(canopyId)
           );
           canopyStrip.position.set(cx, (door.head ?? 2.2) + 0.05, cz);
           canopyStrip.rotation.y = door.rotY;
           group.add(canopyStrip);
-          addGlow(canopyStrip, 0.9);
-          addFixtureLight(cx, (door.head ?? 2.2) - 0.05, cz, 0.35, 4);
+          markPickable(canopyStrip, canopyId);
+          addGlow(canopyStrip, 0.9, canopyId);
+          addFixtureLight(cx, (door.head ?? 2.2) - 0.05, cz, 0.35, canopyId, 4);
         }
       }
     }
@@ -4609,17 +4719,22 @@ export class HouseScene {
         { x: -w / 2 + Math.max(standOff, 0.8), z: d / 2 + standOff + 1.55 },
         { x: w / 2 - Math.max(standOff, 0.8), z: d / 2 + standOff + 1.55 }
       ];
+      let gardenSeq = 0;
       for (const post of posts) {
         if (!farFromFixtures(post.x, 0.72, post.z)) continue;
+        const fixtureId = `garden-${gardenSeq++}`;
+        ensureStep(fixtureId);
         const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.04, 0.7, 8), bollardMat);
         stem.position.set(post.x, 0.35, post.z);
         stem.castShadow = true;
         group.add(stem);
-        const cap = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), makeLensMat());
+        markPickable(stem, fixtureId);
+        const cap = new THREE.Mesh(new THREE.SphereGeometry(0.07, 10, 8), makeLensMat(fixtureId));
         cap.position.set(post.x, 0.72, post.z);
         group.add(cap);
-        addGlow(cap, 0.55);
-        addFixtureLight(post.x, 0.75, post.z, 0.55, 5);
+        markPickable(cap, fixtureId);
+        addGlow(cap, 0.55, fixtureId);
+        addFixtureLight(post.x, 0.75, post.z, 0.55, fixtureId, 5);
         rememberFixture(post.x, 0.72, post.z);
       }
     }

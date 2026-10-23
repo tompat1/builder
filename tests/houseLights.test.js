@@ -3,12 +3,16 @@ import assert from 'node:assert/strict';
 import {
   DEFAULT_HOUSE_LIGHTS,
   DAYLIGHT_MODES,
+  DEFAULT_FIXTURE_POWER_STEP,
   FIXTURE_CLEARANCE_M,
+  FIXTURE_POWER_STEPS,
   acceptDaylightMode,
   evenWallSeeds,
   facadeSconceCountForWall,
   fixtureLightIntensity,
+  formatFixturePowerLabel,
   nightGainForHour,
+  nextFixturePowerStep,
   nudgeOffOpenings,
   parseHouseLights,
   placeDoorSconceBeside,
@@ -45,6 +49,20 @@ test('evening and night hours darken the sky; fixtures are off by day and bright
   assert.equal(fixtureLightIntensity(0.7, 0.02), 0);
   const night = fixtureLightIntensity(0.7, 1);
   assert.ok(night > 0.5);
+  assert.ok(fixtureLightIntensity(0.7, 1, 1) > fixtureLightIntensity(0.7, 1, 0.4));
+});
+
+test('fixture power cycles four modern LED steps with W · lm · K readout', () => {
+  assert.equal(FIXTURE_POWER_STEPS.length, 4);
+  assert.equal(DEFAULT_FIXTURE_POWER_STEP, 1);
+  assert.equal(nextFixturePowerStep(0), 1);
+  assert.equal(nextFixturePowerStep(1), 2);
+  assert.equal(nextFixturePowerStep(2), 3);
+  assert.equal(nextFixturePowerStep(3), 0);
+  assert.equal(formatFixturePowerLabel(1), '7 W · 700 lm · 3000 K');
+  assert.match(formatFixturePowerLabel(0), /3 W · 300 lm/);
+  assert.match(formatFixturePowerLabel(2), /12 W · 1200 lm/);
+  assert.match(formatFixturePowerLabel(3), /15 W · 1500 lm/);
 });
 
 test('front wall gets two sconces; other walls scale with length', () => {
@@ -113,8 +131,13 @@ test('Outside lights UI and store wiring are present', async () => {
   assert.match(scene, /buildHouseLights/);
   assert.match(scene, /fixtureLights/);
   assert.match(scene, /FIXTURE_CLEARANCE_M/);
+  assert.match(scene, /cycleFixturePower/);
+  assert.match(scene, /onFixturePowerReadout/);
   assert.match(lighting, /createStarfield/);
   assert.match(lighting, /syncStarfield/);
+  const canvas = fs.readFileSync(path.join(root, 'src/components/HouseCanvas.vue'), 'utf8');
+  assert.match(canvas, /fixture-power-readout/);
+  assert.match(canvas, /onFixturePowerReadout/);
   assert.match(overlay, /option-light-\$\{light\.key\}/);
   assert.match(overlay, /HOUSE_LIGHT_OPTIONS/);
   assert.match(tools, /daylight-\$\{mode\.id\}/);

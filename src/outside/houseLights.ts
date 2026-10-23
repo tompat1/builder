@@ -57,19 +57,70 @@ export function nightGainForHour(hour: number, altitude: number): number {
   return 0;
 }
 
+/** Four clickable LED output steps — typical modern exterior LED figures. */
+export type FixturePowerStep = 0 | 1 | 2 | 3;
+
+export interface FixturePowerSpec {
+  /** Electrical input (W). */
+  watts: number;
+  /** Useful light output (lm). */
+  lumens: number;
+  /** Correlated colour temperature (K). */
+  cctK: number;
+  /** Relative scene intensity vs the 12 W step. */
+  gain: number;
+}
+
+export const FIXTURE_POWER_STEPS: readonly FixturePowerSpec[] = [
+  { watts: 3, lumens: 300, cctK: 2700, gain: 0.4 },
+  { watts: 7, lumens: 700, cctK: 3000, gain: 0.7 },
+  { watts: 12, lumens: 1200, cctK: 3000, gain: 1 },
+  { watts: 15, lumens: 1500, cctK: 3000, gain: 1.25 }
+] as const;
+
+export const DEFAULT_FIXTURE_POWER_STEP: FixturePowerStep = 1;
+
+export function acceptFixturePowerStep(value: unknown): FixturePowerStep {
+  const n = typeof value === 'number' ? value : Number(value);
+  if (n === 0 || n === 1 || n === 2 || n === 3) return n;
+  return DEFAULT_FIXTURE_POWER_STEP;
+}
+
+export function nextFixturePowerStep(step: FixturePowerStep): FixturePowerStep {
+  return ((step + 1) % FIXTURE_POWER_STEPS.length) as FixturePowerStep;
+}
+
+export function fixturePowerSpec(step: FixturePowerStep = DEFAULT_FIXTURE_POWER_STEP): FixturePowerSpec {
+  return FIXTURE_POWER_STEPS[acceptFixturePowerStep(step)];
+}
+
+/** Short HUD line, e.g. `7 W · 700 lm · 3000 K`. */
+export function formatFixturePowerLabel(step: FixturePowerStep): string {
+  const spec = fixturePowerSpec(step);
+  return `${spec.watts} W · ${spec.lumens} lm · ${spec.cctK} K`;
+}
+
 /**
  * Exterior fixture PointLight intensity. Off in full day; ramps up with nightGain.
- * (Was a small residual glow even at noon — that read as “lights on” during sun.)
+ * `powerGain` is the active LED step (0.4 / 0.7 / 1).
  */
-export function fixtureLightIntensity(base: number, nightGain: number): number {
+export function fixtureLightIntensity(
+  base: number,
+  nightGain: number,
+  powerGain = 1
+): number {
   if (nightGain <= 0.04) return 0;
-  return base * (0.12 + 0.88 * nightGain);
+  return base * (0.12 + 0.88 * nightGain) * Math.max(0, powerGain);
 }
 
 /** Matching emissive glow on the fixture lens / LED mesh. */
-export function fixtureEmissiveIntensity(base: number, nightGain: number): number {
+export function fixtureEmissiveIntensity(
+  base: number,
+  nightGain: number,
+  powerGain = 1
+): number {
   if (nightGain <= 0.04) return 0;
-  return base * (0.2 + 0.8 * nightGain);
+  return base * (0.2 + 0.8 * nightGain) * Math.max(0, powerGain);
 }
 
 /** Minimum gap from openings, corners, and other fixtures (metres). */
