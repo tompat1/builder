@@ -1530,6 +1530,52 @@
         </div>
       </div>
 
+      <div class="pt-1">
+        <p class="text-xs font-bold text-slate-900 mb-1"><Cms k="category.fasciaTrim" /></p>
+        <p class="text-[11px] text-slate-500 mb-2"><Cms k="category.fasciaTrimHint" /></p>
+        <div
+          class="grid grid-cols-3 gap-2"
+          role="radiogroup"
+          :aria-label="t('category.fasciaTrim')"
+        >
+          <button
+            v-for="trim in FASCIA_TRIM_SWATCHES"
+            :key="trim.id"
+            type="button"
+            :id="`fascia-trim-${trim.id}`"
+            role="radio"
+            :aria-checked="store.fasciaTrimColor === trim.id"
+            @click="store.selectFasciaTrimColor(trim.id)"
+            :class="[
+              'p-2 rounded-xl border text-left flex flex-col items-center gap-1.5 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
+              store.fasciaTrimColor === trim.id
+                ? 'border-slate-900 ring-1 ring-slate-900 bg-slate-50 shadow-sm'
+                : 'border-slate-200 bg-white hover:border-slate-300'
+            ]"
+          >
+            <div
+              class="w-8 h-8 rounded-lg shrink-0 border border-slate-300 shadow-xs flex items-center justify-center relative overflow-hidden"
+              :style="{ backgroundColor: trim.hex }"
+            >
+              <svg
+                v-if="store.fasciaTrimColor === trim.id"
+                class="w-3.5 h-3.5 drop-shadow-sm"
+                :class="trim.id === 'white' ? 'text-slate-900' : 'text-white'"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="3"
+              >
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </div>
+            <span class="block text-[11px] font-bold text-slate-900 text-center leading-tight">
+              <Cms :k="`category.fasciaTrim${trim.labelKey}`" />
+            </span>
+          </button>
+        </div>
+      </div>
+
       <div class="pt-1 space-y-2">
         <p class="text-xs font-bold text-slate-900"><Cms k="category.doorCanopy" /></p>
         <p class="text-[11px] text-slate-500"><Cms k="category.outsidePlace" /></p>
@@ -3265,6 +3311,19 @@ import {
   OUTSIDE_PRICES,
   isStuganV4
 } from '../store/useConfigStore';
+import {
+  FASCIA_TRIM_COLORS,
+  fasciaTrimMaterialProps,
+  type FasciaTrimColor
+} from '../outside/roofOverhang';
+
+const FASCIA_TRIM_SWATCHES: { id: FasciaTrimColor; hex: string; labelKey: string }[] = FASCIA_TRIM_COLORS.map(
+  (id) => ({
+    id,
+    hex: fasciaTrimMaterialProps(id).color,
+    labelKey: id === 'white' ? 'White' : id === 'black' ? 'Black' : 'Metal'
+  })
+);
 import {
   TERRACE_DEPTHS,
   MIN_TERRACE_DEPTH,

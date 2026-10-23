@@ -63,12 +63,14 @@ import {
 } from './stuganV4';
 import { overlightItem } from '../three-engine/windowFit';
 import {
+  acceptFasciaTrimColor,
   acceptRoofEdgeChoice,
   acceptRoofOverhangVersion,
   DEFAULT_ROOF_EDGE,
   flushRoofForEdge,
   isSpecialRoofOverhang,
   roofEdgeFromLegacy,
+  type FasciaTrimColor,
   type RoofEdgeChoice,
   type RoofOverhangVersion
 } from '../outside/roofOverhang';
@@ -718,6 +720,8 @@ export const useConfigStore = defineStore('config', () => {
   const frameColor = ref<string>('white');
   /** Saved custom window frame colors */
   const savedFrameColors = ref<string[]>([]);
+  /** Metal roof outside corner trim / fascia / barge colour */
+  const fasciaTrimColor = ref<FasciaTrimColor>('white');
   /** Named facade + corner + frame combinations */
   const savedColorCombos = ref<ColorCombo[]>([]);
   const activeColorComboId = ref<string | null>(null);
@@ -999,6 +1003,7 @@ export const useConfigStore = defineStore('config', () => {
       savedCornerColors: savedCornerColors.value,
       frameColor: frameColor.value,
       savedFrameColors: savedFrameColors.value,
+      fasciaTrimColor: fasciaTrimColor.value,
       savedColorCombos: savedColorCombos.value,
       activeColorComboId: activeColorComboId.value,
       cornerBoards: cornerBoards.value,
@@ -1129,6 +1134,7 @@ export const useConfigStore = defineStore('config', () => {
       if (frameColor.value.startsWith('#') && !savedFrameColors.value.includes(frameColor.value)) {
         savedFrameColors.value.push(frameColor.value);
       }
+      fasciaTrimColor.value = acceptFasciaTrimColor(data.fasciaTrimColor);
       savedColorCombos.value = parseColorCombos(data.savedColorCombos);
       activeColorComboId.value =
         typeof data.activeColorComboId === 'string' &&
@@ -1981,6 +1987,13 @@ export const useConfigStore = defineStore('config', () => {
     roofCovering.value = id;
     saveSnapshot();
   }
+
+  const selectFasciaTrimColor = (color: FasciaTrimColor) => {
+    const next = acceptFasciaTrimColor(color);
+    if (fasciaTrimColor.value === next) return;
+    fasciaTrimColor.value = next;
+    saveSnapshot();
+  };
 
   const selectLoft = (id: string) => {
     activeLoft.value = id;
@@ -2994,6 +3007,7 @@ export const useConfigStore = defineStore('config', () => {
     savedCornerColors,
     frameColor,
     savedFrameColors,
+    fasciaTrimColor,
     savedColorCombos,
     activeColorComboId,
     cornerBoards,
@@ -3111,6 +3125,7 @@ export const useConfigStore = defineStore('config', () => {
     setFlushRoof,
     setRoofOverhangVersion,
     selectRoofCovering,
+    selectFasciaTrimColor,
     selectLoft,
     toggleHasLoft,
     setLoftCount,

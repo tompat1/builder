@@ -25,9 +25,11 @@ import { addTerraceCabin } from './terraceBuilding';
 import { addTerraceHotTub } from './terraceHotTub';
 import { computeDoorCanopyLayout, isDoorCoveredByAddition } from '../outside/canopy';
 import {
+  acceptFasciaTrimColor,
   acceptRoofOverhangVersion,
   cornerBoardRoofTrimDropM,
   fasciaEavesDropM,
+  fasciaTrimMaterialProps,
   recessedSoffitLightCenterY,
   roofBeamsAlongDepthForOverhang,
   usesBlackFasciaCasing,
@@ -35,6 +37,7 @@ import {
   usesPlankSoffitOverhang,
   usesSoffitCanopyFraming,
   usesTimberCanopyFraming,
+  type FasciaTrimColor,
   type RoofOverhangVersion
 } from '../outside/roofOverhang';
 import { headingForFacing, type CompassFacing } from './sunPosition';
@@ -149,6 +152,8 @@ export interface SceneConfig {
   cornerColor?: string | null;
   /** Window / door casing colour ('same' | 'white' | 'falurod' | 'grey' | 'black' | 'wood' | hex) */
   frameColor?: string | null;
+  /** Metal roof outside corner trim / fascia / barge colour. */
+  fasciaTrimColor?: FasciaTrimColor;
   /** Whether exterior corner boards (knutbrädor) are visible. */
   cornerBoards?: boolean;
   /** Existing concrete footprint; at 10 cm only its foundation curb remains. */
@@ -402,6 +407,7 @@ export class HouseScene {
       terraces: initialConfig?.terraces ?? [],
       cornerColor: initialConfig?.cornerColor ?? 'same',
       frameColor: initialConfig?.frameColor ?? 'white',
+      fasciaTrimColor: acceptFasciaTrimColor(initialConfig?.fasciaTrimColor),
       cornerBoards: initialConfig?.cornerBoards ?? true,
       concreteBase: initialConfig?.concreteBase ?? false,
       concreteWidthMm: initialConfig?.concreteWidthMm ?? 5200,
@@ -6016,18 +6022,13 @@ export class HouseScene {
     const overhang = Math.max(edges.front, edges.back, edges.left, edges.right);
     const roofMat = this.roofSurfaceMaterial();
 
-    const whiteTrimMat = new THREE.MeshStandardMaterial({
-      color: '#f4f1ea',
-      roughness: 0.55
-    });
+    const trimColor = acceptFasciaTrimColor(this.currentConfig.fasciaTrimColor);
+    const roofEdgeTrimMat = new THREE.MeshStandardMaterial(fasciaTrimMaterialProps(trimColor));
 
     if (isGableRoof(roofType)) {
-      this.addGableRoof(w, d, h, overhang, roofMat, whiteTrimMat);
+      this.addGableRoof(w, d, h, overhang, roofMat, roofEdgeTrimMat);
     } else if (roofType === 'flackt') {
-      const frameMat = this.currentConfig.flushRoof
-        ? new THREE.MeshStandardMaterial({ color: '#d5d8dc', roughness: 0.32, metalness: 0.72 })
-        : whiteTrimMat;
-      this.addShallowRoof(w, d, h, overhang, 2, roofMat, frameMat);
+      this.addShallowRoof(w, d, h, overhang, 2, roofMat, roofEdgeTrimMat);
     } else if (this.roofFallsAlongWidth()) {
       // Stugan V4: 10° fall east→west. High right (+X), low left (−X), long south overhang.
       const angleRad = this.pulpetPitchRad();
@@ -6053,14 +6054,8 @@ export class HouseScene {
       const overhangVersion = acceptRoofOverhangVersion(this.currentConfig.roofOverhangVersion);
       const blackCasing = usesBlackFasciaCasing(overhangVersion, edges.front);
       const sideWallOverhang = usesOverhangSideWalls(overhangVersion, edges.front);
-      const edgeMat = blackCasing
-        ? new THREE.MeshStandardMaterial({
-            color: '#1a1a1a',
-            roughness: 0.55,
-            metalness: 0.08
-          })
-        : whiteTrimMat;
-      // v3: deeper black fascia band reads as a continuous outer casing around the eave.
+      // v3: deeper fascia band reads as a continuous outer casing around the eave.
+      // Colour comes from fasciaTrimColor (white / black / metal).
       const fasciaT = blackCasing ? 0.04 : 0.022;
       const eavesDrop = fasciaEavesDropM(blackCasing);
       const fasciaBottom = -roofThick / 2 - eavesDrop;
@@ -6073,21 +6068,21 @@ export class HouseScene {
       const endFasciaOut = sideFlush ? -fasciaT / 2 : fasciaT / 2;
 
       const bargeGeo = new THREE.BoxGeometry(slopeLen + (sideFlush ? 0 : fasciaT * 2), fasciaH, bargeT);
-      const frontBarge = new THREE.Mesh(bargeGeo, edgeMat);
+      const frontBarge = new THREE.Mesh(bargeGeo, roofEdgeTrimMat);
       frontBarge.position.set(0, fasciaY, roofDepth / 2 + bargeT / 2);
       frontBarge.castShadow = true;
       assembly.add(frontBarge);
-      const backBarge = new THREE.Mesh(bargeGeo, edgeMat);
+      const backBarge = new THREE.Mesh(bargeGeo, roofEdgeTrimMat);
       backBarge.position.set(0, fasciaY, -(roofDepth / 2 + bargeT / 2));
       backBarge.castShadow = true;
       assembly.add(backBarge);
 
       const fasciaGeo = new THREE.BoxGeometry(fasciaT, fasciaH, roofDepth + bargeT * 2);
-      const westFascia = new THREE.Mesh(fasciaGeo, edgeMat);
+      const westFascia = new THREE.Mesh(fasciaGeo, roofEdgeTrimMat);
       westFascia.position.set(-(slopeLen / 2) + endFasciaOut, fasciaY, 0);
       westFascia.castShadow = true;
       assembly.add(westFascia);
-      const eastFascia = new THREE.Mesh(fasciaGeo, edgeMat);
+      const eastFascia = new THREE.Mesh(fasciaGeo, roofEdgeTrimMat);
       eastFascia.position.set(slopeLen / 2 - endFasciaOut, fasciaY, 0);
       eastFascia.castShadow = true;
       assembly.add(eastFascia);
@@ -6207,21 +6202,21 @@ export class HouseScene {
       const bargeT = 0.032;
 
       const bargeGeo = new THREE.BoxGeometry(bargeT, fasciaH, slopeLen + fasciaT * 2);
-      const leftBarge = new THREE.Mesh(bargeGeo, whiteTrimMat);
+      const leftBarge = new THREE.Mesh(bargeGeo, roofEdgeTrimMat);
       leftBarge.position.set(-(roofW / 2 + bargeT / 2), fasciaY, 0);
       leftBarge.castShadow = true;
       assembly.add(leftBarge);
-      const rightBarge = new THREE.Mesh(bargeGeo, whiteTrimMat);
+      const rightBarge = new THREE.Mesh(bargeGeo, roofEdgeTrimMat);
       rightBarge.position.set(roofW / 2 + bargeT / 2, fasciaY, 0);
       rightBarge.castShadow = true;
       assembly.add(rightBarge);
 
       const fasciaGeo = new THREE.BoxGeometry(roofW + bargeT * 2, fasciaH, fasciaT);
-      const frontFascia = new THREE.Mesh(fasciaGeo, whiteTrimMat);
+      const frontFascia = new THREE.Mesh(fasciaGeo, roofEdgeTrimMat);
       frontFascia.position.set(0, fasciaY, slopeLen / 2 + fasciaT / 2);
       frontFascia.castShadow = true;
       assembly.add(frontFascia);
-      const rearFascia = new THREE.Mesh(fasciaGeo, whiteTrimMat);
+      const rearFascia = new THREE.Mesh(fasciaGeo, roofEdgeTrimMat);
       rearFascia.position.set(0, fasciaY, -(slopeLen / 2 + fasciaT / 2));
       rearFascia.castShadow = true;
       assembly.add(rearFascia);

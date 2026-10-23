@@ -232,6 +232,7 @@ onMounted(() => {
       verticalDoorBay: store.verticalDoorBay,
       cornerColor: store.cornerColor,
       frameColor: store.frameColor,
+      fasciaTrimColor: store.fasciaTrimColor,
       cornerBoards: store.cornerBoards,
       panelWidthMm: store.claddingSizeId === '22x95'
         ? 95
@@ -564,6 +565,13 @@ watch(
   () => store.roofCovering,
   (covering) => {
     engine?.updateConfig({ roofCovering: covering });
+  }
+);
+
+watch(
+  () => store.fasciaTrimColor,
+  (fasciaTrimColor) => {
+    engine?.updateConfig({ fasciaTrimColor });
   }
 );
 

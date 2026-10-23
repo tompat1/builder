@@ -143,6 +143,27 @@ export function fasciaEavesDropM(blackCasing: boolean): number {
   return blackCasing ? FASCIA_EAVES_DROP_BLACK_M : FASCIA_EAVES_DROP_WHITE_M;
 }
 
+/** Metal roof outside corner trim / fascia / barge colour. */
+export type FasciaTrimColor = 'white' | 'black' | 'metal';
+
+export const FASCIA_TRIM_COLORS: readonly FasciaTrimColor[] = ['white', 'black', 'metal'];
+
+export function acceptFasciaTrimColor(value: unknown): FasciaTrimColor {
+  if (value === 'black' || value === 'metal') return value;
+  return 'white';
+}
+
+/** MeshStandardMaterial props for fascia / barge boards. */
+export function fasciaTrimMaterialProps(color: FasciaTrimColor): {
+  color: string;
+  roughness: number;
+  metalness: number;
+} {
+  if (color === 'black') return { color: '#1a1a1a', roughness: 0.55, metalness: 0.08 };
+  if (color === 'metal') return { color: '#d5d8dc', roughness: 0.32, metalness: 0.72 };
+  return { color: '#f4f1ea', roughness: 0.55, metalness: 0 };
+}
+
 /**
  * How far below the wall plate / eave line corner boards stop so their tops
  * sit under the fascia instead of poking through it.

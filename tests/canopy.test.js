@@ -2,9 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { computeDoorCanopyLayout, isDoorCoveredByAddition } from '../src/outside/canopy.ts';
 import {
+  acceptFasciaTrimColor,
   acceptRoofOverhangVersion,
   cornerBoardRoofTrimDropM,
   fasciaEavesDropM,
+  fasciaTrimMaterialProps,
   FASCIA_EAVES_DROP_BLACK_M,
   FASCIA_EAVES_DROP_WHITE_M,
   recessedSoffitLightCenterY,
@@ -206,6 +208,17 @@ test('roof overhang v1 timber, v2 post soffit, v3 framed side walls', () => {
   assert.equal(roofBeamsAlongDepthForOverhang('v3', false), false);
 });
 
+test('fascia trim colour accepts white, black, or gray metal', () => {
+  assert.equal(acceptFasciaTrimColor('white'), 'white');
+  assert.equal(acceptFasciaTrimColor('black'), 'black');
+  assert.equal(acceptFasciaTrimColor('metal'), 'metal');
+  assert.equal(acceptFasciaTrimColor('nope'), 'white');
+  assert.equal(fasciaTrimMaterialProps('white').color, '#f4f1ea');
+  assert.equal(fasciaTrimMaterialProps('black').color, '#1a1a1a');
+  assert.equal(fasciaTrimMaterialProps('metal').color, '#d5d8dc');
+  assert.ok(fasciaTrimMaterialProps('metal').metalness > fasciaTrimMaterialProps('white').metalness);
+});
+
 test('corner boards stop under the fascia eaves drop (no poke-through at roof joints)', () => {
   assert.equal(fasciaEavesDropM(false), FASCIA_EAVES_DROP_WHITE_M);
   assert.equal(fasciaEavesDropM(true), FASCIA_EAVES_DROP_BLACK_M);
@@ -277,17 +290,23 @@ test('HouseScene wires all three overhang versions', async () => {
   assert.match(scene, /usesBlackFasciaCasing/);
   assert.match(scene, /cornerBoardRoofTrimDropM/);
   assert.match(scene, /fasciaEavesDropM/);
+  assert.match(scene, /fasciaTrimMaterialProps/);
   assert.match(scene, /roofBeamsAlongDepthForOverhang/);
   assert.doesNotMatch(scene, /widthFall \? 0\.02/);
   assert.match(scene, /Takbjälke \(utsprång norr→söder\)/);
   assert.match(scene, /Takstol \/ takbalk \(pulpettak öst→väst\)/);
   assert.match(store, /setRoofEdge/);
+  assert.match(store, /selectFasciaTrimColor/);
+  assert.match(store, /fasciaTrimColor/);
   assert.match(overlay, /setRoofEdge\('overhang'\)/);
   assert.match(overlay, /setRoofEdge\('flush'\)/);
   assert.match(overlay, /setRoofEdge\('none'\)/);
   assert.match(overlay, /setRoofEdge\('v1'\)/);
   assert.match(overlay, /setRoofEdge\('v2'\)/);
   assert.match(overlay, /setRoofEdge\('v3'\)/);
+  assert.match(overlay, /selectFasciaTrimColor/);
+  assert.match(overlay, /fascia-trim-\$\{trim\.id\}/);
+  assert.match(overlay, /FASCIA_TRIM_SWATCHES/);
   assert.match(overlay, /roofSpecialOverhangs/);
   assert.match(overlay, /roofNoOverhang/);
 });
