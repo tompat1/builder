@@ -4,8 +4,11 @@ import {
   DEFAULT_HOUSE_LIGHTS,
   DAYLIGHT_MODES,
   DEFAULT_FIXTURE_POWER_STEP,
+  DUAL_FIXTURE_POWER_STEPS,
   FIXTURE_CLEARANCE_M,
   FIXTURE_POWER_STEPS,
+  LIGHTING_LAYER_EXTERIOR,
+  LIGHTING_LAYER_INTERIOR,
   acceptDaylightMode,
   evenWallSeeds,
   facadeSconceCountForWall,
@@ -16,20 +19,26 @@ import {
   nudgeOffOpenings,
   parseHouseLights,
   placeDoorSconceBeside,
-  placeFacadeSconcesAlongWall
+  placeFacadeSconcesAlongWall,
+  setExteriorOnlyLightingLayer
 } from '../src/outside/houseLights.ts';
 
 test('house lights default to facade washers on and other fixtures off', () => {
   assert.deepEqual(DEFAULT_HOUSE_LIGHTS, {
     facadeLights: true,
+    facadeUpDownLights: false,
     doorLight: false,
     ledStrips: false,
+    terraceLights: false,
     gardenLights: false
   });
   assert.deepEqual(parseHouseLights(undefined), DEFAULT_HOUSE_LIGHTS);
   assert.equal(parseHouseLights({ doorLight: true, ledStrips: 1 }).doorLight, true);
   assert.equal(parseHouseLights({ doorLight: true }).ledStrips, false);
   assert.equal(parseHouseLights({ facadeLights: false }).facadeLights, false);
+  const both = parseHouseLights({ facadeLights: true, facadeUpDownLights: true });
+  assert.equal(both.facadeUpDownLights, true);
+  assert.equal(both.facadeLights, false);
 });
 
 test('daylight mode accepts sun, moon, and neutral', () => {
@@ -52,6 +61,14 @@ test('evening and night hours darken the sky; fixtures are off by day and bright
   assert.ok(fixtureLightIntensity(0.7, 1, 1) > fixtureLightIntensity(0.7, 1, 0.4));
 });
 
+test('outdoor fixtures use the exterior lighting layer only', () => {
+  assert.equal(LIGHTING_LAYER_EXTERIOR, 0);
+  assert.equal(LIGHTING_LAYER_INTERIOR, 1);
+  const fake = { layers: { mask: 0xffffffff, set(n) { this.mask = 1 << n; } } };
+  setExteriorOnlyLightingLayer(fake);
+  assert.equal(fake.layers.mask, 1 << LIGHTING_LAYER_EXTERIOR);
+});
+
 test('fixture power cycles four modern LED steps with W · lm · K readout', () => {
   assert.equal(FIXTURE_POWER_STEPS.length, 4);
   assert.equal(DEFAULT_FIXTURE_POWER_STEP, 1);
@@ -63,6 +80,8 @@ test('fixture power cycles four modern LED steps with W · lm · K readout', () 
   assert.match(formatFixturePowerLabel(0), /3 W · 300 lm/);
   assert.match(formatFixturePowerLabel(2), /12 W · 1200 lm/);
   assert.match(formatFixturePowerLabel(3), /15 W · 1500 lm/);
+  assert.equal(DUAL_FIXTURE_POWER_STEPS[1].watts, 8);
+  assert.equal(formatFixturePowerLabel(1, 'dual'), '2 × 8 W · 1600 lm · 3000 K');
 });
 
 test('front wall gets two sconces; other walls scale with length', () => {
@@ -133,6 +152,10 @@ test('Outside lights UI and store wiring are present', async () => {
   assert.match(scene, /FIXTURE_CLEARANCE_M/);
   assert.match(scene, /cycleFixturePower/);
   assert.match(scene, /onFixturePowerReadout/);
+  assert.match(scene, /addUpDownLed|facadeUpDownLights/);
+  assert.match(scene, /setExteriorOnlyLightingLayer/);
+  assert.match(scene, /syncInteriorLightingLayers/);
+  assert.match(overlay, /facadeUpDownLights/);
   assert.match(lighting, /createStarfield/);
   assert.match(lighting, /syncStarfield/);
   const canvas = fs.readFileSync(path.join(root, 'src/components/HouseCanvas.vue'), 'utf8');

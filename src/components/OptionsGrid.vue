@@ -2864,6 +2864,20 @@
                 <circle cx="36" cy="8" r="2.5" fill="currentColor" stroke="none" />
               </svg>
               <svg
+                v-else-if="light.key === 'facadeUpDownLights'"
+                class="h-10 w-14"
+                viewBox="0 0 56 40"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+              >
+                <path d="M8 30V16h40v14" />
+                <rect x="24" y="17" width="8" height="10" rx="1.2" />
+                <path d="M28 12v4M26 13.5 28 12l2 1.5" />
+                <path d="M28 32v-4M26 30.5 28 32l2-1.5" />
+              </svg>
+              <svg
                 v-else-if="light.key === 'doorLight'"
                 class="h-10 w-14"
                 viewBox="0 0 56 40"
@@ -2887,6 +2901,21 @@
               >
                 <path d="M10 22h36" />
                 <path d="M14 22v6M22 22v6M30 22v6M38 22v6" stroke-width="2.2" />
+              </svg>
+              <svg
+                v-else-if="light.key === 'terraceLights'"
+                class="h-10 w-14"
+                viewBox="0 0 56 40"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+              >
+                <path d="M8 28h40v6H8z" />
+                <circle cx="16" cy="26" r="2.2" fill="currentColor" stroke="none" />
+                <circle cx="28" cy="26" r="2.2" fill="currentColor" stroke="none" />
+                <circle cx="40" cy="26" r="2.2" fill="currentColor" stroke="none" />
+                <path d="M12 34h32" opacity="0.55" />
               </svg>
               <svg
                 v-else
@@ -3409,8 +3438,10 @@ const FASCIA_TRIM_SWATCHES: { id: FasciaTrimColor; hex: string; labelKey: string
 
 const HOUSE_LIGHT_OPTIONS: { key: HouseLightKey }[] = [
   { key: 'facadeLights' },
+  { key: 'facadeUpDownLights' },
   { key: 'doorLight' },
   { key: 'ledStrips' },
+  { key: 'terraceLights' },
   { key: 'gardenLights' }
 ];
 import {

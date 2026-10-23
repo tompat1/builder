@@ -617,8 +617,10 @@ export const OUTSIDE_PRICES = {
   terraceCeiling: 14200,
   bigTerrace: 72600,
   facadeLights: 4800,
+  facadeUpDownLights: 5600,
   doorLight: 2400,
   ledStrips: 3600,
+  terraceLights: 4200,
   gardenLights: 6200
 } as const;
 
@@ -1461,8 +1463,10 @@ export const useConfigStore = defineStore('config', () => {
 
     if (doorCanopy.value) total += OUTSIDE_PRICES.doorCanopy;
     if (houseLights.value.facadeLights) total += OUTSIDE_PRICES.facadeLights;
+    if (houseLights.value.facadeUpDownLights) total += OUTSIDE_PRICES.facadeUpDownLights;
     if (houseLights.value.doorLight) total += OUTSIDE_PRICES.doorLight;
     if (houseLights.value.ledStrips) total += OUTSIDE_PRICES.ledStrips;
+    if (houseLights.value.terraceLights) total += OUTSIDE_PRICES.terraceLights;
     if (houseLights.value.gardenLights) total += OUTSIDE_PRICES.gardenLights;
     for (const deck of terraces.value) total += terracePrice(deck);
 
@@ -2094,7 +2098,11 @@ export const useConfigStore = defineStore('config', () => {
 
   const setHouseLight = (key: HouseLightKey, on: boolean) => {
     if (houseLights.value[key] === on) return;
-    houseLights.value = { ...houseLights.value, [key]: on };
+    const next = { ...houseLights.value, [key]: on };
+    // Classic sconces and up/down LEDs are alternative facade styles.
+    if (on && key === 'facadeLights') next.facadeUpDownLights = false;
+    if (on && key === 'facadeUpDownLights') next.facadeLights = false;
+    houseLights.value = next;
     saveSnapshot();
   }
 

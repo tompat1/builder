@@ -3,6 +3,31 @@
  * Daylight mode (sun / moon / neutral) drives how bright the scene and fixtures read.
  */
 
+import type { Layers, Object3D } from 'three';
+
+/** Default / outdoor meshes and outdoor fixture lights. */
+export const LIGHTING_LAYER_EXTERIOR = 0;
+/** Interior drywall, rooms, ceilings — outdoor fixtures skip this layer. */
+export const LIGHTING_LAYER_INTERIOR = 1;
+
+/** Sun / ambient / camera: light and see both shells. */
+export function enableAllLightingLayers(target: { layers: Layers }) {
+  target.layers.enable(LIGHTING_LAYER_EXTERIOR);
+  target.layers.enable(LIGHTING_LAYER_INTERIOR);
+}
+
+/** Outdoor PointLights only — does not wash the inside of the house. */
+export function setExteriorOnlyLightingLayer(target: { layers: Layers }) {
+  target.layers.set(LIGHTING_LAYER_EXTERIOR);
+}
+
+/** Tag interior meshes so outdoor fixtures cannot illuminate them. */
+export function setInteriorLightingLayer(root: Object3D) {
+  root.traverse((child) => {
+    child.layers.set(LIGHTING_LAYER_INTERIOR);
+  });
+}
+
 export type DaylightMode = 'sun' | 'moon' | 'neutral';
 
 export const DAYLIGHT_MODES: readonly DaylightMode[] = ['sun', 'moon', 'neutral'];
@@ -13,33 +38,48 @@ export function acceptDaylightMode(value: unknown): DaylightMode {
 }
 
 export interface HouseLightsConfig {
-  /** Wall washers auto-placed on the front facade. */
+  /** Classic wall sconces on every facade. */
   facadeLights: boolean;
+  /** Up/down LED wall lights (2×8 W class) — alternative to classic sconces. */
+  facadeUpDownLights: boolean;
   /** Sconce above each exterior door. */
   doorLight: boolean;
   /** Soft LED strip under door canopy / front eave. */
   ledStrips: boolean;
+  /** Recessed warm LED dots along terrace edges (+ rim strip). */
+  terraceLights: boolean;
   /** Garden bollards in front of the house. */
   gardenLights: boolean;
 }
 
 export const DEFAULT_HOUSE_LIGHTS: HouseLightsConfig = {
   facadeLights: true,
+  facadeUpDownLights: false,
   doorLight: false,
   ledStrips: false,
+  terraceLights: false,
   gardenLights: false
 };
 
 export type HouseLightKey = keyof HouseLightsConfig;
 
+/** Classic sconce vs dual-beam up/down LED (label + default step). */
+export type FixturePowerKind = 'single' | 'dual';
+
 export function parseHouseLights(raw: unknown): HouseLightsConfig {
   if (!raw || typeof raw !== 'object') return { ...DEFAULT_HOUSE_LIGHTS };
   const src = raw as Record<string, unknown>;
+  let facadeLights =
+    typeof src.facadeLights === 'boolean' ? src.facadeLights : DEFAULT_HOUSE_LIGHTS.facadeLights;
+  let facadeUpDownLights = src.facadeUpDownLights === true;
+  // One facade style at a time — prefer the explicit up/down choice.
+  if (facadeLights && facadeUpDownLights) facadeLights = false;
   return {
-    facadeLights:
-      typeof src.facadeLights === 'boolean' ? src.facadeLights : DEFAULT_HOUSE_LIGHTS.facadeLights,
+    facadeLights,
+    facadeUpDownLights,
     doorLight: src.doorLight === true,
     ledStrips: src.ledStrips === true,
+    terraceLights: src.terraceLights === true,
     gardenLights: src.gardenLights === true
   };
 }
@@ -71,11 +111,23 @@ export interface FixturePowerSpec {
   gain: number;
 }
 
+/** Single-emitter sconces / bollards / strips. */
 export const FIXTURE_POWER_STEPS: readonly FixturePowerSpec[] = [
   { watts: 3, lumens: 300, cctK: 2700, gain: 0.4 },
   { watts: 7, lumens: 700, cctK: 3000, gain: 0.7 },
   { watts: 12, lumens: 1200, cctK: 3000, gain: 1 },
   { watts: 15, lumens: 1500, cctK: 3000, gain: 1.25 }
+] as const;
+
+/**
+ * Up/down LED modules — each step is watts/lumens *per* beam.
+ * Default step 1 = 2 × 8 W (1600 lm total).
+ */
+export const DUAL_FIXTURE_POWER_STEPS: readonly FixturePowerSpec[] = [
+  { watts: 4, lumens: 400, cctK: 2700, gain: 0.5 },
+  { watts: 8, lumens: 800, cctK: 3000, gain: 0.9 },
+  { watts: 12, lumens: 1200, cctK: 3000, gain: 1.15 },
+  { watts: 15, lumens: 1500, cctK: 3000, gain: 1.35 }
 ] as const;
 
 export const DEFAULT_FIXTURE_POWER_STEP: FixturePowerStep = 1;
@@ -90,13 +142,23 @@ export function nextFixturePowerStep(step: FixturePowerStep): FixturePowerStep {
   return ((step + 1) % FIXTURE_POWER_STEPS.length) as FixturePowerStep;
 }
 
-export function fixturePowerSpec(step: FixturePowerStep = DEFAULT_FIXTURE_POWER_STEP): FixturePowerSpec {
-  return FIXTURE_POWER_STEPS[acceptFixturePowerStep(step)];
+export function fixturePowerSpec(
+  step: FixturePowerStep = DEFAULT_FIXTURE_POWER_STEP,
+  kind: FixturePowerKind = 'single'
+): FixturePowerSpec {
+  const table = kind === 'dual' ? DUAL_FIXTURE_POWER_STEPS : FIXTURE_POWER_STEPS;
+  return table[acceptFixturePowerStep(step)];
 }
 
-/** Short HUD line, e.g. `7 W · 700 lm · 3000 K`. */
-export function formatFixturePowerLabel(step: FixturePowerStep): string {
-  const spec = fixturePowerSpec(step);
+/** Short HUD line, e.g. `7 W · 700 lm · 3000 K` or `2 × 8 W · 1600 lm · 3000 K`. */
+export function formatFixturePowerLabel(
+  step: FixturePowerStep,
+  kind: FixturePowerKind = 'single'
+): string {
+  const spec = fixturePowerSpec(step, kind);
+  if (kind === 'dual') {
+    return `2 × ${spec.watts} W · ${spec.lumens * 2} lm · ${spec.cctK} K`;
+  }
   return `${spec.watts} W · ${spec.lumens} lm · ${spec.cctK} K`;
 }
 
