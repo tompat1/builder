@@ -1,21 +1,80 @@
 /**
- * Roof overhang versions for deep south eaves (Stugan V4 and similar).
+ * Standard roof-edge choices (uniform eaves) plus special deep-south overhangs
+ * (Stugan-style: flush sides + long front eave — a combo of overhang and wall line).
  *
- * v1 — open timber canopy: header on posts, knee braces, short eave rafters.
- *      Main roof beams still run with the width-fall (east→west).
+ * Standard:
+ *   overhang — usual ~0.4 m eaves all around
+ *   flush    — at the wall line (Scandi cube metal edge)
+ *   none     — no roof overhang
  *
- * v2 — closed soffit canopy: light plank soffit, spotlights, one outer post,
- *      no braces. Main roof beams run north→south into the overhang.
- *
- * v3 — framed terrace bay: timber-lined soffit, black fascia casing and deep
- *      side walls. Main roof beams run east→west and bear on the side walls.
+ * Special (v1–v3):
+ *   v1 — open timber canopy: posts, knee braces, header
+ *   v2 — closed soffit, spotlights, one outer post; beams N–S
+ *   v3 — framed terrace bay: black fascia + side walls; beams E–W
  */
 
+export type RoofEdgeChoice = 'overhang' | 'flush' | 'none' | 'v1' | 'v2' | 'v3';
+
 export type RoofOverhangVersion = 'v1' | 'v2' | 'v3';
+
+export const ROOF_EDGE_STANDARD: readonly Exclude<RoofEdgeChoice, RoofOverhangVersion>[] = [
+  'overhang',
+  'flush',
+  'none'
+];
 
 export const ROOF_OVERHANG_VERSIONS: readonly RoofOverhangVersion[] = ['v1', 'v2', 'v3'];
 
 export const DEFAULT_ROOF_OVERHANG_VERSION: RoofOverhangVersion = 'v1';
+
+export const DEFAULT_ROOF_EDGE: RoofEdgeChoice = 'overhang';
+
+export function isSpecialRoofOverhang(value: unknown): value is RoofOverhangVersion {
+  return value === 'v1' || value === 'v2' || value === 'v3';
+}
+
+export function acceptRoofEdgeChoice(
+  value: unknown,
+  fallback: RoofEdgeChoice = DEFAULT_ROOF_EDGE
+): RoofEdgeChoice {
+  if (
+    value === 'overhang'
+    || value === 'flush'
+    || value === 'none'
+    || value === 'v1'
+    || value === 'v2'
+    || value === 'v3'
+  ) {
+    return value;
+  }
+  return fallback;
+}
+
+/** Per-edge overhangs in metres, or undefined to use the scene default from flushRoof. */
+export function roofOverhangsForEdge(
+  choice: RoofEdgeChoice
+): { front: number; back: number; left: number; right: number } | undefined {
+  if (isSpecialRoofOverhang(choice)) return { front: 3.0, back: 0, left: 0, right: 0 };
+  if (choice === 'none') return { front: 0, back: 0, left: 0, right: 0 };
+  if (choice === 'flush') return { front: 0.02, back: 0.02, left: 0.02, right: 0.02 };
+  return undefined;
+}
+
+export function flushRoofForEdge(choice: RoofEdgeChoice): boolean {
+  return choice === 'flush' || choice === 'none';
+}
+
+/** Map legacy flushRoof + version snapshot fields onto a single edge choice. */
+export function roofEdgeFromLegacy(
+  flushRoof: boolean,
+  version: unknown,
+  preferSpecial: boolean
+): RoofEdgeChoice {
+  if (preferSpecial && isSpecialRoofOverhang(version)) return version;
+  if (preferSpecial && !flushRoof) return acceptRoofOverhangVersion(version);
+  if (flushRoof) return 'flush';
+  return 'overhang';
+}
 
 /**
  * Local Y centre for a cylindrical downlight recessed into the underside of a

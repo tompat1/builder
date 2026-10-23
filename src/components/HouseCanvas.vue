@@ -113,6 +113,7 @@ import { noteTargetId, noteVisibleInView } from '../notes/board';
 import { fitRoom, innerHalf } from '../three-engine/roomWalls';
 import { isLoftRoom, loftDeckBounds } from '../three-engine/loftLevel';
 import { useLabels } from '../i18n';
+import { roofOverhangsForEdge } from '../outside/roofOverhang';
 import Cms from './Cms.vue';
 
 const canvasContainer = ref<HTMLElement | null>(null);
@@ -259,10 +260,7 @@ onMounted(() => {
       assemblyLayerStep: store.assemblyLayerStep,
       roofFallAxis: store.selectedSizeId === 'size-stugan-v4' ? 'width' : 'depth',
       pulpetPitchDeg: store.selectedSizeId === 'size-stugan-v4' ? 10 : undefined,
-      roofOverhangs:
-        store.selectedSizeId === 'size-stugan-v4'
-          ? { front: 3.0, back: 0, left: 0, right: 0 }
-          : undefined
+      roofOverhangs: roofOverhangsForEdge(store.roofEdge)
     });
 
     (window as any).__houseScene = engine;
@@ -544,22 +542,20 @@ watch(
       concreteColor: store.concreteColor,
       roofFallAxis: id === 'size-stugan-v4' ? 'width' : 'depth',
       pulpetPitchDeg: id === 'size-stugan-v4' ? 10 : undefined,
-      roofOverhangs:
-        id === 'size-stugan-v4'
-          ? { front: 3.0, back: 0, left: 0, right: 0 }
-          : undefined
+      roofOverhangs: roofOverhangsForEdge(store.roofEdge)
     });
   }
 );
 
-// Watch roof type
+// Watch roof type / edge
 watch(
-  [() => store.activeRoof, () => store.flushRoof, () => store.roofOverhangVersion],
-  ([roof, flushRoof, overhangVersion]) => {
+  [() => store.activeRoof, () => store.roofEdge, () => store.flushRoof, () => store.roofOverhangVersion],
+  ([roof, edge, flushRoof, overhangVersion]) => {
     engine?.updateConfig({
       roofType: roof as RoofId,
       flushRoof,
-      roofOverhangVersion: overhangVersion
+      roofOverhangVersion: overhangVersion,
+      roofOverhangs: roofOverhangsForEdge(edge)
     });
   }
 );

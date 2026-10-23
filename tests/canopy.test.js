@@ -218,8 +218,37 @@ test('HouseScene wires all three overhang versions', async () => {
   assert.match(scene, /roofBeamsAlongDepthForOverhang/);
   assert.match(scene, /Takbjälke \(utsprång norr→söder\)/);
   assert.match(scene, /Takstol \/ takbalk \(pulpettak öst→väst\)/);
-  assert.match(store, /setRoofOverhangVersion/);
-  assert.match(overlay, /setRoofOverhangVersion\('v1'\)/);
-  assert.match(overlay, /setRoofOverhangVersion\('v2'\)/);
-  assert.match(overlay, /setRoofOverhangVersion\('v3'\)/);
+  assert.match(store, /setRoofEdge/);
+  assert.match(overlay, /setRoofEdge\('overhang'\)/);
+  assert.match(overlay, /setRoofEdge\('flush'\)/);
+  assert.match(overlay, /setRoofEdge\('none'\)/);
+  assert.match(overlay, /setRoofEdge\('v1'\)/);
+  assert.match(overlay, /setRoofEdge\('v2'\)/);
+  assert.match(overlay, /setRoofEdge\('v3'\)/);
+  assert.match(overlay, /roofSpecialOverhangs/);
+  assert.match(overlay, /roofNoOverhang/);
+});
+
+test('roof edge choices map to overhangs; specials are deep south only', async () => {
+  const {
+    roofOverhangsForEdge,
+    flushRoofForEdge,
+    roofEdgeFromLegacy,
+    acceptRoofEdgeChoice
+  } = await import('../src/outside/roofOverhang.ts');
+
+  assert.equal(acceptRoofEdgeChoice('none'), 'none');
+  assert.equal(flushRoofForEdge('none'), true);
+  assert.equal(flushRoofForEdge('flush'), true);
+  assert.equal(flushRoofForEdge('overhang'), false);
+  assert.equal(flushRoofForEdge('v1'), false);
+
+  assert.equal(roofOverhangsForEdge('overhang'), undefined);
+  assert.deepEqual(roofOverhangsForEdge('none'), { front: 0, back: 0, left: 0, right: 0 });
+  assert.deepEqual(roofOverhangsForEdge('flush'), { front: 0.02, back: 0.02, left: 0.02, right: 0.02 });
+  assert.deepEqual(roofOverhangsForEdge('v2'), { front: 3.0, back: 0, left: 0, right: 0 });
+
+  assert.equal(roofEdgeFromLegacy(true, 'v1', false), 'flush');
+  assert.equal(roofEdgeFromLegacy(false, 'v3', true), 'v3');
+  assert.equal(roofEdgeFromLegacy(false, undefined, false), 'overhang');
 });

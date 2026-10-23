@@ -1341,101 +1341,16 @@
 
       <div class="pt-1">
         <p class="text-xs font-bold text-slate-900 mb-2"><Cms k="category.roofEdge" /></p>
-        <div
-          v-if="isStuganRoof"
-          class="grid grid-cols-3 gap-2"
-          role="radiogroup"
-          :aria-label="t('category.stuganRoofEdge')"
-        >
-          <button
-            type="button"
-            id="option-roof-overhang-v1"
-            role="radio"
-            :aria-checked="store.roofOverhangVersion === 'v1'"
-            @click="store.setRoofOverhangVersion('v1')"
-            :class="[
-              'text-left p-2.5 rounded-xl border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
-              store.roofOverhangVersion === 'v1'
-                ? 'border-slate-900 ring-1 ring-slate-900 bg-slate-50/70'
-                : 'border-slate-200/90 bg-white hover:border-slate-300'
-            ]"
-          >
-            <span class="mb-2 flex h-8 items-center justify-center text-slate-700">
-              <svg class="h-8 w-full" viewBox="0 0 120 32" fill="none" aria-hidden="true">
-                <path d="M16 12 H104" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
-                <path d="M28 12 V28" stroke="currentColor" stroke-width="2" />
-                <path d="M52 12 V28" stroke="currentColor" stroke-width="2" />
-                <path d="M76 12 V28" stroke="currentColor" stroke-width="2" />
-                <path d="M28 20 L40 12" stroke="currentColor" stroke-width="1.4" />
-                <path d="M52 20 L40 12" stroke="currentColor" stroke-width="1.4" />
-                <path d="M52 20 L64 12" stroke="currentColor" stroke-width="1.4" />
-                <path d="M76 20 L64 12" stroke="currentColor" stroke-width="1.4" />
-              </svg>
-            </span>
-            <span class="block text-xs font-bold text-slate-900"><Cms k="category.roofOverhangV1" /></span>
-            <span class="block text-[10px] text-slate-500 mt-0.5"><Cms k="category.roofOverhangV1Body" /></span>
-          </button>
-          <button
-            type="button"
-            id="option-roof-overhang-v2"
-            role="radio"
-            :aria-checked="store.roofOverhangVersion === 'v2'"
-            @click="store.setRoofOverhangVersion('v2')"
-            :class="[
-              'text-left p-2.5 rounded-xl border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
-              store.roofOverhangVersion === 'v2'
-                ? 'border-slate-900 ring-1 ring-slate-900 bg-slate-50/70'
-                : 'border-slate-200/90 bg-white hover:border-slate-300'
-            ]"
-          >
-            <span class="mb-2 flex h-8 items-center justify-center text-slate-700">
-              <svg class="h-8 w-full" viewBox="0 0 120 32" fill="none" aria-hidden="true">
-                <path d="M16 12 H104" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
-                <path d="M20 12 V18 H100 V12" stroke="currentColor" stroke-width="1.2" />
-                <path d="M88 12 V28" stroke="currentColor" stroke-width="2" />
-                <circle cx="40" cy="15" r="1.6" fill="currentColor" />
-                <circle cx="60" cy="15" r="1.6" fill="currentColor" />
-                <circle cx="80" cy="15" r="1.6" fill="currentColor" />
-              </svg>
-            </span>
-            <span class="block text-xs font-bold text-slate-900"><Cms k="category.roofOverhangV2" /></span>
-            <span class="block text-[10px] text-slate-500 mt-0.5"><Cms k="category.roofOverhangV2Body" /></span>
-          </button>
-          <button
-            type="button"
-            id="option-roof-overhang-v3"
-            role="radio"
-            :aria-checked="store.roofOverhangVersion === 'v3'"
-            @click="store.setRoofOverhangVersion('v3')"
-            :class="[
-              'text-left p-2.5 rounded-xl border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
-              store.roofOverhangVersion === 'v3'
-                ? 'border-slate-900 ring-1 ring-slate-900 bg-slate-50/70'
-                : 'border-slate-200/90 bg-white hover:border-slate-300'
-            ]"
-          >
-            <span class="mb-2 flex h-8 items-center justify-center text-slate-700">
-              <svg class="h-8 w-full" viewBox="0 0 120 32" fill="none" aria-hidden="true">
-                <path d="M14 10 H106" stroke="currentColor" stroke-width="4" stroke-linecap="square" />
-                <path d="M18 10 V20 H102 V10" stroke="currentColor" stroke-width="1.4" />
-                <path d="M18 10 V28" stroke="currentColor" stroke-width="2.5" />
-                <path d="M102 10 V28" stroke="currentColor" stroke-width="2.5" />
-              </svg>
-            </span>
-            <span class="block text-xs font-bold text-slate-900"><Cms k="category.roofOverhangV3" /></span>
-            <span class="block text-[10px] text-slate-500 mt-0.5"><Cms k="category.roofOverhangV3Body" /></span>
-          </button>
-        </div>
-        <div v-else class="grid grid-cols-2 gap-2" role="radiogroup" :aria-label="t('category.roofEdge')">
+        <div class="grid grid-cols-3 gap-2" role="radiogroup" :aria-label="t('category.roofEdge')">
           <button
             type="button"
             id="option-roof-overhang"
             role="radio"
-            :aria-checked="!store.flushRoof"
-            @click="store.setFlushRoof(false)"
+            :aria-checked="store.roofEdge === 'overhang'"
+            @click="store.setRoofEdge('overhang')"
             :class="[
               'text-left p-2.5 rounded-xl border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
-              !store.flushRoof
+              store.roofEdge === 'overhang'
                 ? 'border-slate-900 ring-1 ring-slate-900 bg-slate-50/70'
                 : 'border-slate-200/90 bg-white hover:border-slate-300'
             ]"
@@ -1453,11 +1368,11 @@
             type="button"
             id="option-roof-flush"
             role="radio"
-            :aria-checked="store.flushRoof"
-            @click="store.setFlushRoof(true)"
+            :aria-checked="store.roofEdge === 'flush'"
+            @click="store.setRoofEdge('flush')"
             :class="[
               'text-left p-2.5 rounded-xl border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
-              store.flushRoof
+              store.roofEdge === 'flush'
                 ? 'border-slate-900 ring-1 ring-slate-900 bg-slate-50/70'
                 : 'border-slate-200/90 bg-white hover:border-slate-300'
             ]"
@@ -1471,7 +1386,119 @@
             <span class="block text-xs font-bold text-slate-900"><Cms k="category.roofFlush" /></span>
             <span class="block text-[10px] text-slate-500 mt-0.5"><Cms k="category.roofFlushBody" /></span>
           </button>
+          <button
+            type="button"
+            id="option-roof-no-overhang"
+            role="radio"
+            :aria-checked="store.roofEdge === 'none'"
+            @click="store.setRoofEdge('none')"
+            :class="[
+              'text-left p-2.5 rounded-xl border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
+              store.roofEdge === 'none'
+                ? 'border-slate-900 ring-1 ring-slate-900 bg-slate-50/70'
+                : 'border-slate-200/90 bg-white hover:border-slate-300'
+            ]"
+          >
+            <span class="mb-2 flex h-8 items-center justify-center text-slate-700">
+              <svg class="h-8 w-full" viewBox="0 0 120 32" fill="none" aria-hidden="true">
+                <path d="M28 14 H92" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
+                <path d="M28 14 V28 H92 V14" stroke="currentColor" stroke-width="1.4" />
+                <path d="M22 10 L34 22" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+              </svg>
+            </span>
+            <span class="block text-xs font-bold text-slate-900"><Cms k="category.roofNoOverhang" /></span>
+            <span class="block text-[10px] text-slate-500 mt-0.5"><Cms k="category.roofNoOverhangBody" /></span>
+          </button>
         </div>
+
+        <template v-if="isStuganRoof">
+          <p class="text-xs font-bold text-slate-900 mb-1 mt-3"><Cms k="category.roofSpecialOverhangs" /></p>
+          <p class="text-[10px] text-slate-500 mb-2 leading-snug"><Cms k="category.roofSpecialOverhangsBody" /></p>
+          <div
+            class="grid grid-cols-3 gap-2"
+            role="radiogroup"
+            :aria-label="t('category.roofSpecialOverhangs')"
+          >
+            <button
+              type="button"
+              id="option-roof-overhang-v1"
+              role="radio"
+              :aria-checked="store.roofEdge === 'v1'"
+              @click="store.setRoofEdge('v1')"
+              :class="[
+                'text-left p-2.5 rounded-xl border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
+                store.roofEdge === 'v1'
+                  ? 'border-slate-900 ring-1 ring-slate-900 bg-slate-50/70'
+                  : 'border-slate-200/90 bg-white hover:border-slate-300'
+              ]"
+            >
+              <span class="mb-2 flex h-8 items-center justify-center text-slate-700">
+                <svg class="h-8 w-full" viewBox="0 0 120 32" fill="none" aria-hidden="true">
+                  <path d="M16 12 H104" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
+                  <path d="M28 12 V28" stroke="currentColor" stroke-width="2" />
+                  <path d="M52 12 V28" stroke="currentColor" stroke-width="2" />
+                  <path d="M76 12 V28" stroke="currentColor" stroke-width="2" />
+                  <path d="M28 20 L40 12" stroke="currentColor" stroke-width="1.4" />
+                  <path d="M52 20 L40 12" stroke="currentColor" stroke-width="1.4" />
+                  <path d="M52 20 L64 12" stroke="currentColor" stroke-width="1.4" />
+                  <path d="M76 20 L64 12" stroke="currentColor" stroke-width="1.4" />
+                </svg>
+              </span>
+              <span class="block text-xs font-bold text-slate-900"><Cms k="category.roofOverhangV1" /></span>
+              <span class="block text-[10px] text-slate-500 mt-0.5"><Cms k="category.roofOverhangV1Body" /></span>
+            </button>
+            <button
+              type="button"
+              id="option-roof-overhang-v2"
+              role="radio"
+              :aria-checked="store.roofEdge === 'v2'"
+              @click="store.setRoofEdge('v2')"
+              :class="[
+                'text-left p-2.5 rounded-xl border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
+                store.roofEdge === 'v2'
+                  ? 'border-slate-900 ring-1 ring-slate-900 bg-slate-50/70'
+                  : 'border-slate-200/90 bg-white hover:border-slate-300'
+              ]"
+            >
+              <span class="mb-2 flex h-8 items-center justify-center text-slate-700">
+                <svg class="h-8 w-full" viewBox="0 0 120 32" fill="none" aria-hidden="true">
+                  <path d="M16 12 H104" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
+                  <path d="M20 12 V18 H100 V12" stroke="currentColor" stroke-width="1.2" />
+                  <path d="M88 12 V28" stroke="currentColor" stroke-width="2" />
+                  <circle cx="40" cy="15" r="1.6" fill="currentColor" />
+                  <circle cx="60" cy="15" r="1.6" fill="currentColor" />
+                  <circle cx="80" cy="15" r="1.6" fill="currentColor" />
+                </svg>
+              </span>
+              <span class="block text-xs font-bold text-slate-900"><Cms k="category.roofOverhangV2" /></span>
+              <span class="block text-[10px] text-slate-500 mt-0.5"><Cms k="category.roofOverhangV2Body" /></span>
+            </button>
+            <button
+              type="button"
+              id="option-roof-overhang-v3"
+              role="radio"
+              :aria-checked="store.roofEdge === 'v3'"
+              @click="store.setRoofEdge('v3')"
+              :class="[
+                'text-left p-2.5 rounded-xl border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
+                store.roofEdge === 'v3'
+                  ? 'border-slate-900 ring-1 ring-slate-900 bg-slate-50/70'
+                  : 'border-slate-200/90 bg-white hover:border-slate-300'
+              ]"
+            >
+              <span class="mb-2 flex h-8 items-center justify-center text-slate-700">
+                <svg class="h-8 w-full" viewBox="0 0 120 32" fill="none" aria-hidden="true">
+                  <path d="M14 10 H106" stroke="currentColor" stroke-width="4" stroke-linecap="square" />
+                  <path d="M18 10 V20 H102 V10" stroke="currentColor" stroke-width="1.4" />
+                  <path d="M18 10 V28" stroke="currentColor" stroke-width="2.5" />
+                  <path d="M102 10 V28" stroke="currentColor" stroke-width="2.5" />
+                </svg>
+              </span>
+              <span class="block text-xs font-bold text-slate-900"><Cms k="category.roofOverhangV3" /></span>
+              <span class="block text-[10px] text-slate-500 mt-0.5"><Cms k="category.roofOverhangV3Body" /></span>
+            </button>
+          </div>
+        </template>
       </div>
 
       <div class="pt-1">

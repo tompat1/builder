@@ -63,8 +63,13 @@ import {
 } from './stuganV4';
 import { overlightItem } from '../three-engine/windowFit';
 import {
+  acceptRoofEdgeChoice,
   acceptRoofOverhangVersion,
-  DEFAULT_ROOF_OVERHANG_VERSION,
+  DEFAULT_ROOF_EDGE,
+  flushRoofForEdge,
+  isSpecialRoofOverhang,
+  roofEdgeFromLegacy,
+  type RoofEdgeChoice,
   type RoofOverhangVersion
 } from '../outside/roofOverhang';
 import { acceptPlacedRooms, type PlacedRoom } from '../three-engine/roomWalls';
@@ -762,10 +767,15 @@ export const useConfigStore = defineStore('config', () => {
   const activeWindow = ref<string>('standard-single');
   const activeGate = ref<string>('none');
   const doorCanopy = ref(false);
-  /** Tin roof ends at the walls, with a metal band over the roof edge. */
-  const flushRoof = ref(false);
-  /** Deep south overhang: v1 timber, v2 soffit+post, v3 framed side walls. */
-  const roofOverhangVersion = ref<RoofOverhangVersion>(DEFAULT_ROOF_OVERHANG_VERSION);
+  /**
+   * Roof edge: overhang | flush | none, or special deep-south v1–v3.
+   * flushRoof / roofOverhangVersion stay derived for the scene and legacy saves.
+   */
+  const roofEdge = ref<RoofEdgeChoice>(DEFAULT_ROOF_EDGE);
+  const flushRoof = computed(() => flushRoofForEdge(roofEdge.value));
+  const roofOverhangVersion = computed<RoofOverhangVersion>(() =>
+    isSpecialRoofOverhang(roofEdge.value) ? roofEdge.value : 'v1'
+  );
   const terraces = ref<HouseTerrace[]>([]);
   const facing = ref<CompassFacing>('south');
   const sunHour = ref(12);
@@ -949,6 +959,7 @@ export const useConfigStore = defineStore('config', () => {
       activeWindow: activeWindow.value,
       activeGate: activeGate.value,
       doorCanopy: doorCanopy.value,
+      roofEdge: roofEdge.value,
       flushRoof: flushRoof.value,
       roofOverhangVersion: roofOverhangVersion.value,
       terraces: terraces.value.map((item) => ({ ...item })),
@@ -1049,8 +1060,15 @@ export const useConfigStore = defineStore('config', () => {
       if (data.activeWindow) activeWindow.value = data.activeWindow;
       if (data.activeGate) activeGate.value = data.activeGate;
       doorCanopy.value = data.doorCanopy === true;
-      flushRoof.value = data.flushRoof === true;
-      roofOverhangVersion.value = acceptRoofOverhangVersion(data.roofOverhangVersion);
+      if (data.roofEdge != null) {
+        roofEdge.value = acceptRoofEdgeChoice(data.roofEdge);
+      } else {
+        roofEdge.value = roofEdgeFromLegacy(
+          data.flushRoof === true,
+          data.roofOverhangVersion,
+          isStuganV4(data.selectedSizeId)
+        );
+      }
       terraces.value = Array.isArray(data.terraces) ? acceptTerraces(data.terraces) : terracesFromLegacy(data);
       facing.value = COMPASS_FACINGS.includes(data.facing) ? data.facing : 'south';
       sunHour.value = clampSunHour(typeof data.sunHour === 'number' ? data.sunHour : 12);
@@ -1515,7 +1533,7 @@ export const useConfigStore = defineStore('config', () => {
     panelOrientation.value = 'liggande';
     verticalDoorBay.value = true;
     doorCanopy.value = true;
-    flushRoof.value = true;
+    roofEdge.value = 'flush';
     claddingSizeId.value = '22x170';
     terraces.value = [
       { side: 'back', depth: 2.4, span: 'full', roof: true },
@@ -1541,7 +1559,7 @@ export const useConfigStore = defineStore('config', () => {
     panelOrientation.value = 'liggande';
     verticalDoorBay.value = true;
     doorCanopy.value = true;
-    flushRoof.value = false;
+    roofEdge.value = 'overhang';
     claddingSizeId.value = '22x145';
     terraces.value = [{ side: 'front', depth: 1.2, span: 'door', roof: false }];
     activeRoof.value = 'sadeltak';
@@ -1561,7 +1579,7 @@ export const useConfigStore = defineStore('config', () => {
     panelOrientation.value = 'staende';
     verticalDoorBay.value = false;
     doorCanopy.value = false;
-    flushRoof.value = false;
+    roofEdge.value = 'overhang';
     claddingSizeId.value = '22x145';
     terraces.value = [];
     activeRoof.value = 'sadeltak';
@@ -1581,7 +1599,7 @@ export const useConfigStore = defineStore('config', () => {
     panelOrientation.value = 'staende';
     verticalDoorBay.value = false;
     doorCanopy.value = false;
-    flushRoof.value = false;
+    roofEdge.value = 'overhang';
     claddingSizeId.value = '22x145';
     terraces.value = [];
     activeRoof.value = 'sadeltak';
@@ -1602,7 +1620,7 @@ export const useConfigStore = defineStore('config', () => {
     panelOrientation.value = 'staende';
     verticalDoorBay.value = false;
     doorCanopy.value = false;
-    flushRoof.value = false;
+    roofEdge.value = 'overhang';
     claddingSizeId.value = '22x145';
     activeLoft.value = 'none';
     loftPlacement.value = 'vanster';
@@ -1623,7 +1641,7 @@ export const useConfigStore = defineStore('config', () => {
     panelOrientation.value = 'liggande';
     verticalDoorBay.value = true;
     doorCanopy.value = false;
-    flushRoof.value = false;
+    roofEdge.value = 'v1';
     claddingSizeId.value = '22x170';
     terraces.value = [
       {
@@ -1635,7 +1653,6 @@ export const useConfigStore = defineStore('config', () => {
     ];
     activeRoof.value = 'pulpettak';
     roofCovering.value = 'metal';
-    flushRoof.value = false;
     activeMaterial.value = 'wood';
     // Screen stand-in for Nordsjö H7.15.53 — listed as uncertain in conflicts.
     const paint = parseCustomPaint({ hex: STUGAN_V4_CLADDING_HEX, system: 'hex' });
@@ -1923,17 +1940,19 @@ export const useConfigStore = defineStore('config', () => {
     saveSnapshot();
   }
 
-  const setFlushRoof = (flush: boolean) => {
-    if (flushRoof.value === flush) return;
-    flushRoof.value = flush;
+  const setRoofEdge = (choice: RoofEdgeChoice) => {
+    const next = acceptRoofEdgeChoice(choice, roofEdge.value);
+    if (roofEdge.value === next) return;
+    roofEdge.value = next;
     saveSnapshot();
   }
 
+  const setFlushRoof = (flush: boolean) => {
+    setRoofEdge(flush ? 'flush' : 'overhang');
+  }
+
   const setRoofOverhangVersion = (version: RoofOverhangVersion) => {
-    const next = acceptRoofOverhangVersion(version);
-    if (roofOverhangVersion.value === next) return;
-    roofOverhangVersion.value = next;
-    saveSnapshot();
+    setRoofEdge(acceptRoofOverhangVersion(version));
   }
 
   const selectRoofCovering = (id: RoofCovering) => {
@@ -2975,6 +2994,7 @@ export const useConfigStore = defineStore('config', () => {
     activeWindow,
     activeGate,
     doorCanopy,
+    roofEdge,
     flushRoof,
     roofOverhangVersion,
     terraces,
@@ -3046,6 +3066,7 @@ export const useConfigStore = defineStore('config', () => {
     removeConcreteColor,
     updateConcreteColor,
     selectRoof,
+    setRoofEdge,
     setFlushRoof,
     setRoofOverhangVersion,
     selectRoofCovering,
