@@ -105,41 +105,35 @@ export function acceptFacing(input) {
 }
 
 /**
- * Image 0 is an exact draft composite made from the live 3D scene.
- * Image 1 is the untouched garden photograph.
- * Image 2 is the matching facade and image 3 is the complete 3D overview.
+ * Rynell-studio style edit: image 0 = garden scene to edit, image 1 = exact
+ * configured house reference. Natural prompt language works better with Flux.2.
  */
 export function sitePrompt(facts, imageCount, placement, facing, houseWidthPercent) {
-  if (imageCount < 4) return '';
+  if (imageCount < 2) return '';
   const point = acceptPlacement(placement);
   const width = acceptHouseWidthPercent(houseWidthPercent);
   const side = acceptFacing(facing);
   const facade = SITE_FACINGS[side];
-  const note = String(facts ?? '').replace(/\s+/g, ' ').trim().slice(0, 900);
+  const note = String(facts ?? '').replace(/\s+/g, ' ').trim().slice(0, 700);
 
-  let roofRule = 'Preserve the exact roof type and roofline from image 1 of the configured 3D house.';
+  let roofBit = 'exact roof from the house reference';
   if (/\b(?:mono-pitch|single-slope|shed|pulpettak|lean-to)\b/i.test(note)) {
-    roofRule = 'The house has a single-slope mono-pitch shed roof (pulpettak). Strictly preserve this single-slope roof from the 3D reference: do NOT generate a gable roof, do NOT generate an A-frame peaked roof, and do NOT add a center ridge.';
+    roofBit = 'single-slope mono-pitch shed roof (pulpettak), not a gable';
   } else if (/\b(?:flat roof|flackt|parapet)\b/i.test(note)) {
-    roofRule = 'The house has a modern flat roof. Strictly preserve this flat roof: do NOT generate a sloped or gable roof.';
+    roofBit = 'modern flat roof, not a gable';
   } else if (/\b(?:gable|sadeltak)\b/i.test(note)) {
-    roofRule = 'The house has a dual-pitch gable roof with a central ridge.';
+    roofBit = 'dual-pitch gable roof with a central ridge';
   }
 
   return [
-    'Photorealize the supplied architectural draft into one seamless garden photograph without redesigning the house.',
-    'Image 0 is the authoritative draft composite: the exact configured 3D house is already placed at the requested position, viewpoint, and scale in the garden. Preserve its house silhouette, roof, openings, terrace, sauna, hot tub, and placement pixel-for-pixel.',
-    'Image 1 is the untouched original garden photograph. Preserve its camera viewpoint and every surrounding plant, fence, path, neighbouring building, sky, and weather detail outside the new house footprint.',
-    `The photograph was taken from the ${side}, looking toward the ${facade} of where the new house will stand.`,
-    `Image 2 is the authoritative ${facade} reference of the same configured 3D house. Image 3 is its authoritative elevated overview showing the complete roof, terrace, sauna or shed, hot tub, and flues. Use them only to refine materials and details on the exact geometry already placed in image 0.`,
-    'Do not move, shrink, enlarge, rotate, crop, simplify, extend, or add architectural parts to the house in image 0. Do not invent floors, rooms, doors, windows, roofs, decks, railings, tubs, chimneys, or outbuildings.',
-    'Completely remove every remnant of the old shed or previous house. Do not leave CAD backgrounds, grey studio floors, perspective grids, magenta key plates, floating cards, or hard rectangular cutouts around the new house.',
-    'Every wooden terrace, sauna cabin, shed, hot tub, flue, door, window, and distinctive roof visible in images 0, 2, or 3 MUST remain present on the same side and in the same proportions.',
-    roofRule,
-    `Keep the house ground contact at ${point.x}% from the left and ${point.y}% from the top, and keep its projected width at ${width}% of the full image width exactly as shown in image 0.`,
-    'Blend the placed 3D house into the terrain with realistic daylight, colour temperature, foreground occlusion, and contact shadows, while keeping the exact draft dimensions.',
-    'Do not redesign the garden and do not add people, furniture, vehicles, landscaping, pools, or decorative objects.',
-    note ? `Configured house facts: ${note}` : '',
+    `Photoreal outdoor photograph of this garden with the exact Scandinavian timber house from the reference standing in place, viewed from the ${side} toward its ${facade}.`,
+    'Image 0 is the placement draft already showing the house in the garden — keep that silhouette, scale, and layout. Image 1 is the clean house reference for materials and attached parts.',
+    'Perfect ground contact, coherent realistic daylight, colour temperature, and contact shadows.',
+    `Preserve the house architecture exactly: ${roofBit}, cladding, windows, doors, wooden terrace, sauna cabin, hot tub, and flue — same proportions and layout as the draft and reference. Do not invent extra buildings.`,
+    `Keep ground contact around ${point.x}% from the left and ${point.y}% from the top, about ${width}% of the image width.`,
+    'Completely replace any old shed. Keep garden plants, fences, paths, neighbouring buildings, and sky.',
+    'No CAD look, no grey studio floor, no grid, no floating card, no hard rectangular cutout around the house.',
+    note ? `House facts: ${note}` : '',
     NO_FIGURES
   ].filter(Boolean).join(' ');
 }
@@ -291,14 +285,21 @@ export async function handleRender(request, env, headers) {
       : renderPrompt(change, body?.facts, images.length);
   if (!prompt) return json({ error: 'render' }, 400, headers);
 
-  const size = site ? renderSizeForAspect(body?.scene?.aspectRatio) : { width: 1024, height: 768 };
+  // Match rynell-studio: square 1024 edits are the reliable Flux.2 path.
+  const size = site
+    ? { width: 1024, height: 1024 }
+    : house
+      ? { width: 1024, height: 1024 }
+      : renderSizeForAspect(body?.scene?.aspectRatio);
 
   const form = new FormData();
   form.append('prompt', prompt);
   form.append('width', String(size.width));
   form.append('height', String(size.height));
   images.forEach((blob, index) => {
-    form.append(`input_image_${index}`, blob, `ref-${index}.jpg`);
+    const type = blob.type || 'image/png';
+    const ext = type.includes('png') ? 'png' : 'jpg';
+    form.append(`input_image_${index}`, blob, `ref-${index}.${ext}`);
   });
   const formResponse = new Response(form);
 
@@ -309,6 +310,13 @@ export async function handleRender(request, env, headers) {
         contentType: formResponse.headers.get('content-type')
       }
     });
+    // rynell-studio: Flux.2 often returns { image: "<base64>" } directly.
+    if (result && typeof result === 'object' && typeof result.image === 'string' && result.image.length > 32) {
+      const raw = result.image.startsWith('data:image')
+        ? result.image
+        : `data:image/png;base64,${result.image}`;
+      return json({ image: raw }, 200, headers);
+    }
     const bytes = await pictureBytes(result);
     if (!bytes || bytes.length < 32) {
       console.error(`render empty ${shape(result)}`);

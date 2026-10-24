@@ -1,0 +1,7 @@
+{
+  "status": 200,
+  "elapsedMs": 20316,
+  "prompt": "Photoreal outdoor photograph of this garden with the exact Scandinavian timber house from the reference image standing in place, viewed from the back toward its rear facade. Perfect ground contact, coherent realistic daylight, colour temperature, and contact shadows. Preserve the reference house architecture exactly: single-slope mono-pitch shed roof (pulpettak), not a gable, cladding, windows, doors, wooden terrace, sauna or shed, hot tub, and flue — same proportions and layout as the reference. Place the house so its ground contact is around 48% from the left and 72% from the top, about 55% of the image width. Completely replace any old shed or previous building. Keep the garden plants, fences, paths, neighbouring buildings, and sky from the garden photo. No CAD look, no grey studio floor, no grid, no floating card, no hard rectangular cutout around the house. House facts: Must include these attached outdoor parts from the 3D house: a wooden terrace deck on the back with an attached compact natural timber sauna cabin and a round cedar hot tub with flue. Roof: single-slope mono-pitch shed roof (pulpettak). Dark green timber cladding, white trim. Stugan V4 scale. Do not add people, faces, bodies, vehicles, or animals.",
+  "imageBytes": 926774,
+  "imagePath": "/Users/thomasrynell/proj/builder/tmp/site-test/result-live.png"
+}

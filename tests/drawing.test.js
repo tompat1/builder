@@ -218,28 +218,26 @@ test('reference photos stay inside the picture model size', () => {
 
 test('a site preview preserves the first photo and installs the configured house', () => {
   const prompt = sitePrompt(
-    'Keep the NEW configured 3D house from image 0. Must include these attached outdoor parts: a wooden terrace deck on the back with an attached compact sauna cabin and a round cedar hot tub. Roof: pulpettak. 5800 × 4310 mm, red cladding.',
-    4,
+    'Must include these attached outdoor parts: a wooden terrace deck on the back with an attached compact sauna cabin and a round cedar hot tub. Roof: pulpettak. 5800 × 4310 mm, red cladding.',
+    2,
     { x: 41.2, y: 72.8 },
     'back',
     64
   );
-  assert.match(prompt, /authoritative draft composite/i);
-  assert.match(prompt, /untouched original garden photograph/i);
-  assert.match(prompt, /taken from the back/i);
+  assert.match(prompt, /Photoreal outdoor photograph of this garden/i);
+  assert.match(prompt, /exact Scandinavian timber house from the reference/i);
+  assert.match(prompt, /viewed from the back/i);
   assert.match(prompt, /41% from the left and 73% from the top/);
-  assert.match(prompt, /64% of the full image width/i);
+  assert.match(prompt, /64% of the image width/i);
   assert.match(prompt, /sauna cabin/);
   assert.match(prompt, /hot tub/);
-  assert.match(prompt, /Image 2 is the authoritative rear facade/i);
-  assert.match(prompt, /Image 3 is its authoritative elevated overview/i);
-  assert.match(prompt, /Do not move, shrink, enlarge/i);
-  assert.match(prompt, /CAD backgrounds|perspective grids|floating cards/i);
-  assert.match(sitePrompt('house facts', 4, { x: 50, y: 50 }), /front facade/);
-  assert.match(sitePrompt('house facts', 4, { x: 50, y: 50 }, 'left'), /left-side facade/);
+  assert.match(prompt, /pulpettak|mono-pitch/i);
+  assert.match(prompt, /No CAD look|floating card/i);
+  assert.match(sitePrompt('house facts', 2, { x: 50, y: 50 }), /front facade/);
+  assert.match(sitePrompt('house facts', 2, { x: 50, y: 50 }, 'left'), /left-side facade/);
   assert.equal(acceptFacing('right'), 'right');
   assert.equal(acceptFacing('above'), 'front');
-  assert.equal(sitePrompt('house', 3, { x: 50, y: 50 }), '');
+  assert.equal(sitePrompt('house', 1, { x: 50, y: 50 }), '');
 });
 
 test('a house-only render follows the live 3D model without inventing a scene', () => {

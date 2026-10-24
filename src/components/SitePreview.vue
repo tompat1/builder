@@ -158,10 +158,10 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useConfigStore } from '../store/useConfigStore';
 import { useLabels } from '../i18n';
 import {
-  captureSiteHouseReferences,
+  captureHouseCutout,
+  captureHouseOverview,
   requestSitePicture,
-  type SiteFacing,
-  type SiteHouseReferences
+  type SiteFacing
 } from '../services/houseRender';
 import { configuredHouseFacts } from '../services/configuredHouseFacts';
 import {
@@ -319,8 +319,9 @@ async function shrinkDataUrl(dataUrl: string) {
 }
 
 /**
- * Exact live 3D cutout on a cleared garden — this draft is what the AI must
- * photorealize without redesigning the architecture.
+ * Live test winner: image 0 = geometry-locked draft (cleared garden + exact
+ * 3D cutout), image 1 = clean house plate. Flux then photorealizes without the
+ * floating CAD-card failure mode.
  */
 async function composeDraft(siteUrl: string, cutoutUrl: string) {
   const [site, cutout] = await Promise.all([loadImage(siteUrl), loadImage(cutoutUrl)]);
@@ -350,7 +351,27 @@ async function composeDraft(siteUrl: string, cutoutUrl: string) {
   throw new Error('image');
 }
 
-async function houseReferences(): Promise<SiteHouseReferences> {
+async function houseReferencePlate(cutoutUrl: string, overviewUrl: string) {
+  const cutout = await loadImage(cutoutUrl);
+  const pad = Math.max(16, Math.round(Math.max(cutout.width, cutout.height) * 0.04));
+  const canvas = document.createElement('canvas');
+  canvas.width = cutout.width + pad * 2;
+  canvas.height = cutout.height + pad * 2;
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('canvas');
+  context.fillStyle = '#eef2f6';
+  context.fillRect(0, 0, canvas.width, canvas.height);
+  context.drawImage(cutout, pad, pad);
+  for (const quality of [0.85, 0.72, 0.6]) {
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
+    if (!blob) continue;
+    const dataUrl = await blobDataUrl(blob);
+    if (dataUrl.length <= DATA_URL_LIMIT) return dataUrl;
+  }
+  return shrinkDataUrl(overviewUrl);
+}
+
+async function captureHouseRefs() {
   const dimensionsWereShown = store.showDimensions;
   if (dimensionsWereShown) {
     store.showDimensions = false;
@@ -358,11 +379,11 @@ async function houseReferences(): Promise<SiteHouseReferences> {
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
   }
   try {
-    const references = captureSiteHouseReferences(facing.value);
-    if (!references.cutout) throw new Error('house');
-    if (!references.facade || references.facade.length > DATA_URL_LIMIT) throw new Error('house');
-    if (!references.overview || references.overview.length > DATA_URL_LIMIT) throw new Error('house');
-    return references;
+    const cutout = captureHouseCutout(facing.value);
+    const overview = captureHouseOverview();
+    if (!cutout) throw new Error('house');
+    if (!overview || overview.length > DATA_URL_LIMIT) throw new Error('house');
+    return { cutout, overview };
   } finally {
     if (dimensionsWereShown) {
       store.showDimensions = true;
@@ -377,18 +398,12 @@ async function renderSite() {
   error.value = false;
   try {
     const primary = await shrinkScene(sitePhotos.value[primaryIndex.value]);
-    const references = await houseReferences();
-    const draft = await composeDraft(primary.dataUrl, references.cutout);
-    // 0 = exact draft in the garden, 1 = untouched garden, 2 = facade, 3 = overview.
-    const images = [
-      draft,
-      primary.dataUrl,
-      await shrinkDataUrl(references.facade),
-      await shrinkDataUrl(references.overview)
-    ];
+    const refs = await captureHouseRefs();
+    const draft = await composeDraft(primary.dataUrl, refs.cutout);
+    const plate = await houseReferencePlate(refs.cutout, refs.overview);
     result.value = await requestSitePicture(
-      images,
-      configuredHouseFacts(store),
+      [draft, plate],
+      `Image 0 is a placement draft of the exact configured 3D house in the garden — photorealize it without changing the house silhouette, roof, terrace, sauna, or hot tub. ${configuredHouseFacts(store)}`,
       placement.value,
       houseWidthPercent.value,
       primary.aspectRatio,
