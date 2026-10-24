@@ -226,6 +226,7 @@ test('a site preview preserves the first photo and installs the configured house
   );
   assert.match(prompt, /Photoreal outdoor photograph of this garden/i);
   assert.match(prompt, /exact Scandinavian timber house from the reference/i);
+  assert.match(prompt, /placement draft/i);
   assert.match(prompt, /viewed from the back/i);
   assert.match(prompt, /41% from the left and 73% from the top/);
   assert.match(prompt, /64% of the image width/i);
@@ -233,6 +234,7 @@ test('a site preview preserves the first photo and installs the configured house
   assert.match(prompt, /hot tub/);
   assert.match(prompt, /pulpettak|mono-pitch/i);
   assert.match(prompt, /No CAD look|floating card/i);
+  assert.match(prompt, /Do not invent extra buildings/i);
   assert.match(sitePrompt('house facts', 2, { x: 50, y: 50 }), /front facade/);
   assert.match(sitePrompt('house facts', 2, { x: 50, y: 50 }, 'left'), /left-side facade/);
   assert.equal(acceptFacing('right'), 'right');
