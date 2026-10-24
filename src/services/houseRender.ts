@@ -93,7 +93,14 @@ function encodeCanvas(source: HTMLCanvasElement | undefined) {
   return fallback.length <= HOUSE_IMAGE_LIMIT ? fallback : '';
 }
 
-/** Crop a transparent WebGL still to the configured building's visible pixels. */
+/** True when a pixel is the cutout magenta key plate (or a soft edge of it). */
+function isCutoutChroma(r: number, g: number, b: number, a: number) {
+  if (a < 8) return true;
+  // Magenta key #ff00ff — keep timber greens and warm woods solid.
+  return r > 180 && b > 180 && g < 90 && r - g > 90 && b - g > 90;
+}
+
+/** Crop a keyed WebGL still to the configured building's visible pixels. */
 function encodeTransparentCanvas(source: HTMLCanvasElement | undefined) {
   if (!source || source.width < 2 || source.height < 2) return '';
   const canvas = document.createElement('canvas');
@@ -113,16 +120,24 @@ function encodeTransparentCanvas(source: HTMLCanvasElement | undefined) {
   let minY = canvas.height;
   let maxX = -1;
   let maxY = -1;
-  for (let y = 0; y < canvas.height; y += 1) {
-    for (let x = 0; x < canvas.width; x += 1) {
-      if (pixels.data[(y * canvas.width + x) * 4 + 3]! < 8) continue;
-      minX = Math.min(minX, x);
-      minY = Math.min(minY, y);
-      maxX = Math.max(maxX, x);
-      maxY = Math.max(maxY, y);
+  for (let i = 0; i < pixels.data.length; i += 4) {
+    const r = pixels.data[i]!;
+    const g = pixels.data[i + 1]!;
+    const b = pixels.data[i + 2]!;
+    const a = pixels.data[i + 3]!;
+    if (isCutoutChroma(r, g, b, a)) {
+      pixels.data[i + 3] = 0;
+      continue;
     }
+    const x = (i / 4) % canvas.width;
+    const y = Math.floor(i / 4 / canvas.width);
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x);
+    maxY = Math.max(maxY, y);
   }
   if (maxX < minX || maxY < minY) return '';
+  context.putImageData(pixels, 0, 0);
 
   const pad = Math.max(2, Math.round(Math.min(canvas.width, canvas.height) * 0.008));
   minX = Math.max(0, minX - pad);

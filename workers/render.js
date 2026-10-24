@@ -127,13 +127,13 @@ export function sitePrompt(facts, imageCount, placement, facing, houseWidthPerce
   }
 
   return [
-    'Photorealize the supplied architectural draft without redesigning it.',
-    'Image 0 is the authoritative draft composite: it already contains the exact configured 3D house at the requested position, viewpoint, and scale in the real garden. Preserve its house silhouette and placement pixel-for-pixel.',
-    'Image 1 is the untouched original garden photograph. Preserve its camera viewpoint and every surrounding plant, fence, path, neighbouring building, sky, and weather detail that is outside the new house footprint.',
+    'Photorealize the supplied architectural draft into one seamless garden photograph without redesigning the house.',
+    'Image 0 is the authoritative draft composite: the exact configured 3D house is already placed at the requested position, viewpoint, and scale in the garden. Preserve its house silhouette, roof, openings, terrace, sauna, hot tub, and placement pixel-for-pixel.',
+    'Image 1 is the untouched original garden photograph. Preserve its camera viewpoint and every surrounding plant, fence, path, neighbouring building, sky, and weather detail outside the new house footprint.',
     `The photograph was taken from the ${side}, looking toward the ${facade} of where the new house will stand.`,
-    `Image 2 is the authoritative ${facade} reference of the same configured 3D house. Image 3 is its authoritative elevated overview showing the complete roof, terrace, sauna or shed, hot tub, and flues. Use them only to add realistic materials and details to the exact geometry already placed in image 0.`,
+    `Image 2 is the authoritative ${facade} reference of the same configured 3D house. Image 3 is its authoritative elevated overview showing the complete roof, terrace, sauna or shed, hot tub, and flues. Use them only to refine materials and details on the exact geometry already placed in image 0.`,
     'Do not move, shrink, enlarge, rotate, crop, simplify, extend, or add architectural parts to the house in image 0. Do not invent floors, rooms, doors, windows, roofs, decks, railings, tubs, chimneys, or outbuildings.',
-    'Completely remove every remnant of the old shed or previous house from image 1 wherever it is not covered by the new draft house, reconstructing only plausible garden background there.',
+    'Completely remove every remnant of the old shed or previous house. Do not leave CAD backgrounds, grey studio floors, perspective grids, magenta key plates, floating cards, or hard rectangular cutouts around the new house.',
     'Every wooden terrace, sauna cabin, shed, hot tub, flue, door, window, and distinctive roof visible in images 0, 2, or 3 MUST remain present on the same side and in the same proportions.',
     roofRule,
     `Keep the house ground contact at ${point.x}% from the left and ${point.y}% from the top, and keep its projected width at ${width}% of the full image width exactly as shown in image 0.`,

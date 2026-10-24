@@ -234,6 +234,7 @@ test('a site preview preserves the first photo and installs the configured house
   assert.match(prompt, /Image 2 is the authoritative rear facade/i);
   assert.match(prompt, /Image 3 is its authoritative elevated overview/i);
   assert.match(prompt, /Do not move, shrink, enlarge/i);
+  assert.match(prompt, /CAD backgrounds|perspective grids|floating cards/i);
   assert.match(sitePrompt('house facts', 4, { x: 50, y: 50 }), /front facade/);
   assert.match(sitePrompt('house facts', 4, { x: 50, y: 50 }, 'left'), /left-side facade/);
   assert.equal(acceptFacing('right'), 'right');

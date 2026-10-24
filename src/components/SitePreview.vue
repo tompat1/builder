@@ -157,7 +157,13 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useConfigStore } from '../store/useConfigStore';
 import { useLabels } from '../i18n';
-import { captureHouseCutout, type SiteFacing } from '../services/houseRender';
+import {
+  captureSiteHouseReferences,
+  requestSitePicture,
+  type SiteFacing,
+  type SiteHouseReferences
+} from '../services/houseRender';
+import { configuredHouseFacts } from '../services/configuredHouseFacts';
 import {
   clearOldStructureUnderHouse,
   drawHouseContactShadow,
@@ -287,8 +293,36 @@ function loadImage(src: string) {
   });
 }
 
-/** Exact live 3D cutout on the garden — no AI rewrite of the architecture. */
-async function composePlacement(siteUrl: string, cutoutUrl: string) {
+async function shrinkDataUrl(dataUrl: string) {
+  if (dataUrl.length <= DATA_URL_LIMIT) return dataUrl;
+  const image = await loadImage(dataUrl);
+  const attempts = [
+    { maxSide: 768, quality: 0.72 },
+    { maxSide: 640, quality: 0.64 },
+    { maxSide: 512, quality: 0.58 },
+    { maxSide: 384, quality: 0.5 }
+  ];
+  for (const attempt of attempts) {
+    const scale = Math.min(1, attempt.maxSide / Math.max(image.width, image.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(64, Math.round(image.width * scale));
+    canvas.height = Math.max(64, Math.round(image.height * scale));
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('canvas');
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', attempt.quality));
+    if (!blob) continue;
+    const next = await blobDataUrl(blob);
+    if (next.length <= DATA_URL_LIMIT) return next;
+  }
+  throw new Error('image');
+}
+
+/**
+ * Exact live 3D cutout on a cleared garden — this draft is what the AI must
+ * photorealize without redesigning the architecture.
+ */
+async function composeDraft(siteUrl: string, cutoutUrl: string) {
   const [site, cutout] = await Promise.all([loadImage(siteUrl), loadImage(cutoutUrl)]);
   const canvas = document.createElement('canvas');
   canvas.width = site.naturalWidth || site.width;
@@ -303,17 +337,20 @@ async function composePlacement(siteUrl: string, cutoutUrl: string) {
     houseWidthPercent.value,
     cutout.width / Math.max(1, cutout.height)
   );
-  // Wipe the old shed first so only the configured house remains.
   clearOldStructureUnderHouse(context, canvas.width, canvas.height, rect);
   drawHouseContactShadow(context, rect);
   context.drawImage(cutout, rect.x, rect.y, rect.width, rect.height);
 
-  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
-  if (!blob) throw new Error('image');
-  return blobDataUrl(blob);
+  for (const quality of [0.82, 0.74, 0.66, 0.58]) {
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
+    if (!blob) continue;
+    const dataUrl = await blobDataUrl(blob);
+    if (dataUrl.length <= DATA_URL_LIMIT) return dataUrl;
+  }
+  throw new Error('image');
 }
 
-async function houseCutout() {
+async function houseReferences(): Promise<SiteHouseReferences> {
   const dimensionsWereShown = store.showDimensions;
   if (dimensionsWereShown) {
     store.showDimensions = false;
@@ -321,9 +358,11 @@ async function houseCutout() {
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
   }
   try {
-    const cutout = captureHouseCutout(facing.value);
-    if (!cutout) throw new Error('house');
-    return cutout;
+    const references = captureSiteHouseReferences(facing.value);
+    if (!references.cutout) throw new Error('house');
+    if (!references.facade || references.facade.length > DATA_URL_LIMIT) throw new Error('house');
+    if (!references.overview || references.overview.length > DATA_URL_LIMIT) throw new Error('house');
+    return references;
   } finally {
     if (dimensionsWereShown) {
       store.showDimensions = true;
@@ -338,9 +377,23 @@ async function renderSite() {
   error.value = false;
   try {
     const primary = await shrinkScene(sitePhotos.value[primaryIndex.value]);
-    const cutout = await houseCutout();
-    // Deterministic composite of the live 3D house — Flux was rewriting it badly.
-    result.value = await composePlacement(primary.dataUrl, cutout);
+    const references = await houseReferences();
+    const draft = await composeDraft(primary.dataUrl, references.cutout);
+    // 0 = exact draft in the garden, 1 = untouched garden, 2 = facade, 3 = overview.
+    const images = [
+      draft,
+      primary.dataUrl,
+      await shrinkDataUrl(references.facade),
+      await shrinkDataUrl(references.overview)
+    ];
+    result.value = await requestSitePicture(
+      images,
+      configuredHouseFacts(store),
+      placement.value,
+      houseWidthPercent.value,
+      primary.aspectRatio,
+      facing.value
+    );
   } catch (err) {
     console.error('Site render failed:', err);
     error.value = true;

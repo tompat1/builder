@@ -320,6 +320,7 @@ export class HouseScene {
   private contactShadow: THREE.Mesh | null = null;
   private hoverBox: THREE.Object3D | null = null;
   private groundMesh: THREE.Mesh | null = null;
+  private groundGrid: THREE.GridHelper | null = null;
   private gridHelper: THREE.GridHelper | null = null;
   private sunLight!: THREE.DirectionalLight;
   private skyFill!: THREE.DirectionalLight;
@@ -648,12 +649,22 @@ export class HouseScene {
 
 
   private setupLighting() {
-    const { sunLight, skyFill, sunTarget, groundMesh, hemisphere, ambient, interiorFill, starfield } =
-      createSceneLighting(this.scene);
+    const {
+      sunLight,
+      skyFill,
+      sunTarget,
+      groundMesh,
+      groundGrid,
+      hemisphere,
+      ambient,
+      interiorFill,
+      starfield
+    } = createSceneLighting(this.scene);
     this.sunLight = sunLight;
     this.skyFill = skyFill;
     this.sunTarget = sunTarget;
     this.groundMesh = groundMesh;
+    this.groundGrid = groundGrid;
     this.hemisphereLight = hemisphere;
     this.ambientLight = ambient;
     this.interiorFillLight = interiorFill;
@@ -10545,8 +10556,8 @@ export class HouseScene {
 
   /**
    * Match a site-photo facade and temporarily render only the configured
-   * building on a transparent canvas. The cutout is composited directly into
-   * the uploaded garden so the placement preview matches the live 3D model.
+   * building on a magenta key plate. The key is stripped to alpha before the
+   * cutout is composited into the garden photo for the AI draft.
    */
   public prepareSiteCutoutCapture(facing: 'front' | 'back' | 'left' | 'right') {
     const restoreStill = this.beginStillCapture();
@@ -10554,15 +10565,21 @@ export class HouseScene {
     const clearColor = this.renderer.getClearColor(new THREE.Color());
     const clearAlpha = this.renderer.getClearAlpha();
     const groundVisible = this.groundMesh?.visible;
+    const groundGridVisible = this.groundGrid?.visible;
     const gridVisible = this.gridHelper?.visible;
     const shadowVisible = this.contactShadow?.visible;
     const starsVisible = this.starfield?.visible;
-    this.scene.background = null;
-    this.renderer.setClearColor(0x000000, 0);
+    const dimensionsVisible = this.dimensionsGroup.visible;
+    // Magenta key — far from timber/green cladding, easy to strip to alpha.
+    const chroma = new THREE.Color(0xff00ff);
+    this.scene.background = chroma;
+    this.renderer.setClearColor(chroma, 1);
     if (this.groundMesh) this.groundMesh.visible = false;
+    if (this.groundGrid) this.groundGrid.visible = false;
     if (this.gridHelper) this.gridHelper.visible = false;
     if (this.contactShadow) this.contactShadow.visible = false;
     if (this.starfield) this.starfield.visible = false;
+    this.dimensionsGroup.visible = false;
 
     const { cameraPosition, targetY } = calculateFacingPose(
       facing,
@@ -10577,9 +10594,11 @@ export class HouseScene {
       this.scene.background = background;
       this.renderer.setClearColor(clearColor, clearAlpha);
       if (this.groundMesh && groundVisible !== undefined) this.groundMesh.visible = groundVisible;
+      if (this.groundGrid && groundGridVisible !== undefined) this.groundGrid.visible = groundGridVisible;
       if (this.gridHelper && gridVisible !== undefined) this.gridHelper.visible = gridVisible;
       if (this.contactShadow && shadowVisible !== undefined) this.contactShadow.visible = shadowVisible;
       if (this.starfield && starsVisible !== undefined) this.starfield.visible = starsVisible;
+      this.dimensionsGroup.visible = dimensionsVisible;
       restoreStill();
     };
   }
@@ -10661,6 +10680,7 @@ export class HouseScene {
     this.updateFramingHoverBox(null);
     if (this.animFrameId) cancelAnimationFrame(this.animFrameId);
     this.groundMesh = null;
+    this.groundGrid = null;
     this.renderer.dispose();
   }
 }

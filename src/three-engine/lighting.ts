@@ -13,6 +13,8 @@ export interface SceneLighting {
   skyFill: THREE.DirectionalLight;
   sunTarget: THREE.Object3D;
   groundMesh: THREE.Mesh;
+  /** Permanent ground grid from lighting setup — separate from view-mode GridHelper. */
+  groundGrid: THREE.GridHelper;
   hemisphere: THREE.HemisphereLight;
   ambient: THREE.AmbientLight;
   interiorFill: THREE.PointLight;
@@ -94,13 +96,23 @@ export function createSceneLighting(scene: THREE.Scene): SceneLighting {
   groundMesh.userData.isGround = true;
   scene.add(groundMesh);
 
-  const grid = new THREE.GridHelper(40, 40, '#cbd5e1', '#e2e8f0');
-  grid.position.y = 0;
-  scene.add(grid);
+  const groundGrid = new THREE.GridHelper(40, 40, '#cbd5e1', '#e2e8f0');
+  groundGrid.position.y = 0;
+  scene.add(groundGrid);
 
   const starfield = createStarfield(scene);
 
-  return { sunLight, skyFill, sunTarget, groundMesh, hemisphere, ambient, interiorFill, starfield };
+  return {
+    sunLight,
+    skyFill,
+    sunTarget,
+    groundMesh,
+    groundGrid,
+    hemisphere,
+    ambient,
+    interiorFill,
+    starfield
+  };
 }
 
 /** Distant star points for night / moon — opacity follows nightGain. */
