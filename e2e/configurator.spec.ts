@@ -143,6 +143,46 @@ test.describe("3D Modular House Configurator", () => {
     expect(body?.scene?.facing).toBe("back");
   });
 
+  test("renders only the configured 3D house without an uploaded image", async ({ page }) => {
+    await page.evaluate(() => {
+      localStorage.setItem("builder.onboarding", "seen");
+      localStorage.setItem("builder.sound.consent", "denied");
+      localStorage.setItem("builder.cookies.consent", "essential");
+    });
+    await page.reload();
+
+    let requestBody: {
+      scene?: { mode?: string; facing?: string };
+      images?: unknown[];
+      facts?: string;
+    } | null = null;
+    await page.route("**/api/render", async (route) => {
+      requestBody = route.request().postDataJSON();
+      await route.fulfill({
+        json: { image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAF/gL+XxQYVwAAAABJRU5ErkJggg==" }
+      });
+    });
+
+    await page.locator("#btn-tool-ai-concierge").evaluate((button: HTMLButtonElement) => button.click());
+    await page.locator("#import-mode-house").click();
+    await expect(page.locator("#true-house-render")).toBeEnabled();
+    await page.locator("#true-house-facing-right").click();
+    await page.locator("#true-house-render").click();
+
+    await expect(page.locator("#true-house-result")).toBeVisible({ timeout: 30_000 });
+    const body = requestBody as {
+      scene?: { mode?: string; facing?: string };
+      images?: unknown[];
+      facts?: string;
+    } | null;
+    expect(body?.scene?.mode).toBe("house");
+    expect(body?.scene?.facing).toBe("right");
+    expect(body?.images).toHaveLength(2);
+    expect(body?.images?.[0]).toMatch(/^data:image\/jpeg;base64,/);
+    expect(body?.images?.[1]).toMatch(/^data:image\/jpeg;base64,/);
+    expect(body?.facts).toContain("6040 × 4950 × 5000 mm");
+  });
+
   test("displays 3D architectural dimension annotations", async ({ page }) => {
     await page.locator("#btn-tool-measure").click();
     await page.locator("#btn-tool-dimensions").click();

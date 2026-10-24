@@ -9,6 +9,7 @@ import {
   acceptPictureParts,
   acceptPlacement,
   decodeImages,
+  housePrompt,
   partChange,
   renderPrompt,
   renderSizeForAspect,
@@ -238,6 +239,23 @@ test('a site preview preserves the first photo and installs the configured house
   assert.equal(acceptFacing('right'), 'right');
   assert.equal(acceptFacing('above'), 'front');
   assert.equal(sitePrompt('house', 3, { x: 50, y: 50 }), '');
+});
+
+test('a house-only render follows the live 3D model without inventing a scene', () => {
+  const prompt = housePrompt(
+    'The configured house must include a wooden terrace with an attached sauna cabin and hot tub. Roof: single-slope mono-pitch shed roof.',
+    2,
+    'right'
+  );
+  assert.match(prompt, /only the configured house/i);
+  assert.match(prompt, /authoritative right-side facade/i);
+  assert.match(prompt, /authoritative elevated overview/i);
+  assert.match(prompt, /do not redesign or reinterpret any geometry/i);
+  assert.match(prompt, /without cropping/i);
+  assert.match(prompt, /No garden, neighbouring buildings, landscaping/i);
+  assert.match(prompt, /sauna cabin/i);
+  assert.match(prompt, /hot tub/i);
+  assert.equal(housePrompt('house facts', 1, 'front'), '');
 });
 
 test('site placement and output shape stay within render bounds', () => {

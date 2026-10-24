@@ -158,7 +158,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useConfigStore } from '../store/useConfigStore';
 import { useLabels } from '../i18n';
 import { captureSiteHouseReferences, requestSitePicture, type SiteFacing, type SiteHouseReferences } from '../services/houseRender';
-import { siteHouseFacts } from '../services/siteHouseFacts';
+import { configuredHouseFacts } from '../services/configuredHouseFacts';
 import { siteHouseRect } from '../services/sitePhotoPrep';
 
 const SITE_PHOTO_LIMIT = 3;
@@ -312,36 +312,7 @@ async function composeDraft(siteUrl: string, cutoutUrl: string) {
 }
 
 function houseFacts() {
-  const dimensions = store.dimensions;
-  let wallDesc = '';
-  if (store.selectedSizeId === 'size-paabyggnad') {
-    const concreteColor = store.concreteColor || '#b7b3ac';
-    const timberColor = store.customPaint?.hex || store.currentMaterial?.colorHex || '#1e293b';
-    wallDesc = `ground floor in concrete walls (${concreteColor}), upper level in vertical timber cladding (${timberColor})`;
-  } else {
-    wallDesc = store.customPaint
-      ? `custom painted timber (${store.customPaint.hex})`
-      : `${store.currentMaterial.name} timber cladding`;
-  }
-
-  return siteHouseFacts({
-    sizeName: store.currentSize.name,
-    widthMm: dimensions.width,
-    depthMm: dimensions.depth,
-    heightMm: dimensions.height,
-    roofType: store.activeRoof,
-    roofCovering: store.roofCovering || 'metal',
-    wallDesc,
-    terraces: store.terraces.map((deck) => ({
-      side: deck.side,
-      depth: deck.depth,
-      building: deck.building,
-      buildingColor: deck.buildingColor,
-      buildingDoor: deck.buildingDoor,
-      buildingWindow: deck.buildingWindow,
-      hotTub: deck.hotTub
-    }))
-  });
+  return configuredHouseFacts(store);
 }
 
 async function houseReferences(): Promise<SiteHouseReferences> {

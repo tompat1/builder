@@ -144,6 +144,25 @@ export function sitePrompt(facts, imageCount, placement, facing, houseWidthPerce
   ].filter(Boolean).join(' ');
 }
 
+/** Photoreal product render driven only by captures of the configured 3D house. */
+export function housePrompt(facts, imageCount, facing) {
+  if (imageCount < 2) return '';
+  const side = acceptFacing(facing);
+  const facade = SITE_FACINGS[side];
+  const note = String(facts ?? '').replace(/\s+/g, ' ').trim().slice(0, 900);
+  return [
+    'Create a photoreal architectural product render of only the configured house.',
+    `Image 0 is the authoritative ${facade} view of the exact live 3D model. Preserve its silhouette, height-to-width ratio, roofline, wall positions, openings, attached structures, and camera angle exactly.`,
+    'Image 1 is the authoritative elevated overview of that same model. Use it to preserve the complete roof, terrace decks, sauna or shed, hot tub, flues, and every attachment on the correct side.',
+    'Convert the simple 3D materials into believable real construction materials, but do not redesign or reinterpret any geometry.',
+    'Do not add, remove, move, shrink, enlarge, rotate, simplify, or duplicate any floor, roof, room, wall, door, window, deck, railing, tub, chimney, stair, canopy, or outbuilding.',
+    'Show the complete house without cropping, isolated on a seamless neutral light-grey background with a minimal ground plane and soft daylight contact shadow.',
+    'No garden, neighbouring buildings, landscaping, trees, plants, furniture, vehicles, signs, text, people, or animals.',
+    note ? `Configured house facts: ${note}` : '',
+    NO_FIGURES
+  ].filter(Boolean).join(' ');
+}
+
 export function renderSizeForAspect(input) {
   const ratio = Number(input);
   const aspect = Number.isFinite(ratio) ? Math.max(0.6, Math.min(2, ratio)) : 4 / 3;
@@ -262,8 +281,11 @@ export async function handleRender(request, env, headers) {
   const images = decodeImages(body?.images);
   const change = partChange(body?.parts);
   const site = body?.scene?.mode === 'site';
+  const house = body?.scene?.mode === 'house';
   const prompt = site
     ? sitePrompt(body?.facts, images.length, body?.scene?.placement, body?.scene?.facing, body?.scene?.houseWidthPercent)
+    : house
+      ? housePrompt(body?.facts, images.length, body?.scene?.facing)
     : body?.revision
       ? revisePrompt(change, partChange(body?.originalParts))
       : renderPrompt(change, body?.facts, images.length);

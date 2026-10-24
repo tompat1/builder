@@ -2,18 +2,23 @@
 
 export type SiteFacing = 'front' | 'back' | 'left' | 'right';
 
+type RenderScene = {
+  mode: 'site';
+  placement: { x: number; y: number };
+  houseWidthPercent: number;
+  aspectRatio: number;
+  facing: SiteFacing;
+} | {
+  mode: 'house';
+  facing: SiteFacing;
+};
+
 export async function requestHousePicture(
   parts: string[],
   images: string[],
   facts: string,
   revision?: { originalParts: string[] },
-  scene?: {
-    mode: 'site';
-    placement: { x: number; y: number };
-    houseWidthPercent: number;
-    aspectRatio: number;
-    facing: SiteFacing;
-  }
+  scene?: RenderScene
 ): Promise<string> {
   const base = import.meta.env.VITE_CLOUDFLARE_WORKER_URL
     || 'https://builder-knowledge.thomasrynell.workers.dev';
@@ -40,6 +45,10 @@ export async function requestHousePicture(
   } finally {
     clearTimeout(timer);
   }
+}
+
+export function requestTrueHousePicture(images: string[], facts: string, facing: SiteFacing) {
+  return requestHousePicture([], images, facts, undefined, { mode: 'house', facing });
 }
 
 export function requestSitePicture(

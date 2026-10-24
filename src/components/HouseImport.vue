@@ -1,6 +1,6 @@
 <template>
   <section id="house-import" class="space-y-5">
-    <div class="grid grid-cols-2 rounded-xl bg-slate-100 p-1" role="group" :aria-label="t('houseImport.pictureMode')">
+    <div class="grid grid-cols-3 rounded-xl bg-slate-100 p-1" role="group" :aria-label="t('houseImport.pictureMode')">
       <button
         id="import-mode-site"
         type="button"
@@ -10,6 +10,16 @@
         @click="pictureMode = 'site'"
       >
         {{ t('houseImport.siteTab') }}
+      </button>
+      <button
+        id="import-mode-house"
+        type="button"
+        class="min-h-11 rounded-lg px-2 py-2 text-[11px] font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
+        :class="pictureMode === 'house' ? 'bg-white text-slate-950 shadow-sm' : 'text-slate-600 hover:text-slate-900'"
+        :aria-pressed="pictureMode === 'house'"
+        @click="pictureMode = 'house'"
+      >
+        {{ t('houseImport.trueTab') }}
       </button>
       <button
         id="import-mode-reference"
@@ -24,6 +34,7 @@
     </div>
 
     <SitePreview v-if="pictureMode === 'site'" />
+    <TrueHouseRender v-else-if="pictureMode === 'house'" />
 
     <div v-else class="space-y-2">
       <h4 class="text-xs font-bold text-slate-800">{{ t('houseImport.picture') }}</h4>
@@ -187,6 +198,7 @@ import { readDrawingImage, readImageText } from '../import/drawingOcr';
 import { fitImageSize } from '../import/imageSize.js';
 import { requestHousePicture } from '../services/houseRender';
 import SitePreview from './SitePreview.vue';
+import TrueHouseRender from './TrueHouseRender.vue';
 
 const store = useConfigStore();
 const { t, locale, catalog } = useLabels();
@@ -195,7 +207,7 @@ const PHOTO_LIMIT = 5;
 const MODEL_IMAGES = 4;
 const PARTS = ['door', 'window', 'roof', 'stair', 'colour', 'wall', 'cladding', 'loft', 'terrace', 'gate', 'corner', 'canopy'] as const;
 
-const pictureMode = ref<'site' | 'reference'>('site');
+const pictureMode = ref<'site' | 'house' | 'reference'>('site');
 const part = ref('');
 const sentPart = ref('');
 const photos = ref<File[]>([]);
