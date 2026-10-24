@@ -14,13 +14,26 @@
           :key="side"
           type="button"
           class="min-h-11 rounded-lg border px-1 py-2 text-[11px] font-bold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
-          :class="facing === side ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-800 hover:bg-slate-100'"
+          :class="facing === side ? 'border-slate-900 bg-slate-900 text-white' : 'border-slate-200 bg-white text-slate-800 hover:bg-slate-100 disabled:cursor-wait disabled:hover:bg-white'"
           :aria-pressed="facing === side"
+          :disabled="busy"
           @click="chooseFacing(side)"
         >
-          {{ t(`houseImport.site${facingKey(side)}`) }}
+          <span class="inline-flex items-center justify-center gap-1.5">
+            {{ t(`houseImport.site${facingKey(side)}`) }}
+            <span
+              v-if="renderStore.latest[side]"
+              class="h-1.5 w-1.5 shrink-0 rounded-full"
+              :class="facing === side ? 'bg-white' : 'bg-orange-500'"
+              aria-hidden="true"
+            />
+          </span>
+          <span v-if="renderStore.latest[side]" class="sr-only"> — {{ t('houseImport.trueReadyView') }}</span>
         </button>
       </div>
+      <p v-if="readyCount" class="text-[11px] font-semibold text-slate-600" aria-live="polite">
+        {{ t('houseImport.trueReady', { count: readyCount }) }}
+      </p>
     </div>
 
     <p class="text-[11px] leading-relaxed text-slate-500">{{ t('houseImport.trueHelp') }}</p>
@@ -63,7 +76,7 @@
           class="min-h-11 shrink-0 rounded-lg bg-slate-100 px-2.5 py-2 text-[11px] font-bold text-slate-800 transition-colors hover:bg-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900"
           @click="download"
         >
-          {{ t('houseImport.download') }}
+          {{ t('houseImport.downloadView', { view: t(`houseImport.site${facingKey(facing)}`) }) }}
         </button>
       </figcaption>
     </figure>
@@ -84,9 +97,10 @@
 </template>
 
 <script setup lang="ts">
-import { nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useLabels } from '../i18n';
 import { useConfigStore } from '../store/useConfigStore';
+import { useHouseRenderStore } from '../store/useHouseRenderStore';
 import { configuredHouseFacts } from '../services/configuredHouseFacts';
 import {
   captureHouseOverview,
@@ -98,13 +112,15 @@ import {
 const FACINGS = ['front', 'back', 'left', 'right'] as const;
 const DATA_URL_LIMIT = 270_000;
 const store = useConfigStore();
+const renderStore = useHouseRenderStore();
 const { t } = useLabels();
 
 const facing = ref<SiteFacing>('front');
-const result = ref('');
 const busy = ref(false);
 const error = ref(false);
 const preview = ref(false);
+const result = computed(() => renderStore.latest[facing.value]);
+const readyCount = computed(() => renderStore.readyFacings.length);
 
 function facingKey(side: SiteFacing) {
   return `${side.charAt(0).toUpperCase()}${side.slice(1)}` as 'Front' | 'Back' | 'Left' | 'Right';
@@ -112,11 +128,10 @@ function facingKey(side: SiteFacing) {
 
 function chooseFacing(side: SiteFacing) {
   facing.value = side;
-  result.value = '';
   error.value = false;
 }
 
-async function captureReferences() {
+async function captureReferences(side: SiteFacing) {
   const dimensionsWereShown = store.showDimensions;
   if (dimensionsWereShown) {
     store.showDimensions = false;
@@ -124,7 +139,7 @@ async function captureReferences() {
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
   }
   try {
-    const facade = captureHouseReference(facing.value);
+    const facade = captureHouseReference(side);
     const overview = captureHouseOverview();
     if (!facade || !overview || facade.length > DATA_URL_LIMIT || overview.length > DATA_URL_LIMIT) {
       throw new Error('house');
@@ -140,11 +155,13 @@ async function captureReferences() {
 
 async function renderHouse() {
   if (busy.value) return;
+  const renderFacing = facing.value;
   busy.value = true;
   error.value = false;
   try {
-    const images = await captureReferences();
-    result.value = await requestTrueHousePicture(images, configuredHouseFacts(store), facing.value);
+    const images = await captureReferences(renderFacing);
+    const image = await requestTrueHousePicture(images, configuredHouseFacts(store), renderFacing);
+    renderStore.remember(renderFacing, image);
   } catch (caught) {
     console.error('True house render failed:', caught);
     error.value = true;
@@ -157,7 +174,7 @@ function download() {
   if (!result.value) return;
   const link = document.createElement('a');
   link.href = result.value;
-  link.download = 'builder-house-render.jpg';
+  link.download = `builder-house-${facing.value}-render.jpg`;
   document.body.appendChild(link);
   link.click();
   link.remove();

@@ -151,15 +151,25 @@ test.describe("3D Modular House Configurator", () => {
     });
     await page.reload();
 
-    let requestBody: {
+    const requestBodies: Array<{
       scene?: { mode?: string; facing?: string };
       images?: unknown[];
       facts?: string;
-    } | null = null;
+    }> = [];
+    const renderCounts = new Map<string, number>();
+    const pixel = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAF/gL+XxQYVwAAAABJRU5ErkJggg==";
     await page.route("**/api/render", async (route) => {
-      requestBody = route.request().postDataJSON();
+      const body = route.request().postDataJSON() as {
+        scene?: { mode?: string; facing?: string };
+        images?: unknown[];
+        facts?: string;
+      };
+      requestBodies.push(body);
+      const side = body.scene?.facing ?? "unknown";
+      const count = (renderCounts.get(side) ?? 0) + 1;
+      renderCounts.set(side, count);
       await route.fulfill({
-        json: { image: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M/wHwAF/gL+XxQYVwAAAABJRU5ErkJggg==" }
+        json: { image: `${pixel}#${side}-${count}` }
       });
     });
 
@@ -170,17 +180,34 @@ test.describe("3D Modular House Configurator", () => {
     await page.locator("#true-house-render").click();
 
     await expect(page.locator("#true-house-result")).toBeVisible({ timeout: 30_000 });
-    const body = requestBody as {
-      scene?: { mode?: string; facing?: string };
-      images?: unknown[];
-      facts?: string;
-    } | null;
+    const rightFirst = await page.locator("#true-house-result img").getAttribute("src");
+    const body = requestBodies[0];
     expect(body?.scene?.mode).toBe("house");
     expect(body?.scene?.facing).toBe("right");
     expect(body?.images).toHaveLength(2);
     expect(body?.images?.[0]).toMatch(/^data:image\/jpeg;base64,/);
     expect(body?.images?.[1]).toMatch(/^data:image\/jpeg;base64,/);
     expect(body?.facts).toContain("6040 × 4950 × 5000 mm");
+
+    await page.locator("#true-house-facing-front").click();
+    await expect(page.locator("#true-house-result")).toHaveCount(0);
+    await page.locator("#true-house-render").click();
+    await expect(page.locator("#true-house-result")).toBeVisible({ timeout: 30_000 });
+    const front = await page.locator("#true-house-result img").getAttribute("src");
+    expect(front).not.toBe(rightFirst);
+
+    await page.locator("#true-house-facing-right").click();
+    await expect(page.locator("#true-house-result img")).toHaveAttribute("src", rightFirst!);
+    await page.locator("#true-house-render").click();
+    await expect(page.locator("#true-house-result img")).not.toHaveAttribute("src", rightFirst!);
+
+    await page.locator("#true-house-facing-front").click();
+    await expect(page.locator("#true-house-result img")).toHaveAttribute("src", front!);
+
+    await page.locator("#import-mode-site").click();
+    await page.locator("#import-mode-house").click();
+    await expect(page.locator("#true-house-result img")).toHaveAttribute("src", front!);
+    expect(requestBodies.map((request) => request.scene?.facing)).toEqual(["right", "front", "right"]);
   });
 
   test("displays 3D architectural dimension annotations", async ({ page }) => {
