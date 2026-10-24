@@ -10545,18 +10545,20 @@ export class HouseScene {
 
   /**
    * Match a site-photo facade and temporarily render only the configured
-   * building. The transparent still is composited into the uploaded garden
-   * before the AI pass, so the model starts from the exact roof and attached
-   * terrace geometry instead of having to infer it from prose.
+   * building on a transparent canvas. The cutout is composited directly into
+   * the uploaded garden so the placement preview matches the live 3D model.
    */
   public prepareSiteCutoutCapture(facing: 'front' | 'back' | 'left' | 'right') {
     const restoreStill = this.beginStillCapture();
     const background = this.scene.background;
+    const clearColor = this.renderer.getClearColor(new THREE.Color());
+    const clearAlpha = this.renderer.getClearAlpha();
     const groundVisible = this.groundMesh?.visible;
     const gridVisible = this.gridHelper?.visible;
     const shadowVisible = this.contactShadow?.visible;
     const starsVisible = this.starfield?.visible;
     this.scene.background = null;
+    this.renderer.setClearColor(0x000000, 0);
     if (this.groundMesh) this.groundMesh.visible = false;
     if (this.gridHelper) this.gridHelper.visible = false;
     if (this.contactShadow) this.contactShadow.visible = false;
@@ -10573,6 +10575,7 @@ export class HouseScene {
 
     return () => {
       this.scene.background = background;
+      this.renderer.setClearColor(clearColor, clearAlpha);
       if (this.groundMesh && groundVisible !== undefined) this.groundMesh.visible = groundVisible;
       if (this.gridHelper && gridVisible !== undefined) this.gridHelper.visible = gridVisible;
       if (this.contactShadow && shadowVisible !== undefined) this.contactShadow.visible = shadowVisible;

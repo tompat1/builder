@@ -157,9 +157,12 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useConfigStore } from '../store/useConfigStore';
 import { useLabels } from '../i18n';
-import { captureSiteHouseReferences, requestSitePicture, type SiteFacing, type SiteHouseReferences } from '../services/houseRender';
-import { configuredHouseFacts } from '../services/configuredHouseFacts';
-import { siteHouseRect } from '../services/sitePhotoPrep';
+import { captureHouseCutout, type SiteFacing } from '../services/houseRender';
+import {
+  clearOldStructureUnderHouse,
+  drawHouseContactShadow,
+  siteHouseRect
+} from '../services/sitePhotoPrep';
 
 const SITE_PHOTO_LIMIT = 3;
 const DATA_URL_LIMIT = 270_000;
@@ -284,8 +287,8 @@ function loadImage(src: string) {
   });
 }
 
-/** Exact 3D geometry laid over the chosen garden at the user's scale. */
-async function composeDraft(siteUrl: string, cutoutUrl: string) {
+/** Exact live 3D cutout on the garden — no AI rewrite of the architecture. */
+async function composePlacement(siteUrl: string, cutoutUrl: string) {
   const [site, cutout] = await Promise.all([loadImage(siteUrl), loadImage(cutoutUrl)]);
   const canvas = document.createElement('canvas');
   canvas.width = site.naturalWidth || site.width;
@@ -300,22 +303,17 @@ async function composeDraft(siteUrl: string, cutoutUrl: string) {
     houseWidthPercent.value,
     cutout.width / Math.max(1, cutout.height)
   );
+  // Wipe the old shed first so only the configured house remains.
+  clearOldStructureUnderHouse(context, canvas.width, canvas.height, rect);
+  drawHouseContactShadow(context, rect);
   context.drawImage(cutout, rect.x, rect.y, rect.width, rect.height);
 
-  for (const quality of [0.82, 0.74, 0.66, 0.58]) {
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
-    if (!blob) continue;
-    const dataUrl = await blobDataUrl(blob);
-    if (dataUrl.length <= DATA_URL_LIMIT) return dataUrl;
-  }
-  throw new Error('image');
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+  if (!blob) throw new Error('image');
+  return blobDataUrl(blob);
 }
 
-function houseFacts() {
-  return configuredHouseFacts(store);
-}
-
-async function houseReferences(): Promise<SiteHouseReferences> {
+async function houseCutout() {
   const dimensionsWereShown = store.showDimensions;
   if (dimensionsWereShown) {
     store.showDimensions = false;
@@ -323,11 +321,9 @@ async function houseReferences(): Promise<SiteHouseReferences> {
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
   }
   try {
-    const references = captureSiteHouseReferences(facing.value);
-    if (!references.facade || references.facade.length > DATA_URL_LIMIT) throw new Error('house');
-    if (!references.overview || references.overview.length > DATA_URL_LIMIT) throw new Error('house');
-    if (!references.cutout) throw new Error('house');
-    return references;
+    const cutout = captureHouseCutout(facing.value);
+    if (!cutout) throw new Error('house');
+    return cutout;
   } finally {
     if (dimensionsWereShown) {
       store.showDimensions = true;
@@ -342,19 +338,9 @@ async function renderSite() {
   error.value = false;
   try {
     const primary = await shrinkScene(sitePhotos.value[primaryIndex.value]);
-    const references = await houseReferences();
-    const draft = await composeDraft(primary.dataUrl, references.cutout);
-    // 0 = exact draft composite, 1 = untouched garden, 2 = matching facade,
-    // 3 = overview showing roof and every terrace attachment.
-    const images = [draft, primary.dataUrl, references.facade, references.overview];
-    result.value = await requestSitePicture(
-      images,
-      houseFacts(),
-      placement.value,
-      houseWidthPercent.value,
-      primary.aspectRatio,
-      facing.value
-    );
+    const cutout = await houseCutout();
+    // Deterministic composite of the live 3D house — Flux was rewriting it badly.
+    result.value = await composePlacement(primary.dataUrl, cutout);
   } catch (err) {
     console.error('Site render failed:', err);
     error.value = true;

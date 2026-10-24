@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   acceptHouseWidthPercent,
+  siteClearRect,
   siteHouseRect
 } from '../src/services/sitePhotoPrep.ts';
 
@@ -19,4 +20,13 @@ test('house draft keeps scale at photo edges instead of silently shrinking', () 
   assert.equal(rect.x, -250);
   assert.equal(rect.width, 600);
   assert.equal(rect.y + rect.height, 720);
+});
+
+test('clear rect is larger than the house so the old shed is fully wiped', () => {
+  const house = siteHouseRect({ x: 50, y: 70 }, 1000, 800, 60, 1.5);
+  const wipe = siteClearRect(house);
+  assert.ok(wipe.x < house.x);
+  assert.ok(wipe.y < house.y);
+  assert.ok(wipe.width > house.width);
+  assert.ok(wipe.height > house.height);
 });
