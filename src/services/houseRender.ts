@@ -11,6 +11,9 @@ type RenderScene = {
 } | {
   mode: 'house';
   facing: SiteFacing;
+} | {
+  mode: 'edit';
+  facing: SiteFacing;
 };
 
 export async function requestHousePicture(
@@ -18,7 +21,8 @@ export async function requestHousePicture(
   images: string[],
   facts: string,
   revision?: { originalParts: string[] },
-  scene?: RenderScene
+  scene?: RenderScene,
+  edit?: string
 ): Promise<string> {
   const base = import.meta.env.VITE_CLOUDFLARE_WORKER_URL
     || 'https://builder-knowledge.thomasrynell.workers.dev';
@@ -32,6 +36,7 @@ export async function requestHousePicture(
         parts,
         images,
         facts,
+        edit: edit || undefined,
         revision: Boolean(revision),
         originalParts: revision?.originalParts ?? [],
         scene
@@ -49,6 +54,16 @@ export async function requestHousePicture(
 
 export function requestTrueHousePicture(images: string[], facts: string, facing: SiteFacing) {
   return requestHousePicture([], images, facts, undefined, { mode: 'house', facing });
+}
+
+/** Revise a prior house render with a free-text instruction (image 0 = previous result). */
+export function requestHouseEdit(
+  images: string[],
+  instruction: string,
+  facts: string,
+  facing: SiteFacing
+) {
+  return requestHousePicture([], images, facts, undefined, { mode: 'edit', facing }, instruction);
 }
 
 export function requestSitePicture(

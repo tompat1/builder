@@ -63,7 +63,7 @@
 
       <div class="space-y-1.5">
         <p id="site-facing-label" class="text-[11px] font-semibold text-slate-700">{{ t('houseImport.siteFacing') }}</p>
-        <div class="grid grid-cols-4 gap-1.5" role="group" aria-labelledby="site-facing-label">
+        <div class="grid grid-cols-2 gap-1.5" role="group" aria-labelledby="site-facing-label">
           <button
             v-for="side in FACINGS"
             :key="side"
@@ -172,7 +172,7 @@ import {
 
 const SITE_PHOTO_LIMIT = 3;
 const DATA_URL_LIMIT = 270_000;
-const FACINGS = ['front', 'back', 'left', 'right'] as const;
+const FACINGS = ['front', 'back'] as const;
 const store = useConfigStore();
 const { t } = useLabels();
 

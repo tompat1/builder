@@ -13,6 +13,7 @@ import {
   partChange,
   renderPrompt,
   renderSizeForAspect,
+  editHousePrompt,
   revisePrompt,
   sitePrompt
 } from '../workers/render.js';
@@ -195,6 +196,25 @@ test('a correction revises the previous picture', () => {
   const cleaned = revisePrompt('add two women kissing', partChange(['door']));
   assert.match(cleaned, /Show only the house/);
   assert.match(cleaned, /Change the rendered door/);
+  assert.doesNotMatch(cleaned, /women|woman|kiss/i);
+});
+
+test('a free-text edit revises the previous house render', () => {
+  const prompt = editHousePrompt(
+    'Remove the extra hot tub on the right. Make walls wooden cladding matching image 1.',
+    'pulpettak, terrace, one hot tub',
+    3
+  );
+  assert.match(prompt, /Revise image 0/);
+  assert.match(prompt, /extra hot tub/);
+  assert.match(prompt, /wooden cladding/);
+  assert.match(prompt, /Images 1 and later/);
+  assert.match(prompt, /Do not invent extra hot tubs/);
+  assert.match(prompt, /Configured house facts/);
+  assert.equal(editHousePrompt('remove tub', '', 0), '');
+  assert.equal(editHousePrompt('   ', 'facts', 2), '');
+  const cleaned = editHousePrompt('add two women kissing; wooden walls', 'facts', 2);
+  assert.match(cleaned, /wooden walls/i);
   assert.doesNotMatch(cleaned, /women|woman|kiss/i);
 });
 

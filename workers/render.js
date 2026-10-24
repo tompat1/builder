@@ -182,6 +182,28 @@ export function revisePrompt(change, original) {
   ].filter(Boolean).join(' ');
 }
 
+/**
+ * Free-text edit of a prior house render (rynell-studio style).
+ * Image 0 = previous result; image 1+ = optional 3D references for materials/geometry.
+ */
+export function editHousePrompt(instruction, facts, imageCount) {
+  if (imageCount < 1) return '';
+  const fix = houseWording(String(instruction ?? '').slice(0, 500));
+  if (!fix) return '';
+  const note = String(facts ?? '').replace(/\s+/g, ' ').trim().slice(0, 500);
+  return [
+    'Revise image 0, which is the previous photoreal picture of the configured house.',
+    'Keep camera angle, house silhouette, roof shape, openings, and every part this change does not mention.',
+    `Apply this change exactly: ${fix}.`,
+    imageCount > 1
+      ? 'Images 1 and later are stills of the live 3D house — match their cladding, timber texture, terrace, sauna, and hot tub when the change asks for reference materials or layout.'
+      : '',
+    'Do not invent extra hot tubs, saunas, decks, doors, windows, or buildings.',
+    note ? `Configured house facts: ${note}` : '',
+    HOUSE_ONLY
+  ].filter(Boolean).join(' ');
+}
+
 export function decodeImages(images) {
   if (!Array.isArray(images)) return [];
   const blobs = [];
@@ -276,21 +298,22 @@ export async function handleRender(request, env, headers) {
   const change = partChange(body?.parts);
   const site = body?.scene?.mode === 'site';
   const house = body?.scene?.mode === 'house';
+  const edit = body?.scene?.mode === 'edit';
   const prompt = site
     ? sitePrompt(body?.facts, images.length, body?.scene?.placement, body?.scene?.facing, body?.scene?.houseWidthPercent)
     : house
       ? housePrompt(body?.facts, images.length, body?.scene?.facing)
+    : edit
+      ? editHousePrompt(body?.edit, body?.facts, images.length)
     : body?.revision
       ? revisePrompt(change, partChange(body?.originalParts))
       : renderPrompt(change, body?.facts, images.length);
   if (!prompt) return json({ error: 'render' }, 400, headers);
 
   // Match rynell-studio: square 1024 edits are the reliable Flux.2 path.
-  const size = site
+  const size = site || house || edit
     ? { width: 1024, height: 1024 }
-    : house
-      ? { width: 1024, height: 1024 }
-      : renderSizeForAspect(body?.scene?.aspectRatio);
+    : renderSizeForAspect(body?.scene?.aspectRatio);
 
   const form = new FormData();
   form.append('prompt', prompt);
