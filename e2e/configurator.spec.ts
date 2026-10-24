@@ -107,7 +107,7 @@ test.describe("3D Modular House Configurator", () => {
     await page.reload();
 
     let requestBody: {
-      scene?: { mode?: string; placement?: { x?: number; y?: number }; facing?: string };
+      scene?: { mode?: string; placement?: { x?: number; y?: number }; houseWidthPercent?: number; facing?: string };
       images?: unknown[];
       facts?: string;
     } | null = null;
@@ -126,17 +126,20 @@ test.describe("3D Modular House Configurator", () => {
 
     await expect(page.locator("#site-picture-result")).toBeVisible({ timeout: 30_000 });
     const body = requestBody as {
-      scene?: { mode?: string; placement?: { x?: number; y?: number }; facing?: string };
+      scene?: { mode?: string; placement?: { x?: number; y?: number }; houseWidthPercent?: number; facing?: string };
       images?: unknown[];
       facts?: string;
     } | null;
     expect(body?.scene?.mode).toBe("site");
-    expect(body?.images).toHaveLength(2);
+    expect(body?.images).toHaveLength(4);
     expect(body?.images?.[0]).toMatch(/^data:image\/jpeg;base64,/);
     expect(body?.images?.[1]).toMatch(/^data:image\/jpeg;base64,/);
+    expect(body?.images?.[2]).toMatch(/^data:image\/jpeg;base64,/);
+    expect(body?.images?.[3]).toMatch(/^data:image\/jpeg;base64,/);
     expect(body?.facts).toContain("6040 × 4950 × 5000 mm");
     expect(body?.scene?.placement?.x).toBe(50);
     expect(body?.scene?.placement?.y).toBe(68);
+    expect(body?.scene?.houseWidthPercent).toBe(55);
     expect(body?.scene?.facing).toBe("back");
   });
 

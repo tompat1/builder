@@ -10,6 +10,7 @@ export async function requestHousePicture(
   scene?: {
     mode: 'site';
     placement: { x: number; y: number };
+    houseWidthPercent: number;
     aspectRatio: number;
     facing: SiteFacing;
   }
@@ -45,12 +46,14 @@ export function requestSitePicture(
   images: string[],
   facts: string,
   placement: { x: number; y: number },
+  houseWidthPercent: number,
   aspectRatio: number,
   facing: SiteFacing
 ) {
   return requestHousePicture([], images, facts, undefined, {
     mode: 'site',
     placement,
+    houseWidthPercent,
     aspectRatio,
     facing
   });
@@ -81,81 +84,59 @@ function encodeCanvas(source: HTMLCanvasElement | undefined) {
   return fallback.length <= HOUSE_IMAGE_LIMIT ? fallback : '';
 }
 
-function encodeDataUrl(dataUrl: string, maxSide: number, quality: number) {
-  return new Promise<string>((resolve) => {
-    const image = new Image();
-    image.onload = () => {
-      const scale = Math.min(1, maxSide / Math.max(image.width, image.height));
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.max(64, Math.round(image.width * scale));
-      canvas.height = Math.max(64, Math.round(image.height * scale));
-      const context = canvas.getContext('2d');
-      if (!context) {
-        resolve('');
-        return;
-      }
-      context.drawImage(image, 0, 0, canvas.width, canvas.height);
-      resolve(canvas.toDataURL('image/jpeg', quality));
-    };
-    image.onerror = () => resolve('');
-    image.src = dataUrl;
-  });
-}
+/** Crop a transparent WebGL still to the configured building's visible pixels. */
+function encodeTransparentCanvas(source: HTMLCanvasElement | undefined) {
+  if (!source || source.width < 2 || source.height < 2) return '';
+  const canvas = document.createElement('canvas');
+  canvas.width = source.width;
+  canvas.height = source.height;
+  const context = canvas.getContext('2d', { willReadFrequently: true });
+  if (!context) return '';
+  context.drawImage(source, 0, 0);
 
-/** Side-by-side facade + overview so one reference image carries terrace/sauna/tub. */
-export async function joinHouseReferencePanels(facingPanel: string, overviewPanel: string) {
-  if (!facingPanel) return '';
-  if (!overviewPanel) return facingPanel;
-
-  const load = (src: string) =>
-    new Promise<HTMLImageElement>((resolve, reject) => {
-      const image = new Image();
-      image.onload = () => resolve(image);
-      image.onerror = () => reject(new Error('image'));
-      image.src = src;
-    });
-
+  let pixels: ImageData;
   try {
-    const [left, right] = await Promise.all([load(facingPanel), load(overviewPanel)]);
-    const panelH = Math.max(left.height, right.height);
-    const leftW = Math.round((left.width / left.height) * panelH);
-    const rightW = Math.round((right.width / right.height) * panelH);
-    const canvas = document.createElement('canvas');
-    canvas.width = leftW + rightW + 8;
-    canvas.height = panelH;
-    const context = canvas.getContext('2d');
-    if (!context) return facingPanel;
-    context.fillStyle = '#0f172a';
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    context.drawImage(left, 0, 0, leftW, panelH);
-    context.drawImage(right, leftW + 8, 0, rightW, panelH);
-    const attempts = [
-      { maxSide: 960, quality: 0.8 },
-      { maxSide: 800, quality: 0.72 },
-      { maxSide: 640, quality: 0.62 },
-      { maxSide: 512, quality: 0.55 }
-    ];
-    for (const attempt of attempts) {
-      const scale = Math.min(1, attempt.maxSide / Math.max(canvas.width, canvas.height));
-      const out = document.createElement('canvas');
-      out.width = Math.max(64, Math.round(canvas.width * scale));
-      out.height = Math.max(64, Math.round(canvas.height * scale));
-      const outContext = out.getContext('2d');
-      if (!outContext) return facingPanel;
-      outContext.drawImage(canvas, 0, 0, out.width, out.height);
-      const dataUrl = out.toDataURL('image/jpeg', attempt.quality);
-      if (dataUrl.length <= HOUSE_IMAGE_LIMIT) return dataUrl;
-    }
-    return facingPanel;
+    pixels = context.getImageData(0, 0, canvas.width, canvas.height);
   } catch {
-    return facingPanel;
+    return canvas.toDataURL('image/png');
   }
+  let minX = canvas.width;
+  let minY = canvas.height;
+  let maxX = -1;
+  let maxY = -1;
+  for (let y = 0; y < canvas.height; y += 1) {
+    for (let x = 0; x < canvas.width; x += 1) {
+      if (pixels.data[(y * canvas.width + x) * 4 + 3]! < 8) continue;
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+    }
+  }
+  if (maxX < minX || maxY < minY) return '';
+
+  const pad = Math.max(2, Math.round(Math.min(canvas.width, canvas.height) * 0.008));
+  minX = Math.max(0, minX - pad);
+  minY = Math.max(0, minY - pad);
+  maxX = Math.min(canvas.width - 1, maxX + pad);
+  maxY = Math.min(canvas.height - 1, maxY + pad);
+  const width = maxX - minX + 1;
+  const height = maxY - minY + 1;
+  const scale = Math.min(1, 1400 / Math.max(width, height));
+  const cropped = document.createElement('canvas');
+  cropped.width = Math.max(2, Math.round(width * scale));
+  cropped.height = Math.max(2, Math.round(height * scale));
+  const croppedContext = cropped.getContext('2d');
+  if (!croppedContext) return '';
+  croppedContext.drawImage(canvas, minX, minY, width, height, 0, 0, cropped.width, cropped.height);
+  return cropped.toDataURL('image/png');
 }
 
 type HouseSceneBridge = {
   getCanvas?: () => HTMLCanvasElement;
   renderStill?: () => void;
   prepareFacingCapture?: (facing: SiteFacing) => () => void;
+  prepareSiteCutoutCapture?: (facing: SiteFacing) => () => void;
   prepareOverviewCapture?: () => () => void;
 };
 
@@ -186,25 +167,29 @@ export function captureHouseOverview(): string {
   return captureWith(() => scene?.prepareOverviewCapture?.());
 }
 
-/**
- * One house reference for site placement: matching facade on the left, wider
- * overview (terrace / sauna / hot tub / roof) on the right.
- */
-export async function captureSiteHouseReference(facing: SiteFacing = 'front'): Promise<string> {
-  const facade = captureHouseReference(facing);
-  if (!facade) return '';
-  const overview = captureHouseOverview();
-  if (!overview) return facade;
-  const joined = await joinHouseReferencePanels(facade, overview);
-  if (joined && joined.length <= HOUSE_IMAGE_LIMIT) return joined;
-  // Prefer the overview alone if the diptych will not fit — attachments matter most.
-  for (const attempt of [
-    { maxSide: 640, quality: 0.72 },
-    { maxSide: 512, quality: 0.6 },
-    { maxSide: 384, quality: 0.52 }
-  ]) {
-    const shrunk = await encodeDataUrl(overview, attempt.maxSide, attempt.quality);
-    if (shrunk && shrunk.length <= HOUSE_IMAGE_LIMIT) return shrunk;
+/** Exact configured 3D house with a transparent background for draft placement. */
+export function captureHouseCutout(facing: SiteFacing = 'front'): string {
+  const scene = houseScene();
+  const restore = scene?.prepareSiteCutoutCapture?.(facing);
+  try {
+    scene?.renderStill?.();
+    return encodeTransparentCanvas(scene?.getCanvas?.());
+  } finally {
+    restore?.();
   }
-  return facade;
+}
+
+export type SiteHouseReferences = {
+  facade: string;
+  overview: string;
+  cutout: string;
+};
+
+/** Separate high-detail references plus a transparent cutout for the draft composite. */
+export function captureSiteHouseReferences(facing: SiteFacing = 'front'): SiteHouseReferences {
+  return {
+    facade: captureHouseReference(facing),
+    overview: captureHouseOverview(),
+    cutout: captureHouseCutout(facing)
+  };
 }

@@ -26,8 +26,8 @@ test('site house facts put terrace, sauna, and hot tub before the size line', ()
       }
     ]
   });
-  assert.match(facts, /Insert only the NEW configured 3D house/i);
-  assert.match(facts, /Completely omit any old shed/i);
+  assert.match(facts, /Keep only the NEW configured 3D house already placed in image 0/i);
+  assert.match(facts, /Completely omit the old site building/i);
   assert.match(facts, /Must include these attached outdoor parts/i);
   assert.match(facts, /sauna cabin/i);
   assert.match(facts, /hot tub/i);

@@ -28,6 +28,11 @@
       >
         <img :src="primaryThumb" alt="" class="block h-auto w-full" />
         <span
+          class="pointer-events-none absolute h-4 -translate-x-1/2 -translate-y-full border-b-2 border-dashed border-white drop-shadow-md before:absolute before:bottom-[-5px] before:left-0 before:h-3 before:border-l-2 before:border-white after:absolute after:bottom-[-5px] after:right-0 after:h-3 after:border-r-2 after:border-white"
+          :style="{ left: `${placement.x}%`, top: `${placement.y}%`, width: `${houseWidthPercent}%` }"
+          aria-hidden="true"
+        ></span>
+        <span
           class="pointer-events-none absolute h-5 w-5 -translate-x-1/2 -translate-y-full rounded-full border-[3px] border-white bg-[#FF5A00] shadow-md"
           :style="{ left: `${placement.x}%`, top: `${placement.y}%` }"
           aria-hidden="true"
@@ -36,6 +41,25 @@
         </span>
       </button>
       <p class="text-[11px] leading-relaxed text-slate-600">{{ t('houseImport.sitePlace') }}</p>
+
+      <div class="space-y-1.5 rounded-xl bg-slate-50 px-3 py-2.5">
+        <div class="flex items-center justify-between gap-3">
+          <label for="site-house-width" class="text-[11px] font-semibold text-slate-700">{{ t('houseImport.siteWidth') }}</label>
+          <output for="site-house-width" class="text-[11px] font-bold tabular-nums text-slate-900">{{ t('houseImport.siteWidthValue', { value: houseWidthPercent }) }}</output>
+        </div>
+        <input
+          id="site-house-width"
+          v-model.number="houseWidthPercent"
+          type="range"
+          min="20"
+          max="90"
+          step="5"
+          class="block min-h-11 w-full accent-[#FF5A00]"
+          :aria-describedby="'site-house-width-help'"
+          @input="invalidateResult"
+        />
+        <p id="site-house-width-help" class="text-[11px] leading-relaxed text-slate-500">{{ t('houseImport.siteWidthHelp') }}</p>
+      </div>
 
       <div class="space-y-1.5">
         <p id="site-facing-label" class="text-[11px] font-semibold text-slate-700">{{ t('houseImport.siteFacing') }}</p>
@@ -133,9 +157,9 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useConfigStore } from '../store/useConfigStore';
 import { useLabels } from '../i18n';
-import { captureSiteHouseReference, requestSitePicture, type SiteFacing } from '../services/houseRender';
+import { captureSiteHouseReferences, requestSitePicture, type SiteFacing, type SiteHouseReferences } from '../services/houseRender';
 import { siteHouseFacts } from '../services/siteHouseFacts';
-import { clearOldStructureFromCanvas } from '../services/sitePhotoPrep';
+import { siteHouseRect } from '../services/sitePhotoPrep';
 
 const SITE_PHOTO_LIMIT = 3;
 const DATA_URL_LIMIT = 270_000;
@@ -148,6 +172,7 @@ const thumbs = ref<string[]>([]);
 const facings = ref<SiteFacing[]>([]);
 const primaryIndex = ref(0);
 const placement = ref({ x: 50, y: 68 });
+const houseWidthPercent = ref(55);
 const photoNote = ref('');
 const result = ref('');
 const busy = ref(false);
@@ -174,6 +199,7 @@ function onPhotos(event: Event) {
   photoNote.value = files.length > SITE_PHOTO_LIMIT ? t('houseImport.siteThree') : '';
   primaryIndex.value = 0;
   placement.value = { x: 50, y: 68 };
+  houseWidthPercent.value = 55;
   result.value = '';
   error.value = false;
   clearThumbs();
@@ -200,6 +226,12 @@ function setPlacement(event: MouseEvent) {
     x: Math.max(5, Math.min(95, Math.round(((event.clientX - bounds.left) / bounds.width) * 100))),
     y: Math.max(10, Math.min(95, Math.round(((event.clientY - bounds.top) / bounds.height) * 100)))
   };
+  invalidateResult();
+}
+
+function invalidateResult() {
+  result.value = '';
+  error.value = false;
 }
 
 function blobDataUrl(blob: Blob) {
@@ -214,7 +246,7 @@ function blobDataUrl(blob: Blob) {
   });
 }
 
-async function shrinkScene(file: File, clearPlacement?: { x: number; y: number }) {
+async function shrinkScene(file: File) {
   const bitmap = await createImageBitmap(file);
   const aspectRatio = bitmap.width / bitmap.height;
   const attempts = [
@@ -232,8 +264,6 @@ async function shrinkScene(file: File, clearPlacement?: { x: number; y: number }
       const context = canvas.getContext('2d');
       if (!context) throw new Error('canvas');
       context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-      // Wipe the old shed so the model cannot recolor it — only garden remains.
-      if (clearPlacement) clearOldStructureFromCanvas(context, canvas.width, canvas.height, clearPlacement);
       const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', attempt.quality));
       if (!blob) throw new Error('blob');
       const dataUrl = await blobDataUrl(blob);
@@ -241,6 +271,42 @@ async function shrinkScene(file: File, clearPlacement?: { x: number; y: number }
     }
   } finally {
     bitmap.close();
+  }
+  throw new Error('image');
+}
+
+function loadImage(src: string) {
+  return new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('image'));
+    image.src = src;
+  });
+}
+
+/** Exact 3D geometry laid over the chosen garden at the user's scale. */
+async function composeDraft(siteUrl: string, cutoutUrl: string) {
+  const [site, cutout] = await Promise.all([loadImage(siteUrl), loadImage(cutoutUrl)]);
+  const canvas = document.createElement('canvas');
+  canvas.width = site.naturalWidth || site.width;
+  canvas.height = site.naturalHeight || site.height;
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('canvas');
+  context.drawImage(site, 0, 0, canvas.width, canvas.height);
+  const rect = siteHouseRect(
+    placement.value,
+    canvas.width,
+    canvas.height,
+    houseWidthPercent.value,
+    cutout.width / Math.max(1, cutout.height)
+  );
+  context.drawImage(cutout, rect.x, rect.y, rect.width, rect.height);
+
+  for (const quality of [0.82, 0.74, 0.66, 0.58]) {
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/jpeg', quality));
+    if (!blob) continue;
+    const dataUrl = await blobDataUrl(blob);
+    if (dataUrl.length <= DATA_URL_LIMIT) return dataUrl;
   }
   throw new Error('image');
 }
@@ -278,7 +344,7 @@ function houseFacts() {
   });
 }
 
-async function houseReference() {
+async function houseReferences(): Promise<SiteHouseReferences> {
   const dimensionsWereShown = store.showDimensions;
   if (dimensionsWereShown) {
     store.showDimensions = false;
@@ -286,9 +352,11 @@ async function houseReference() {
     await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
   }
   try {
-    const image = await captureSiteHouseReference(facing.value);
-    if (!image || image.length > DATA_URL_LIMIT) throw new Error('house');
-    return image;
+    const references = captureSiteHouseReferences(facing.value);
+    if (!references.facade || references.facade.length > DATA_URL_LIMIT) throw new Error('house');
+    if (!references.overview || references.overview.length > DATA_URL_LIMIT) throw new Error('house');
+    if (!references.cutout) throw new Error('house');
+    return references;
   } finally {
     if (dimensionsWereShown) {
       store.showDimensions = true;
@@ -302,16 +370,20 @@ async function renderSite() {
   busy.value = true;
   error.value = false;
   try {
-    const ordered = [sitePhotos.value[primaryIndex.value], ...sitePhotos.value.filter((_, index) => index !== primaryIndex.value)];
-    // Clear the old building from the primary garden photo around the pin.
-    const primary = await shrinkScene(ordered[0], placement.value);
-    // Image 0 = cleared garden; image 1 = facade + overview diptych of the live 3D house.
-    const images = [primary.dataUrl, await houseReference()];
-    for (const file of ordered.slice(1)) {
-      if (images.length >= 4) break;
-      images.push((await shrinkScene(file)).dataUrl);
-    }
-    result.value = await requestSitePicture(images, houseFacts(), placement.value, primary.aspectRatio, facing.value);
+    const primary = await shrinkScene(sitePhotos.value[primaryIndex.value]);
+    const references = await houseReferences();
+    const draft = await composeDraft(primary.dataUrl, references.cutout);
+    // 0 = exact draft composite, 1 = untouched garden, 2 = matching facade,
+    // 3 = overview showing roof and every terrace attachment.
+    const images = [draft, primary.dataUrl, references.facade, references.overview];
+    result.value = await requestSitePicture(
+      images,
+      houseFacts(),
+      placement.value,
+      houseWidthPercent.value,
+      primary.aspectRatio,
+      facing.value
+    );
   } catch (err) {
     console.error('Site render failed:', err);
     error.value = true;

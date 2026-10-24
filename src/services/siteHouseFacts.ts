@@ -111,8 +111,8 @@ export function siteHouseFacts(input: SiteHouseFactsInput) {
   const roof = describeRoof(input.roofType, input.roofCovering);
   const size = `${input.sizeName}, ${input.widthMm} × ${input.depthMm} × ${input.heightMm} mm`;
   const lead = attachments
-    ? `Insert only the NEW configured 3D house from image 1 (two panels: facade + overview). Completely omit any old shed. Must include these attached outdoor parts: ${attachments}.`
-    : 'Insert only the NEW configured 3D house from image 1. Completely omit any old shed. No terrace, sauna, shed, or hot tub — house shell only.';
+    ? `Keep only the NEW configured 3D house already placed in image 0, using facade image 2 and overview image 3 as its exact references. Completely omit the old site building. Must include these attached outdoor parts: ${attachments}.`
+    : 'Keep only the NEW configured 3D house already placed in image 0, using images 2 and 3 as exact references. Completely omit the old site building. No terrace, sauna, shed, or hot tub — house shell only.';
   return `${lead} Roof: ${roof}. ${size}, ${input.wallDesc}.`;
 }
 

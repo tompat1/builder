@@ -5,6 +5,7 @@ import { extractPdfImages, extractPdfText, hasMeasures, readDrawing } from '../s
 import { fitImageSize } from '../src/import/imageSize.js';
 import {
   acceptFacing,
+  acceptHouseWidthPercent,
   acceptPictureParts,
   acceptPlacement,
   decodeImages,
@@ -216,31 +217,35 @@ test('reference photos stay inside the picture model size', () => {
 
 test('a site preview preserves the first photo and installs the configured house', () => {
   const prompt = sitePrompt(
-    'Insert only the NEW configured 3D house from image 1. Must include these attached outdoor parts: a wooden terrace deck on the back with an attached compact sauna cabin and a round cedar hot tub. Roof: pulpettak. 5800 × 4310 mm, red cladding.',
-    3,
+    'Keep the NEW configured 3D house from image 0. Must include these attached outdoor parts: a wooden terrace deck on the back with an attached compact sauna cabin and a round cedar hot tub. Roof: pulpettak. 5800 × 4310 mm, red cladding.',
+    4,
     { x: 41.2, y: 72.8 },
-    'back'
+    'back',
+    64
   );
-  assert.match(prompt, /old building already removed/i);
-  assert.match(prompt, /Do not recreate, recolor, reshape/i);
+  assert.match(prompt, /authoritative draft composite/i);
+  assert.match(prompt, /untouched original garden photograph/i);
   assert.match(prompt, /taken from the back/i);
   assert.match(prompt, /41% from the left and 73% from the top/);
+  assert.match(prompt, /64% of the full image width/i);
   assert.match(prompt, /sauna cabin/);
   assert.match(prompt, /hot tub/);
-  assert.match(prompt, /often two panels/i);
-  assert.match(prompt, /not like a paint-over/i);
-  assert.match(prompt, /Images 2 and later are extra site photos/i);
-  assert.match(sitePrompt('house facts', 2, { x: 50, y: 50 }), /front facade/);
-  assert.match(sitePrompt('house facts', 2, { x: 50, y: 50 }, 'left'), /left-side facade/);
-  assert.doesNotMatch(sitePrompt('house facts', 2, { x: 50, y: 50 }), /Images 2 and later/);
+  assert.match(prompt, /Image 2 is the authoritative rear facade/i);
+  assert.match(prompt, /Image 3 is its authoritative elevated overview/i);
+  assert.match(prompt, /Do not move, shrink, enlarge/i);
+  assert.match(sitePrompt('house facts', 4, { x: 50, y: 50 }), /front facade/);
+  assert.match(sitePrompt('house facts', 4, { x: 50, y: 50 }, 'left'), /left-side facade/);
   assert.equal(acceptFacing('right'), 'right');
   assert.equal(acceptFacing('above'), 'front');
-  assert.equal(sitePrompt('house', 1, { x: 50, y: 50 }), '');
+  assert.equal(sitePrompt('house', 3, { x: 50, y: 50 }), '');
 });
 
 test('site placement and output shape stay within render bounds', () => {
   assert.deepEqual(acceptPlacement({ x: -40, y: 120 }), { x: 5, y: 95 });
   assert.deepEqual(acceptPlacement({ x: 'bad', y: null }), { x: 50, y: 5 });
+  assert.equal(acceptHouseWidthPercent(10), 20);
+  assert.equal(acceptHouseWidthPercent(120), 90);
+  assert.equal(acceptHouseWidthPercent('bad'), 55);
   assert.deepEqual(renderSizeForAspect(16 / 9), { width: 1024, height: 576 });
   assert.deepEqual(renderSizeForAspect(9 / 16), { width: 608, height: 1024 });
   assert.deepEqual(renderSizeForAspect('bad'), { width: 1024, height: 768 });

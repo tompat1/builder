@@ -512,6 +512,7 @@ export class HouseScene {
 
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
+      alpha: true,
       preserveDrawingBuffer: true,
       powerPreference: 'high-performance'
     });
@@ -10540,6 +10541,44 @@ export class HouseScene {
     );
     this.aimStillCamera(cameraPosition, targetY);
     return restore;
+  }
+
+  /**
+   * Match a site-photo facade and temporarily render only the configured
+   * building. The transparent still is composited into the uploaded garden
+   * before the AI pass, so the model starts from the exact roof and attached
+   * terrace geometry instead of having to infer it from prose.
+   */
+  public prepareSiteCutoutCapture(facing: 'front' | 'back' | 'left' | 'right') {
+    const restoreStill = this.beginStillCapture();
+    const background = this.scene.background;
+    const groundVisible = this.groundMesh?.visible;
+    const gridVisible = this.gridHelper?.visible;
+    const shadowVisible = this.contactShadow?.visible;
+    const starsVisible = this.starfield?.visible;
+    this.scene.background = null;
+    if (this.groundMesh) this.groundMesh.visible = false;
+    if (this.gridHelper) this.gridHelper.visible = false;
+    if (this.contactShadow) this.contactShadow.visible = false;
+    if (this.starfield) this.starfield.visible = false;
+
+    const { cameraPosition, targetY } = calculateFacingPose(
+      facing,
+      this.currentConfig.widthMm,
+      this.currentConfig.depthMm,
+      this.currentConfig.heightMm,
+      this.terraceCaptureOverhang()
+    );
+    this.aimStillCamera(cameraPosition, targetY);
+
+    return () => {
+      this.scene.background = background;
+      if (this.groundMesh && groundVisible !== undefined) this.groundMesh.visible = groundVisible;
+      if (this.gridHelper && gridVisible !== undefined) this.gridHelper.visible = gridVisible;
+      if (this.contactShadow && shadowVisible !== undefined) this.contactShadow.visible = shadowVisible;
+      if (this.starfield && starsVisible !== undefined) this.starfield.visible = starsVisible;
+      restoreStill();
+    };
   }
 
   /**

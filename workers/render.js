@@ -93,6 +93,11 @@ export function acceptPlacement(input) {
   return { x: clamp(record.x, 50), y: clamp(record.y, 68) };
 }
 
+export function acceptHouseWidthPercent(input) {
+  const width = Number(input);
+  return Number.isFinite(width) ? Math.max(20, Math.min(90, Math.round(width))) : 55;
+}
+
 /** The side of the house the photograph was taken from. */
 export function acceptFacing(input) {
   const value = String(input ?? '').trim().toLowerCase();
@@ -100,13 +105,14 @@ export function acceptFacing(input) {
 }
 
 /**
- * Image 0 is the garden photo with the old building already cleared.
- * Image 1 is the configured 3D house (often a two-panel facade + overview sheet).
- * Later images are extra site context only.
+ * Image 0 is an exact draft composite made from the live 3D scene.
+ * Image 1 is the untouched garden photograph.
+ * Image 2 is the matching facade and image 3 is the complete 3D overview.
  */
-export function sitePrompt(facts, imageCount, placement, facing) {
-  if (imageCount < 2) return '';
+export function sitePrompt(facts, imageCount, placement, facing, houseWidthPercent) {
+  if (imageCount < 4) return '';
   const point = acceptPlacement(placement);
+  const width = acceptHouseWidthPercent(houseWidthPercent);
   const side = acceptFacing(facing);
   const facade = SITE_FACINGS[side];
   const note = String(facts ?? '').replace(/\s+/g, ' ').trim().slice(0, 900);
@@ -121,20 +127,18 @@ export function sitePrompt(facts, imageCount, placement, facing) {
   }
 
   return [
-    'Create a single photoreal architectural composite.',
-    'Image 0 is the garden site photograph with the old building already removed — keep only its surroundings: lawn, plants, fences, neighbouring buildings, path, sky, weather, and camera viewpoint.',
-    'Do not recreate, recolor, reshape, or leave any remnant of the old shed or previous house that used to stand in image 0.',
+    'Photorealize the supplied architectural draft without redesigning it.',
+    'Image 0 is the authoritative draft composite: it already contains the exact configured 3D house at the requested position, viewpoint, and scale in the real garden. Preserve its house silhouette and placement pixel-for-pixel.',
+    'Image 1 is the untouched original garden photograph. Preserve its camera viewpoint and every surrounding plant, fence, path, neighbouring building, sky, and weather detail that is outside the new house footprint.',
     `The photograph was taken from the ${side}, looking toward the ${facade} of where the new house will stand.`,
-    `Image 1 is the authoritative still of the exact configured NEW 3D house (often two panels: left = that same ${facade}, right = a wider overview). Insert THAT house into the cleared footprint — copy its tall proportions, roof silhouette, window and door layout, cladding colour, terrace deck, sauna cabin, hot tub, and flue exactly.`,
-    'The output must look like the house from image 1 standing in the garden from image 0, not like a paint-over of any prior structure.',
-    'If image 1 or the configured house facts show a wooden terrace, sauna cabin, shed, hot tub, flue, or distinctive roof, those attached parts MUST appear in the composite on the correct side of the house.',
-    imageCount > 2
-      ? 'Images 2 and later are extra site photos only. Use them to understand the property; keep image 0 as the output viewpoint.'
-      : '',
+    `Image 2 is the authoritative ${facade} reference of the same configured 3D house. Image 3 is its authoritative elevated overview showing the complete roof, terrace, sauna or shed, hot tub, and flues. Use them only to add realistic materials and details to the exact geometry already placed in image 0.`,
+    'Do not move, shrink, enlarge, rotate, crop, simplify, extend, or add architectural parts to the house in image 0. Do not invent floors, rooms, doors, windows, roofs, decks, railings, tubs, chimneys, or outbuildings.',
+    'Completely remove every remnant of the old shed or previous house from image 1 wherever it is not covered by the new draft house, reconstructing only plausible garden background there.',
+    'Every wooden terrace, sauna cabin, shed, hot tub, flue, door, window, and distinctive roof visible in images 0, 2, or 3 MUST remain present on the same side and in the same proportions.',
     roofRule,
-    `Place the new house with its ground contact around ${point.x}% from the left and ${point.y}% from the top of image 0.`,
-    'Match the base photograph camera perspective, believable real-world scale, terrain, daylight, colour temperature, occlusion, and contact shadows.',
-    'Keep every surrounding element from image 0 that the new house does not cover. Do not redesign the rest of the garden.',
+    `Keep the house ground contact at ${point.x}% from the left and ${point.y}% from the top, and keep its projected width at ${width}% of the full image width exactly as shown in image 0.`,
+    'Blend the placed 3D house into the terrain with realistic daylight, colour temperature, foreground occlusion, and contact shadows, while keeping the exact draft dimensions.',
+    'Do not redesign the garden and do not add people, furniture, vehicles, landscaping, pools, or decorative objects.',
     note ? `Configured house facts: ${note}` : '',
     NO_FIGURES
   ].filter(Boolean).join(' ');
@@ -259,7 +263,7 @@ export async function handleRender(request, env, headers) {
   const change = partChange(body?.parts);
   const site = body?.scene?.mode === 'site';
   const prompt = site
-    ? sitePrompt(body?.facts, images.length, body?.scene?.placement, body?.scene?.facing)
+    ? sitePrompt(body?.facts, images.length, body?.scene?.placement, body?.scene?.facing, body?.scene?.houseWidthPercent)
     : body?.revision
       ? revisePrompt(change, partChange(body?.originalParts))
       : renderPrompt(change, body?.facts, images.length);
