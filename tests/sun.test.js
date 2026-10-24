@@ -67,3 +67,18 @@ test('the clock labels quarter hours', () => {
   assert.equal(formatSunHour(13.25), '13:15');
   assert.equal(formatSunHour(5), '05:00');
 });
+
+test('neutral daylight turns off the sun and uses even fill', async () => {
+  const { readFileSync } = await import('node:fs');
+  const lighting = readFileSync(new URL('../src/three-engine/lighting.ts', import.meta.url), 'utf8');
+  assert.match(lighting, /mode === 'neutral'/);
+  assert.match(lighting, /sunLight\.intensity = 0/);
+  assert.match(lighting, /sunLight\.castShadow = false/);
+  assert.match(lighting, /extras\.ambient\.intensity = 0\.62/);
+  assert.match(lighting, /extras\.hemisphere\.intensity = 0\.98/);
+  const tools = readFileSync(new URL('../src/components/ToolSet.vue', import.meta.url), 'utf8');
+  assert.match(tools, /daylightMode === 'neutral'/);
+  assert.match(tools, /opacity-35/);
+  const ui = readFileSync(new URL('../src/components/ConfiguratorUI.vue', import.meta.url), 'utf8');
+  assert.match(ui, /daylightMode === 'neutral'\) return false/);
+});

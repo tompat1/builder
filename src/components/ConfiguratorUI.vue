@@ -249,8 +249,9 @@ const { t } = useLabels();
 const skyMarkerShown = computed(() => {
   if (!store.showSun) return false;
   if (store.viewMode !== 'utsida') return false;
+  // Neutral has no sun path — keep the sky clear of the day/moon marker.
+  if (store.daylightMode === 'neutral') return false;
   if (store.daylightMode === 'moon') return true;
-  if (store.daylightMode === 'neutral') return true;
   return sunPlacement(store.sunHour, headingForFacing(store.facing)).altitude > 0.02;
 });
 const sunLeft = computed(() => `${(8 + sunAlongDay(store.sunHour) * 84).toFixed(1)}%`);

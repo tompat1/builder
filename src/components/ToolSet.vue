@@ -57,9 +57,14 @@
                 type="button"
                 id="btn-tool-sun-show"
                 @click="store.toggleSunShown()"
-                :class="[...toolButton(store.showSun), 'shrink-0']"
+                :class="[
+                  ...toolButton(store.showSun && store.daylightMode !== 'neutral'),
+                  'shrink-0',
+                  store.daylightMode === 'neutral' ? 'pointer-events-none opacity-35' : ''
+                ]"
+                :disabled="store.daylightMode === 'neutral'"
                 :aria-label="t('tools.sun')"
-                :aria-pressed="store.showSun"
+                :aria-pressed="store.showSun && store.daylightMode !== 'neutral'"
               >
                 <svg v-if="store.showSun" class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M2.8 12S6.2 7 12 7s9.2 5 9.2 5-3.4 5-9.2 5S2.8 12 2.8 12Z" />
@@ -75,7 +80,11 @@
               <span class="min-w-0 flex-1 text-[10px] font-bold uppercase tracking-wide text-slate-500">
                 <Cms k="tools.daylightMode" />
               </span>
-              <span id="sun-time-label" class="text-[11px] font-bold tabular-nums text-slate-900">{{ sunClock }}</span>
+              <span
+                v-if="store.daylightMode !== 'neutral'"
+                id="sun-time-label"
+                class="text-[11px] font-bold tabular-nums text-slate-900"
+              >{{ sunClock }}</span>
             </div>
             <div
               class="mt-1.5 grid grid-cols-3 gap-1"
@@ -157,7 +166,10 @@
                 <Cms :k="bearing.letter" />
               </button>
             </div>
-            <label class="mt-2 block">
+            <label
+              class="mt-2 block"
+              :class="store.daylightMode === 'neutral' ? 'pointer-events-none opacity-35' : ''"
+            >
               <span class="sr-only"><Cms k="tools.sunTime" /></span>
               <input
                 id="sun-hour"
@@ -166,8 +178,10 @@
                 max="21"
                 step="0.25"
                 :value="store.sunHour"
-                class="sun-hour h-1.5 w-full cursor-pointer accent-slate-900"
+                class="sun-hour h-1.5 w-full accent-slate-900"
+                :class="store.daylightMode === 'neutral' ? 'cursor-not-allowed' : 'cursor-pointer'"
                 :disabled="store.daylightMode === 'neutral'"
+                :aria-disabled="store.daylightMode === 'neutral'"
                 @input="onSunInput"
                 @change="onSunCommit"
               />
@@ -196,6 +210,18 @@
             <path d="M21 14.5A8.5 8.5 0 1 1 9.5 3a6.8 6.8 0 0 0 11.5 11.5Z" />
           </svg>
           <svg
+            v-else-if="store.daylightMode === 'neutral'"
+            class="w-6 h-6"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          >
+            <circle cx="12" cy="12" r="4" />
+            <path d="M4 12h2M18 12h2" />
+          </svg>
+          <svg
             v-else
             class="w-6 h-6"
             viewBox="0 0 24 24"
@@ -210,7 +236,13 @@
           <span
             v-if="!sunOpen"
             class="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full"
-            :class="store.daylightMode === 'moon' ? 'bg-sky-700' : 'bg-[#8a6a2f]'"
+            :class="
+              store.daylightMode === 'moon'
+                ? 'bg-sky-700'
+                : store.daylightMode === 'neutral'
+                  ? 'bg-slate-400'
+                  : 'bg-[#8a6a2f]'
+            "
             aria-hidden="true"
           ></span>
           <span class="tool-tip"><Cms k="tools.sunTime" /></span>

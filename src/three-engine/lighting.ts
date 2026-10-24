@@ -182,23 +182,21 @@ export function updateSunPosition(
     nightGain = 1;
     sunUp = false;
   } else if (mode === 'neutral') {
+    // Even studio-style fill — no sun beam, so north faces stay readable.
     nightGain = 0;
-    sunUp = true;
+    sunUp = false;
   } else {
     nightGain = nightGainForHour(sunHour, placement.altitude);
     sunUp = nightGain < 0.85 && placement.altitude > 0.02;
   }
 
-  const aim =
-    mode === 'neutral'
-      ? new THREE.Vector3(0.35, 0.85, 0.4).normalize()
-      : sunUp
-        ? dir
-        : new THREE.Vector3(dir.x, mode === 'moon' ? 0.35 : 0.05, dir.z).normalize();
+  const aim = sunUp
+    ? dir
+    : new THREE.Vector3(dir.x, mode === 'moon' ? 0.35 : 0.05, dir.z).normalize();
 
   sunLight.position.copy(sunTarget.position).addScaledVector(aim, mode === 'moon' ? 22 : 28);
 
-  const dayGain = mode === 'neutral' ? 1 : Math.min(1, Math.max(0, placement.y) / 0.5);
+  const dayGain = Math.min(1, Math.max(0, placement.y) / 0.5);
   const warm = new THREE.Color('#ff9a3c');
   const noon = new THREE.Color('#fff3e4');
   const moon = new THREE.Color('#9eb6d4');
@@ -209,14 +207,41 @@ export function updateSunPosition(
     sunLight.castShadow = false;
   } else if (mode === 'neutral') {
     sunLight.color.copy(noon);
-    sunLight.intensity = 1.15;
-    sunLight.castShadow = true;
+    sunLight.intensity = 0;
+    sunLight.castShadow = false;
   } else {
     sunLight.color.copy(warm).lerp(noon, dayGain);
     sunLight.intensity = sunUp
       ? (0.4 + 1.3 * dayGain * dayGain) * (1 - nightGain * 0.85)
       : 0.06;
     sunLight.castShadow = sunUp && nightGain < 0.5;
+  }
+
+  if (mode === 'neutral') {
+    // Soft omnidirectional fill so every facade reads equally.
+    skyFill.position.set(0, 14, 0);
+    skyFill.intensity = 0.42;
+    skyFill.color.set('#e8eef5');
+    if (extras?.hemisphere) {
+      extras.hemisphere.intensity = 0.98;
+      extras.hemisphere.color.set('#f5f7fa');
+      extras.hemisphere.groundColor.set('#e2e8f0');
+    }
+    if (extras?.ambient) {
+      extras.ambient.intensity = 0.62;
+      extras.ambient.color.set('#ffffff');
+    }
+    if (extras?.interiorFill) {
+      extras.interiorFill.intensity = 0.48;
+    }
+    if (extras?.groundMesh?.material && 'color' in extras.groundMesh.material) {
+      (extras.groundMesh.material as THREE.MeshStandardMaterial).color.set(DAY.ground);
+    }
+    if (extras?.scene) {
+      extras.scene.background = new THREE.Color(DAY.bg);
+    }
+    syncStarfield(extras?.starfield, 0);
+    return { sunUp: false, nightGain: 0 };
   }
 
   skyFill.position.set(-aim.x * 14, 12, -aim.z * 14);
