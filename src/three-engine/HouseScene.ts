@@ -69,6 +69,7 @@ import {
   type HouseLightsConfig,
   type WallOpeningSpan
 } from '../outside/houseLights';
+import { cabinExteriorLightLocals, cabinHouseWallBlock } from '../outside/lights/cabin';
 import { terraceDeckLightLocals } from '../outside/lights/terrace';
 import { eaveLiftMm, gablePitchDegrees, isGableRoof, wallPlateHeightM, type RoofId } from '../store/roof';
 import { inferNoteNormal, noteAxes, noteCameraTransform, noteSheetTransform, noteTiltRadians, stickFacing, NOTE_SURFACE_SCALE } from '../notes/surface';
@@ -4498,6 +4499,75 @@ export class HouseScene {
     return { ...this.sideAnchor(side, w, d, h), width: 1 };
   }
 
+  /** Deck size + cabin slot for a terrace (matches `addTerrace` placement, including sauna door nudge). */
+  private terraceCabinPlacement(terrace: HouseTerrace, w: number, d: number, h: number) {
+    if (terrace.building !== 'sauna' && terrace.building !== 'shed') return null;
+    const door = this.terraceAnchor(terrace, w, d, h);
+    const outward = this.outwardSign(door.wall);
+    const full = terrace.span === 'full';
+    const wallSpan = door.wall === 'front' || door.wall === 'back' ? w : d;
+    const width = full
+      ? wallSpan
+      : Math.min(Math.max(door.width + 1.5, 2.4), Math.max(1.6, wallSpan - 0.3));
+    const along = full ? 0 : this.terraceShift(door, width, w, d);
+    const layout = terraceAdditionLayout({
+      along,
+      width,
+      depth: terrace.depth,
+      building: terrace.building,
+      buildingSize: terrace.buildingSize,
+      buildingPlacement: terrace.buildingPlacement,
+      hotTub: terrace.hotTub
+    });
+    let cabin = layout.cabin;
+    if (!cabin) return null;
+
+    if (terrace.building === 'sauna') {
+      const wallDoors = this.outsideAnchors(w, d, h).filter((a) => a.wall === door.wall);
+      const cosR = Math.cos(-door.rotY);
+      const sinR = Math.sin(-door.rotY);
+      const doorsWithLocal = wallDoors.map((a) => {
+        const dx = a.px + (a.doorX ?? 0) - door.px;
+        const dz = a.pz - door.pz;
+        const localAlong = dx * cosR - dz * sinR;
+        return { localAlong };
+      });
+      if (doorsWithLocal.length > 0) {
+        const initialBX = cabin.bX;
+        const matching = doorsWithLocal.reduce((closest, item) => {
+          if (!closest) return item;
+          return Math.abs(item.localAlong - initialBX) < Math.abs(closest.localAlong - initialBX)
+            ? item
+            : closest;
+        }, null as { localAlong: number } | null);
+        if (matching && Math.abs(matching.localAlong - initialBX) <= width * 0.6) {
+          const minBX = along - width / 2 + cabin.bW / 2;
+          const maxBX = along + width / 2 - cabin.bW / 2;
+          cabin = {
+            ...cabin,
+            bX: Math.min(maxBX, Math.max(minBX, matching.localAlong))
+          };
+        }
+      }
+    }
+
+    return { door, outward, cabin, width, along };
+  }
+
+  /** Terrace local X/Z → house wall along-coordinate used by facade placement. */
+  private terraceLocalToWallAlong(
+    wall: OutsideAnchor['wall'],
+    door: OutsideAnchor,
+    localX: number,
+    localZ = 0
+  ) {
+    const cos = Math.cos(door.rotY);
+    const sin = Math.sin(door.rotY);
+    const wx = door.px + localX * cos + localZ * sin;
+    const wz = door.pz - localX * sin + localZ * cos;
+    return wall === 'front' || wall === 'back' ? wx : wz;
+  }
+
   /**
    * Exterior try-out lights: facade washers, door sconces, LED strips, garden bollards.
    * Fixture PointLights brighten as the sky goes dark (evening / moon mode).
@@ -4690,6 +4760,25 @@ export class HouseScene {
     const openingSpans = (wall: 'front' | 'back' | 'left' | 'right'): WallOpeningSpan[] =>
       this.wallOpenings(wall, w, d, h, 0.25).map((o) => ({ x: o.x, width: o.winW }));
 
+    // Sauna/shed footprints block house-wall sconces; fixtures move onto cabin walls.
+    const cabinSites: NonNullable<ReturnType<typeof this.terraceCabinPlacement>>[] = [];
+    const cabinBlocksByWall: Record<'front' | 'back' | 'left' | 'right', WallOpeningSpan[]> = {
+      front: [],
+      back: [],
+      left: [],
+      right: []
+    };
+    for (const terrace of this.currentConfig.terraces ?? []) {
+      const site = this.terraceCabinPlacement(terrace, w, d, h);
+      if (!site) continue;
+      cabinSites.push(site);
+      const localBlock = cabinHouseWallBlock(site.cabin);
+      cabinBlocksByWall[site.door.wall].push({
+        x: this.terraceLocalToWallAlong(site.door.wall, site.door, localBlock.x),
+        width: localBlock.width
+      });
+    }
+
     const placeFacadeFixtures = (
       addFn: (
         x: number,
@@ -4736,7 +4825,7 @@ export class HouseScene {
       for (const side of walls) {
         const along = placeFacadeSconcesAlongWall({
           wallLength: side.length,
-          openings: openingSpans(side.wall),
+          openings: [...openingSpans(side.wall), ...cabinBlocksByWall[side.wall]],
           count: facadeSconceCountForWall(side.wall, side.length),
           clearance: FIXTURE_CLEARANCE_M,
           minSpacing: FIXTURE_CLEARANCE_M,
@@ -4746,6 +4835,34 @@ export class HouseScene {
         for (const t of along) {
           const { x, z } = side.place(t);
           addFn(x, y, z, side.rotY, outward, `${idPrefix}-${side.wall}`);
+        }
+      }
+
+      // Object-aware: put the blocked house-wall lights onto the cabin instead.
+      const deckTop = 0.28;
+      const cabinY = Math.min(h - 0.25, deckTop + 1.75);
+      let cabinSeq = 0;
+      for (const site of cabinSites) {
+        const locals = cabinExteriorLightLocals({
+          bX: site.cabin.bX,
+          bW: site.cabin.bW,
+          bD: site.cabin.bD,
+          outward: site.outward,
+          isLeft: site.cabin.isLeft
+        });
+        const cos = Math.cos(site.door.rotY);
+        const sin = Math.sin(site.door.rotY);
+        for (const local of locals) {
+          const x = site.door.px + local.x * cos + local.z * sin;
+          const z = site.door.pz - local.x * sin + local.z * cos;
+          addFn(
+            x,
+            cabinY,
+            z,
+            site.door.rotY + local.rotYOffset,
+            1,
+            `${idPrefix}-cabin-${cabinSeq++}`
+          );
         }
       }
     };
@@ -4763,7 +4880,7 @@ export class HouseScene {
         const half = wallSpan / 2;
         const wallLo = -half + FIXTURE_CLEARANCE_M;
         const wallHi = half - FIXTURE_CLEARANCE_M;
-        const spans = openingSpans(door.wall);
+        const spans = [...openingSpans(door.wall), ...cabinBlocksByWall[door.wall]];
         // World along-wall coord matching wallOpenings().
         const dx = door.doorX ?? 0;
         const doorAlong =
