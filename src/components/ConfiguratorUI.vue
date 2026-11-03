@@ -186,20 +186,75 @@
         <CategoryNav
           :expanded="narrow ? sheetOpen : !panelCompact"
           :desktop-slots="panelSingleColumn ? 1 : 4"
+          :rows="panelTabRows"
           @pick="onPickCategory"
         />
       </div>
 
-      <!-- Footer Quick Status Summary -->
+      <!-- Footer Quick Status Summary + 1-line / 2-line Tab Layout Toggle -->
       <div
         v-show="!panelCompact"
-        class="hidden shrink-0 items-center rounded-b-2xl border-t border-slate-100 bg-slate-50/90 p-3 min-[1180px]:flex md:p-4"
+        class="hidden shrink-0 items-center justify-between gap-2 rounded-b-2xl border-t border-slate-100 bg-slate-50/90 px-3.5 py-2.5 min-[1180px]:flex md:px-4 md:py-3"
       >
         <div class="flex items-center gap-2 min-w-0">
           <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-2xs shrink-0"></span>
           <span class="text-xs text-slate-700 font-semibold truncate">
             <Cms :k="`catalog.${store.currentSize.id}.name`" :fallback="store.currentSize.name" /> • <Cms :k="`catalog.${store.currentMaterial.id}.name`" :fallback="store.currentMaterial.name" />
           </span>
+        </div>
+
+        <div
+          id="panel-tab-rows-group"
+          role="group"
+          :aria-label="t('panel.tabRows')"
+          class="inline-flex shrink-0 items-center gap-0.5 rounded-lg border border-slate-200/80 bg-white p-0.5 shadow-2xs"
+        >
+          <button
+            id="btn-tab-rows-1"
+            type="button"
+            :aria-pressed="panelTabRows === 1"
+            :title="t('panel.oneTabRowTitle')"
+            :class="[
+              'inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
+              panelTabRows === 1
+                ? 'bg-slate-900 text-white shadow-2xs'
+                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+            ]"
+            @click="setPanelTabRows(1)"
+          >
+            <svg class="h-3 w-3.5 shrink-0" viewBox="0 0 14 10" fill="currentColor" aria-hidden="true">
+              <rect x="0.5" y="3" width="2.5" height="4" rx="0.6" />
+              <rect x="4" y="3" width="2.5" height="4" rx="0.6" />
+              <rect x="7.5" y="3" width="2.5" height="4" rx="0.6" />
+              <rect x="11" y="3" width="2.5" height="4" rx="0.6" />
+            </svg>
+            <span v-show="!panelSingleColumn"><Cms k="panel.oneTabRow" /></span>
+          </button>
+          <button
+            id="btn-tab-rows-2"
+            type="button"
+            :aria-pressed="panelTabRows === 2"
+            :title="t('panel.twoTabRowsTitle')"
+            :class="[
+              'inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
+              panelTabRows === 2
+                ? 'bg-slate-900 text-white shadow-2xs'
+                : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+            ]"
+            @click="setPanelTabRows(2)"
+          >
+            <svg class="h-3 w-3.5 shrink-0" viewBox="0 0 14 10" fill="currentColor" aria-hidden="true">
+              <rect x="0.5" y="0.75" width="2.5" height="3.5" rx="0.6" />
+              <rect x="4" y="0.75" width="2.5" height="3.5" rx="0.6" />
+              <rect x="7.5" y="0.75" width="2.5" height="3.5" rx="0.6" />
+              <rect x="11" y="0.75" width="2.5" height="3.5" rx="0.6" />
+              <rect x="0.5" y="5.75" width="2.5" height="3.5" rx="0.6" />
+              <rect x="4" y="5.75" width="2.5" height="3.5" rx="0.6" />
+              <rect x="7.5" y="5.75" width="2.5" height="3.5" rx="0.6" />
+              <rect x="11" y="5.75" width="2.5" height="3.5" rx="0.6" />
+            </svg>
+            <span v-show="!panelSingleColumn"><Cms k="panel.twoTabRows" /></span>
+          </button>
         </div>
       </div>
     </aside>
@@ -234,14 +289,18 @@ import {
   DEFAULT_PANEL_WIDTH,
   MIN_PANEL_WIDTH,
   MIN_PANEL_HEIGHT,
+  MIN_PANEL_HEIGHT_TWO_ROWS,
   clampPanelWidth,
   clampPanelHeight,
   maxPanelHeight,
   isSingleColumnPanelWidth,
   loadPanelWidth,
   loadPanelHeight,
+  loadPanelTabRows,
   savePanelWidth,
-  savePanelHeight
+  savePanelHeight,
+  savePanelTabRows,
+  type PanelTabRows
 } from '../services/displayPrefs';
 
 const store = useConfigStore();
@@ -265,12 +324,22 @@ const windowWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1280
 const windowHeight = ref(typeof window !== 'undefined' ? window.innerHeight : 800);
 const desktopPanelWidth = ref(loadPanelWidth(windowWidth.value));
 const desktopPanelHeight = ref(loadPanelHeight(windowHeight.value));
+const panelTabRows = ref<PanelTabRows>(loadPanelTabRows());
 const isResizing = ref(false);
 const isHeightResizing = ref(false);
 let resizeStartX = 0;
 let resizeStartWidth = 0;
 let resizeStartY = 0;
 let resizeStartHeight = 0;
+
+function setPanelTabRows(rows: PanelTabRows) {
+  panelTabRows.value = rows;
+  savePanelTabRows(rows);
+  if (!narrow.value && rows === 2 && desktopPanelHeight.value < MIN_PANEL_HEIGHT_TWO_ROWS) {
+    desktopPanelHeight.value = MIN_PANEL_HEIGHT_TWO_ROWS;
+    savePanelHeight(desktopPanelHeight.value);
+  }
+}
 
 const maxPanelWidth = computed(() => {
   return Math.min(960, Math.max(MIN_PANEL_WIDTH, windowWidth.value - 120));
@@ -279,9 +348,10 @@ const maxPanelWidth = computed(() => {
 const maxDesktopPanelHeight = computed(() => maxPanelHeight(windowHeight.value));
 
 /** Collapsed to chrome for one scrollable category row (four items visible). */
-const panelCompact = computed(
-  () => !narrow.value && desktopPanelHeight.value <= MIN_PANEL_HEIGHT + 8
-);
+const panelCompact = computed(() => {
+  const minH = panelTabRows.value === 2 ? MIN_PANEL_HEIGHT_TWO_ROWS : MIN_PANEL_HEIGHT;
+  return !narrow.value && desktopPanelHeight.value <= minH + 8;
+});
 
 /** Narrow enough for one option-card column (and one scrollable nav slot). */
 const panelSingleColumn = computed(

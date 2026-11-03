@@ -136,3 +136,33 @@ export function savePanelHeight(height: number) {
     // Ignore
   }
 }
+
+export type PanelTabRows = 1 | 2;
+export const DEFAULT_PANEL_TAB_ROWS: PanelTabRows = 1;
+/** Desktop config panel height when collapsed to two category rows. */
+export const MIN_PANEL_HEIGHT_TWO_ROWS = 148;
+
+export function acceptPanelTabRows(value: unknown): PanelTabRows {
+  if (value === 2 || value === '2') return 2;
+  return 1;
+}
+
+export function loadPanelTabRows(): PanelTabRows {
+  const store = readStore();
+  if (!store) return DEFAULT_PANEL_TAB_ROWS;
+  try {
+    return acceptPanelTabRows(store.getItem('builder:panel-tab-rows'));
+  } catch {
+    return DEFAULT_PANEL_TAB_ROWS;
+  }
+}
+
+export function savePanelTabRows(rows: PanelTabRows) {
+  const store = readStore();
+  if (!store) return;
+  try {
+    store.setItem('builder:panel-tab-rows', String(acceptPanelTabRows(rows)));
+  } catch {
+    // Ignore
+  }
+}

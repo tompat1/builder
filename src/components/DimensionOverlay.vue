@@ -9,7 +9,20 @@
         {{ store.dimensions.width }} mm
       </span>
       <span id="dim-area" class="block text-[10px] md:text-xs text-slate-500 font-semibold mt-0.5">
-        {{ store.dimensions.areaSqMeters }} m²
+        <Cms k="dims.width" /> · {{ store.dimensions.areaSqMeters }} m²
+      </span>
+    </div>
+
+    <div
+      id="dim-depth-annotation"
+      class="absolute -translate-x-1/2 -translate-y-1/2 bg-white/90 backdrop-blur-xs px-3 py-1 rounded-md border border-slate-300/80 shadow-2xs text-center"
+      :style="labelStyle('depth')"
+    >
+      <span id="dim-depth" class="block text-xs md:text-sm font-bold text-slate-900 tracking-tight leading-none">
+        {{ store.dimensions.depth }} mm
+      </span>
+      <span class="block text-[10px] text-slate-500 font-semibold mt-0.5">
+        <Cms k="dims.depth" />
       </span>
     </div>
 
@@ -39,7 +52,10 @@
         {{ store.activeRoof === 'pulpettak' ? store.dimensions.height : store.eaveHeight }} mm
       </span>
       <span class="block text-[9px] text-slate-500 font-medium">
-        <Cms v-if="store.activeRoof === 'pulpettak'" k="dims.frontWall" />
+        <Cms
+          v-if="store.activeRoof === 'pulpettak'"
+          :k="store.pulpetOrientation === 'south' ? 'dims.frontWall' : 'dims.highWall'"
+        />
         <Cms v-else k="dims.eave" />
       </span>
     </div>
@@ -53,7 +69,10 @@
         {{ store.activeRoof === 'pulpettak' ? store.rearHeight : store.dimensions.height }} mm
       </span>
       <span class="block text-[9px] text-slate-500 font-medium">
-        <Cms v-if="store.activeRoof === 'pulpettak'" k="dims.rearWall" />
+        <Cms
+          v-if="store.activeRoof === 'pulpettak'"
+          :k="store.pulpetOrientation === 'south' ? 'dims.rearWall' : 'dims.lowWall'"
+        />
         <Cms v-else k="dims.overall" />
       </span>
     </div>

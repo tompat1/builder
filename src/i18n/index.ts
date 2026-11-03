@@ -387,7 +387,12 @@ const sv = {
     hide: 'Minimera ▼',
     export: 'Exportera',
     resizeHandle: 'Dra för att ändra panelens bredd (dubbelklicka för att återställa)',
-    resizeHeightHandle: 'Dra för att ändra panelens höjd (dubbelklicka för att återställa)'
+    resizeHeightHandle: 'Dra för att ändra panelens höjd (dubbelklicka för att återställa)',
+    tabRows: 'Flikrader',
+    oneTabRow: '1 rad',
+    twoTabRows: '2 rader',
+    oneTabRowTitle: 'Visa flikar på en rad',
+    twoTabRowsTitle: 'Visa flikar på två rader'
   },
   nav: {
     label: 'Konfigurationssteg',
@@ -945,8 +950,12 @@ const sv = {
   },
   dims: {
     pitch: 'Taklutning',
+    width: 'Bredd',
+    depth: 'Längd / djup',
     frontWall: 'Vägg fram',
     rearWall: 'Vägg bak',
+    highWall: 'Högvägg',
+    lowWall: 'Lågvägg',
     overall: 'Totalhöjd',
     eave: 'Takfot',
     ceiling: 'Invändig takhöjd'
@@ -1489,7 +1498,12 @@ const en = {
     hide: 'Minimise ▼',
     export: 'Export',
     resizeHandle: 'Drag to resize panel width (double-click to reset)',
-    resizeHeightHandle: 'Drag to resize panel height (double-click to reset)'
+    resizeHeightHandle: 'Drag to resize panel height (double-click to reset)',
+    tabRows: 'Tab rows',
+    oneTabRow: '1 row',
+    twoTabRows: '2 rows',
+    oneTabRowTitle: 'Show tabs on one line',
+    twoTabRowsTitle: 'Show tabs on two lines'
   },
   nav: {
     label: 'Configuration steps',
@@ -2047,8 +2061,12 @@ const en = {
   },
   dims: {
     pitch: 'Roof pitch',
+    width: 'Width',
+    depth: 'Length / depth',
     frontWall: 'Front wall',
     rearWall: 'Rear wall',
+    highWall: 'High wall',
+    lowWall: 'Low wall',
     overall: 'Overall height',
     eave: 'Eave height',
     ceiling: 'Interior ceiling height'

@@ -91,3 +91,19 @@ test('roof panel exposes all four pulpet orientations and wires them to store an
   assert.match(canvas, /pulpetOrientation: store\.pulpetOrientation/);
   assert.match(scene, /private pulpetFallSign\(\): 1 \| -1/);
 });
+
+test('3D dimensions draw both width and depth lines outside any terrace deck and do not let outsideAddition occlude labels', () => {
+  const overlay = readFileSync(new URL('../src/components/DimensionOverlay.vue', import.meta.url), 'utf8');
+  const store = readFileSync(new URL('../src/store/useConfigStore.ts', import.meta.url), 'utf8');
+  const scene = readFileSync(new URL('../src/three-engine/HouseScene.ts', import.meta.url), 'utf8');
+
+  assert.match(overlay, /id="dim-front-annotation"/);
+  assert.match(overlay, /id="dim-depth-annotation"/);
+  assert.match(overlay, /store\.dimensions\.depth/);
+  assert.match(store, /depth: \{ x: 0, y: 0, visible: false \}/);
+  assert.match(scene, /this\.dimensionAnchors\.set\('widthFront'/);
+  assert.match(scene, /this\.dimensionAnchors\.set\('widthDeck'/);
+  assert.match(scene, /this\.dimensionAnchors\.set\('depthLeft'/);
+  assert.match(scene, /this\.dimensionAnchors\.set\('depthRight'/);
+  assert.match(scene, /if \(cur\.userData\?\.outsideAddition\) return false;/);
+});

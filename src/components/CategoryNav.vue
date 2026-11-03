@@ -1,7 +1,15 @@
 <template>
   <nav
     ref="navEl"
-    class="flex w-full min-w-0 gap-1.5 overflow-x-auto overscroll-x-contain scroll-smooth [scrollbar-width:thin]"
+    :data-tab-rows="rows"
+    :class="[
+      'w-full min-w-0 gap-1.5',
+      rows === 2
+        ? desktopSlots === 1
+          ? 'grid grid-cols-2'
+          : 'grid grid-cols-4'
+        : 'flex overflow-x-auto overscroll-x-contain scroll-smooth [scrollbar-width:thin]'
+    ]"
     :aria-label="t('nav.label')"
   >
     <button
@@ -12,12 +20,13 @@
       @click="pick(cat.id)"
       :aria-expanded="store.selectedCategory === cat.id ? expanded : undefined"
       :class="[
-        'flex w-[4.75rem] shrink-0 flex-col items-center justify-center min-h-11 py-2 px-1 rounded-xl transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 min-[1180px]:min-h-[3rem] min-[1180px]:py-1.5',
+        'flex flex-col items-center justify-center min-h-11 py-2 px-1 rounded-xl transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 min-[1180px]:min-h-[3rem] min-[1180px]:py-1.5',
+        rows === 2 ? 'w-full min-w-0' : 'w-[4.75rem] shrink-0',
         store.selectedCategory === cat.id
           ? 'bg-slate-900 text-white shadow-sm border border-slate-900'
           : 'bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900 border border-slate-200/60 hover:border-[#FF5A00]'
       ]"
-      :style="desktopItemStyle"
+      :style="rows === 2 ? undefined : desktopItemStyle"
       :aria-current="store.selectedCategory === cat.id ? 'step' : undefined"
     >
       <!-- Authored SVG Architectural Icons (No Emojis) -->
@@ -107,8 +116,10 @@ const props = withDefaults(
     expanded: boolean;
     /** How many category slots fit in the desktop panel before scrolling. */
     desktopSlots?: number;
+    /** Whether category tabs render in 1 scrollable row or 2 visible rows. */
+    rows?: 1 | 2;
   }>(),
-  { desktopSlots: 4 }
+  { desktopSlots: 4, rows: 1 }
 );
 
 const emit = defineEmits<{
@@ -128,6 +139,7 @@ function pick(id: CategoryKey) {
 }
 
 watch(() => store.selectedCategory, async () => {
+  if (props.rows === 2) return;
   await nextTick();
   const nav = navEl.value;
   const btn = nav?.querySelector<HTMLElement>(`#category-${store.selectedCategory}`);
@@ -150,7 +162,7 @@ const categories: { id: CategoryKey }[] = [
 
 <style scoped>
 @media (min-width: 1180px) {
-  button {
+  nav[data-tab-rows='1'] > button {
     width: var(--nav-slot-width);
   }
 }

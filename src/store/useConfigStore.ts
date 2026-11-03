@@ -773,6 +773,7 @@ export const useConfigStore = defineStore('config', () => {
   const slotScreenPosition = ref<{ x: number; y: number; visible: boolean } | null>(null);
   const dimensionLabels = reactive<Record<string, { x: number; y: number; visible: boolean }>>({
     width: { x: 0, y: 0, visible: false },
+    depth: { x: 0, y: 0, visible: false },
     frontHeight: { x: 0, y: 0, visible: false },
     rearHeight: { x: 0, y: 0, visible: false },
     pitch: { x: 0, y: 0, visible: false },

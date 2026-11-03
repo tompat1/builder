@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   DISPLAY_DEFAULTS,
   loadDisplayPrefs,
@@ -13,11 +14,16 @@ import {
   loadPanelWidth,
   savePanelWidth,
   MIN_PANEL_HEIGHT,
+  MIN_PANEL_HEIGHT_TWO_ROWS,
   PANEL_HEIGHT_CHROME,
   maxPanelHeight,
   clampPanelHeight,
   loadPanelHeight,
-  savePanelHeight
+  savePanelHeight,
+  DEFAULT_PANEL_TAB_ROWS,
+  acceptPanelTabRows,
+  loadPanelTabRows,
+  savePanelTabRows
 } from '../src/services/displayPrefs.ts';
 
 test('measurements stay hidden until the device asks for them', () => {
@@ -109,4 +115,38 @@ test('desktop panel height defaults to fill, clamps to one nav row, and persists
   assert.equal(loadPanelHeight(800), MIN_PANEL_HEIGHT);
   saved.set('builder:panel-height', 'invalid');
   assert.equal(loadPanelHeight(800), maxPanelHeight(800));
+});
+
+test('right panel tabs support 1-row and 2-row layout and persist preference', () => {
+  const saved = new Map();
+  globalThis.localStorage = {
+    getItem: (key) => saved.get(key) ?? null,
+    setItem: (key, value) => saved.set(key, value)
+  };
+
+  assert.equal(DEFAULT_PANEL_TAB_ROWS, 1);
+  assert.equal(MIN_PANEL_HEIGHT_TWO_ROWS, 148);
+  assert.equal(loadPanelTabRows(), 1);
+  assert.equal(acceptPanelTabRows(2), 2);
+  assert.equal(acceptPanelTabRows('2'), 2);
+  assert.equal(acceptPanelTabRows(1), 1);
+  assert.equal(acceptPanelTabRows('invalid'), 1);
+
+  savePanelTabRows(2);
+  assert.equal(saved.get('builder:panel-tab-rows'), '2');
+  assert.equal(loadPanelTabRows(), 2);
+
+  savePanelTabRows(1);
+  assert.equal(saved.get('builder:panel-tab-rows'), '1');
+  assert.equal(loadPanelTabRows(), 1);
+
+  const nav = readFileSync(new URL('../src/components/CategoryNav.vue', import.meta.url), 'utf8');
+  const ui = readFileSync(new URL('../src/components/ConfiguratorUI.vue', import.meta.url), 'utf8');
+
+  assert.match(nav, /:data-tab-rows="rows"/);
+  assert.match(nav, /'grid grid-cols-4'/);
+  assert.match(ui, /id="panel-tab-rows-group"/);
+  assert.match(ui, /id="btn-tab-rows-1"/);
+  assert.match(ui, /id="btn-tab-rows-2"/);
+  assert.match(ui, /:rows="panelTabRows"/);
 });

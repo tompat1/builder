@@ -8828,35 +8828,129 @@ export class HouseScene {
     const totalH = this.currentConfig.heightMm / 1000;
     this.dimensionAnchors.clear();
 
-    // 1. Front Width Dimension Line (bottom)
+    const terraces = this.currentConfig.terraces ?? [];
+    const reachOnSide = (side: TerraceSide) =>
+      terraces
+        .filter((t) => t.side === side)
+        .reduce((max, t) => Math.max(max, t.depth || 0), 0);
+    const frontReach = reachOnSide('front');
+    const backReach = reachOnSide('back');
+    const leftReach = reachOnSide('left');
+    const rightReach = reachOnSide('right');
+
+    // 1a. Front & Back Width Dimension Lines (placed outside any front/back terrace so decks never bury them)
     const yFront = 0.05;
-    const zFront = d / 2 + offset;
+    const zFront = d / 2 + frontReach + 0.5;
     const frontLineGeo = new THREE.BufferGeometry().setFromPoints([
       new THREE.Vector3(-w / 2, yFront, zFront),
       new THREE.Vector3(w / 2, yFront, zFront)
     ]);
     this.dimensionsGroup.add(new THREE.Line(frontLineGeo, dimMat));
     this.dimensionAnchors.set('width', new THREE.Vector3(0, yFront, zFront));
+    this.dimensionAnchors.set('widthFront', new THREE.Vector3(0, yFront, zFront));
 
-    // Width Extension lines
-    this.dimensionsGroup.add(
-      new THREE.Line(
-        new THREE.BufferGeometry().setFromPoints([
-          new THREE.Vector3(-w / 2, yFront, d / 2 + 0.1),
-          new THREE.Vector3(-w / 2, yFront, zFront + 0.15)
-        ]),
-        dimMat
-      )
-    );
-    this.dimensionsGroup.add(
-      new THREE.Line(
-        new THREE.BufferGeometry().setFromPoints([
-          new THREE.Vector3(w / 2, yFront, d / 2 + 0.1),
-          new THREE.Vector3(w / 2, yFront, zFront + 0.15)
-        ]),
-        dimMat
-      )
-    );
+    for (const xCorner of [-w / 2, w / 2]) {
+      this.dimensionsGroup.add(
+        new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(xCorner, yFront, d / 2 + 0.1),
+            new THREE.Vector3(xCorner, yFront, zFront + 0.15)
+          ]),
+          dimMat
+        )
+      );
+    }
+
+    if (frontReach > 0.05) {
+      const yDeck = 0.30;
+      const zDeck = d / 2 + 0.45;
+      this.dimensionsGroup.add(
+        new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(-w / 2, yDeck, zDeck),
+            new THREE.Vector3(w / 2, yDeck, zDeck)
+          ]),
+          dimMat
+        )
+      );
+      for (const xCorner of [-w / 2, w / 2]) {
+        this.dimensionsGroup.add(
+          new THREE.Line(
+            new THREE.BufferGeometry().setFromPoints([
+              new THREE.Vector3(xCorner, yDeck, d / 2 + 0.08),
+              new THREE.Vector3(xCorner, yDeck, zDeck + 0.12)
+            ]),
+            dimMat
+          )
+        );
+      }
+      this.dimensionAnchors.set('widthDeck', new THREE.Vector3(0, yDeck, zDeck));
+    }
+
+    const zBack = -d / 2 - backReach - 0.5;
+    const backLineGeo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(-w / 2, yFront, zBack),
+      new THREE.Vector3(w / 2, yFront, zBack)
+    ]);
+    this.dimensionsGroup.add(new THREE.Line(backLineGeo, dimMat));
+    this.dimensionAnchors.set('widthBack', new THREE.Vector3(0, yFront, zBack));
+
+    for (const xCorner of [-w / 2, w / 2]) {
+      this.dimensionsGroup.add(
+        new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(xCorner, yFront, -d / 2 - 0.1),
+            new THREE.Vector3(xCorner, yFront, zBack - 0.15)
+          ]),
+          dimMat
+        )
+      );
+    }
+
+    // 1b. Left & Right Length/Depth Dimension Lines (outside any side terrace)
+    const xLeftDepth = -w / 2 - leftReach - offset;
+    const leftDepthGeo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(xLeftDepth, yFront, -d / 2),
+      new THREE.Vector3(xLeftDepth, yFront, d / 2)
+    ]);
+    this.dimensionsGroup.add(new THREE.Line(leftDepthGeo, dimMat));
+    this.dimensionAnchors.set('depthLeft', new THREE.Vector3(xLeftDepth, yFront, 0));
+    this.dimensionAnchors.set('depthLeftFront', new THREE.Vector3(xLeftDepth, yFront, d * 0.28));
+    this.dimensionAnchors.set('depthLeftBack', new THREE.Vector3(xLeftDepth, yFront, -d * 0.28));
+
+    for (const zCorner of [-d / 2, d / 2]) {
+      this.dimensionsGroup.add(
+        new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(-w / 2 - 0.1, yFront, zCorner),
+            new THREE.Vector3(xLeftDepth - 0.15, yFront, zCorner)
+          ]),
+          dimMat
+        )
+      );
+    }
+
+    const xRightDepth = w / 2 + rightReach + offset;
+    const rightDepthGeo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(xRightDepth, yFront, -d / 2),
+      new THREE.Vector3(xRightDepth, yFront, d / 2)
+    ]);
+    this.dimensionsGroup.add(new THREE.Line(rightDepthGeo, dimMat));
+    this.dimensionAnchors.set('depthRight', new THREE.Vector3(xRightDepth, yFront, 0));
+    this.dimensionAnchors.set('depthRightFront', new THREE.Vector3(xRightDepth, yFront, d * 0.28));
+    this.dimensionAnchors.set('depthRightBack', new THREE.Vector3(xRightDepth, yFront, -d * 0.28));
+
+    for (const zCorner of [-d / 2, d / 2]) {
+      this.dimensionsGroup.add(
+        new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(w / 2 + 0.1, yFront, zCorner),
+            new THREE.Vector3(xRightDepth + 0.15, yFront, zCorner)
+          ]),
+          dimMat
+        )
+      );
+    }
 
     const xRight = w / 2 + offset;
     const xLeft = -w / 2 - offset;
@@ -9282,11 +9376,17 @@ export class HouseScene {
       direction.normalize();
       this.labelRaycaster.set(this.camera.position, direction);
       this.labelRaycaster.far = Math.max(distance - 0.2, 0.01);
-      const blocked = this.labelRaycaster.intersectObjects(
-        [this.wallsGroup, this.roofGroup],
-        true
-      );
-      if (blocked.length > 0) visible = false;
+      const blocked = this.labelRaycaster
+        .intersectObjects([this.wallsGroup, this.roofGroup], true)
+        .some((hit) => {
+          let cur: THREE.Object3D | null = hit.object;
+          while (cur) {
+            if (cur.userData?.outsideAddition) return false;
+            cur = cur.parent;
+          }
+          return true;
+        });
+      if (blocked) visible = false;
     }
 
     return { x, y, visible };
@@ -9316,6 +9416,7 @@ export class HouseScene {
       const ceilingPoint = this.dimensionAnchors.get('ceiling');
       this.onDimensionLabels({
         width: hidden,
+        depth: hidden,
         frontHeight: hidden,
         rearHeight: hidden,
         pitch: hidden,
@@ -9327,7 +9428,16 @@ export class HouseScene {
       return;
     }
 
-    const widthPoint = this.dimensionAnchors.get('width');
+    const width = this.bestVisibleAnchor(['widthFront', 'widthDeck', 'widthBack']);
+    let depth = this.bestVisibleAnchor(['depthLeft', 'depthRight']);
+    if (!depth.visible) {
+      depth = this.bestVisibleAnchor([
+        'depthLeftFront',
+        'depthRightFront',
+        'depthLeftBack',
+        'depthRightBack'
+      ]);
+    }
     const front = this.bestVisibleAnchor(['frontHeightLeft', 'frontHeightRight']);
     const rear =
       this.currentConfig.roofType === 'pulpettak'
@@ -9341,7 +9451,8 @@ export class HouseScene {
     const ceilingPoint = this.dimensionAnchors.get('ceiling');
 
     this.onDimensionLabels({
-      width: widthPoint ? this.projectAnchor(widthPoint) : { x: 0, y: 0, visible: false },
+      width: { x: width.x, y: width.y, visible: width.visible },
+      depth: { x: depth.x, y: depth.y, visible: depth.visible },
       frontHeight: { x: front.x, y: front.y, visible: front.visible },
       rearHeight: { x: rear.x, y: rear.y, visible: rear.visible },
       pitch: { x: pitch.x, y: pitch.y, visible: pitch.visible },
