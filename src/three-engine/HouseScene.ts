@@ -58,6 +58,7 @@ import {
   fixturePowerSpec,
   formatFixturePowerLabel,
   nextFixturePowerStep,
+  parseHouseLightEdits,
   parseHouseLights,
   placeDoorSconceBeside,
   placeFacadeSconcesAlongWall,
@@ -66,6 +67,8 @@ import {
   type DaylightMode,
   type FixturePowerKind,
   type FixturePowerStep,
+  type HouseLightEdit,
+  type HouseLightEdits,
   type HouseLightsConfig,
   type WallOpeningSpan
 } from '../outside/houseLights';
@@ -195,6 +198,8 @@ export interface SceneConfig {
   doorCanopy?: boolean;
   /** Exterior try-out lights (facade / door / LED / garden). */
   houseLights?: HouseLightsConfig;
+  /** Saved user offsets and removals for generated exterior fixtures. */
+  houseLightEdits?: HouseLightEdits;
   /** Sun / moon / neutral sky presentation. */
   daylightMode?: DaylightMode;
   /** Roof sheet ends at the walls. A metal band covers the edge and the wall top. */
@@ -335,6 +340,22 @@ export class HouseScene {
   private fixtureGlows: { mesh: THREE.Mesh; base: number; fixtureId?: string }[] = [];
   /** Clickable fixture meshes (sconce body/lens, strips, bollards). */
   private fixturePickMeshes: THREE.Mesh[] = [];
+  /** Every render object belonging to one movable fixture. */
+  private fixtureObjects = new Map<string, THREE.Object3D[]>();
+  private selectedFixtureId: string | null = null;
+  private fixtureSelectionBox: THREE.Box3Helper | null = null;
+  private fixtureDragPlane = new THREE.Plane();
+  private fixtureDragPoint = new THREE.Vector3();
+  private draggingFixture: {
+    id: string;
+    pointerId: number;
+    startX: number;
+    startY: number;
+    hasMoved: boolean;
+    startPoint: THREE.Vector3;
+    startEdit: HouseLightEdit;
+    currentEdit: HouseLightEdit;
+  } | null = null;
   /** Per-fixture LED step survives rebuilds while the scene lives. */
   private fixturePowerLevels = new Map<string, FixturePowerStep>();
   private fixturePowerKinds = new Map<string, FixturePowerKind>();
@@ -413,6 +434,9 @@ export class HouseScene {
     x: number;
     y: number;
   }) => void;
+  public onFixtureSelect?: (info: { id: string; label: string } | null) => void;
+  public onFixtureMove?: (id: string, edit: HouseLightEdit) => void;
+  public onFixtureDelete?: (id: string) => void;
   public onMeasureCursor?: (point: { x: number; y: number; z: number } | null) => void;
   public onMeasureScreen?: (screen: {
     start: { x: number; y: number; visible: boolean };
@@ -789,6 +813,137 @@ export class HouseScene {
     });
   }
 
+  private fixtureLabel(id: string) {
+    if (id.startsWith('garden-')) return 'Garden light';
+    if (id.startsWith('terrace-deck-')) return 'Terrace light';
+    if (id.startsWith('terrace-rim-')) return 'Terrace rim light';
+    if (id.startsWith('led-canopy-')) return 'Canopy light strip';
+    if (id.startsWith('led-eave-')) return 'Eave light strip';
+    if (id.startsWith('door-')) return 'Door light';
+    if (id.startsWith('updown-')) return 'Up/down wall light';
+    if (id.includes('-cabin-')) return 'Sauna wall light';
+    return 'Facade light';
+  }
+
+  private clearFixtureSelectionBox() {
+    if (!this.fixtureSelectionBox) return;
+    this.scene.remove(this.fixtureSelectionBox);
+    this.fixtureSelectionBox.geometry.dispose();
+    const material = this.fixtureSelectionBox.material;
+    if (Array.isArray(material)) material.forEach((item) => item.dispose());
+    else material.dispose();
+    this.fixtureSelectionBox = null;
+  }
+
+  private updateFixtureSelectionBox() {
+    this.clearFixtureSelectionBox();
+    if (!this.selectedFixtureId) return;
+    const objects = this.fixtureObjects.get(this.selectedFixtureId)?.filter((item) => item.visible) ?? [];
+    if (!objects.length) return;
+    const box = new THREE.Box3();
+    for (const object of objects) box.expandByObject(object);
+    if (box.isEmpty()) return;
+    box.expandByScalar(0.08);
+    this.fixtureSelectionBox = new THREE.Box3Helper(box, 0xff5a1f);
+    this.fixtureSelectionBox.renderOrder = 20;
+    this.scene.add(this.fixtureSelectionBox);
+  }
+
+  private selectFixture(id: string | null) {
+    if (id && !this.fixtureObjects.has(id)) id = null;
+    this.selectedFixtureId = id;
+    this.updateFixtureSelectionBox();
+    this.onFixtureSelect?.(id ? { id, label: this.fixtureLabel(id) } : null);
+  }
+
+  public clearFixtureSelection() {
+    this.selectFixture(null);
+  }
+
+  public cycleSelectedFixturePower() {
+    const id = this.selectedFixtureId;
+    if (!id) return;
+    const box = this.fixtureSelectionBox?.box;
+    const center = box && !box.isEmpty() ? box.getCenter(new THREE.Vector3()) : new THREE.Vector3();
+    const projected = center.clone().project(this.camera);
+    const rect = this.container.getBoundingClientRect();
+    this.cycleFixturePower(
+      id,
+      rect.left + ((projected.x + 1) * rect.width) / 2,
+      rect.top + ((-projected.y + 1) * rect.height) / 2
+    );
+  }
+
+  public deleteSelectedFixture() {
+    const id = this.selectedFixtureId;
+    if (!id) return;
+    this.onFixtureDelete?.(id);
+    this.selectFixture(null);
+  }
+
+  private fixtureEdit(id: string): HouseLightEdit {
+    return this.currentConfig.houseLightEdits?.[id] ?? { x: 0, y: 0, z: 0 };
+  }
+
+  private applyHouseLightEdits(group: THREE.Group) {
+    this.fixtureObjects.clear();
+    const edits = parseHouseLightEdits(this.currentConfig.houseLightEdits);
+    this.currentConfig.houseLightEdits = edits;
+    group.traverse((object) => {
+      const id = typeof object.userData.fixtureId === 'string' ? object.userData.fixtureId : null;
+      if (!id) return;
+      const objects = this.fixtureObjects.get(id) ?? [];
+      objects.push(object);
+      this.fixtureObjects.set(id, objects);
+    });
+    for (const [id, objects] of this.fixtureObjects) {
+      const edit = edits[id];
+      if (!edit) continue;
+      for (const object of objects) {
+        if (edit.deleted) object.visible = false;
+        else object.position.add(new THREE.Vector3(edit.x, edit.y, edit.z));
+      }
+    }
+    this.fixturePickMeshes = this.fixturePickMeshes.filter((mesh) => mesh.visible);
+    this.fixtureLights = this.fixtureLights.filter((light) => light.visible);
+    this.fixtureGlows = this.fixtureGlows.filter((glow) => glow.mesh.visible);
+    if (this.selectedFixtureId && this.fixtureObjects.has(this.selectedFixtureId)) {
+      this.updateFixtureSelectionBox();
+    } else if (this.selectedFixtureId) {
+      this.selectFixture(null);
+    }
+  }
+
+  private fixturePointAt(clientX: number, clientY: number) {
+    const rect = this.container.getBoundingClientRect();
+    this.mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    this.mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+    this.raycaster.setFromCamera(this.mouse, this.camera);
+    const point = this.raycaster.ray.intersectPlane(this.fixtureDragPlane, this.fixtureDragPoint);
+    return point ? point.clone() : null;
+  }
+
+  private moveFixtureDrag(clientX: number, clientY: number) {
+    const drag = this.draggingFixture;
+    if (!drag) return;
+    const point = this.fixturePointAt(clientX, clientY);
+    if (!point) return;
+    const raw = point.sub(drag.startPoint);
+    const next: HouseLightEdit = {
+      x: Math.round((drag.startEdit.x + raw.x) * 20) / 20,
+      y: Math.round((drag.startEdit.y + raw.y) * 20) / 20,
+      z: Math.round((drag.startEdit.z + raw.z) * 20) / 20
+    };
+    const delta = new THREE.Vector3(
+      next.x - drag.currentEdit.x,
+      next.y - drag.currentEdit.y,
+      next.z - drag.currentEdit.z
+    );
+    for (const object of this.fixtureObjects.get(drag.id) ?? []) object.position.add(delta);
+    drag.currentEdit = next;
+    this.updateFixtureSelectionBox();
+  }
+
   /** Keep the corner compass pointing at world north as the camera orbits. */
   private publishCompassDial() {
     if (!this.onCompassDial || this.currentConfig.viewMode !== 'utsida') return;
@@ -1020,19 +1175,19 @@ export class HouseScene {
   }
 
   private onGlobalPointerMove = (e: PointerEvent) => {
-    if (this.draggingSlot || this.draggingRoom) {
+    if (this.draggingSlot || this.draggingRoom || this.draggingFixture) {
       this.handlePointerMove(e);
     }
   };
 
   private onGlobalPointerUp = (e: PointerEvent) => {
-    if (this.draggingSlot || this.draggingRoom) {
+    if (this.draggingSlot || this.draggingRoom || this.draggingFixture) {
       this.handlePointerUp(e);
     }
   };
 
   private onGlobalKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'Escape' && (this.draggingSlot || this.draggingRoom)) {
+    if (e.key === 'Escape' && (this.draggingSlot || this.draggingRoom || this.draggingFixture)) {
       this.cancelActiveDrag();
     }
   };
@@ -1064,6 +1219,31 @@ export class HouseScene {
       this.updateHoverBox(null);
       this.onPanelHover?.(null, 0, 0);
       this.updateRoomPreview(null);
+      return;
+    }
+    if (this.draggingFixture) {
+      const distance = Math.hypot(
+        e.clientX - this.draggingFixture.startX,
+        e.clientY - this.draggingFixture.startY
+      );
+      if (!this.draggingFixture.hasMoved && distance > 5) {
+        this.draggingFixture.hasMoved = true;
+        this.onDragStateChange?.(true);
+      }
+      if (this.draggingFixture.hasMoved) this.moveFixtureDrag(e.clientX, e.clientY);
+      this.container.style.cursor = 'grabbing';
+      return;
+    }
+
+    const fixtureRect = this.container.getBoundingClientRect();
+    this.mouse.x = ((e.clientX - fixtureRect.left) / fixtureRect.width) * 2 - 1;
+    this.mouse.y = -((e.clientY - fixtureRect.top) / fixtureRect.height) * 2 + 1;
+    this.raycaster.setFromCamera(this.mouse, this.camera);
+    const fixtureHover = this.raycaster.intersectObjects(this.fixturePickMeshes, false)[0];
+    if (fixtureHover) {
+      this.container.style.cursor = 'grab';
+      this.updateHoverBox(null);
+      this.onPanelHover?.(null, 0, 0);
       return;
     }
     // Night / moon: no bay hover outline — keeps the facade clean for light try-out.
@@ -1270,6 +1450,16 @@ export class HouseScene {
   }
 
   private handlePointerUp = (e: PointerEvent) => {
+    if (this.draggingFixture) {
+      const drag = this.draggingFixture;
+      this.draggingFixture = null;
+      this.controls.enabled = true;
+      this.container.style.cursor = 'grab';
+      this.detachGlobalDragListeners();
+      this.onDragStateChange?.(false);
+      if (drag.hasMoved) this.onFixtureMove?.(drag.id, drag.currentEdit);
+      return;
+    }
     if (this.draggingRoom) {
       this.finishRoomDrag(true);
       this.draggingRoom = null;
@@ -1329,6 +1519,19 @@ export class HouseScene {
   };
 
   private cancelActiveDrag = () => {
+    if (this.draggingFixture) {
+      const drag = this.draggingFixture;
+      const delta = new THREE.Vector3(
+        drag.startEdit.x - drag.currentEdit.x,
+        drag.startEdit.y - drag.currentEdit.y,
+        drag.startEdit.z - drag.currentEdit.z
+      );
+      for (const object of this.fixtureObjects.get(drag.id) ?? []) object.position.add(delta);
+      this.draggingFixture = null;
+      this.controls.enabled = true;
+      this.updateFixtureSelectionBox();
+      this.container.style.cursor = 'grab';
+    }
     if (this.draggingRoom) {
       this.finishRoomDrag(false);
       this.draggingRoom = null;
@@ -1366,12 +1569,34 @@ export class HouseScene {
         const hit = fixtureHits[0].object as THREE.Mesh;
         const fixtureId = hit.userData.fixtureId as string | undefined;
         if (fixtureId) {
-          this.cycleFixturePower(fixtureId, e.clientX, e.clientY);
+          this.selectFixture(fixtureId);
+          const groundMounted = fixtureId.startsWith('garden-') || fixtureId.startsWith('terrace-deck-');
+          const normal = groundMounted
+            ? new THREE.Vector3(0, 1, 0)
+            : new THREE.Vector3(Math.sin(hit.rotation.y), 0, Math.cos(hit.rotation.y)).normalize();
+          this.fixtureDragPlane.setFromNormalAndCoplanarPoint(normal, hit.position);
+          const startPoint = this.fixturePointAt(e.clientX, e.clientY);
+          if (startPoint) {
+            const startEdit = { ...this.fixtureEdit(fixtureId), deleted: undefined };
+            this.draggingFixture = {
+              id: fixtureId,
+              pointerId: e.pointerId,
+              startX: e.clientX,
+              startY: e.clientY,
+              hasMoved: false,
+              startPoint,
+              startEdit,
+              currentEdit: { ...startEdit }
+            };
+            this.controls.enabled = false;
+            this.attachGlobalDragListeners();
+          }
           e.stopPropagation();
           return;
         }
       }
     }
+    if (this.selectedFixtureId) this.selectFixture(null);
     if (this.painting) {
       if (e.button !== 0) return;
       const rect = this.container.getBoundingClientRect();
@@ -4576,6 +4801,7 @@ export class HouseScene {
     this.fixtureLights = [];
     this.fixtureGlows = [];
     this.fixturePickMeshes = [];
+    this.fixtureObjects.clear();
     const lights = parseHouseLights(this.currentConfig.houseLights ?? DEFAULT_HOUSE_LIGHTS);
     if (
       !lights.facadeLights
@@ -4585,6 +4811,7 @@ export class HouseScene {
       && !lights.terraceLights
       && !lights.gardenLights
     ) {
+      if (this.selectedFixtureId) this.selectFixture(null);
       return;
     }
 
@@ -5100,6 +5327,7 @@ export class HouseScene {
       }
     }
 
+    this.applyHouseLightEdits(group);
     this.wallsGroup.add(group);
   }
 
@@ -8963,6 +9191,9 @@ export class HouseScene {
     }
     if (config.houseLights) {
       this.currentConfig.houseLights = parseHouseLights(config.houseLights);
+    }
+    if (config.houseLightEdits) {
+      this.currentConfig.houseLightEdits = parseHouseLightEdits(config.houseLightEdits);
     }
     if (interactionChanged) {
       this.drawingWallPoints = [];

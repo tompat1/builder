@@ -77,8 +77,11 @@ import {
 import {
   DEFAULT_HOUSE_LIGHTS,
   acceptDaylightMode,
+  parseHouseLightEdits,
   parseHouseLights,
   type DaylightMode,
+  type HouseLightEdit,
+  type HouseLightEdits,
   type HouseLightKey,
   type HouseLightsConfig
 } from '../outside/houseLights';
@@ -792,6 +795,7 @@ export const useConfigStore = defineStore('config', () => {
   const activeGate = ref<string>('none');
   const doorCanopy = ref(false);
   const houseLights = ref<HouseLightsConfig>({ ...DEFAULT_HOUSE_LIGHTS });
+  const houseLightEdits = ref<HouseLightEdits>({});
   /**
    * Roof edge: overhang | flush | none, or special deep-south v1–v3.
    * flushRoof / roofOverhangVersion stay derived for the scene and legacy saves.
@@ -1006,6 +1010,7 @@ export const useConfigStore = defineStore('config', () => {
       activeGate: activeGate.value,
       doorCanopy: doorCanopy.value,
       houseLights: { ...houseLights.value },
+      houseLightEdits: { ...houseLightEdits.value },
       roofEdge: roofEdge.value,
       flushRoof: flushRoof.value,
       roofOverhangVersion: roofOverhangVersion.value,
@@ -1110,6 +1115,7 @@ export const useConfigStore = defineStore('config', () => {
       if (data.activeGate) activeGate.value = data.activeGate;
       doorCanopy.value = data.doorCanopy === true;
       houseLights.value = parseHouseLights(data.houseLights);
+      houseLightEdits.value = parseHouseLightEdits(data.houseLightEdits);
       if (data.roofEdge != null) {
         roofEdge.value = acceptRoofEdgeChoice(data.roofEdge);
       } else {
@@ -2108,6 +2114,22 @@ export const useConfigStore = defineStore('config', () => {
 
   const toggleHouseLight = (key: HouseLightKey) => {
     setHouseLight(key, !houseLights.value[key]);
+  }
+
+  const moveHouseLight = (id: string, edit: HouseLightEdit) => {
+    const parsed = parseHouseLightEdits({ [id]: edit });
+    if (!parsed[id]) return;
+    houseLightEdits.value = { ...houseLightEdits.value, [id]: parsed[id] };
+    saveSnapshot();
+  }
+
+  const deleteHouseLight = (id: string) => {
+    const current = houseLightEdits.value[id] ?? { x: 0, y: 0, z: 0 };
+    houseLightEdits.value = {
+      ...houseLightEdits.value,
+      [id]: { ...current, deleted: true }
+    };
+    saveSnapshot();
   }
 
   const replaceTerrace = (side: TerraceSide, patch: Partial<HouseTerrace>) => {
@@ -3178,6 +3200,7 @@ export const useConfigStore = defineStore('config', () => {
     activeGate,
     doorCanopy,
     houseLights,
+    houseLightEdits,
     roofEdge,
     flushRoof,
     roofOverhangVersion,
@@ -3272,6 +3295,8 @@ export const useConfigStore = defineStore('config', () => {
     setDoorCanopy,
     setHouseLight,
     toggleHouseLight,
+    moveHouseLight,
+    deleteHouseLight,
     setDaylightMode,
     addTerrace,
     removeTerrace,

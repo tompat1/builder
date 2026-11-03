@@ -17,6 +17,7 @@ import {
   nightGainForHour,
   nextFixturePowerStep,
   nudgeOffOpenings,
+  parseHouseLightEdits,
   parseHouseLights,
   placeDoorSconceBeside,
   placeFacadeSconcesAlongWall,
@@ -133,6 +134,19 @@ test('door sconce sits beside the leaf, not on the door centre', () => {
   assert.ok(Math.abs(beside) < 2);
 });
 
+test('fixture edits preserve bounded moves and deletions while dropping unsafe data', () => {
+  assert.deepEqual(parseHouseLightEdits({
+    'facade-front-0': { x: 0.126, y: -0.05, z: 0, deleted: true },
+    'garden-1': { x: 2, y: 0, z: -1.5 },
+    '../bad': { x: 1, y: 1, z: 1 },
+    'too-far': { x: 80, y: 0, z: 0 }
+  }), {
+    'facade-front-0': { x: 0.13, y: -0.05, z: 0, deleted: true },
+    'garden-1': { x: 2, y: 0, z: -1.5 }
+  });
+  assert.deepEqual(parseHouseLightEdits(null), {});
+});
+
 test('Outside lights UI and store wiring are present', async () => {
   const fs = await import('node:fs');
   const path = await import('node:path');
@@ -147,11 +161,17 @@ test('Outside lights UI and store wiring are present', async () => {
   assert.match(store, /setHouseLight/);
   assert.match(store, /setDaylightMode/);
   assert.match(store, /houseLights/);
+  assert.match(store, /houseLightEdits/);
+  assert.match(store, /moveHouseLight/);
+  assert.match(store, /deleteHouseLight/);
   assert.match(scene, /buildHouseLights/);
   assert.match(scene, /fixtureLights/);
   assert.match(scene, /FIXTURE_CLEARANCE_M/);
   assert.match(scene, /cycleFixturePower/);
   assert.match(scene, /onFixturePowerReadout/);
+  assert.match(scene, /onFixtureSelect/);
+  assert.match(scene, /onFixtureMove/);
+  assert.match(scene, /onFixtureDelete/);
   assert.match(scene, /addUpDownLed|facadeUpDownLights/);
   assert.match(scene, /setExteriorOnlyLightingLayer/);
   assert.match(scene, /syncInteriorLightingLayers/);
@@ -161,6 +181,9 @@ test('Outside lights UI and store wiring are present', async () => {
   const canvas = fs.readFileSync(path.join(root, 'src/components/HouseCanvas.vue'), 'utf8');
   assert.match(canvas, /fixture-power-readout/);
   assert.match(canvas, /onFixturePowerReadout/);
+  assert.match(canvas, /fixture-selection-toolbar/);
+  assert.match(canvas, /cycleSelectedFixturePower/);
+  assert.match(canvas, /deleteSelectedFixture/);
   assert.match(overlay, /option-light-\$\{light\.key\}/);
   assert.match(overlay, /HOUSE_LIGHT_OPTIONS/);
   assert.match(tools, /daylight-\$\{mode\.id\}/);

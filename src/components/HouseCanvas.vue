@@ -49,6 +49,54 @@
       </div>
     </transition>
 
+    <transition
+      enter-active-class="transition duration-150 ease-out"
+      enter-from-class="opacity-0 -translate-y-1 scale-95"
+      enter-to-class="opacity-100 translate-y-0 scale-100"
+      leave-active-class="transition duration-100 ease-in"
+      leave-from-class="opacity-100"
+      leave-to-class="opacity-0 -translate-y-1"
+    >
+      <div
+        v-if="selectedFixture"
+        id="fixture-selection-toolbar"
+        class="absolute left-1/2 top-28 z-30 flex max-w-[calc(100%-2rem)] -translate-x-1/2 items-center gap-2 rounded-2xl bg-slate-950/95 p-2 pl-3 text-white shadow-xl"
+        role="toolbar"
+        :aria-label="locale === 'en' ? 'Selected light controls' : 'Reglage för vald lampa'"
+      >
+        <div class="min-w-0 pr-1">
+          <p class="truncate text-sm font-bold leading-tight">{{ selectedFixture.label }}</p>
+          <p class="whitespace-nowrap text-[11px] leading-tight text-slate-300">
+            {{ locale === 'en' ? 'Drag to move · Delete to remove' : 'Dra för att flytta · Delete för att ta bort' }}
+          </p>
+        </div>
+        <button
+          type="button"
+          class="flex min-h-11 min-w-11 items-center justify-center rounded-xl bg-white/10 px-3 text-xs font-bold transition hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-400"
+          @click="engine?.cycleSelectedFixturePower()"
+        >
+          {{ locale === 'en' ? 'Power' : 'Effekt' }}
+        </button>
+        <button
+          type="button"
+          class="flex min-h-11 min-w-11 items-center justify-center rounded-xl bg-red-500 px-3 text-xs font-bold text-white transition hover:bg-red-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-300"
+          @click="engine?.deleteSelectedFixture()"
+        >
+          {{ locale === 'en' ? 'Delete' : 'Ta bort' }}
+        </button>
+        <button
+          type="button"
+          class="flex min-h-11 min-w-11 items-center justify-center rounded-xl text-slate-300 transition hover:bg-white/10 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-orange-400"
+          :aria-label="locale === 'en' ? 'Deselect light' : 'Avmarkera lampa'"
+          @click="engine?.clearFixtureSelection()"
+        >
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
+        </button>
+      </div>
+    </transition>
+
     <!-- Drag to orbit hint -->
     <transition
       enter-active-class="transition duration-500 ease-out"
@@ -151,6 +199,7 @@ const showDragHint = ref(false);
 const compassDial = ref(0);
 const hoveredFramingItem = ref<FramingHoverItem | null>(null);
 const fixturePowerReadout = ref<{ label: string; x: number; y: number } | null>(null);
+const selectedFixture = ref<{ id: string; label: string } | null>(null);
 let fixturePowerTimer: ReturnType<typeof setTimeout> | null = null;
 
 function showFixturePowerReadout(info: { label: string; x: number; y: number }) {
@@ -283,6 +332,7 @@ onMounted(() => {
       wallSlots: store.wallSlots,
       doorCanopy: store.doorCanopy,
       houseLights: { ...store.houseLights },
+      houseLightEdits: { ...store.houseLightEdits },
       daylightMode: store.daylightMode,
       flushRoof: store.flushRoof,
       roofOverhangVersion: store.roofOverhangVersion,
@@ -363,6 +413,15 @@ onMounted(() => {
     engine.onFixturePowerReadout = (info) => {
       showFixturePowerReadout(info);
     };
+    engine.onFixtureSelect = (info) => {
+      selectedFixture.value = info;
+    };
+    engine.onFixtureMove = (id, edit) => {
+      store.moveHouseLight(id, edit);
+    };
+    engine.onFixtureDelete = (id) => {
+      store.deleteHouseLight(id);
+    };
     engine.onRoomPlaced = (id, type, w, d, x, y, z) => {
       store.placedRooms[id] = { type, w, d, x, y, z, wallsVisible: true };
       store.selectRoom(id);
@@ -401,9 +460,19 @@ onMounted(() => {
 });
 
 function onRoomKey(event: KeyboardEvent) {
-  if (event.key !== 'Delete' && event.key !== 'Backspace') return;
   const target = event.target as HTMLElement | null;
   if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+  if (event.key === 'Escape' && selectedFixture.value) {
+    event.preventDefault();
+    engine?.clearFixtureSelection();
+    return;
+  }
+  if (event.key !== 'Delete' && event.key !== 'Backspace') return;
+  if (selectedFixture.value) {
+    event.preventDefault();
+    engine?.deleteSelectedFixture();
+    return;
+  }
   if (store.selectedCategory !== 'interior' || !store.selectedRoomId) return;
   event.preventDefault();
   store.removePlacedRoom(store.selectedRoomId);
@@ -688,12 +757,14 @@ watch(
   [
     () => store.doorCanopy,
     () => store.houseLights,
+    () => store.houseLightEdits,
     () => store.terraces.map((item) => `${item.side}:${item.depth}:${item.span}:${item.roof ? 1 : 0}:${item.building ?? 'none'}:${item.hotTub ? 1 : 0}:${item.buildingPlacement ?? 'right'}:${item.buildingRoof ?? 'pulpet'}:${item.buildingTurn ?? 0}:${item.buildingColor ?? 'natural'}:${item.buildingDoor ?? 'glass'}:${item.buildingDoorWall ?? 'auto'}:${item.buildingYardDoor ? 1 : 0}:${item.buildingWindow ?? 'panorama'}:${item.buildingWindowPlacement ?? 'yard'}:${item.buildingSize ?? 'standard'}:${item.buildingWindowSize ?? 'standard'}`).join('|')
   ],
   () => {
     engine?.updateConfig({
       doorCanopy: store.doorCanopy,
       houseLights: { ...store.houseLights },
+      houseLightEdits: { ...store.houseLightEdits },
       terraces: store.terraces.map((item) => ({ ...item }))
     });
   },
@@ -767,6 +838,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('keydown', onRoomKey);
   if (fixturePowerTimer) clearTimeout(fixturePowerTimer);
   fixturePowerReadout.value = null;
+  selectedFixture.value = null;
   hoveredFramingItem.value = null;
   engine?.destroy();
 });

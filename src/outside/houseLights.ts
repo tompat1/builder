@@ -63,6 +63,37 @@ export const DEFAULT_HOUSE_LIGHTS: HouseLightsConfig = {
 
 export type HouseLightKey = keyof HouseLightsConfig;
 
+/** User-authored offset or removal for one generated exterior fixture. */
+export interface HouseLightEdit {
+  x: number;
+  y: number;
+  z: number;
+  deleted?: boolean;
+}
+
+export type HouseLightEdits = Record<string, HouseLightEdit>;
+
+/** Keep saved fixture edits finite, local to the model, and reasonably bounded. */
+export function parseHouseLightEdits(raw: unknown): HouseLightEdits {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const parsed: HouseLightEdits = {};
+  for (const [id, value] of Object.entries(raw as Record<string, unknown>).slice(0, 240)) {
+    if (!/^[a-z0-9-]{1,80}$/i.test(id) || !value || typeof value !== 'object') continue;
+    const row = value as Record<string, unknown>;
+    const x = Number(row.x);
+    const y = Number(row.y);
+    const z = Number(row.z);
+    if (![x, y, z].every((n) => Number.isFinite(n) && Math.abs(n) <= 50)) continue;
+    parsed[id] = {
+      x: Math.round(x * 100) / 100,
+      y: Math.round(y * 100) / 100,
+      z: Math.round(z * 100) / 100,
+      ...(row.deleted === true ? { deleted: true } : {})
+    };
+  }
+  return parsed;
+}
+
 /** Classic sconce vs dual-beam up/down LED (label + default step). */
 export type FixturePowerKind = 'single' | 'dual';
 
