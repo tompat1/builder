@@ -64,6 +64,36 @@ test('cabin on the right faces its open-deck light toward the left', () => {
   assert.ok(side.x < 1.6);
 });
 
+test('a glazed yard face moves the cabin light onto the clear outer side wall', () => {
+  const locals = cabinExteriorLightLocals({
+    bX: -1.5,
+    bW: 2.2,
+    bD: 2.0,
+    outward: 1,
+    isLeft: true,
+    yardFaceBlocked: true
+  });
+
+  assert.equal(locals.length, 1);
+  assert.equal(locals[0].rotYOffset, Math.PI / 2);
+  assert.ok(locals[0].x > -1.5 + 1.1);
+  assert.ok(locals[0].z > 0 && locals[0].z < 2.0);
+});
+
+test('cabin fixtures skip every exterior face occupied by a door or window', () => {
+  const locals = cabinExteriorLightLocals({
+    bX: 0,
+    bW: 2.2,
+    bD: 2.0,
+    outward: 1,
+    isLeft: false,
+    deckSideBlocked: true,
+    yardFaceBlocked: true
+  });
+
+  assert.deepEqual(locals, []);
+});
+
 test('object-aware cabin lights are wired into the house scene', async () => {
   const fs = await import('node:fs');
   const path = await import('node:path');
@@ -73,4 +103,6 @@ test('object-aware cabin lights are wired into the house scene', async () => {
   assert.match(scene, /cabinExteriorLightLocals/);
   assert.match(scene, /cabinHouseWallBlock/);
   assert.match(scene, /cabinBlocksByWall/);
+  assert.match(scene, /deckSideBlocked/);
+  assert.match(scene, /yardFaceBlocked/);
 });

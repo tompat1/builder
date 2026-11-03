@@ -97,6 +97,10 @@ export function cabinExteriorLightLocals(opts: {
   bD: number;
   outward: number;
   isLeft: boolean;
+  /** The open-deck side carries a window or door, so keep fixtures off it. */
+  deckSideBlocked?: boolean;
+  /** The yard face carries a window or door, so keep fixtures off it. */
+  yardFaceBlocked?: boolean;
   /** Yard-face openings in the same along-wall space as `bX` (doors / windows). */
   yardOpenings?: CabinWallOpening[];
 }): CabinExteriorLightLocal[] {
@@ -107,18 +111,22 @@ export function cabinExteriorLightLocals(opts: {
   const points: CabinExteriorLightLocal[] = [];
 
   // Side wall looking toward the open deck / hot tub.
-  const sideX = isLeft ? bX + bW / 2 + standoff : bX - bW / 2 - standoff;
-  const sideDepth = Math.min(bD * 0.55, Math.max(0.55, bD - 0.35));
-  points.push({
-    x: sideX,
-    z: outward * sideDepth,
-    rotYOffset: isLeft ? Math.PI / 2 : -Math.PI / 2
-  });
+  if (!opts.deckSideBlocked) {
+    const sideX = isLeft ? bX + bW / 2 + standoff : bX - bW / 2 - standoff;
+    const sideDepth = Math.min(bD * 0.55, Math.max(0.55, bD - 0.35));
+    points.push({
+      x: sideX,
+      z: outward * sideDepth,
+      rotYOffset: isLeft ? Math.PI / 2 : -Math.PI / 2
+    });
+  }
 
   // Yard face — one or two washers on free cladding.
-  const yardZ = outward * (bD + standoff);
-  for (const x of yardFaceSeeds(bX, bW, opts.yardOpenings ?? [], bW > 2.3 ? 2 : 1)) {
-    points.push({ x, z: yardZ, rotYOffset: 0 });
+  if (!opts.yardFaceBlocked) {
+    const yardZ = outward * (bD + standoff);
+    for (const x of yardFaceSeeds(bX, bW, opts.yardOpenings ?? [], bW > 2.3 ? 2 : 1)) {
+      points.push({ x, z: yardZ, rotYOffset: 0 });
+    }
   }
 
   return points;

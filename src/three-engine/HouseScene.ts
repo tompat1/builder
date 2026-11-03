@@ -4761,7 +4761,10 @@ export class HouseScene {
       this.wallOpenings(wall, w, d, h, 0.25).map((o) => ({ x: o.x, width: o.winW }));
 
     // Sauna/shed footprints block house-wall sconces; fixtures move onto cabin walls.
-    const cabinSites: NonNullable<ReturnType<typeof this.terraceCabinPlacement>>[] = [];
+    const cabinSites: {
+      site: NonNullable<ReturnType<HouseScene['terraceCabinPlacement']>>;
+      terrace: HouseTerrace;
+    }[] = [];
     const cabinBlocksByWall: Record<'front' | 'back' | 'left' | 'right', WallOpeningSpan[]> = {
       front: [],
       back: [],
@@ -4771,7 +4774,7 @@ export class HouseScene {
     for (const terrace of this.currentConfig.terraces ?? []) {
       const site = this.terraceCabinPlacement(terrace, w, d, h);
       if (!site) continue;
-      cabinSites.push(site);
+      cabinSites.push({ site, terrace });
       const localBlock = cabinHouseWallBlock(site.cabin);
       cabinBlocksByWall[site.door.wall].push({
         x: this.terraceLocalToWallAlong(site.door.wall, site.door, localBlock.x),
@@ -4842,13 +4845,26 @@ export class HouseScene {
       const deckTop = 0.28;
       const cabinY = Math.min(h - 0.25, deckTop + 1.75);
       let cabinSeq = 0;
-      for (const site of cabinSites) {
+      for (const { site, terrace } of cabinSites) {
+        const windowId = terrace.buildingWindow ?? 'standard';
+        const windowPlacement = terrace.buildingWindowPlacement ?? 'yard';
+        const hasWindow = windowId !== 'none' && windowPlacement !== 'none';
+        const deckSideWall = site.cabin.isLeft ? 'right' : 'left';
+        const deckSideBlocked =
+          (hasWindow && (windowPlacement === 'side' || windowPlacement === 'both'))
+          || terrace.buildingDoorWall === deckSideWall;
+        const yardFaceBlocked =
+          (hasWindow && (windowPlacement === 'yard' || windowPlacement === 'both'))
+          || terrace.buildingDoorWall === 'yard'
+          || terrace.buildingYardDoor === true;
         const locals = cabinExteriorLightLocals({
           bX: site.cabin.bX,
           bW: site.cabin.bW,
           bD: site.cabin.bD,
           outward: site.outward,
-          isLeft: site.cabin.isLeft
+          isLeft: site.cabin.isLeft,
+          deckSideBlocked,
+          yardFaceBlocked
         });
         const cos = Math.cos(site.door.rotY);
         const sin = Math.sin(site.door.rotY);
