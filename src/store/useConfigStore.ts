@@ -18,7 +18,16 @@ import {
   type CustomPaint,
   type SavedPaint
 } from '../color/paint';
-import { eaveLiftMm, gablePitchDegrees, wallPlateHeightM } from './roof';
+import {
+  acceptPulpetOrientation,
+  eaveLiftMm,
+  gablePitchDegrees,
+  isWidthFallPulpet,
+  PULPET_ORIENTATIONS,
+  wallPlateHeightM,
+  type PulpetOrientation
+} from './roof';
+export { PULPET_ORIENTATIONS, isWidthFallPulpet, type PulpetOrientation };
 import { floorAreaSqMeters } from './area';
 import { loadDisplayPrefs, saveDisplayPrefs, type DisplayPrefs } from '../services/displayPrefs';
 import { saveAccountDisplay, sessionToken } from '../services/account';
@@ -801,6 +810,7 @@ export const useConfigStore = defineStore('config', () => {
    * flushRoof / roofOverhangVersion stay derived for the scene and legacy saves.
    */
   const roofEdge = ref<RoofEdgeChoice>(DEFAULT_ROOF_EDGE);
+  const pulpetOrientation = ref<PulpetOrientation>('south');
   const flushRoof = computed(() => flushRoofForEdge(roofEdge.value));
   const roofOverhangVersion = computed<RoofOverhangVersion>(() =>
     isSpecialRoofOverhang(roofEdge.value) ? roofEdge.value : 'v1'
@@ -1012,6 +1022,7 @@ export const useConfigStore = defineStore('config', () => {
       houseLights: { ...houseLights.value },
       houseLightEdits: { ...houseLightEdits.value },
       roofEdge: roofEdge.value,
+      pulpetOrientation: pulpetOrientation.value,
       flushRoof: flushRoof.value,
       roofOverhangVersion: roofOverhangVersion.value,
       terraces: terraces.value.map((item) => ({ ...item })),
@@ -1125,6 +1136,10 @@ export const useConfigStore = defineStore('config', () => {
           isStuganV4(data.selectedSizeId)
         );
       }
+      pulpetOrientation.value = acceptPulpetOrientation(
+        data.pulpetOrientation,
+        isStuganV4(data.selectedSizeId) ? 'east' : 'south'
+      );
       terraces.value = Array.isArray(data.terraces) ? acceptTerraces(data.terraces) : terracesFromLegacy(data);
       facing.value = COMPASS_FACINGS.includes(data.facing) ? data.facing : 'south';
       sunHour.value = clampSunHour(typeof data.sunHour === 'number' ? data.sunHour : 12);
@@ -1343,7 +1358,7 @@ export const useConfigStore = defineStore('config', () => {
 
   const rearHeight = computed(() => {
     if (activeRoof.value === 'pulpettak') {
-      const span = isStuganV4(selectedSizeId.value) ? dimensions.value.width : dimensions.value.depth;
+      const span = isWidthFallPulpet(pulpetOrientation.value) ? dimensions.value.width : dimensions.value.depth;
       const drop = Math.round(span * Math.tan((roofPitchAngle.value * Math.PI) / 180));
       return Math.max(Math.round(eaveHeight.value - drop), 1800);
     }
@@ -1716,6 +1731,7 @@ export const useConfigStore = defineStore('config', () => {
       }
     ];
     activeRoof.value = 'pulpettak';
+    pulpetOrientation.value = 'east';
     roofCovering.value = 'metal';
     activeMaterial.value = 'wood';
     // Screen stand-in for Nordsjö H7.15.53 — listed as uncertain in conflicts.
@@ -1773,6 +1789,7 @@ export const useConfigStore = defineStore('config', () => {
     else if (id === 'size-garage') applyGarageShell();
     else if (isStuganV4(id)) applyStuganV4Shell();
     else if (leavingShell) applyPlainShell();
+    if (!isStuganV4(id)) pulpetOrientation.value = 'south';
     if (id === 'size-paabyggnad') {
       activeRoof.value = 'pulpettak';
       buildingHeight.value = PAABYGGNAD_MAX_HEIGHT_MM;
@@ -2001,6 +2018,13 @@ export const useConfigStore = defineStore('config', () => {
 
   const selectRoof = (id: string) => {
     activeRoof.value = id;
+    saveSnapshot();
+  }
+
+  const setPulpetOrientation = (orientation: PulpetOrientation) => {
+    const next = acceptPulpetOrientation(orientation, pulpetOrientation.value);
+    if (pulpetOrientation.value === next) return;
+    pulpetOrientation.value = next;
     saveSnapshot();
   }
 
@@ -3202,6 +3226,7 @@ export const useConfigStore = defineStore('config', () => {
     houseLights,
     houseLightEdits,
     roofEdge,
+    pulpetOrientation,
     flushRoof,
     roofOverhangVersion,
     terraces,
@@ -3275,6 +3300,7 @@ export const useConfigStore = defineStore('config', () => {
     removeConcreteColor,
     updateConcreteColor,
     selectRoof,
+    setPulpetOrientation,
     setRoofEdge,
     setFlushRoof,
     setRoofOverhangVersion,

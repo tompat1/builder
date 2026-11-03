@@ -12,6 +12,30 @@ export const PULPET_PITCH_DEG = 12;
 
 export type RoofId = 'pulpettak' | 'sadeltak' | 'sadeltak14' | 'flackt';
 
+/** Which wall is the high side of a mono-pitch (pulpettak) roof. */
+export type PulpetOrientation = 'south' | 'north' | 'east' | 'west';
+
+export const PULPET_ORIENTATIONS: readonly PulpetOrientation[] = [
+  'south',
+  'north',
+  'east',
+  'west'
+] as const;
+
+export function acceptPulpetOrientation(
+  value: unknown,
+  fallback: PulpetOrientation = 'south'
+): PulpetOrientation {
+  if (value === 'south' || value === 'north' || value === 'east' || value === 'west') {
+    return value;
+  }
+  return fallback;
+}
+
+export function isWidthFallPulpet(orientation: PulpetOrientation): boolean {
+  return orientation === 'east' || orientation === 'west';
+}
+
 export function isGableRoof(id: string): boolean {
   return id === 'sadeltak' || id === 'sadeltak14';
 }

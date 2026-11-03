@@ -1290,18 +1290,18 @@
               <rect x="25" y="38" width="110" height="24" fill="currentColor" fill-opacity="0.08" stroke="currentColor" stroke-width="1.2" />
               <text x="80" y="72" font-size="10" fill="currentColor" text-anchor="middle">2° funkis</text>
             </svg>
-            <svg v-else class="w-full h-full text-slate-700" viewBox="0 0 160 80" fill="none">
+            <svg v-else class="w-full h-full text-slate-700" viewBox="0 0 160 80" fill="none" aria-hidden="true">
               <line
-                :x1="isStuganRoof ? 20 : 20"
-                :y1="isStuganRoof ? 48 : 16"
-                :x2="isStuganRoof ? 140 : 140"
-                :y2="isStuganRoof ? 16 : 48"
+                x1="20"
+                :y1="store.pulpetOrientation === 'east' || store.pulpetOrientation === 'north' ? 48 : 16"
+                x2="140"
+                :y2="store.pulpetOrientation === 'east' || store.pulpetOrientation === 'north' ? 16 : 48"
                 stroke="currentColor"
                 stroke-width="3"
                 stroke-linecap="round"
               />
               <path
-                v-if="isStuganRoof"
+                v-if="store.pulpetOrientation === 'east' || store.pulpetOrientation === 'north'"
                 d="M 25 48 L 25 60 L 135 60 L 135 18"
                 stroke="currentColor"
                 stroke-width="1.2"
@@ -1332,11 +1332,89 @@
               </span>
             </div>
             <p class="text-[11px] text-slate-500 mt-0.5">
-              <template v-if="isStuganRoof && roof.id === 'pulpettak'">{{ t('category.stuganRoofSpec') }}</template>
+              <template v-if="roof.id === 'pulpettak'">{{ t(pulpetOrientationTitleKey(store.pulpetOrientation)) }} · {{ t(pulpetOrientationBodyKey(store.pulpetOrientation)) }}</template>
               <Cms v-else :k="`catalog.${roof.id}.spec`" :fallback="roof.spec ?? ''" />
             </p>
           </div>
         </button>
+      </div>
+
+      <div v-if="store.activeRoof === 'pulpettak'" class="pt-1" data-testid="pulpet-orientation-group">
+        <div class="mb-2">
+          <p class="text-xs font-bold text-slate-900"><Cms k="category.pulpetOrientation" /></p>
+          <p class="text-[11px] text-slate-500 mt-0.5"><Cms k="category.pulpetOrientationBody" /></p>
+        </div>
+        <div
+          class="grid grid-cols-2 gap-2"
+          role="radiogroup"
+          :aria-label="t('category.pulpetOrientation')"
+        >
+          <button
+            v-for="dir in PULPET_ORIENTATIONS"
+            :key="dir"
+            type="button"
+            :id="`option-pulpet-${dir}`"
+            role="radio"
+            :aria-checked="store.pulpetOrientation === dir"
+            @click="store.setPulpetOrientation(dir)"
+            :class="[
+              'text-left p-2.5 rounded-xl border transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900',
+              store.pulpetOrientation === dir
+                ? 'border-slate-900 ring-1 ring-slate-900 bg-slate-50/70 shadow-sm'
+                : 'border-slate-200/90 bg-white hover:border-slate-300'
+            ]"
+          >
+            <span class="mb-1.5 flex h-9 items-center justify-between text-slate-700">
+              <svg class="h-9 w-24" viewBox="0 0 96 36" fill="none" aria-hidden="true">
+                <!-- Ground baseline -->
+                <line x1="10" y1="30" x2="86" y2="30" stroke="currentColor" stroke-width="1.2" stroke-opacity="0.35" />
+                <!-- High & low walls -->
+                <path
+                  v-if="dir === 'south' || dir === 'west'"
+                  d="M 18 10 V 30 H 78 V 22"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linejoin="round"
+                />
+                <path
+                  v-else
+                  d="M 18 22 V 30 H 78 V 10"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  stroke-linejoin="round"
+                />
+                <!-- Highlighted high wall -->
+                <line
+                  :x1="dir === 'south' || dir === 'west' ? 18 : 78"
+                  y1="10"
+                  :x2="dir === 'south' || dir === 'west' ? 18 : 78"
+                  y2="30"
+                  stroke="#b45309"
+                  stroke-width="2.6"
+                  stroke-linecap="round"
+                />
+                <!-- Sloped mono-pitch roof plate -->
+                <line
+                  x1="12"
+                  :y1="dir === 'south' || dir === 'west' ? 8 : 23"
+                  x2="84"
+                  :y2="dir === 'south' || dir === 'west' ? 23 : 8"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                  stroke-linecap="round"
+                />
+              </svg>
+              <span
+                class="rounded-md px-1.5 py-0.5 text-[10px] font-bold tracking-tight"
+                :class="store.pulpetOrientation === dir ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-600'"
+              >
+                {{ pulpetBadge(dir) }}
+              </span>
+            </span>
+            <span class="block text-xs font-bold text-slate-900"><Cms :k="pulpetOrientationTitleKey(dir)" /></span>
+            <span class="block text-[10px] text-slate-500 mt-0.5"><Cms :k="pulpetOrientationBodyKey(dir)" /></span>
+          </button>
+        </div>
       </div>
 
       <div class="pt-1">
@@ -3411,6 +3489,8 @@ import {
   SIZE_OPTIONS,
   ROOF_OPTIONS,
   ROOF_COVERINGS,
+  PULPET_ORIENTATIONS,
+  type PulpetOrientation,
   type RoofCovering,
   LOFT_OPTIONS,
   type LoftPlacement,
@@ -3485,6 +3565,46 @@ const isStuganRoof = computed(() => isStuganV4(store.selectedSizeId));
 const roofChoices = computed(() =>
   isStuganRoof.value ? ROOF_OPTIONS.filter((roof) => roof.id === 'pulpettak') : ROOF_OPTIONS
 );
+
+function pulpetOrientationTitleKey(dir: PulpetOrientation): string {
+  switch (dir) {
+    case 'north':
+      return 'category.pulpetNorth';
+    case 'east':
+      return 'category.pulpetEast';
+    case 'west':
+      return 'category.pulpetWest';
+    default:
+      return 'category.pulpetSouth';
+  }
+}
+
+function pulpetOrientationBodyKey(dir: PulpetOrientation): string {
+  switch (dir) {
+    case 'north':
+      return 'category.pulpetNorthBody';
+    case 'east':
+      return 'category.pulpetEastBody';
+    case 'west':
+      return 'category.pulpetWestBody';
+    default:
+      return 'category.pulpetSouthBody';
+  }
+}
+
+function pulpetBadge(dir: PulpetOrientation): string {
+  const sv = locale.value === 'sv';
+  switch (dir) {
+    case 'north':
+      return 'N→S';
+    case 'east':
+      return sv ? 'Ö→V' : 'E→W';
+    case 'west':
+      return sv ? 'V→Ö' : 'W→E';
+    default:
+      return 'S→N';
+  }
+}
 const loftPlaces: { id: LoftPlacement; label: string }[] = [
   { id: 'vanster', label: 'category.left' },
   { id: 'hoger', label: 'category.right' },

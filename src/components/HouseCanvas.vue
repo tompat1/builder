@@ -221,7 +221,7 @@
 import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue';
 import { HouseScene, type FramingHoverItem } from '../three-engine/HouseScene';
 import { useConfigStore } from '../store/useConfigStore';
-import type { RoofId } from '../store/roof';
+import { isWidthFallPulpet, type RoofId } from '../store/roof';
 import { noteTargetId, noteVisibleInView } from '../notes/board';
 import { fitRoom, innerHalf } from '../three-engine/roomWalls';
 import { isLoftRoom, loftDeckBounds } from '../three-engine/loftLevel';
@@ -419,7 +419,8 @@ onMounted(() => {
       framingStep: store.framingStep,
       walkthroughMode: store.walkthroughMode,
       assemblyLayerStep: store.assemblyLayerStep,
-      roofFallAxis: store.selectedSizeId === 'size-stugan-v4' ? 'width' : 'depth',
+      roofFallAxis: isWidthFallPulpet(store.pulpetOrientation) ? 'width' : 'depth',
+      pulpetOrientation: store.pulpetOrientation,
       pulpetPitchDeg: store.selectedSizeId === 'size-stugan-v4' ? 10 : undefined,
       roofOverhangs: roofOverhangsForEdge(store.roofEdge)
     });
@@ -737,19 +738,28 @@ watch(
       concreteHeightMm: height,
       concreteWalls: store.concreteWalls.map((wall) => ({ ...wall })),
       concreteColor: store.concreteColor,
-      roofFallAxis: id === 'size-stugan-v4' ? 'width' : 'depth',
+      roofFallAxis: isWidthFallPulpet(store.pulpetOrientation) ? 'width' : 'depth',
+      pulpetOrientation: store.pulpetOrientation,
       pulpetPitchDeg: id === 'size-stugan-v4' ? 10 : undefined,
       roofOverhangs: roofOverhangsForEdge(store.roofEdge)
     });
   }
 );
 
-// Watch roof type / edge
+// Watch roof type / edge / pulpet orientation
 watch(
-  [() => store.activeRoof, () => store.roofEdge, () => store.flushRoof, () => store.roofOverhangVersion],
-  ([roof, edge, flushRoof, overhangVersion]) => {
+  [
+    () => store.activeRoof,
+    () => store.pulpetOrientation,
+    () => store.roofEdge,
+    () => store.flushRoof,
+    () => store.roofOverhangVersion
+  ],
+  ([roof, pulpetOrientation, edge, flushRoof, overhangVersion]) => {
     engine?.updateConfig({
       roofType: roof as RoofId,
+      pulpetOrientation,
+      roofFallAxis: isWidthFallPulpet(pulpetOrientation) ? 'width' : 'depth',
       flushRoof,
       roofOverhangVersion: overhangVersion,
       roofOverhangs: roofOverhangsForEdge(edge)

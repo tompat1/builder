@@ -9,13 +9,13 @@ export interface CeilingStation {
   top: number;
 }
 
-/** A roof that falls from the front wall toward the back, like the mono-pitch. */
+/** A roof that falls from the front or back wall, like the mono-pitch. */
 export interface ShedRoof {
   kind: 'shed';
   degrees: number;
-  /** Front keeps the high eave on the front wall. Centre passes through the wall top at z = 0. */
-  anchor: 'front' | 'centre';
-  /** Lowest rear plate, in metres. The mono-pitch never drops below this. */
+  /** Front keeps the high eave on the front wall; back keeps it on the rear wall; centre passes through z = 0. */
+  anchor: 'front' | 'back' | 'centre';
+  /** Lowest plate, in metres. The mono-pitch never drops below this. */
   minRear?: number;
 }
 
@@ -41,7 +41,8 @@ export function roofPlateY(slope: RoofSlope, depthM: number, wallTopM: number, z
   if (slope.anchor === 'centre') return wallTopM + z * tan;
   const rear = Math.max(wallTopM - tan * depthM, slope.minRear ?? 0);
   const yMid = (wallTopM + rear) / 2;
-  return yMid + z * tan;
+  const sign = slope.anchor === 'back' ? -1 : 1;
+  return yMid + sign * z * tan;
 }
 
 /** Underside a loft room can reach at a world Z. */

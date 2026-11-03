@@ -74,7 +74,16 @@ import {
 } from '../outside/houseLights';
 import { cabinExteriorLightLocals, cabinHouseWallBlock } from '../outside/lights/cabin';
 import { terraceDeckLightLocals } from '../outside/lights/terrace';
-import { eaveLiftMm, gablePitchDegrees, isGableRoof, wallPlateHeightM, type RoofId } from '../store/roof';
+import {
+  acceptPulpetOrientation,
+  eaveLiftMm,
+  gablePitchDegrees,
+  isGableRoof,
+  isWidthFallPulpet,
+  wallPlateHeightM,
+  type PulpetOrientation,
+  type RoofId
+} from '../store/roof';
 import { inferNoteNormal, noteAxes, noteCameraTransform, noteSheetTransform, noteTiltRadians, stickFacing, NOTE_SURFACE_SCALE } from '../notes/surface';
 import { paintBoards } from '../color/paint';
 import {
@@ -238,6 +247,8 @@ export interface SceneConfig {
    * when the south facade faces +Z.
    */
   roofFallAxis?: 'depth' | 'width';
+  /** Cardinal side with the high wall on a mono-pitch (pulpettak) roof. */
+  pulpetOrientation?: PulpetOrientation;
   /** Override mono-pitch degrees (Stugan V4 uses 10°). */
   pulpetPitchDeg?: number;
   /** Per-edge overhangs in metres. Defaults to the usual 0.4 m / flush 0.02 m. */
@@ -492,6 +503,10 @@ export class HouseScene {
       depthMm: initialConfig?.depthMm ?? 3503,
       heightMm: initialConfig?.heightMm ?? 5000,
       roofType: initialConfig?.roofType ?? 'pulpettak',
+      pulpetOrientation: acceptPulpetOrientation(
+        initialConfig?.pulpetOrientation,
+        initialConfig?.roofFallAxis === 'width' ? 'east' : 'south'
+      ),
       roofCovering: initialConfig?.roofCovering ?? 'felt',
       hasLoft: initialConfig?.hasLoft ?? false,
       loftPlacement: initialConfig?.loftPlacement ?? 'vanster',
@@ -2154,15 +2169,17 @@ export class HouseScene {
         blackFasciaCasing: blackCasing
       });
       const pitch = this.pulpetPitchRad();
+      const fallSign = this.pulpetFallSign();
       const highTop = (isFlackt ? h + flacktDrop : h) - roofTrimDrop;
       const lowTop = (isPulpet
         ? Math.max(h - Math.tan(pitch) * (widthFall ? w : d), 2.4)
         : (isFlackt ? h - flacktDrop : h)) - roofTrimDrop;
-      // Depth-fall: high south / low north. Width-fall (Stugan): high east / low west.
-      const frontTop = highTop;
-      const rearTop = widthFall ? highTop : lowTop;
-      const westTop = widthFall ? lowTop : undefined;
-      const eastTop = widthFall ? highTop : undefined;
+      // Depth-fall: high south (fallSign > 0) or high north (fallSign < 0).
+      // Width-fall: high east (fallSign > 0) or high west (fallSign < 0).
+      const frontTop = widthFall ? highTop : (isPulpet && fallSign < 0 ? lowTop : highTop);
+      const rearTop = widthFall ? highTop : (isPulpet && fallSign < 0 ? highTop : lowTop);
+      const westTop = widthFall ? (fallSign > 0 ? lowTop : highTop) : undefined;
+      const eastTop = widthFall ? (fallSign > 0 ? highTop : lowTop) : undefined;
       const cornerColor = this.currentConfig.cornerColor ?? 'same';
       const cornerMat = new THREE.MeshStandardMaterial({
         roughness: 0.64,
@@ -2373,15 +2390,18 @@ export class HouseScene {
     const isPulpettak = this.currentConfig.roofType === 'pulpettak';
     const angleRad = this.pulpetPitchRad();
     const widthFall = this.roofFallsAlongWidth();
+    const fallSign = this.pulpetFallSign();
     const isFlackt = this.currentConfig.roofType === 'flackt';
     const flacktDrop = isFlackt ? (d / 2) * Math.tan((2 * Math.PI) / 180) : 0;
-    // Default pulpet: high front, low back. Stugan V4: high right (east), low left (west).
+    // Pulpet: high wall follows pulpetOrientation (south/north along depth, east/west along width).
     const highH = isFlackt ? h + flacktDrop : h;
     const lowH = isPulpettak
       ? Math.max(h - Math.tan(angleRad) * (widthFall ? w : d), 2.4)
       : (isFlackt ? h - flacktDrop : h);
-    const frontH = widthFall ? (highH + lowH) / 2 : highH;
-    const rearH = widthFall ? (highH + lowH) / 2 : lowH;
+    const frontH = widthFall ? (highH + lowH) / 2 : (isPulpettak && fallSign < 0 ? lowH : highH);
+    const rearH = widthFall ? (highH + lowH) / 2 : (isPulpettak && fallSign < 0 ? highH : lowH);
+    const westH = widthFall ? (fallSign > 0 ? lowH : highH) : (highH + lowH) / 2;
+    const eastH = widthFall ? (fallSign > 0 ? highH : lowH) : (highH + lowH) / 2;
     const yMid = (highH + lowH) / 2;
     const baseElev = 0.25;
 
@@ -2408,30 +2428,30 @@ export class HouseScene {
         // In insida view, cut front wall to waist height (1.35m) matching Reference Image 4 & 5
         // so interior floor, loft, stairs, and framing are completely visible without obstruction
         if (this.interiorCut()) panelWallH = 1.35;
-        // High east (+X): plate Y = yMid + px * tan.
-        else if (widthFall) panelWallH = this.sidePanelHeight(w, h, lowH, yMid, angleRad, px, baseElev);
+        // Width-fall: plate Y = yMid + fallSign * px * tan.
+        else if (widthFall) panelWallH = this.sidePanelHeight(w, h, lowH, yMid, fallSign * angleRad, px, baseElev);
         else panelWallH = frontH - baseElev;
       } else if (wallSide === 'back') {
         px = w / 2 - panelWidth / 2 - i * panelWidth;
         pz = -d / 2 + claddingThick / 2;
         rotY = Math.PI;
         panelWallH = widthFall
-          ? this.sidePanelHeight(w, h, lowH, yMid, angleRad, px, baseElev)
+          ? this.sidePanelHeight(w, h, lowH, yMid, fallSign * angleRad, px, baseElev)
           : rearH - baseElev;
       } else if (wallSide === 'left') {
         px = -w / 2 + claddingThick / 2;
         pz = d / 2 - endInset - panelWidth / 2 - i * panelWidth;
         rotY = -Math.PI / 2;
         panelWallH = widthFall
-          ? lowH - baseElev
-          : this.sidePanelHeight(d, h, rearH, yMid, angleRad, pz, baseElev);
+          ? westH - baseElev
+          : this.sidePanelHeight(d, h, lowH, yMid, fallSign * angleRad, pz, baseElev);
       } else {
         px = w / 2 - claddingThick / 2;
         pz = -d / 2 + endInset + panelWidth / 2 + i * panelWidth;
         rotY = Math.PI / 2;
         panelWallH = widthFall
-          ? highH - baseElev
-          : this.sidePanelHeight(d, h, rearH, yMid, angleRad, pz, baseElev);
+          ? eastH - baseElev
+          : this.sidePanelHeight(d, h, lowH, yMid, fallSign * angleRad, pz, baseElev);
       }
 
       if (!this.interiorCut()) panelWallH += 0.04;
@@ -2494,7 +2514,7 @@ export class HouseScene {
         const eavesTrim = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.12, slopeLen), trimMat);
         const trimX = wallSide === 'left' ? -w / 2 - 0.004 : w / 2 + 0.004;
         eavesTrim.position.set(trimX, yMid - 0.02, 0);
-        eavesTrim.rotation.x = -slopeAngle;
+        eavesTrim.rotation.x = -(roof === 'pulpettak' ? fallSign : 1) * slopeAngle;
         eavesTrim.castShadow = true;
         this.wallsGroup.add(eavesTrim);
       }
@@ -2988,16 +3008,37 @@ export class HouseScene {
     this.onWindowFitOffers?.(this.windowFitOfferIds);
   }
 
+  private pulpetOrientation(): PulpetOrientation {
+    return acceptPulpetOrientation(
+      this.currentConfig.pulpetOrientation,
+      this.currentConfig.roofFallAxis === 'width' ? 'east' : 'south'
+    );
+  }
+
+  /**
+   * +1 when the high wall is on the positive axis (+Z south or +X east);
+   * -1 when the high wall is on the negative axis (-Z north or -X west).
+   */
+  private pulpetFallSign(): 1 | -1 {
+    if (this.currentConfig.roofType !== 'pulpettak') return 1;
+    const dir = this.pulpetOrientation();
+    return dir === 'north' || dir === 'west' ? -1 : 1;
+  }
+
   private pulpetPitchRad() {
     const deg = this.currentConfig.pulpetPitchDeg;
     if (typeof deg === 'number' && Number.isFinite(deg)) {
       return (deg * Math.PI) / 180;
     }
-    return this.currentConfig.roofFallAxis === 'width' ? STUGAN_PULPET_PITCH_RAD : PULPET_PITCH_RAD;
+    return this.roofFallsAlongWidth() ? STUGAN_PULPET_PITCH_RAD : PULPET_PITCH_RAD;
   }
 
   private roofFallsAlongWidth() {
-    return this.currentConfig.roofFallAxis === 'width' && this.currentConfig.roofType === 'pulpettak';
+    if (this.currentConfig.roofType !== 'pulpettak') return false;
+    if (this.currentConfig.pulpetOrientation) {
+      return isWidthFallPulpet(this.currentConfig.pulpetOrientation);
+    }
+    return this.currentConfig.roofFallAxis === 'width';
   }
 
   private roofEdgeOverhangs(w: number, d: number) {
@@ -3017,14 +3058,15 @@ export class HouseScene {
         ? (this.currentConfig.pulpetPitchDeg ?? (this.roofFallsAlongWidth() ? STUGAN_V4_ROOF_PITCH_DEG : PULPET_PITCH_DEG))
         : 2;
     const tan = Math.tan((degrees * Math.PI) / 180);
+    const fallSign = roof === 'pulpettak' ? this.pulpetFallSign() : 1;
     if (this.roofFallsAlongWidth()) {
-      // High at east (+X / right when facing south). Front/back panels drop toward −X (left).
-      if (wallSide === 'front') return tan;
-      if (wallSide === 'back') return -tan;
+      // High at east (+X when fallSign > 0) or west (−X when fallSign < 0).
+      if (wallSide === 'front') return fallSign * tan;
+      if (wallSide === 'back') return -fallSign * tan;
       return 0;
     }
     if (wallSide !== 'left' && wallSide !== 'right') return 0;
-    return wallSide === 'left' ? tan : -tan;
+    return (wallSide === 'left' ? 1 : -1) * fallSign * tan;
   }
 
   private buildWallBand(
@@ -3280,11 +3322,27 @@ export class HouseScene {
     const baseElevation = 0.25; // on top of slab foundation
     const isPulpettak = this.currentConfig.roofType === 'pulpettak';
     const isFlackt = this.currentConfig.roofType === 'flackt';
+    const widthFall = this.roofFallsAlongWidth();
+    const fallSign = this.pulpetFallSign();
+    const pitchRad = this.pulpetPitchRad();
     const flacktDrop = isFlackt ? (d / 2) * Math.tan((2 * Math.PI) / 180) : 0;
-    const frontH = isFlackt ? h + flacktDrop : h;
-    const rearH = isPulpettak
-      ? Math.max(h - Math.tan(PULPET_PITCH_RAD) * d, 2.4)
+    const highH = isFlackt ? h + flacktDrop : h;
+    const lowH = isPulpettak
+      ? Math.max(h - Math.tan(pitchRad) * (widthFall ? w : d), 2.4)
       : (isFlackt ? h - flacktDrop : h);
+    const frontH = widthFall ? (highH + lowH) / 2 : (isPulpettak && fallSign < 0 ? lowH : highH);
+    const rearH = widthFall ? (highH + lowH) / 2 : (isPulpettak && fallSign < 0 ? highH : lowH);
+    const westH = widthFall ? (fallSign > 0 ? lowH : highH) : (highH + lowH) / 2;
+    const eastH = widthFall ? (fallSign > 0 ? highH : lowH) : (highH + lowH) / 2;
+    const plateHAt = (x: number, z: number) => {
+      if (!isPulpettak && !isFlackt) return h;
+      if (widthFall) {
+        const t = Math.min(1, Math.max(0, (x + w / 2) / w));
+        return westH + t * (eastH - westH);
+      }
+      const progress = Math.min(1, Math.max(0, (d / 2 - z) / d));
+      return frontH - progress * (frontH - rearH);
+    };
 
     const isConcrete = Boolean(this.currentConfig.concreteBase && !this.concreteFoundationOnly());
     const concreteH = isConcrete ? this.concreteCrownM() : baseElevation;
@@ -3561,68 +3619,114 @@ export class HouseScene {
     }
 
     // 2. Top Header Plates (Hammarband / Toppsyll 45x145 mm)
-    // Front header
-    const frontHeaderGeo = new THREE.BoxGeometry(w - 0.05, studThick, studDepth);
-    const frontHeader = new THREE.Mesh(frontHeaderGeo, framingMat);
-    frontHeader.position.set(0, frontH - studThick / 2, framingFrontZ);
-    frontHeader.castShadow = true;
-    frontHeader.userData.framingStep = 5;
-    frontHeader.userData.framingNameSv = 'Hammarband (framvägg)';
-    frontHeader.userData.framingNameEn = 'Top Header Plate (Front)';
-    frontHeader.userData.dimension = '45×145 mm C24';
-    this.framingGroup.add(frontHeader);
+    if (widthFall) {
+      // Sloping front and back headers connecting west to east
+      const fbSpan = w - 0.05;
+      const fbSlopeLen = Math.hypot(fbSpan, eastH - westH);
+      const fbSlopeAngle = Math.atan2(eastH - westH, fbSpan);
+      const frontHeaderGeo = new THREE.BoxGeometry(fbSlopeLen, studThick, studDepth);
 
-    // Back header (at rear slope height)
-    const backHeader = new THREE.Mesh(frontHeaderGeo, framingMat);
-    backHeader.position.set(0, rearH - studThick / 2, framingBackZ);
-    backHeader.castShadow = true;
-    backHeader.userData.framingStep = 5;
-    backHeader.userData.framingNameSv = 'Hammarband (bakvägg)';
-    backHeader.userData.framingNameEn = 'Top Header Plate (Rear)';
-    backHeader.userData.dimension = '45×145 mm C24';
-    this.framingGroup.add(backHeader);
+      const frontHeader = new THREE.Mesh(frontHeaderGeo, framingMat);
+      frontHeader.position.set(0, (westH + eastH) / 2 - studThick / 2, framingFrontZ);
+      frontHeader.rotation.z = fbSlopeAngle;
+      frontHeader.castShadow = true;
+      frontHeader.userData.framingStep = 5;
+      frontHeader.userData.framingNameSv = 'Lutande hammarband (framvägg)';
+      frontHeader.userData.framingNameEn = 'Sloping Top Header (Front)';
+      frontHeader.userData.dimension = '45×145 mm C24';
+      this.framingGroup.add(frontHeader);
 
-    // Sloping side headers on left and right connecting front to rear
-    const slopeLen = Math.sqrt(Math.pow(d - 0.05 - studDepth * 2, 2) + Math.pow(frontH - rearH, 2));
-    const slopeAngle = Math.atan2(frontH - rearH, d - 0.05 - studDepth * 2);
-    const sideHeaderGeo = new THREE.BoxGeometry(studDepth, studThick, slopeLen);
+      const backHeader = new THREE.Mesh(frontHeaderGeo, framingMat);
+      backHeader.position.set(0, (westH + eastH) / 2 - studThick / 2, framingBackZ);
+      backHeader.rotation.z = fbSlopeAngle;
+      backHeader.castShadow = true;
+      backHeader.userData.framingStep = 5;
+      backHeader.userData.framingNameSv = 'Lutande hammarband (bakvägg)';
+      backHeader.userData.framingNameEn = 'Sloping Top Header (Rear)';
+      backHeader.userData.dimension = '45×145 mm C24';
+      this.framingGroup.add(backHeader);
 
-    const leftHeader = new THREE.Mesh(sideHeaderGeo, framingMat);
-    leftHeader.position.set(framingLeftX, (frontH + rearH) / 2 - studThick / 2, 0);
-    leftHeader.rotation.x = -slopeAngle;
-    leftHeader.castShadow = true;
-    leftHeader.userData.framingStep = 5;
-    leftHeader.userData.framingNameSv = 'Lutande hammarband (vänster)';
-    leftHeader.userData.framingNameEn = 'Sloping Top Header (Left)';
-    leftHeader.userData.dimension = '45×145 mm C24';
-    this.framingGroup.add(leftHeader);
+      const sideHeaderGeo = new THREE.BoxGeometry(studDepth, studThick, d - 0.05 - studDepth * 2);
+      const leftHeader = new THREE.Mesh(sideHeaderGeo, framingMat);
+      leftHeader.position.set(framingLeftX, westH - studThick / 2, 0);
+      leftHeader.castShadow = true;
+      leftHeader.userData.framingStep = 5;
+      leftHeader.userData.framingNameSv = 'Hammarband (vänstervägg)';
+      leftHeader.userData.framingNameEn = 'Top Header Plate (Left)';
+      leftHeader.userData.dimension = '45×145 mm C24';
+      this.framingGroup.add(leftHeader);
 
-    const rightHeader = new THREE.Mesh(sideHeaderGeo, framingMat);
-    rightHeader.position.set(framingRightX, (frontH + rearH) / 2 - studThick / 2, 0);
-    rightHeader.rotation.x = -slopeAngle;
-    rightHeader.castShadow = true;
-    rightHeader.userData.framingStep = 5;
-    rightHeader.userData.framingNameSv = 'Lutande hammarband (höger)';
-    rightHeader.userData.framingNameEn = 'Sloping Top Header (Right)';
-    rightHeader.userData.dimension = '45×145 mm C24';
-    this.framingGroup.add(rightHeader);
+      const rightHeader = new THREE.Mesh(sideHeaderGeo, framingMat);
+      rightHeader.position.set(framingRightX, eastH - studThick / 2, 0);
+      rightHeader.castShadow = true;
+      rightHeader.userData.framingStep = 5;
+      rightHeader.userData.framingNameSv = 'Hammarband (högervägg)';
+      rightHeader.userData.framingNameEn = 'Top Header Plate (Right)';
+      rightHeader.userData.dimension = '45×145 mm C24';
+      this.framingGroup.add(rightHeader);
+    } else {
+      // Front header
+      const frontHeaderGeo = new THREE.BoxGeometry(w - 0.05, studThick, studDepth);
+      const frontHeader = new THREE.Mesh(frontHeaderGeo, framingMat);
+      frontHeader.position.set(0, frontH - studThick / 2, framingFrontZ);
+      frontHeader.castShadow = true;
+      frontHeader.userData.framingStep = 5;
+      frontHeader.userData.framingNameSv = 'Hammarband (framvägg)';
+      frontHeader.userData.framingNameEn = 'Top Header Plate (Front)';
+      frontHeader.userData.dimension = '45×145 mm C24';
+      this.framingGroup.add(frontHeader);
+
+      // Back header (at rear slope height)
+      const backHeader = new THREE.Mesh(frontHeaderGeo, framingMat);
+      backHeader.position.set(0, rearH - studThick / 2, framingBackZ);
+      backHeader.castShadow = true;
+      backHeader.userData.framingStep = 5;
+      backHeader.userData.framingNameSv = 'Hammarband (bakvägg)';
+      backHeader.userData.framingNameEn = 'Top Header Plate (Rear)';
+      backHeader.userData.dimension = '45×145 mm C24';
+      this.framingGroup.add(backHeader);
+
+      // Sloping side headers on left and right connecting front to rear
+      const slopeLen = Math.sqrt(Math.pow(d - 0.05 - studDepth * 2, 2) + Math.pow(frontH - rearH, 2));
+      const slopeAngle = Math.atan2(frontH - rearH, d - 0.05 - studDepth * 2);
+      const sideHeaderGeo = new THREE.BoxGeometry(studDepth, studThick, slopeLen);
+
+      const leftHeader = new THREE.Mesh(sideHeaderGeo, framingMat);
+      leftHeader.position.set(framingLeftX, (frontH + rearH) / 2 - studThick / 2, 0);
+      leftHeader.rotation.x = -slopeAngle;
+      leftHeader.castShadow = true;
+      leftHeader.userData.framingStep = 5;
+      leftHeader.userData.framingNameSv = 'Lutande hammarband (vänster)';
+      leftHeader.userData.framingNameEn = 'Sloping Top Header (Left)';
+      leftHeader.userData.dimension = '45×145 mm C24';
+      this.framingGroup.add(leftHeader);
+
+      const rightHeader = new THREE.Mesh(sideHeaderGeo, framingMat);
+      rightHeader.position.set(framingRightX, (frontH + rearH) / 2 - studThick / 2, 0);
+      rightHeader.rotation.x = -slopeAngle;
+      rightHeader.castShadow = true;
+      rightHeader.userData.framingStep = 5;
+      rightHeader.userData.framingNameSv = 'Lutande hammarband (höger)';
+      rightHeader.userData.framingNameEn = 'Sloping Top Header (Right)';
+      rightHeader.userData.dimension = '45×145 mm C24';
+      this.framingGroup.add(rightHeader);
+    }
 
     // 3. Vertical Wall Studs (Väggreglar cc 600 mm)
     // Corner Studs (dubbla hörnreglar)
     const cornerPositions = [
-      { x: framingLeftX, z: framingFrontZ, height: frontH, base: baseElevation, isJunction: false },
-      { x: framingRightX, z: framingFrontZ, height: frontH, base: baseElevation, isJunction: false },
-      { x: framingLeftX, z: framingBackZ, height: rearH, base: isConcrete ? concreteH : baseElevation, isJunction: false },
-      { x: framingRightX, z: framingBackZ, height: rearH, base: (isConcrete && this.concreteFacade('right')) ? concreteH : baseElevation, isJunction: false }
+      { x: framingLeftX, z: framingFrontZ, height: plateHAt(framingLeftX, framingFrontZ), base: baseElevation, isJunction: false },
+      { x: framingRightX, z: framingFrontZ, height: plateHAt(framingRightX, framingFrontZ), base: baseElevation, isJunction: false },
+      { x: framingLeftX, z: framingBackZ, height: plateHAt(framingLeftX, framingBackZ), base: isConcrete ? concreteH : baseElevation, isJunction: false },
+      { x: framingRightX, z: framingBackZ, height: plateHAt(framingRightX, framingBackZ), base: (isConcrete && this.concreteFacade('right')) ? concreteH : baseElevation, isJunction: false }
     ];
 
     // When concrete addition extends forward, add interface junction posts where timber meets concrete facade
     if (isConcrete && hasExtension) {
-      const progress = (d / 2 - concreteFrontZ) / d;
-      const junctionH = frontH - progress * (frontH - rearH);
+      const junctionZ = concreteFrontZ + studThick / 2;
       cornerPositions.push(
-        { x: framingLeftX, z: concreteFrontZ + studThick / 2, height: junctionH, base: concreteH + studThick, isJunction: true },
-        { x: framingRightX, z: concreteFrontZ + studThick / 2, height: junctionH, base: concreteH + studThick, isJunction: true }
+        { x: framingLeftX, z: junctionZ, height: plateHAt(framingLeftX, junctionZ), base: concreteH + studThick, isJunction: true },
+        { x: framingRightX, z: junctionZ, height: plateHAt(framingRightX, junctionZ), base: concreteH + studThick, isJunction: true }
       );
     }
 
@@ -3645,15 +3749,17 @@ export class HouseScene {
     const frontStudCount = Math.floor((w - 0.1) / 0.6);
     const frontSpacing = (w - 0.1) / frontStudCount;
     const frontStudBase = baseElevation;
-    const frontStudH = frontH - frontStudBase - studThick * 2;
-    const frontOpenings = this.frontOpenings(w, frontH, baseElevation);
+    const frontOpenings = this.frontOpenings(w, h, baseElevation);
 
-    if (frontStudH > 0.05) {
+    if (Math.max(westH, eastH, frontH) - frontStudBase - studThick * 2 > 0.05) {
       for (let s = 1; s < frontStudCount; s++) {
         const sx = -w / 2 + 0.05 + s * frontSpacing;
+        const curFrontH = plateHAt(sx, framingFrontZ);
+        const frontStudH = curFrontH - frontStudBase - studThick * 2;
+        if (frontStudH <= 0.05) continue;
         const blocked = frontOpenings.filter((opening) => Math.abs(sx - opening.x) < opening.winW / 2 - 0.02);
         if (blocked.length > 0) {
-          this.fillStudGaps(sx, framingFrontZ, frontStudBase, frontH, blocked, studThick, studDepth, framingMat);
+          this.fillStudGaps(sx, framingFrontZ, frontStudBase, curFrontH, blocked, studThick, studDepth, framingMat);
           continue;
         }
 
@@ -3694,13 +3800,15 @@ export class HouseScene {
         })
       : allRightOpenings;
 
-    const rearStudH = rearH - concreteH - studThick * 2;
-    if (rearStudH > 0.05) {
+    if (Math.max(westH, eastH, rearH) - concreteH - studThick * 2 > 0.05) {
       for (let s = 1; s < frontStudCount; s++) {
         const sx = -w / 2 + 0.05 + s * frontSpacing;
+        const curRearH = plateHAt(sx, framingBackZ);
+        const rearStudH = curRearH - concreteH - studThick * 2;
+        if (rearStudH <= 0.05) continue;
         const blocked = backOpenings.filter((opening) => Math.abs(sx - opening.x) < opening.winW / 2 - 0.02);
         if (blocked.length > 0) {
-          this.fillStudGaps(sx, framingBackZ, concreteH, rearH, blocked, studThick, studDepth, framingMat);
+          this.fillStudGaps(sx, framingBackZ, concreteH, curRearH, blocked, studThick, studDepth, framingMat);
           continue;
         }
         const studMesh = new THREE.Mesh(new THREE.BoxGeometry(studThick, rearStudH, studDepth), framingMat);
@@ -3723,17 +3831,17 @@ export class HouseScene {
 
     for (let s = 1; s < sideStudCount; s++) {
       const sz = d / 2 - 0.025 - studDepth - s * sideSpacing;
-      const progress = (d / 2 - sz) / d; // 0 at front, 1 at back
-      const curH = frontH - progress * (frontH - rearH);
+      const curLeftH = plateHAt(framingLeftX, sz);
+      const curRightH = plateHAt(framingRightX, sz);
       const wz = shell.z + sz;
       const overConcrete = isConcrete && wz >= -cd / 2 - 0.05 && wz <= cd / 2 + 0.05;
 
       const leftBase = overConcrete ? concreteH : baseElevation;
-      const leftStudH = curH - leftBase - studThick * 2;
+      const leftStudH = curLeftH - leftBase - studThick * 2;
       if (leftStudH > 0.05) {
         const leftBlocked = leftOpenings.filter((opening) => Math.abs(sz - opening.x) < opening.winW / 2 - 0.02);
         if (leftBlocked.length > 0) {
-          this.fillStudGaps(sz, framingLeftX, leftBase, curH, leftBlocked, studThick, studDepth, framingMat, 'z');
+          this.fillStudGaps(sz, framingLeftX, leftBase, curLeftH, leftBlocked, studThick, studDepth, framingMat, 'z');
         } else {
           const leftStud = new THREE.Mesh(new THREE.BoxGeometry(studDepth, leftStudH, studThick), framingMat);
           leftStud.position.set(framingLeftX, leftBase + studThick + leftStudH / 2, sz);
@@ -3747,11 +3855,11 @@ export class HouseScene {
       }
 
       const rightBase = (overConcrete && this.concreteFacade('right')) ? concreteH : baseElevation;
-      const rightStudH = curH - rightBase - studThick * 2;
+      const rightStudH = curRightH - rightBase - studThick * 2;
       if (rightStudH > 0.05) {
         const rightBlocked = rightOpenings.filter((opening) => Math.abs(sz - opening.x) < opening.winW / 2 - 0.02);
         if (rightBlocked.length > 0) {
-          this.fillStudGaps(sz, framingRightX, rightBase, curH, rightBlocked, studThick, studDepth, framingMat, 'z');
+          this.fillStudGaps(sz, framingRightX, rightBase, curRightH, rightBlocked, studThick, studDepth, framingMat, 'z');
         } else {
           const rightStud = new THREE.Mesh(new THREE.BoxGeometry(studDepth, rightStudH, studThick), framingMat);
           rightStud.position.set(framingRightX, rightBase + studThick + rightStudH / 2, sz);
@@ -3777,27 +3885,34 @@ export class HouseScene {
     const frontXs = [framingLeftX];
     for (let s = 1; s < frontStudCount; s++) frontXs.push(-w / 2 + 0.05 + s * frontSpacing);
     frontXs.push(framingRightX);
-    const frontSolids = frontXs.map((x) => ({ from: x - halfStud, to: x + halfStud, top: h - studThick }));
-    const backSolids = frontXs.map((x) => ({ from: x - halfStud, to: x + halfStud, top: rearH - studThick }));
-    const sideSolids: { from: number; to: number; top: number }[] = [
-      { from: framingFrontZ - studDepth / 2, to: framingFrontZ + studDepth / 2, top: h - studThick }
+    const frontSolids = frontXs.map((x) => ({ from: x - halfStud, to: x + halfStud, top: plateHAt(x, framingFrontZ) - studThick }));
+    const backSolids = frontXs.map((x) => ({ from: x - halfStud, to: x + halfStud, top: plateHAt(x, framingBackZ) - studThick }));
+    const leftSolids: { from: number; to: number; top: number }[] = [
+      { from: framingFrontZ - studDepth / 2, to: framingFrontZ + studDepth / 2, top: plateHAt(framingLeftX, framingFrontZ) - studThick }
+    ];
+    const rightSolids: { from: number; to: number; top: number }[] = [
+      { from: framingFrontZ - studDepth / 2, to: framingFrontZ + studDepth / 2, top: plateHAt(framingRightX, framingFrontZ) - studThick }
     ];
     for (let s = 1; s < sideStudCount; s++) {
       const sz = d / 2 - 0.025 - studDepth - s * sideSpacing;
-      const progress = (d / 2 - sz) / d;
-      const curH = h - progress * (h - rearH);
-      sideSolids.push({ from: sz - halfStud, to: sz + halfStud, top: curH - studThick });
+      leftSolids.push({ from: sz - halfStud, to: sz + halfStud, top: plateHAt(framingLeftX, sz) - studThick });
+      rightSolids.push({ from: sz - halfStud, to: sz + halfStud, top: plateHAt(framingRightX, sz) - studThick });
     }
-    sideSolids.push({
+    leftSolids.push({
       from: framingBackZ - studDepth / 2,
       to: framingBackZ + studDepth / 2,
-      top: rearH - studThick
+      top: plateHAt(framingLeftX, framingBackZ) - studThick
+    });
+    rightSolids.push({
+      from: framingBackZ - studDepth / 2,
+      to: framingBackZ + studDepth / 2,
+      top: plateHAt(framingRightX, framingBackZ) - studThick
     });
 
     this.addNoggings(this.gapsBetween(frontSolids), 'x', framingFrontZ, baseElevation, studThick, studDepth, framingMat, frontOpenings);
     this.addNoggings(this.gapsBetween(backSolids), 'x', framingBackZ, concreteH, studThick, studDepth, framingMat, backOpenings);
-    this.addNoggings(this.gapsBetween(sideSolids), 'z', framingLeftX, concreteH, studThick, studDepth, framingMat, leftOpenings);
-    this.addNoggings(this.gapsBetween(sideSolids), 'z', framingRightX, concreteH, studThick, studDepth, framingMat, rightOpenings);
+    this.addNoggings(this.gapsBetween(leftSolids), 'z', framingLeftX, concreteH, studThick, studDepth, framingMat, leftOpenings);
+    this.addNoggings(this.gapsBetween(rightSolids), 'z', framingRightX, concreteH, studThick, studDepth, framingMat, rightOpenings);
 
     if (isConcrete) {
       // Step 4: Heavy Glulam Transfer Beam & Front Loft Carrier Beam (90x220 mm GL28c)
@@ -5571,27 +5686,43 @@ export class HouseScene {
     const panelW = length / count;
     const isPulpet = this.currentConfig.roofType === 'pulpettak';
     const isFlackt = this.currentConfig.roofType === 'flackt';
+    const widthFall = this.roofFallsAlongWidth();
+    const fallSign = this.pulpetFallSign();
+    const pitchRad = this.pulpetPitchRad();
     const flacktDrop = isFlackt ? (d / 2) * Math.tan((2 * Math.PI) / 180) : 0;
-    const frontH = isFlackt ? h + flacktDrop : h;
-    const rearH = isPulpet
-      ? Math.max(h - Math.tan(PULPET_PITCH_RAD) * d, 2.4)
+    const highH = isFlackt ? h + flacktDrop : h;
+    const lowH = isPulpet
+      ? Math.max(h - Math.tan(pitchRad) * (widthFall ? w : d), 2.4)
       : (isFlackt ? h - flacktDrop : h);
-    const yMid = (frontH + rearH) / 2;
+    const frontH = widthFall ? (highH + lowH) / 2 : (isPulpet && fallSign < 0 ? lowH : highH);
+    const rearH = widthFall ? (highH + lowH) / 2 : (isPulpet && fallSign < 0 ? highH : lowH);
+    const westH = widthFall ? (fallSign > 0 ? lowH : highH) : (highH + lowH) / 2;
+    const eastH = widthFall ? (fallSign > 0 ? highH : lowH) : (highH + lowH) / 2;
+    const yMid = (highH + lowH) / 2;
     const openings: { x: number; winW: number; winH: number; winY: number; sill: number; head: number }[] = [];
     for (let p = 0; p < count; p++) {
       let center = 0;
       let panelWallH = frontH - base;
       if (wall === 'front') {
         center = -w / 2 + (p + 0.5) * panelW;
+        panelWallH = widthFall
+          ? this.sidePanelHeight(w, h, lowH, yMid, fallSign * pitchRad, center, base)
+          : frontH - base;
       } else if (wall === 'back') {
         center = w / 2 - (p + 0.5) * panelW;
-        panelWallH = rearH - base;
+        panelWallH = widthFall
+          ? this.sidePanelHeight(w, h, lowH, yMid, fallSign * pitchRad, center, base)
+          : rearH - base;
       } else if (wall === 'left') {
         center = d / 2 - endInset - (p + 0.5) * panelW;
-        panelWallH = this.sidePanelHeight(d, h, rearH, yMid, PULPET_PITCH_RAD, center, base);
+        panelWallH = widthFall
+          ? westH - base
+          : this.sidePanelHeight(d, h, lowH, yMid, fallSign * pitchRad, center, base);
       } else {
         center = -d / 2 + endInset + (p + 0.5) * panelW;
-        panelWallH = this.sidePanelHeight(d, h, rearH, yMid, PULPET_PITCH_RAD, center, base);
+        panelWallH = widthFall
+          ? eastH - base
+          : this.sidePanelHeight(d, h, lowH, yMid, fallSign * pitchRad, center, base);
       }
       const belt = this.beltRise(h);
       const lowerH = Math.min(belt, panelWallH);
@@ -6408,6 +6539,7 @@ export class HouseScene {
 
     if (isPulpettak && this.roofFallsAlongWidth()) {
       const angleRad = this.pulpetPitchRad();
+      const fallSign = this.pulpetFallSign();
       const lowH = Math.max(h - Math.tan(angleRad) * w, 2.4);
       const slopeAngle = Math.atan2(h - lowH, w);
       const depth = 0.1;
@@ -6417,7 +6549,7 @@ export class HouseScene {
 
       const slopeGroup = new THREE.Group();
       slopeGroup.position.set(0, midY, 0);
-      slopeGroup.rotation.z = slopeAngle;
+      slopeGroup.rotation.z = fallSign * slopeAngle;
 
       const ceilingMesh = new THREE.Mesh(
         new THREE.BoxGeometry(ceilingSlopeLen, drywallThick, ceilingD),
@@ -6430,6 +6562,7 @@ export class HouseScene {
       ceilingGroup.add(slopeGroup);
     } else if (isPulpettak) {
       const angleRad = this.pulpetPitchRad();
+      const fallSign = this.pulpetFallSign();
       const rearH = Math.max(h - Math.tan(angleRad) * d, 2.4);
       const slopeAngle = Math.atan2(h - rearH, d);
       const depth = 0.1; // Matches rafter depth in buildRafters
@@ -6438,7 +6571,7 @@ export class HouseScene {
 
       const slopeGroup = new THREE.Group();
       slopeGroup.position.set(0, midY, 0);
-      slopeGroup.rotation.x = -slopeAngle;
+      slopeGroup.rotation.x = -fallSign * slopeAngle;
 
       const ceilingMesh = new THREE.Mesh(
         new THREE.BoxGeometry(ceilingW, drywallThick, ceilingSlopeLen),
@@ -7104,8 +7237,8 @@ export class HouseScene {
     const eavePast = 0.22;
     const postInset = eavePast + postSize / 2;
     const postZ = d / 2 + frontOverhang - postInset;
-    // High side of the width-fall (+X) — matches the reference single corner post.
-    const postX = Math.max(postSize, w / 2 - 0.35);
+    // High side of the width-fall (+X when angleRad >= 0, −X when angleRad < 0) — matches the reference single corner post.
+    const postX = (angleRad >= 0 ? 1 : -1) * Math.max(postSize, w / 2 - 0.35);
     const deckTop = 0.32;
     const shoeH = 0.08;
     const plateY = (x: number) => yMid + x * Math.tan(angleRad);
@@ -7257,8 +7390,10 @@ export class HouseScene {
     } else if (roofType === 'flackt') {
       this.addShallowRoof(w, d, h, overhang, 2, roofMat, roofEdgeTrimMat);
     } else if (this.roofFallsAlongWidth()) {
-      // Stugan V4: 10° fall east→west. High right (+X), low left (−X), long south overhang.
+      // Width-fall pulpet: high east (+X when fallSign > 0) or high west (−X when fallSign < 0).
       const angleRad = this.pulpetPitchRad();
+      const fallSign = this.pulpetFallSign();
+      const signedAngle = fallSign * angleRad;
       const tan = Math.tan(angleRad);
       const lowH = Math.max(h - tan * w, 1.8);
       const yMid = (h + lowH) / 2;
@@ -7270,8 +7405,8 @@ export class HouseScene {
 
       const assembly = new THREE.Group();
       assembly.position.set(0, roofCenterY, zShift);
-      // Positive Z rotation lifts +X (east) and drops toward −X (west).
-      assembly.rotation.z = angleRad;
+      // Positive Z rotation lifts +X (east) and drops toward −X (west); negative Z rotation lifts −X (west).
+      assembly.rotation.z = signedAngle;
 
       const roofMesh = new THREE.Mesh(new THREE.BoxGeometry(slopeLen, roofThick, roofDepth), roofMat);
       roofMesh.castShadow = true;
@@ -7391,42 +7526,47 @@ export class HouseScene {
 
       if (usesTimberCanopyFraming(overhangVersion, edges.front)) {
         // v1 — open timber canopy: posts + header + rafters + knee braces.
-        this.addSouthCanopyFraming(w, d, h, edges.front, angleRad, yMid);
+        this.addSouthCanopyFraming(w, d, h, edges.front, signedAngle, yMid);
       } else if (usesSoffitCanopyFraming(overhangVersion, edges.front)) {
         // v2 — single outer post under the closed soffit (beams cantilever from framing).
-        this.addSouthSoffitCanopyPost(w, d, h, edges.front, angleRad, yMid);
+        this.addSouthSoffitCanopyPost(w, d, h, edges.front, signedAngle, yMid);
       } else if (sideWallOverhang) {
         // v3 — deep framed side walls carry east–west beams over the terrace.
-        this.addSouthOverhangSideWalls(w, d, edges.front, angleRad, yMid);
+        this.addSouthOverhangSideWalls(w, d, edges.front, signedAngle, yMid);
       }
     } else {
-      // Pulpettak. The slab, barge boards, and fascia share one rotated assembly
+      // Pulpettak along depth (high south when fallSign > 0, high north when fallSign < 0).
+      // The slab, barge boards, and fascia share one rotated assembly
       // so each board meets the next at an edge instead of occupying the same face.
       const angleRad = this.pulpetPitchRad();
+      const fallSign = this.pulpetFallSign();
       const rearH = Math.max(h - Math.tan(angleRad) * d, 1.8);
       const yMid = (h + rearH) / 2;
       const roofThick = 0.1;
       const slopeLen = (d + edges.front + edges.back) / Math.cos(angleRad);
       const roofW = w + edges.left + edges.right;
-      const roofCenterY = yMid + (roofThick / 2) / Math.cos(angleRad);
+      const zShift = (edges.front - edges.back) / 2;
+      const roofCenterY = yMid + fallSign * zShift * Math.tan(angleRad) + (roofThick / 2) / Math.cos(angleRad);
 
       const assembly = new THREE.Group();
-      assembly.position.set(0, roofCenterY, 0);
-      assembly.rotation.x = -angleRad;
+      assembly.position.set(0, roofCenterY, zShift);
+      assembly.rotation.x = -fallSign * angleRad;
 
       const roofMesh = new THREE.Mesh(new THREE.BoxGeometry(roofW, roofThick, slopeLen), roofMat);
       roofMesh.castShadow = true;
       roofMesh.receiveShadow = true;
       assembly.add(roofMesh);
 
-      const fasciaT = 0.022;
+      const overhangVersion = acceptRoofOverhangVersion(this.currentConfig.roofOverhangVersion);
+      const blackCasing = usesBlackFasciaCasing(overhangVersion, edges.front);
+      const fasciaT = blackCasing ? 0.04 : 0.022;
       const soffitT = 0.016;
-      const eavesDrop = fasciaEavesDropM(false);
+      const eavesDrop = fasciaEavesDropM(blackCasing);
       const fasciaBottom = -roofThick / 2 - eavesDrop;
       const fasciaTop = roofThick / 2 + 0.008;
       const fasciaH = fasciaTop - fasciaBottom;
       const fasciaY = (fasciaBottom + fasciaTop) / 2;
-      const bargeT = 0.032;
+      const bargeT = blackCasing ? 0.05 : 0.032;
 
       const bargeGeo = new THREE.BoxGeometry(bargeT, fasciaH, slopeLen + fasciaT * 2);
       const leftBarge = new THREE.Mesh(bargeGeo, roofEdgeTrimMat);
@@ -7456,26 +7596,30 @@ export class HouseScene {
         emissiveIntensity: 0.45
       });
       const soffitY = fasciaBottom + soffitT / 2;
-      const zWallFront = (d / 2) / Math.cos(angleRad);
-      const zWallRear = -(d / 2) / Math.cos(angleRad);
+      const zWallFront = (d / 2 - zShift) / Math.cos(angleRad);
+      const zWallRear = (-d / 2 - zShift) / Math.cos(angleRad);
 
-      const frontSoffitLen = Math.max(0.05, slopeLen / 2 - (zWallFront - 0.03));
-      const frontSoffit = new THREE.Mesh(
-        new THREE.BoxGeometry(roofW, soffitT, frontSoffitLen),
-        soffitMat
-      );
-      frontSoffit.position.set(0, soffitY, slopeLen / 2 - frontSoffitLen / 2);
-      frontSoffit.receiveShadow = true;
-      assembly.add(frontSoffit);
+      if (edges.front > 0.03) {
+        const frontSoffitLen = Math.max(0.05, slopeLen / 2 - (zWallFront - 0.03));
+        const frontSoffit = new THREE.Mesh(
+          new THREE.BoxGeometry(roofW, soffitT, frontSoffitLen),
+          soffitMat
+        );
+        frontSoffit.position.set(0, soffitY, slopeLen / 2 - frontSoffitLen / 2);
+        frontSoffit.receiveShadow = true;
+        assembly.add(frontSoffit);
+      }
 
-      const rearSoffitLen = Math.max(0.05, (zWallRear + 0.03) - (-slopeLen / 2));
-      const rearSoffit = new THREE.Mesh(
-        new THREE.BoxGeometry(roofW, soffitT, rearSoffitLen),
-        soffitMat
-      );
-      rearSoffit.position.set(0, soffitY, -slopeLen / 2 + rearSoffitLen / 2);
-      rearSoffit.receiveShadow = true;
-      assembly.add(rearSoffit);
+      if (edges.back > 0.03) {
+        const rearSoffitLen = Math.max(0.05, (zWallRear + 0.03) - (-slopeLen / 2));
+        const rearSoffit = new THREE.Mesh(
+          new THREE.BoxGeometry(roofW, soffitT, rearSoffitLen),
+          soffitMat
+        );
+        rearSoffit.position.set(0, soffitY, -slopeLen / 2 + rearSoffitLen / 2);
+        rearSoffit.receiveShadow = true;
+        assembly.add(rearSoffit);
+      }
 
       const sideReach = Math.max(edges.left, edges.right);
       if (sideReach > 0.03) {
@@ -7778,7 +7922,8 @@ export class HouseScene {
         });
 
     const isPulpettak = this.currentConfig.roofType === 'pulpettak';
-    const angleRad = PULPET_PITCH_RAD;
+    const angleRad = this.pulpetPitchRad();
+    const fallSign = this.pulpetFallSign();
     const rearH = isPulpettak ? Math.max(h - Math.tan(angleRad) * d, 2.4) : h;
     const beamParent = ghost ? this.trussesGroup : this.framingGroup;
     const showClips = !ghost && Boolean(this.currentConfig.framingWalkthrough || this.framingVisible());
@@ -7799,13 +7944,12 @@ export class HouseScene {
     const spacing = spanW / (count - 1);
 
     if (isPulpettak && this.roofFallsAlongWidth()) {
-      const angleRad = this.pulpetPitchRad();
       const lowH = Math.max(h - Math.tan(angleRad) * w, 2.4);
       const edges = this.roofEdgeOverhangs(w, d);
       const overhangVersion = acceptRoofOverhangVersion(this.currentConfig.roofOverhangVersion);
       const beamsAlongDepth = roofBeamsAlongDepthForOverhang(overhangVersion, true);
       const depth = ghost ? 0.145 : 0.1;
-      const plateY = (x: number) => (h + lowH) / 2 + x * Math.tan(angleRad);
+      const plateY = (x: number) => (h + lowH) / 2 + fallSign * x * Math.tan(angleRad);
 
       if (beamsAlongDepth) {
         // v2: beams run north→south and cantilever into the south overhang.
@@ -7832,7 +7976,7 @@ export class HouseScene {
           }
         }
       } else {
-        // v1 / v3: beams run east–west with the 10° fall (high east → low west).
+        // v1 / v3: beams run east–west with the fall (high east → low west or high west → low east).
         const slopeAngle = Math.atan2(h - lowH, w);
         const span = Math.hypot(w, h - lowH);
         const sideWallOverhang = usesOverhangSideWalls(overhangVersion, edges.front);
@@ -7848,20 +7992,26 @@ export class HouseScene {
         const zSpacing = zSpan / (zCount - 1);
         const z0 = -d / 2 + rafterInset;
         const rafterGeo = new THREE.BoxGeometry(slopeLen, depth, rafterW);
+        const eastClipY = (fallSign > 0 ? h : lowH) - 0.04;
+        const westClipY = (fallSign > 0 ? lowH : h) - 0.04;
 
         for (let i = 0; i < zCount; i++) {
           const rz = z0 + i * zSpacing;
           const rafter = new THREE.Mesh(rafterGeo, rafterMat);
           rafter.position.set(0, midY, rz);
-          // Lift +X (east) to match the width-fall roof plate.
-          rafter.rotation.z = slopeAngle;
-          rafter.userData.framingNameSv = 'Takstol / takbalk (pulpettak öst→väst)';
-          rafter.userData.framingNameEn = 'Rafter / Roof Beam (Mono-pitch east→west)';
+          // Lift +X (east) when fallSign > 0, or −X (west) when fallSign < 0.
+          rafter.rotation.z = fallSign * slopeAngle;
+          rafter.userData.framingNameSv = fallSign > 0
+            ? 'Takstol / takbalk (pulpettak öst→väst)'
+            : 'Takstol / takbalk (pulpettak väst→öst)';
+          rafter.userData.framingNameEn = fallSign > 0
+            ? 'Rafter / Roof Beam (Mono-pitch east→west)'
+            : 'Rafter / Roof Beam (Mono-pitch west→east)';
           rafter.userData.dimension = `${Math.round(rafterW * 1000)}×${Math.round(depth * 1000)} mm C24 cc 600 mm`;
           placeBeam(rafter);
           if (showClips) {
-            this.addRafterSeatClip(beamParent, w / 2 - 0.12, h - 0.04, rz, 'x');
-            this.addRafterSeatClip(beamParent, -(w / 2 - 0.12), lowH - 0.04, rz, 'x');
+            this.addRafterSeatClip(beamParent, w / 2 - 0.12, eastClipY, rz, 'x');
+            this.addRafterSeatClip(beamParent, -(w / 2 - 0.12), westClipY, rz, 'x');
           }
         }
       }
@@ -7875,6 +8025,8 @@ export class HouseScene {
       const rafterGeo = new THREE.BoxGeometry(rafterW, depth, slopeLen);
       const shift = tail / 2;
       const midY = (h + rearH) / 2 - depth / 2 - (ghost ? 0 : 0.016);
+      const frontClipY = (fallSign > 0 ? h : rearH) - 0.04;
+      const rearClipY = (fallSign > 0 ? rearH : h) - 0.04;
 
       for (let i = 0; i < count; i++) {
         const rx = -w / 2 + rafterInset + i * spacing;
@@ -7882,16 +8034,16 @@ export class HouseScene {
         rafter.position.set(
           rx,
           midY + Math.sin(slopeAngle) * shift,
-          Math.cos(slopeAngle) * shift
+          fallSign * Math.cos(slopeAngle) * shift
         );
-        rafter.rotation.x = -slopeAngle;
+        rafter.rotation.x = -fallSign * slopeAngle;
         rafter.userData.framingNameSv = 'Takstol / takbalk (pulpettak)';
         rafter.userData.framingNameEn = 'Rafter / Roof Beam (Mono-pitch)';
         rafter.userData.dimension = `${Math.round(rafterW * 1000)}×${Math.round(depth * 1000)} mm C24 cc 600 mm`;
         placeBeam(rafter);
         if (showClips) {
-          this.addRafterSeatClip(beamParent, rx, h - 0.04, d / 2 - 0.1, 'z');
-          this.addRafterSeatClip(beamParent, rx, rearH - 0.04, -(d / 2 - 0.1), 'z');
+          this.addRafterSeatClip(beamParent, rx, frontClipY, d / 2 - 0.1, 'z');
+          this.addRafterSeatClip(beamParent, rx, rearClipY, -(d / 2 - 0.1), 'z');
         }
       }
     } else if (this.currentConfig.roofType === 'flackt') {
@@ -8817,154 +8969,241 @@ export class HouseScene {
         )
       );
     } else if (this.currentConfig.roofType === 'pulpettak') {
-      // 2. High End / Total Height Dimension Line (at zRight = d / 2, ground to highest roof point)
-      const zRight = d / 2;
-      const rightHeightGeo = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(xRight, 0, zRight),
-        new THREE.Vector3(xRight, totalH, zRight)
-      ]);
-      this.dimensionsGroup.add(new THREE.Line(rightHeightGeo, dimMat));
-      this.dimensionAnchors.set('frontHeightRight', new THREE.Vector3(xRight, totalH / 2, zRight));
-
-      this.dimensionsGroup.add(
-        new THREE.Line(
-          new THREE.BufferGeometry().setFromPoints([
-            new THREE.Vector3(w / 2 + 0.1, 0, zRight),
-            new THREE.Vector3(xRight + 0.15, 0, zRight)
-          ]),
-          dimMat
-        )
-      );
-      this.dimensionsGroup.add(
-        new THREE.Line(
-          new THREE.BufferGeometry().setFromPoints([
-            new THREE.Vector3(w / 2 + 0.1, totalH, zRight),
-            new THREE.Vector3(xRight + 0.15, totalH, zRight)
-          ]),
-          dimMat
-        )
-      );
-
-      const leftHeightGeo = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(xLeft, 0, zRight),
-        new THREE.Vector3(xLeft, totalH, zRight)
-      ]);
-      this.dimensionsGroup.add(new THREE.Line(leftHeightGeo, dimMat));
-      this.dimensionAnchors.set('frontHeightLeft', new THREE.Vector3(xLeft, totalH / 2, zRight));
-
-      this.dimensionsGroup.add(
-        new THREE.Line(
-          new THREE.BufferGeometry().setFromPoints([
-            new THREE.Vector3(-w / 2 - 0.1, 0, zRight),
-            new THREE.Vector3(xLeft - 0.15, 0, zRight)
-          ]),
-          dimMat
-        )
-      );
-      this.dimensionsGroup.add(
-        new THREE.Line(
-          new THREE.BufferGeometry().setFromPoints([
-            new THREE.Vector3(-w / 2 - 0.1, totalH, zRight),
-            new THREE.Vector3(xLeft - 0.15, totalH, zRight)
-          ]),
-          dimMat
-        )
-      );
-
-      // Rear Height Dimension Line (at zRear = -d / 2)
-      const angleRad = PULPET_PITCH_RAD;
-      const drop = Math.tan(angleRad) * d;
+      // 2. High End / Low End Dimension Lines & Pitch Indicator for Pulpettak
+      const angleRad = this.pulpetPitchRad();
+      const widthFall = this.roofFallsAlongWidth();
+      const fallSign = this.pulpetFallSign();
+      const drop = Math.tan(angleRad) * (widthFall ? w : d);
       const rearH = Math.max(h - drop, 1.8);
-      const zRear = -d / 2;
-      const rearHeightGeo = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(xLeft, 0, zRear),
-        new THREE.Vector3(xLeft, rearH, zRear)
-      ]);
-      this.dimensionsGroup.add(new THREE.Line(rearHeightGeo, dimMat));
-      this.dimensionAnchors.set(
-        'rearHeightLeft',
-        new THREE.Vector3(xLeft, rearH / 2, zRear)
-      );
-
-      const rearRightGeo = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(xRight, 0, zRear),
-        new THREE.Vector3(xRight, rearH, zRear)
-      ]);
-      this.dimensionsGroup.add(new THREE.Line(rearRightGeo, dimMat));
-      this.dimensionAnchors.set(
-        'rearHeightRight',
-        new THREE.Vector3(xRight, rearH / 2, zRear)
-      );
-      this.dimensionsGroup.add(
-        new THREE.Line(
-          new THREE.BufferGeometry().setFromPoints([
-            new THREE.Vector3(w / 2 + 0.1, 0, zRear),
-            new THREE.Vector3(xRight + 0.15, 0, zRear)
-          ]),
-          dimMat
-        )
-      );
-      this.dimensionsGroup.add(
-        new THREE.Line(
-          new THREE.BufferGeometry().setFromPoints([
-            new THREE.Vector3(w / 2 + 0.1, rearH, zRear),
-            new THREE.Vector3(xRight + 0.15, rearH, zRear)
-          ]),
-          dimMat
-        )
-      );
-
-      this.dimensionsGroup.add(
-        new THREE.Line(
-          new THREE.BufferGeometry().setFromPoints([
-            new THREE.Vector3(-w / 2 - 0.1, 0, zRear),
-            new THREE.Vector3(xLeft - 0.15, 0, zRear)
-          ]),
-          dimMat
-        )
-      );
-      this.dimensionsGroup.add(
-        new THREE.Line(
-          new THREE.BufferGeometry().setFromPoints([
-            new THREE.Vector3(-w / 2 - 0.1, rearH, zRear),
-            new THREE.Vector3(xLeft - 0.15, rearH, zRear)
-          ]),
-          dimMat
-        )
-      );
-
-      // Roof pitch angle indicator lines
       const midY = (h + rearH) / 2;
-      const roofAngleLineGeo = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(xLeft, midY + 0.35, 0.4),
-        new THREE.Vector3(xLeft, midY + 0.35 - Math.tan(angleRad) * 0.8, -0.4)
-      ]);
       const angleMat = new THREE.LineBasicMaterial({ color: '#0f172a', linewidth: 2 });
-      this.dimensionsGroup.add(new THREE.Line(roofAngleLineGeo, angleMat));
 
-      const baseAngleLineGeo = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(xLeft, midY + 0.35 - Math.tan(angleRad) * 0.8, 0.4),
-        new THREE.Vector3(xLeft, midY + 0.35 - Math.tan(angleRad) * 0.8, -0.4)
-      ]);
-      this.dimensionsGroup.add(new THREE.Line(baseAngleLineGeo, dimMat));
+      if (widthFall) {
+        const xHigh = fallSign > 0 ? xRight : xLeft;
+        const xLow = fallSign > 0 ? xLeft : xRight;
+        const wallHighX = fallSign > 0 ? w / 2 + 0.1 : -w / 2 - 0.1;
+        const tickHighOut = fallSign > 0 ? xRight + 0.15 : xLeft - 0.15;
+        const wallLowX = fallSign > 0 ? -w / 2 - 0.1 : w / 2 + 0.1;
+        const tickLowOut = fallSign > 0 ? xLeft - 0.15 : xRight + 0.15;
+        const zFront = d / 2;
+        const zRear = -d / 2;
 
-      const pitchA = new THREE.Vector3(xLeft, midY + 0.35, 0.4);
-      const pitchB = new THREE.Vector3(xLeft, midY + 0.35 - Math.tan(angleRad) * 0.8, -0.4);
-      this.dimensionAnchors.set('pitchLeft', pitchA.clone().lerp(pitchB, 0.5));
+        // High wall height lines (front and rear corners on high X side)
+        for (const [zPos, anchorKey] of [[zFront, 'frontHeightRight'], [zRear, 'frontHeightLeft']] as const) {
+          this.dimensionsGroup.add(
+            new THREE.Line(
+              new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(xHigh, 0, zPos),
+                new THREE.Vector3(xHigh, totalH, zPos)
+              ]),
+              dimMat
+            )
+          );
+          this.dimensionAnchors.set(anchorKey, new THREE.Vector3(xHigh, totalH / 2, zPos));
+          for (const yTick of [0, totalH]) {
+            this.dimensionsGroup.add(
+              new THREE.Line(
+                new THREE.BufferGeometry().setFromPoints([
+                  new THREE.Vector3(wallHighX, yTick, zPos),
+                  new THREE.Vector3(tickHighOut, yTick, zPos)
+                ]),
+                dimMat
+              )
+            );
+          }
+        }
 
-      const rightPitchGeo = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(xRight, midY + 0.35, 0.4),
-        new THREE.Vector3(xRight, midY + 0.35 - Math.tan(angleRad) * 0.8, -0.4)
-      ]);
-      this.dimensionsGroup.add(new THREE.Line(rightPitchGeo, angleMat));
-      const rightBaseGeo = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(xRight, midY + 0.35 - Math.tan(angleRad) * 0.8, 0.4),
-        new THREE.Vector3(xRight, midY + 0.35 - Math.tan(angleRad) * 0.8, -0.4)
-      ]);
-      this.dimensionsGroup.add(new THREE.Line(rightBaseGeo, dimMat));
-      const pitchC = new THREE.Vector3(xRight, midY + 0.35, 0.4);
-      const pitchD = new THREE.Vector3(xRight, midY + 0.35 - Math.tan(angleRad) * 0.8, -0.4);
-      this.dimensionAnchors.set('pitchRight', pitchC.clone().lerp(pitchD, 0.5));
+        // Low wall height lines (front and rear corners on low X side)
+        for (const [zPos, anchorKey] of [[zFront, 'rearHeightLeft'], [zRear, 'rearHeightRight']] as const) {
+          this.dimensionsGroup.add(
+            new THREE.Line(
+              new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(xLow, 0, zPos),
+                new THREE.Vector3(xLow, rearH, zPos)
+              ]),
+              dimMat
+            )
+          );
+          this.dimensionAnchors.set(anchorKey, new THREE.Vector3(xLow, rearH / 2, zPos));
+          for (const yTick of [0, rearH]) {
+            this.dimensionsGroup.add(
+              new THREE.Line(
+                new THREE.BufferGeometry().setFromPoints([
+                  new THREE.Vector3(wallLowX, yTick, zPos),
+                  new THREE.Vector3(tickLowOut, yTick, zPos)
+                ]),
+                dimMat
+              )
+            );
+          }
+        }
+
+        // Pitch indicator on front and rear walls (sloping along X)
+        const xHighPitch = fallSign * 0.4;
+        const xLowPitch = -fallSign * 0.4;
+        const yHighPitch = midY + 0.35;
+        const yLowPitch = midY + 0.35 - Math.tan(angleRad) * 0.8;
+        for (const [zPitch, key] of [[d / 2 + 0.35, 'pitchRight'], [-d / 2 - 0.35, 'pitchLeft']] as const) {
+          const pA = new THREE.Vector3(xHighPitch, yHighPitch, zPitch);
+          const pB = new THREE.Vector3(xLowPitch, yLowPitch, zPitch);
+          this.dimensionsGroup.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([pA, pB]), angleMat));
+          this.dimensionsGroup.add(
+            new THREE.Line(
+              new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(xHighPitch, yLowPitch, zPitch),
+                pB
+              ]),
+              dimMat
+            )
+          );
+          this.dimensionAnchors.set(key, pA.clone().lerp(pB, 0.5));
+        }
+      } else {
+        const zHigh = fallSign > 0 ? d / 2 : -d / 2;
+        const zLow = fallSign > 0 ? -d / 2 : d / 2;
+        const rightHeightGeo = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(xRight, 0, zHigh),
+          new THREE.Vector3(xRight, totalH, zHigh)
+        ]);
+        this.dimensionsGroup.add(new THREE.Line(rightHeightGeo, dimMat));
+        this.dimensionAnchors.set('frontHeightRight', new THREE.Vector3(xRight, totalH / 2, zHigh));
+
+        this.dimensionsGroup.add(
+          new THREE.Line(
+            new THREE.BufferGeometry().setFromPoints([
+              new THREE.Vector3(w / 2 + 0.1, 0, zHigh),
+              new THREE.Vector3(xRight + 0.15, 0, zHigh)
+            ]),
+            dimMat
+          )
+        );
+        this.dimensionsGroup.add(
+          new THREE.Line(
+            new THREE.BufferGeometry().setFromPoints([
+              new THREE.Vector3(w / 2 + 0.1, totalH, zHigh),
+              new THREE.Vector3(xRight + 0.15, totalH, zHigh)
+            ]),
+            dimMat
+          )
+        );
+
+        const leftHeightGeo = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(xLeft, 0, zHigh),
+          new THREE.Vector3(xLeft, totalH, zHigh)
+        ]);
+        this.dimensionsGroup.add(new THREE.Line(leftHeightGeo, dimMat));
+        this.dimensionAnchors.set('frontHeightLeft', new THREE.Vector3(xLeft, totalH / 2, zHigh));
+
+        this.dimensionsGroup.add(
+          new THREE.Line(
+            new THREE.BufferGeometry().setFromPoints([
+              new THREE.Vector3(-w / 2 - 0.1, 0, zHigh),
+              new THREE.Vector3(xLeft - 0.15, 0, zHigh)
+            ]),
+            dimMat
+          )
+        );
+        this.dimensionsGroup.add(
+          new THREE.Line(
+            new THREE.BufferGeometry().setFromPoints([
+              new THREE.Vector3(-w / 2 - 0.1, totalH, zHigh),
+              new THREE.Vector3(xLeft - 0.15, totalH, zHigh)
+            ]),
+            dimMat
+          )
+        );
+
+        // Low Wall Height Dimension Line (at zLow)
+        const rearHeightGeo = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(xLeft, 0, zLow),
+          new THREE.Vector3(xLeft, rearH, zLow)
+        ]);
+        this.dimensionsGroup.add(new THREE.Line(rearHeightGeo, dimMat));
+        this.dimensionAnchors.set(
+          'rearHeightLeft',
+          new THREE.Vector3(xLeft, rearH / 2, zLow)
+        );
+
+        const rearRightGeo = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(xRight, 0, zLow),
+          new THREE.Vector3(xRight, rearH, zLow)
+        ]);
+        this.dimensionsGroup.add(new THREE.Line(rearRightGeo, dimMat));
+        this.dimensionAnchors.set(
+          'rearHeightRight',
+          new THREE.Vector3(xRight, rearH / 2, zLow)
+        );
+        this.dimensionsGroup.add(
+          new THREE.Line(
+            new THREE.BufferGeometry().setFromPoints([
+              new THREE.Vector3(w / 2 + 0.1, 0, zLow),
+              new THREE.Vector3(xRight + 0.15, 0, zLow)
+            ]),
+            dimMat
+          )
+        );
+        this.dimensionsGroup.add(
+          new THREE.Line(
+            new THREE.BufferGeometry().setFromPoints([
+              new THREE.Vector3(w / 2 + 0.1, rearH, zLow),
+              new THREE.Vector3(xRight + 0.15, rearH, zLow)
+            ]),
+            dimMat
+          )
+        );
+
+        this.dimensionsGroup.add(
+          new THREE.Line(
+            new THREE.BufferGeometry().setFromPoints([
+              new THREE.Vector3(-w / 2 - 0.1, 0, zLow),
+              new THREE.Vector3(xLeft - 0.15, 0, zLow)
+            ]),
+            dimMat
+          )
+        );
+        this.dimensionsGroup.add(
+          new THREE.Line(
+            new THREE.BufferGeometry().setFromPoints([
+              new THREE.Vector3(-w / 2 - 0.1, rearH, zLow),
+              new THREE.Vector3(xLeft - 0.15, rearH, zLow)
+            ]),
+            dimMat
+          )
+        );
+
+        // Roof pitch angle indicator lines
+        const zHighPitch = fallSign * 0.4;
+        const zLowPitch = -fallSign * 0.4;
+        const roofAngleLineGeo = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(xLeft, midY + 0.35, zHighPitch),
+          new THREE.Vector3(xLeft, midY + 0.35 - Math.tan(angleRad) * 0.8, zLowPitch)
+        ]);
+        this.dimensionsGroup.add(new THREE.Line(roofAngleLineGeo, angleMat));
+
+        const baseAngleLineGeo = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(xLeft, midY + 0.35 - Math.tan(angleRad) * 0.8, zHighPitch),
+          new THREE.Vector3(xLeft, midY + 0.35 - Math.tan(angleRad) * 0.8, zLowPitch)
+        ]);
+        this.dimensionsGroup.add(new THREE.Line(baseAngleLineGeo, dimMat));
+
+        const pitchA = new THREE.Vector3(xLeft, midY + 0.35, zHighPitch);
+        const pitchB = new THREE.Vector3(xLeft, midY + 0.35 - Math.tan(angleRad) * 0.8, zLowPitch);
+        this.dimensionAnchors.set('pitchLeft', pitchA.clone().lerp(pitchB, 0.5));
+
+        const rightPitchGeo = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(xRight, midY + 0.35, zHighPitch),
+          new THREE.Vector3(xRight, midY + 0.35 - Math.tan(angleRad) * 0.8, zLowPitch)
+        ]);
+        this.dimensionsGroup.add(new THREE.Line(rightPitchGeo, angleMat));
+        const rightBaseGeo = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(xRight, midY + 0.35 - Math.tan(angleRad) * 0.8, zHighPitch),
+          new THREE.Vector3(xRight, midY + 0.35 - Math.tan(angleRad) * 0.8, zLowPitch)
+        ]);
+        this.dimensionsGroup.add(new THREE.Line(rightBaseGeo, dimMat));
+        const pitchC = new THREE.Vector3(xRight, midY + 0.35, zHighPitch);
+        const pitchD = new THREE.Vector3(xRight, midY + 0.35 - Math.tan(angleRad) * 0.8, zLowPitch);
+        this.dimensionAnchors.set('pitchRight', pitchC.clone().lerp(pitchD, 0.5));
+      }
     } else {
       // Shallow / flackt: Total Height Dimension Line
       const zRight = d / 2;
@@ -9388,20 +9627,25 @@ export class HouseScene {
     const roof = this.currentConfig.roofType;
     if (roof === 'pulpettak') {
       const deg = this.currentConfig.pulpetPitchDeg ?? PULPET_PITCH_DEG;
-      return { kind: 'shed', degrees: deg, anchor: 'front', minRear: 2.4 };
+      return {
+        kind: 'shed',
+        degrees: deg,
+        anchor: this.pulpetFallSign() < 0 ? 'back' : 'front',
+        minRear: 2.4
+      };
     }
     if (roof === 'flackt') return { kind: 'shed', degrees: 2, anchor: 'centre' };
     return { kind: 'gable', degrees: gablePitchDegrees(roof) };
   }
 
-  /** Plate height for width-fall pulpet (high at +X / east). */
+  /** Plate height for width-fall pulpet (high at +X / east when fallSign > 0, or −X / west when fallSign < 0). */
   private widthFallPlateY(worldX: number) {
     const w = this.currentConfig.widthMm / 1000;
     const h = this.wallTopM();
     const tan = Math.tan(this.pulpetPitchRad());
     const lowH = Math.max(h - tan * w, 1.8);
     const yMid = (h + lowH) / 2;
-    return yMid + worldX * tan;
+    return yMid + this.pulpetFallSign() * worldX * tan;
   }
 
   /**
