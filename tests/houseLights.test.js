@@ -169,6 +169,8 @@ test('Outside lights UI and store wiring are present', async () => {
   assert.match(scene, /FIXTURE_CLEARANCE_M/);
   assert.match(scene, /cycleFixturePower/);
   assert.match(scene, /onFixturePowerReadout/);
+  assert.match(scene, /onFixtureHover/);
+  assert.match(scene, /setHoveredFixture/);
   assert.match(scene, /onFixtureSelect/);
   assert.match(scene, /onFixtureMove/);
   assert.match(scene, /onFixtureDelete/);
@@ -181,6 +183,8 @@ test('Outside lights UI and store wiring are present', async () => {
   const canvas = fs.readFileSync(path.join(root, 'src/components/HouseCanvas.vue'), 'utf8');
   assert.match(canvas, /fixture-power-readout/);
   assert.match(canvas, /onFixturePowerReadout/);
+  assert.match(canvas, /fixture-hover-pill/);
+  assert.match(canvas, /onFixtureHover/);
   assert.match(canvas, /fixture-selection-toolbar/);
   assert.match(canvas, /cycleSelectedFixturePower/);
   assert.match(canvas, /deleteSelectedFixture/);

@@ -51,6 +51,46 @@
 
     <transition
       enter-active-class="transition duration-150 ease-out"
+      enter-from-class="opacity-0 translate-y-1 scale-95"
+      enter-to-class="opacity-100 translate-y-0 scale-100"
+      leave-active-class="transition duration-100 ease-in"
+      leave-from-class="opacity-100"
+      leave-to-class="opacity-0"
+    >
+      <div
+        v-if="hoveredFixture && !selectedFixture && !store.isDragging"
+        id="fixture-hover-pill"
+        class="pointer-events-none absolute z-30 -translate-x-1/2 -translate-y-full rounded-2xl border border-amber-400/35 bg-slate-950/95 px-3.5 py-2 text-white shadow-xl backdrop-blur-md"
+        :style="hoveredFixtureStyle"
+        role="status"
+      >
+        <div class="flex items-center gap-2">
+          <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-amber-400/20 text-amber-300">
+            <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M9 18h6" />
+              <path d="M10 22h4" />
+              <path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1V18h6v-1.2c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2z" />
+            </svg>
+          </span>
+          <div class="min-w-0">
+            <div class="flex items-center gap-2">
+              <span class="truncate text-xs font-bold leading-tight text-white">
+                {{ formatFixtureName(hoveredFixture.id, hoveredFixture.label) }}
+              </span>
+              <span class="whitespace-nowrap rounded-full bg-amber-400/15 px-2 py-0.5 text-[10px] font-bold tabular-nums text-amber-200">
+                {{ hoveredFixture.powerLabel }}
+              </span>
+            </div>
+            <p class="mt-0.5 whitespace-nowrap text-[11px] font-medium leading-tight text-amber-100/85">
+              {{ locale === 'en' ? 'Click to edit · Drag to move' : 'Klicka för val · Dra för att flytta' }}
+            </p>
+          </div>
+        </div>
+      </div>
+    </transition>
+
+    <transition
+      enter-active-class="transition duration-150 ease-out"
       enter-from-class="opacity-0 -translate-y-1 scale-95"
       enter-to-class="opacity-100 translate-y-0 scale-100"
       leave-active-class="transition duration-100 ease-in"
@@ -65,7 +105,7 @@
         :aria-label="locale === 'en' ? 'Selected light controls' : 'Reglage för vald lampa'"
       >
         <div class="min-w-0 pr-1">
-          <p class="truncate text-sm font-bold leading-tight">{{ selectedFixture.label }}</p>
+          <p class="truncate text-sm font-bold leading-tight">{{ formatFixtureName(selectedFixture.id, selectedFixture.label) }}</p>
           <p class="whitespace-nowrap text-[11px] leading-tight text-slate-300">
             {{ locale === 'en' ? 'Drag to move · Delete to remove' : 'Dra för att flytta · Delete för att ta bort' }}
           </p>
@@ -199,8 +239,40 @@ const showDragHint = ref(false);
 const compassDial = ref(0);
 const hoveredFramingItem = ref<FramingHoverItem | null>(null);
 const fixturePowerReadout = ref<{ label: string; x: number; y: number } | null>(null);
+const hoveredFixture = ref<{
+  id: string;
+  label: string;
+  powerLabel: string;
+  x: number;
+  y: number;
+} | null>(null);
 const selectedFixture = ref<{ id: string; label: string } | null>(null);
 let fixturePowerTimer: ReturnType<typeof setTimeout> | null = null;
+
+function formatFixtureName(id: string, fallback: string) {
+  if (locale.value === 'en') return fallback;
+  if (id.startsWith('garden-')) return 'Trädgårdslampa';
+  if (id.startsWith('terrace-deck-')) return 'Altanspotlight';
+  if (id.startsWith('terrace-rim-')) return 'Altanlist (LED)';
+  if (id.startsWith('led-canopy-')) return 'LED-list skärmtak';
+  if (id.startsWith('led-eave-')) return 'LED-list takfot';
+  if (id.startsWith('door-')) return 'Dörrlampa';
+  if (id.startsWith('updown-')) return 'Upp/ner-fasadlampa';
+  if (id.includes('-cabin-')) return 'Bastulampa';
+  return 'Fasadlampa';
+}
+
+const hoveredFixtureStyle = computed(() => {
+  if (!hoveredFixture.value) return {};
+  const width = canvasContainer.value?.clientWidth || 800;
+  const height = canvasContainer.value?.clientHeight || 600;
+  const clampedX = Math.min(Math.max(hoveredFixture.value.x, 120), Math.max(120, width - 120));
+  const clampedY = Math.min(Math.max(hoveredFixture.value.y - 14, 68), Math.max(68, height - 24));
+  return {
+    left: `${clampedX}px`,
+    top: `${clampedY}px`
+  };
+});
 
 function showFixturePowerReadout(info: { label: string; x: number; y: number }) {
   if (fixturePowerTimer) clearTimeout(fixturePowerTimer);
@@ -415,6 +487,10 @@ onMounted(() => {
     };
     engine.onFixtureSelect = (info) => {
       selectedFixture.value = info;
+      if (info) hoveredFixture.value = null;
+    };
+    engine.onFixtureHover = (info) => {
+      hoveredFixture.value = info;
     };
     engine.onFixtureMove = (id, edit) => {
       store.moveHouseLight(id, edit);
@@ -838,6 +914,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('keydown', onRoomKey);
   if (fixturePowerTimer) clearTimeout(fixturePowerTimer);
   fixturePowerReadout.value = null;
+  hoveredFixture.value = null;
   selectedFixture.value = null;
   hoveredFramingItem.value = null;
   engine?.destroy();

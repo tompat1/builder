@@ -343,7 +343,9 @@ export class HouseScene {
   /** Every render object belonging to one movable fixture. */
   private fixtureObjects = new Map<string, THREE.Object3D[]>();
   private selectedFixtureId: string | null = null;
+  private hoveredFixtureId: string | null = null;
   private fixtureSelectionBox: THREE.Box3Helper | null = null;
+  private fixtureHoverBox: THREE.Group | null = null;
   private fixtureDragPlane = new THREE.Plane();
   private fixtureDragPoint = new THREE.Vector3();
   private draggingFixture: {
@@ -435,6 +437,13 @@ export class HouseScene {
     y: number;
   }) => void;
   public onFixtureSelect?: (info: { id: string; label: string } | null) => void;
+  public onFixtureHover?: (info: {
+    id: string;
+    label: string;
+    powerLabel: string;
+    x: number;
+    y: number;
+  } | null) => void;
   public onFixtureMove?: (id: string, edit: HouseLightEdit) => void;
   public onFixtureDelete?: (id: string) => void;
   public onMeasureCursor?: (point: { x: number; y: number; z: number } | null) => void;
@@ -788,9 +797,13 @@ export class HouseScene {
     for (const glow of this.fixtureGlows) {
       const mat = glow.mesh.material;
       if (mat && !Array.isArray(mat) && 'emissiveIntensity' in mat) {
+        const isHighlighted =
+          Boolean(glow.fixtureId)
+          && (glow.fixtureId === this.hoveredFixtureId || glow.fixtureId === this.selectedFixtureId);
+        const effectiveNightGain = isHighlighted ? Math.max(this.nightGain, 0.75) : this.nightGain;
         (mat as THREE.MeshStandardMaterial).emissiveIntensity = fixtureEmissiveIntensity(
           glow.base,
-          this.nightGain,
+          effectiveNightGain,
           this.fixturePowerGain(glow.fixtureId)
         );
       }
@@ -835,6 +848,108 @@ export class HouseScene {
     this.fixtureSelectionBox = null;
   }
 
+  private clearFixtureHoverBox() {
+    if (!this.fixtureHoverBox) return;
+    this.scene.remove(this.fixtureHoverBox);
+    this.fixtureHoverBox.traverse((child) => {
+      if (child instanceof THREE.Mesh || child instanceof THREE.LineSegments) {
+        child.geometry.dispose();
+        const material = child.material;
+        if (Array.isArray(material)) material.forEach((item) => item.dispose());
+        else material.dispose();
+      }
+    });
+    this.fixtureHoverBox = null;
+  }
+
+  private updateFixtureHoverBox() {
+    this.clearFixtureHoverBox();
+    const id = this.hoveredFixtureId;
+    if (!id || id === this.selectedFixtureId) return;
+    const objects = this.fixtureObjects.get(id)?.filter((item) => item.visible) ?? [];
+    if (!objects.length) return;
+    const box = new THREE.Box3();
+    for (const object of objects) box.expandByObject(object);
+    if (box.isEmpty()) return;
+
+    const size = new THREE.Vector3();
+    const center = new THREE.Vector3();
+    box.getSize(size);
+    box.getCenter(center);
+
+    const pad = 0.08;
+    const boxGeo = new THREE.BoxGeometry(
+      Math.max(0.14, size.x + pad),
+      Math.max(0.14, size.y + pad),
+      Math.max(0.14, size.z + pad)
+    );
+    const edges = new THREE.EdgesGeometry(boxGeo);
+    const lineMat = new THREE.LineBasicMaterial({
+      color: '#f59e0b',
+      linewidth: 2,
+      depthTest: false
+    });
+    const lineSegs = new THREE.LineSegments(edges, lineMat);
+    lineSegs.renderOrder = 19;
+
+    const glowMat = new THREE.MeshBasicMaterial({
+      color: '#fbbf24',
+      transparent: true,
+      opacity: 0.16,
+      depthWrite: false
+    });
+    const glowMesh = new THREE.Mesh(boxGeo, glowMat);
+    glowMesh.renderOrder = 18;
+
+    const group = new THREE.Group();
+    group.add(glowMesh);
+    group.add(lineSegs);
+    group.position.copy(center);
+    this.fixtureHoverBox = group;
+    this.scene.add(this.fixtureHoverBox);
+  }
+
+  private setHoveredFixture(id: string | null) {
+    if (id && (!this.fixtureObjects.has(id) || id === this.selectedFixtureId)) {
+      id = null;
+    }
+    const changed = this.hoveredFixtureId !== id;
+    this.hoveredFixtureId = id;
+    if (changed) {
+      this.updateFixtureHoverBox();
+      this.syncFixtureLightIntensity();
+    }
+    if (!id) {
+      if (changed) this.onFixtureHover?.(null);
+      return;
+    }
+    const objects = this.fixtureObjects.get(id)?.filter((item) => item.visible) ?? [];
+    if (!objects.length) {
+      this.onFixtureHover?.(null);
+      return;
+    }
+    const box = new THREE.Box3();
+    for (const object of objects) box.expandByObject(object);
+    if (box.isEmpty()) {
+      this.onFixtureHover?.(null);
+      return;
+    }
+    const center = box.getCenter(new THREE.Vector3());
+    const topAnchor = new THREE.Vector3(center.x, box.max.y + 0.08, center.z);
+    const projected = topAnchor.project(this.camera);
+    const w = this.container.clientWidth;
+    const h = this.container.clientHeight;
+    const step = this.fixturePowerLevels.get(id) ?? DEFAULT_FIXTURE_POWER_STEP;
+    const kind = this.fixturePowerKind(id);
+    this.onFixtureHover?.({
+      id,
+      label: this.fixtureLabel(id),
+      powerLabel: formatFixturePowerLabel(step, kind),
+      x: ((projected.x + 1) * w) / 2,
+      y: ((-projected.y + 1) * h) / 2
+    });
+  }
+
   private updateFixtureSelectionBox() {
     this.clearFixtureSelectionBox();
     if (!this.selectedFixtureId) return;
@@ -852,7 +967,11 @@ export class HouseScene {
   private selectFixture(id: string | null) {
     if (id && !this.fixtureObjects.has(id)) id = null;
     this.selectedFixtureId = id;
+    if (id && this.hoveredFixtureId === id) {
+      this.setHoveredFixture(null);
+    }
     this.updateFixtureSelectionBox();
+    this.syncFixtureLightIntensity();
     this.onFixtureSelect?.(id ? { id, label: this.fixtureLabel(id) } : null);
   }
 
@@ -911,6 +1030,11 @@ export class HouseScene {
       this.updateFixtureSelectionBox();
     } else if (this.selectedFixtureId) {
       this.selectFixture(null);
+    }
+    if (this.hoveredFixtureId && this.fixtureObjects.has(this.hoveredFixtureId)) {
+      this.updateFixtureHoverBox();
+    } else if (this.hoveredFixtureId) {
+      this.setHoveredFixture(null);
     }
   }
 
@@ -1206,6 +1330,7 @@ export class HouseScene {
       if (this.renderer?.domElement) {
         this.renderer.domElement.style.cursor = MEASURE_CURSOR;
       }
+      this.setHoveredFixture(null);
       this.updateHoverBox(null);
       this.onPanelHover?.(null, 0, 0);
       this.updateRoomPreview(null);
@@ -1216,12 +1341,14 @@ export class HouseScene {
       if (this.renderer?.domElement) {
         this.renderer.domElement.style.cursor = 'crosshair';
       }
+      this.setHoveredFixture(null);
       this.updateHoverBox(null);
       this.onPanelHover?.(null, 0, 0);
       this.updateRoomPreview(null);
       return;
     }
     if (this.draggingFixture) {
+      this.setHoveredFixture(null);
       const distance = Math.hypot(
         e.clientX - this.draggingFixture.startX,
         e.clientY - this.draggingFixture.startY
@@ -1232,6 +1359,9 @@ export class HouseScene {
       }
       if (this.draggingFixture.hasMoved) this.moveFixtureDrag(e.clientX, e.clientY);
       this.container.style.cursor = 'grabbing';
+      if (this.renderer?.domElement) {
+        this.renderer.domElement.style.cursor = 'grabbing';
+      }
       return;
     }
 
@@ -1241,11 +1371,20 @@ export class HouseScene {
     this.raycaster.setFromCamera(this.mouse, this.camera);
     const fixtureHover = this.raycaster.intersectObjects(this.fixturePickMeshes, false)[0];
     if (fixtureHover) {
+      const hoveredId =
+        typeof fixtureHover.object.userData.fixtureId === 'string'
+          ? fixtureHover.object.userData.fixtureId
+          : null;
       this.container.style.cursor = 'grab';
+      if (this.renderer?.domElement) {
+        this.renderer.domElement.style.cursor = 'grab';
+      }
+      this.setHoveredFixture(hoveredId);
       this.updateHoverBox(null);
       this.onPanelHover?.(null, 0, 0);
       return;
     }
+    this.setHoveredFixture(null);
     // Night / moon: no bay hover outline — keeps the facade clean for light try-out.
     if (this.daylightMode === 'moon') {
       this.updateHoverBox(null);
@@ -1833,6 +1972,7 @@ export class HouseScene {
           this.renderer.domElement.style.cursor = 'default';
         }
       }
+      this.setHoveredFixture(null);
       this.updateHoverBox(null);
       this.onPanelHover?.(null, 0, 0);
       this.updateFramingHoverBox(null);
@@ -11041,6 +11181,8 @@ export class HouseScene {
       this.scene.remove(this.dragTargetBox);
       this.dragTargetBox = null;
     }
+    this.clearFixtureHoverBox();
+    this.clearFixtureSelectionBox();
     this.updateFramingHoverBox(null);
     if (this.animFrameId) cancelAnimationFrame(this.animFrameId);
     this.groundMesh = null;
