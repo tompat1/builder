@@ -642,8 +642,15 @@ export { TERRACE_BUILDINGS, TERRACE_BUILDING_PLACEMENTS, SAUNA_BUILDING_PRICE, S
 import {
   type WallSlot,
   type WindowRhythmCount,
+  type BandSlotCount,
+  type WallSide,
   PANEL_COUNTS,
   panelCountForWall,
+  acceptBandSlotCount,
+  bandSlotCountForWall,
+  slotsOnWallBand,
+  resizeWallBandSlots,
+  fillWindowsOnBand,
   createWallSlots,
   clearedWallSlots,
   cubeWallSlots,
@@ -661,10 +668,15 @@ import {
 } from './wallSlots';
 import { clearWindowRhythmSlots, releaseWindowRhythmSlots } from './slotMove';
 
-export type { WallSlot, WindowRhythmCount } from './wallSlots';
+export type { WallSlot, WindowRhythmCount, BandSlotCount, WallSide } from './wallSlots';
 export {
   PANEL_COUNTS,
   panelCountForWall,
+  acceptBandSlotCount,
+  bandSlotCountForWall,
+  slotsOnWallBand,
+  resizeWallBandSlots,
+  fillWindowsOnBand,
   createWallSlots,
   clearedWallSlots,
   cubeWallSlots,
@@ -678,7 +690,8 @@ export {
   freeBandRunForRhythm,
   bandSlotId,
   windowRowOnBand,
-  alignWindowsOnBand
+  alignWindowsOnBand,
+  clearWindowsOnBand
 };
 export {
   STUGAN_V4_SIZE_ID,
@@ -1870,15 +1883,19 @@ export const useConfigStore = defineStore('config', () => {
     let changed = false;
 
     walls.forEach((wall) => {
-      const count = panelCountForWall(wall, w, d);
+      const lowerCount = bandSlotCountForWall(wall, false, w, d, updated);
+      const upperCount = bandSlotCountForWall(wall, true, w, d, updated);
       for (const [id, slot] of Object.entries(updated)) {
-        if (slot.wall === wall && slot.index >= count) {
+        if (slot.wall !== wall) continue;
+        const isUpper = slot.isUpper === true || id.endsWith('u');
+        const maxForBand = isUpper ? upperCount : lowerCount;
+        if (slot.index >= maxForBand) {
           delete updated[id];
           changed = true;
           if (selectedSlotId.value === id) selectedSlotId.value = null;
         }
       }
-      for (let i = 0; i < count; i++) {
+      for (let i = 0; i < lowerCount; i++) {
         const lowerId = `${wall}-${i}`;
         if (!updated[lowerId]) {
           updated[lowerId] = {
@@ -1890,6 +1907,8 @@ export const useConfigStore = defineStore('config', () => {
           };
           changed = true;
         }
+      }
+      for (let i = 0; i < upperCount; i++) {
         const upperId = `${wall}-${i}u`;
         if (!updated[upperId]) {
           const isPaabyggnadFront = selectedSizeId.value === 'size-paabyggnad' && wall === 'front';
@@ -2828,7 +2847,7 @@ export const useConfigStore = defineStore('config', () => {
     anchorIndex?: number,
     isUpper = false
   ) => {
-    const panelCount = panelCountForWall(wall, buildingWidth.value, buildingDepth.value);
+    const panelCount = bandSlotCountForWall(wall, isUpper, buildingWidth.value, buildingDepth.value, wallSlots.value);
     const selected = selectedSlotId.value ? wallSlots.value[selectedSlotId.value] : null;
     const anchor = anchorIndex
       ?? (selected && selected.wall === wall && Boolean(selected.isUpper) === isUpper
@@ -2867,7 +2886,7 @@ export const useConfigStore = defineStore('config', () => {
 
   /** Count windows on a wall band (a rhythm host counts as its pane count). */
   const windowRowCount = (wall: WallSlot['wall'], isUpper: boolean) => {
-    const panelCount = panelCountForWall(wall, buildingWidth.value, buildingDepth.value);
+    const panelCount = bandSlotCountForWall(wall, isUpper, buildingWidth.value, buildingDepth.value, wallSlots.value);
     return windowRowOnBand(wallSlots.value, wall, panelCount, isUpper);
   }
 
@@ -2882,12 +2901,93 @@ export const useConfigStore = defineStore('config', () => {
     const slot = wallSlots.value[slotId];
     if (!slot) return;
     const isUpper = slot.isUpper === true || slotId.endsWith('u');
-    const panelCount = panelCountForWall(slot.wall, buildingWidth.value, buildingDepth.value);
+    const panelCount = bandSlotCountForWall(slot.wall, isUpper, buildingWidth.value, buildingDepth.value, wallSlots.value);
     const result = alignWindowsOnBand(wallSlots.value, slot.wall, panelCount, slot.index, isUpper);
     if (!result.ok || !result.hostId) return;
     selectedSlotId.value = result.hostId;
     saveSnapshot();
   }
+
+  /** Current number of equally spaced slots (1..4) on a facade band (lower or upper). */
+  const getBandSlotCount = (wall: WallSide, isUpper: boolean): BandSlotCount => {
+    return bandSlotCountForWall(wall, isUpper, buildingWidth.value, buildingDepth.value, wallSlots.value);
+  };
+
+  /** Ordered list of active slots (0..count-1) on a facade band (lower or upper). */
+  const getBandSlots = (wall: WallSide, isUpper: boolean): WallSlot[] => {
+    return slotsOnWallBand(wallSlots.value, wall, isUpper, buildingWidth.value, buildingDepth.value);
+  };
+
+  /** True when the given facade is tall enough to expose an upper floor band above the mid-rail. */
+  const wallHasUpperBand = (wall: WallSide): boolean => {
+    const h = buildingHeight.value / 1000;
+    const w = buildingWidth.value / 1000;
+    const d = buildingDepth.value / 1000;
+    const baseElev = 0.25;
+    const belt = selectedSizeId.value === 'size-paabyggnad' && !isConcreteFoundationOnly(concreteHeight.value)
+      ? Math.max(0.4, concreteHeight.value / 1000 - baseElev)
+      : (h >= 4.5 ? 2.7 - baseElev : 2.15);
+    if (activeRoof.value === 'pulpettak') {
+      const pitchDeg = isStuganV4(selectedSizeId.value) ? STUGAN_V4_ROOF_PITCH_DEG : PULPET_PITCH_DEG;
+      const angleRad = (pitchDeg * Math.PI) / 180;
+      const widthFall = isWidthFallPulpet(pulpetOrientation.value);
+      const fallSign = pulpetOrientation.value === 'north' || pulpetOrientation.value === 'west' ? -1 : 1;
+      const highH = h;
+      const lowH = Math.max(h - Math.tan(angleRad) * (widthFall ? w : d), 2.4);
+      let wallH = highH;
+      if (wall === 'front') wallH = widthFall ? (highH + lowH) / 2 : (fallSign < 0 ? lowH : highH);
+      else if (wall === 'back') wallH = widthFall ? (highH + lowH) / 2 : (fallSign < 0 ? highH : lowH);
+      else if (wall === 'left') wallH = widthFall ? (fallSign > 0 ? lowH : highH) : (highH + lowH) / 2;
+      else wallH = widthFall ? (fallSign > 0 ? highH : lowH) : (highH + lowH) / 2;
+      return wallH - baseElev + 0.04 > belt + 0.4;
+    }
+    return h - baseElev + 0.04 > belt + 0.4;
+  };
+
+  /**
+   * Step 1: Set how many equally spaced slots (1..4) exist on a facade band (lower or upper).
+   */
+  const setBandSlotCount = (wall: WallSide, isUpper: boolean, count: BandSlotCount) => {
+    const next = acceptBandSlotCount(count);
+    const prevSelected = selectedSlotId.value ? wallSlots.value[selectedSlotId.value] : null;
+    const prevOnSameBand = prevSelected
+      && prevSelected.wall === wall
+      && (prevSelected.isUpper === true || Boolean(selectedSlotId.value?.endsWith('u'))) === isUpper;
+    const targetIndex = prevOnSameBand ? Math.min(prevSelected.index, next - 1) : 0;
+
+    const copy = { ...wallSlots.value };
+    resizeWallBandSlots(copy, wall, isUpper, next, buildingWidth.value, buildingDepth.value);
+    wallSlots.value = copy;
+    selectedSlotId.value = bandSlotId(wall, targetIndex, isUpper);
+    saveSnapshot();
+  };
+
+  /**
+   * Step 2 quick action: Fill all available slots on a facade band with a window type.
+   */
+  const fillBandWindows = (wall: WallSide, isUpper: boolean, itemId?: string) => {
+    const winId = itemId ?? activeWindow.value ?? 'standard-single';
+    const copy = { ...wallSlots.value };
+    fillWindowsOnBand(copy, wall, isUpper, winId, buildingWidth.value, buildingDepth.value);
+    wallSlots.value = copy;
+    const current = selectedSlotId.value ? copy[selectedSlotId.value] : null;
+    const sameBand = current && current.wall === wall && (current.isUpper === true || Boolean(selectedSlotId.value?.endsWith('u'))) === isUpper;
+    if (!sameBand) {
+      selectedSlotId.value = bandSlotId(wall, 0, isUpper);
+    }
+    saveSnapshot();
+  };
+
+  /**
+   * Clear all windows on a facade band while keeping any ground-floor doors/gates intact.
+   */
+  const clearBandWindows = (wall: WallSide, isUpper: boolean) => {
+    const count = bandSlotCountForWall(wall, isUpper, buildingWidth.value, buildingDepth.value, wallSlots.value);
+    const copy = { ...wallSlots.value };
+    clearWindowsOnBand(copy, wall, count, isUpper);
+    wallSlots.value = copy;
+    saveSnapshot();
+  };
 
   const assignSlotItem = (slotId: string, type: 'empty' | 'door' | 'window' | 'gate', itemId?: string) => {
     const slot = wallSlots.value[slotId];
@@ -2902,14 +3002,16 @@ export const useConfigStore = defineStore('config', () => {
     slot.windowRhythm = undefined;
     slot.fitToWall = type === 'window' ? true : undefined;
     if ((itemId === 'SKJUTDORR' || itemId === 'SKJUTDORR3') && !slot.isUpper) {
-      const count = slot.wall === 'front' || slot.wall === 'back' ? 4 : 3;
-      const partnerIndex = slot.index + 1 < count ? slot.index + 1 : slot.index - 1;
-      const partner = wallSlots.value[`${slot.wall}-${partnerIndex}`];
-      if (partner && !partner.isUpper) {
-        releaseWideDoor(partner.id);
-        partner.type = 'empty';
-        partner.itemId = undefined;
-        partner.coveredBy = slotId;
+      const count = bandSlotCountForWall(slot.wall, false, buildingWidth.value, buildingDepth.value, wallSlots.value);
+      if (count >= 2) {
+        const partnerIndex = slot.index + 1 < count ? slot.index + 1 : slot.index - 1;
+        const partner = wallSlots.value[`${slot.wall}-${partnerIndex}`];
+        if (partner && !partner.isUpper) {
+          releaseWideDoor(partner.id);
+          partner.type = 'empty';
+          partner.itemId = undefined;
+          partner.coveredBy = slotId;
+        }
       }
     }
     saveSnapshot();
@@ -3366,6 +3468,12 @@ export const useConfigStore = defineStore('config', () => {
     alignWallWindows,
     windowRowCount,
     lowerWindowRowCount,
+    getBandSlotCount,
+    getBandSlots,
+    wallHasUpperBand,
+    setBandSlotCount,
+    fillBandWindows,
+    clearBandWindows,
     moveSlotItem,
     toggleDimensions,
     setDisplay,

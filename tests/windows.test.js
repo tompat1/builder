@@ -579,3 +579,89 @@ test('Align rhythm snaps panes into whole bays so frames never cross seams', asy
   assert.ok(clipped);
   assert.ok(clipped.winW < wide.winW);
 });
+
+test('Step 1 and Step 2 allow independent 1..4 window slot counts on upper and lower floors and arrange windows equally with safe corner margins', async () => {
+  const {
+    createWallSlots,
+    bandSlotCountForWall,
+    slotsOnWallBand,
+    resizeWallBandSlots,
+    fillWindowsOnBand,
+    mergeWallSlots
+  } = await import('../src/store/wallSlots.ts');
+
+  const slots = createWallSlots(6000, 6000);
+  assert.equal(bandSlotCountForWall('front', true, 6000, 6000, slots), 4);
+  assert.equal(bandSlotCountForWall('front', false, 6000, 6000, slots), 4);
+
+  // Suppose the user had two windows in front-1u and front-2u (middle bays) and emptied front-0u and front-3u
+  slots['front-0u'].type = 'empty';
+  slots['front-0u'].itemId = undefined;
+  slots['front-1u'].type = 'window';
+  slots['front-1u'].itemId = 'standard-single';
+  slots['front-2u'].type = 'window';
+  slots['front-2u'].itemId = 'standard-single';
+  slots['front-3u'].type = 'empty';
+  slots['front-3u'].itemId = undefined;
+
+  // Step 1: User selects 2 window slots on the upper floor of the front facade
+  resizeWallBandSlots(slots, 'front', true, 2, 6000, 6000);
+  assert.equal(bandSlotCountForWall('front', true, 6000, 6000, slots), 2);
+  // Ground floor of the same facade stays at 4 slots independently
+  assert.equal(bandSlotCountForWall('front', false, 6000, 6000, slots), 4);
+
+  const upperSlots = slotsOnWallBand(slots, 'front', true, 6000, 6000);
+  assert.equal(upperSlots.length, 2);
+  assert.equal(upperSlots[0].id, 'front-0u');
+  assert.equal(upperSlots[1].id, 'front-1u');
+  // Both placed windows are preserved in the 2 equally spaced slots
+  assert.equal(upperSlots[0].type, 'window');
+  assert.equal(upperSlots[1].type, 'window');
+  assert.equal(slots['front-2u'], undefined);
+  assert.equal(slots['front-3u'], undefined);
+
+  // Step 1 on ground floor: User selects 3 slots on the back ground floor and fills them
+  resizeWallBandSlots(slots, 'back', false, 3, 6000, 6000);
+  fillWindowsOnBand(slots, 'back', false, 'sprojat', 6000, 6000);
+  assert.equal(bandSlotCountForWall('back', false, 6000, 6000, slots), 3);
+  assert.equal(bandSlotCountForWall('back', true, 6000, 6000, slots), 4);
+  for (let i = 0; i < 3; i += 1) {
+    assert.equal(slots[`back-${i}`].type, 'window');
+    assert.equal(slots[`back-${i}`].itemId, 'sprojat');
+  }
+  assert.equal(slots['back-3'], undefined);
+
+  // mergeWallSlots preserves the independent per-band slot counts
+  const merged = mergeWallSlots(slots, 'size-cube', 6000, 6000);
+  assert.equal(bandSlotCountForWall('front', true, 6000, 6000, merged), 2);
+  assert.equal(bandSlotCountForWall('front', false, 6000, 6000, merged), 4);
+  assert.equal(bandSlotCountForWall('back', false, 6000, 6000, merged), 3);
+
+  // Verify 3D window geometry for 1, 2, 3, and 4 slots on a 6.0 m wall:
+  // Every window in a row has identical width & height, centered x = 0 in its slot,
+  // equal center-to-center and edge-to-edge spacing, and safe corner margins (>= 170 mm to casing).
+  const wallLength = 6.0;
+  for (const count of [1, 2, 3, 4]) {
+    const pw = wallLength / count;
+    const fittedRow = [];
+    for (let i = 0; i < count; i += 1) {
+      const corner = count === 1 ? 'both' : i === 0 ? 'left' : i === count - 1 ? 'right' : null;
+      const fit = fittedWindowOpening('standard-single', pw, 1.1, 2.4, true, false, corner, null);
+      assert.equal(fit.x, 0, `slot ${i} of ${count} must be centered at x = 0`);
+      const casing = fit.casingSide ?? 0.09;
+      const outerMargin = pw / 2 - (fit.winW / 2 + casing);
+      assert.ok(outerMargin >= 0.17 - 1e-6, `slot ${i} of ${count} keeps safe corner margin (${outerMargin})`);
+      fittedRow.push({
+        center: -wallLength / 2 + (i + 0.5) * pw + fit.x,
+        winW: fit.winW,
+        winH: fit.winH
+      });
+    }
+    for (let i = 1; i < fittedRow.length; i += 1) {
+      assert.ok(Math.abs(fittedRow[i].winW - fittedRow[0].winW) < 1e-9, 'equal window widths across row');
+      assert.ok(Math.abs(fittedRow[i].winH - fittedRow[0].winH) < 1e-9, 'equal window heights across row');
+      const spacing = fittedRow[i].center - fittedRow[i - 1].center;
+      assert.ok(Math.abs(spacing - pw) < 1e-9, 'equal center-to-center spacing across row');
+    }
+  }
+});

@@ -13,7 +13,7 @@ import {
   type RoofCovering
 } from '../store/useConfigStore';
 import { STUGAN_V4_ROOF_PITCH_DEG } from '../store/stuganV4';
-import { panelCountForWall } from '../store/wallSlots';
+import { bandSlotCountForWall } from '../store/wallSlots';
 import {
   normalizeBuildingRoof,
   terraceAdditionLayout,
@@ -125,7 +125,8 @@ import {
   portraitPane,
   rhythmOpeningsAlongRun,
   rhythmOpeningsForPanel,
-  windowOpeningChanged
+  windowOpeningChanged,
+  type CornerSide
 } from './windowFit';
 import { fitRoom, innerHalf, roomFootprint, roomWallRuns, shellSides, SHELL_TOUCH, bedroomBedPlacement, type RoomBox, type ShellSides, type RoomBounds } from './roomWalls';
 import {
@@ -2369,9 +2370,16 @@ export class HouseScene {
   private panelCountForWall(
     wallSide: 'front' | 'back' | 'left' | 'right',
     wM: number,
-    dM: number
+    dM: number,
+    isUpper = false
   ): number {
-    return panelCountForWall(wallSide, Math.round(wM * 1000), Math.round(dM * 1000));
+    return bandSlotCountForWall(
+      wallSide,
+      isUpper,
+      Math.round(wM * 1000),
+      Math.round(dM * 1000),
+      this.currentConfig.wallSlots
+    );
   }
 
   private buildModularWall(
@@ -2410,29 +2418,31 @@ export class HouseScene {
     // Side cladding tucks into the front and back sheets so the corner has no hole.
     const endInset = claddingThick - 0.008;
     const wallLength = isFrontOrBack ? w : d - endInset * 2;
-    const panelWidth = wallLength / panelCount;
+    const lowerCount = panelCount || this.panelCountForWall(wallSide, w, d, false);
+    const upperCount = this.panelCountForWall(wallSide, w, d, true);
+    const belt = this.beltRise(h);
+    const slope = this.alongWallSlope(wallSide);
+    const hasAnyUpperSlot = Array.from(
+      { length: upperCount },
+      (_, idx) => Boolean(this.currentConfig.wallSlots[`${wallSide}-${idx}u`])
+    ).some(Boolean);
 
-    for (let i = 0; i < panelCount; i++) {
-      const slotId = `${wallSide}-${i}`;
-
-      // Panel center coordinates and height
+    const placePanel = (index: number, count: number) => {
+      const panelWidth = wallLength / count;
       let px = 0;
       let pz = 0;
       let rotY = 0;
       let panelWallH = frontH - baseElev;
 
       if (wallSide === 'front') {
-        px = -w / 2 + panelWidth / 2 + i * panelWidth;
+        px = -w / 2 + panelWidth / 2 + index * panelWidth;
         pz = d / 2 - claddingThick / 2;
         rotY = 0;
-        // In insida view, cut front wall to waist height (1.35m) matching Reference Image 4 & 5
-        // so interior floor, loft, stairs, and framing are completely visible without obstruction
         if (this.interiorCut()) panelWallH = 1.35;
-        // Width-fall: plate Y = yMid + fallSign * px * tan.
         else if (widthFall) panelWallH = this.sidePanelHeight(w, h, lowH, yMid, fallSign * angleRad, px, baseElev);
         else panelWallH = frontH - baseElev;
       } else if (wallSide === 'back') {
-        px = w / 2 - panelWidth / 2 - i * panelWidth;
+        px = w / 2 - panelWidth / 2 - index * panelWidth;
         pz = -d / 2 + claddingThick / 2;
         rotY = Math.PI;
         panelWallH = widthFall
@@ -2440,14 +2450,14 @@ export class HouseScene {
           : rearH - baseElev;
       } else if (wallSide === 'left') {
         px = -w / 2 + claddingThick / 2;
-        pz = d / 2 - endInset - panelWidth / 2 - i * panelWidth;
+        pz = d / 2 - endInset - panelWidth / 2 - index * panelWidth;
         rotY = -Math.PI / 2;
         panelWallH = widthFall
           ? westH - baseElev
           : this.sidePanelHeight(d, h, lowH, yMid, fallSign * angleRad, pz, baseElev);
       } else {
         px = w / 2 - claddingThick / 2;
-        pz = -d / 2 + endInset + panelWidth / 2 + i * panelWidth;
+        pz = -d / 2 + endInset + panelWidth / 2 + index * panelWidth;
         rotY = Math.PI / 2;
         panelWallH = widthFall
           ? eastH - baseElev
@@ -2455,33 +2465,63 @@ export class HouseScene {
       }
 
       if (!this.interiorCut()) panelWallH += 0.04;
+      return { panelWidth, px, pz, rotY, panelWallH };
+    };
 
-      const belt = this.beltRise(h);
-      const upperId = `${wallSide}-${i}u`;
-      const upperSlot = this.currentConfig.wallSlots[upperId];
-      // Two selectable levels (lower + upper) whenever an upper bay exists and the wall is tall enough.
-      const split = Boolean(upperSlot) && panelWallH > belt + 0.4;
-      const bands = split
-        ? [
-            { slotId, height: belt, base: baseElev, upper: false, reachesRoof: false },
-            { slotId: upperId, height: panelWallH - belt, base: baseElev + belt, upper: true, reachesRoof: true }
-          ]
-        : [{ slotId, height: panelWallH, base: baseElev, upper: false, reachesRoof: true }];
+    // 1. Lower (ground floor) band across lowerCount equal slots
+    for (let i = 0; i < lowerCount; i++) {
+      const slotId = `${wallSide}-${i}`;
+      const { panelWidth, px, pz, rotY, panelWallH } = placePanel(i, lowerCount);
+      const upperSlotHere = lowerCount === upperCount
+        ? Boolean(this.currentConfig.wallSlots[`${wallSide}-${i}u`])
+        : hasAnyUpperSlot;
+      const split = upperSlotHere && panelWallH > belt + 0.4 && !this.interiorCut();
+      const lowerBand = split
+        ? { slotId, height: belt, base: baseElev, upper: false, reachesRoof: false }
+        : { slotId, height: panelWallH, base: baseElev, upper: false, reachesRoof: true };
+      const bay = this.currentConfig.wallSlots[slotId];
+      const uprightDoor = Boolean(
+        this.currentConfig.verticalDoorBay
+        && wallSide === 'front'
+        && bay?.type === 'door'
+        && bay.itemId !== 'SKJUTDORR'
+        && bay.itemId !== 'SKJUTDORR3'
+      );
+      const faceMat = uprightDoor ? doorBayMat : exteriorMat;
+      this.buildWallBand(
+        lowerBand,
+        px,
+        pz,
+        rotY,
+        panelWidth,
+        claddingThick,
+        wallThick,
+        wallSide,
+        i,
+        lowerCount,
+        slope,
+        faceMat,
+        casingMat,
+        concreteWallMat
+      );
+    }
 
-      const slope = this.alongWallSlope(wallSide);
-      for (const band of bands) {
-        const bay = this.currentConfig.wallSlots[band.slotId];
-        const uprightDoor = Boolean(
-          this.currentConfig.verticalDoorBay
-          && !band.upper
-          && wallSide === 'front'
-          && bay?.type === 'door'
-          && bay.itemId !== 'SKJUTDORR'
-          && bay.itemId !== 'SKJUTDORR3'
-        );
-        const faceMat = uprightDoor ? doorBayMat : exteriorMat;
+    // 2. Upper floor band across upperCount equal slots (independent of lowerCount)
+    if (!this.interiorCut() && hasAnyUpperSlot) {
+      for (let j = 0; j < upperCount; j++) {
+        const upperId = `${wallSide}-${j}u`;
+        if (!this.currentConfig.wallSlots[upperId]) continue;
+        const { panelWidth, px, pz, rotY, panelWallH } = placePanel(j, upperCount);
+        if (panelWallH <= belt + 0.4) continue;
+        const upperBand = {
+          slotId: upperId,
+          height: panelWallH - belt,
+          base: baseElev + belt,
+          upper: true,
+          reachesRoof: true
+        };
         this.buildWallBand(
-          band,
+          upperBand,
           px,
           pz,
           rotY,
@@ -2489,10 +2529,10 @@ export class HouseScene {
           claddingThick,
           wallThick,
           wallSide,
-          i,
-          panelCount,
+          j,
+          upperCount,
           slope,
-          faceMat,
+          exteriorMat,
           casingMat,
           concreteWallMat
         );
@@ -2981,7 +3021,7 @@ export class HouseScene {
     slot: WallSlot | undefined,
     panelWidth: number,
     panelHeight: number,
-    cornerSide: 'left' | 'right' | null | undefined,
+    cornerSide: CornerSide | undefined,
     facadeSpan: { from: number; to: number } | null,
     upper: boolean,
     slope: number,
@@ -3106,7 +3146,15 @@ export class HouseScene {
     const wide = band.upper || rhythmPanes.length
       ? null
       : this.wideOpeningForPanel(wallSide, index, panelWidth, band.height, band.base);
-    const lowerBay = this.currentConfig.wallSlots[`${wallSide}-${index}`];
+    const lowerCount = this.panelCountForWall(
+      wallSide,
+      this.currentConfig.widthMm / 1000,
+      this.currentConfig.depthMm / 1000,
+      false
+    );
+    const lowerBay = panelCount === lowerCount
+      ? this.currentConfig.wallSlots[`${wallSide}-${index}`]
+      : undefined;
     const aboveDoor = Boolean(
       band.upper
       && (slot?.itemId === 'standard-single' || slot?.itemId === OVERLIGHT)
@@ -4341,12 +4389,13 @@ export class HouseScene {
    * A lower window fills the bay under the rail. A door stands on the floor.
    * Catalog type changes glass and mullions; it does not override the fit.
    */
-  /** Returns which local side ('left' | 'right') of this panel touches an exterior corner, or null if interior. */
+  /** Returns which local side ('left' | 'right' | 'both') of this panel touches an exterior corner, or null if interior. */
   private cornerSideForPanel(
     wallSide: 'front' | 'back' | 'left' | 'right',
     index: number,
     panelCount: number
-  ): 'left' | 'right' | null {
+  ): CornerSide {
+    if (panelCount <= 1) return 'both';
     if (index !== 0 && index !== panelCount - 1) return null;
     if (wallSide === 'front' || wallSide === 'back') {
       return index === 0 ? 'left' : 'right';
@@ -4367,7 +4416,7 @@ export class HouseScene {
     panelHeight: number,
     panelBase: number,
     aboveDoor = false,
-    cornerSide?: 'left' | 'right' | null,
+    cornerSide?: CornerSide,
     facadeSpan?: { from: number; to: number } | null
   ) {
     const half = panelWidth / 2;
@@ -4466,7 +4515,7 @@ export class HouseScene {
           head: opening.head,
           wall,
           itemId: slot.itemId,
-          cornerSide,
+          cornerSide: cornerSide === 'both' ? null : cornerSide,
           panelWidth
         });
       }
@@ -5680,10 +5729,10 @@ export class HouseScene {
     base: number
   ) {
     const isFrontBack = wall === 'front' || wall === 'back';
-    const count = this.panelCountForWall(wall, w, d);
+    const lowerCount = this.panelCountForWall(wall, w, d, false);
+    const upperCount = this.panelCountForWall(wall, w, d, true);
     const endInset = 0.025 - 0.008;
     const length = isFrontBack ? w : d - endInset * 2;
-    const panelW = length / count;
     const isPulpet = this.currentConfig.roofType === 'pulpettak';
     const isFlackt = this.currentConfig.roofType === 'flackt';
     const widthFall = this.roofFallsAlongWidth();
@@ -5699,8 +5748,14 @@ export class HouseScene {
     const westH = widthFall ? (fallSign > 0 ? lowH : highH) : (highH + lowH) / 2;
     const eastH = widthFall ? (fallSign > 0 ? highH : lowH) : (highH + lowH) / 2;
     const yMid = (highH + lowH) / 2;
+    const belt = this.beltRise(h);
+    const hasAnyUpperSlot = Array.from(
+      { length: upperCount },
+      (_, idx) => Boolean(this.currentConfig.wallSlots[`${wall}-${idx}u`])
+    ).some(Boolean);
     const openings: { x: number; winW: number; winH: number; winY: number; sill: number; head: number }[] = [];
-    for (let p = 0; p < count; p++) {
+
+    const centerAndHeight = (p: number, panelW: number) => {
       let center = 0;
       let panelWallH = frontH - base;
       if (wall === 'front') {
@@ -5724,16 +5779,22 @@ export class HouseScene {
           ? eastH - base
           : this.sidePanelHeight(d, h, lowH, yMid, fallSign * pitchRad, center, base);
       }
-      const belt = this.beltRise(h);
-      const lowerH = Math.min(belt, panelWallH);
-      const split = Boolean(this.currentConfig.wallSlots[`${wall}-${p}u`]) && panelWallH > belt + 0.4 && !this.interiorCut();
-      const bands = split
-        ? [
-            { id: `${wall}-${p}`, upper: false, panelH: lowerH, panelBase: base },
-            { id: `${wall}-${p}u`, upper: true, panelH: panelWallH - lowerH, panelBase: base + lowerH }
-          ]
-        : [{ id: `${wall}-${p}`, upper: false, panelH: panelWallH, panelBase: base }];
-      for (const band of bands) {
+      return { center, panelWallH };
+    };
+
+    const collectBandOpenings = (bandUpper: boolean, count: number) => {
+      const panelW = length / count;
+      for (let p = 0; p < count; p++) {
+        const { center, panelWallH } = centerAndHeight(p, panelW);
+        const lowerH = Math.min(belt, panelWallH);
+        const upperExistsHere = lowerCount === upperCount
+          ? Boolean(this.currentConfig.wallSlots[`${wall}-${p}u`])
+          : hasAnyUpperSlot;
+        const split = upperExistsHere && panelWallH > belt + 0.4 && !this.interiorCut();
+        if (bandUpper && !split) continue;
+        const band = bandUpper
+          ? { id: `${wall}-${p}u`, upper: true, panelH: panelWallH - lowerH, panelBase: base + lowerH }
+          : { id: `${wall}-${p}`, upper: false, panelH: split ? lowerH : panelWallH, panelBase: base };
         const slot = this.currentConfig.wallSlots[band.id];
         const rhythmPanes = this.windowRhythmOpeningsForPanel(
           wall,
@@ -5785,7 +5846,7 @@ export class HouseScene {
         }
         // Rhythm host alone would otherwise place a single centred pane — skip; rhythm branch above owns it.
         if (slot.windowRhythm) continue;
-        const lower = this.currentConfig.wallSlots[`${wall}-${p}`];
+        const lower = lowerCount === upperCount ? this.currentConfig.wallSlots[`${wall}-${p}`] : undefined;
         const aboveDoor = Boolean(
           band.upper
           && (slot.itemId === 'standard-single' || slot.itemId === OVERLIGHT)
@@ -5818,7 +5879,10 @@ export class HouseScene {
           x: worldX
         });
       }
-    }
+    };
+
+    collectBandOpenings(false, lowerCount);
+    collectBandOpenings(true, upperCount);
     return openings;
   }
 
@@ -5865,7 +5929,7 @@ export class HouseScene {
     opening: { winW: number; winH: number; winY: number; x?: number; casingSide?: number },
     kind: 'door' | 'window',
     material: THREE.Material,
-    cornerSide?: 'left' | 'right' | null,
+    cornerSide?: CornerSide,
     panelWidth?: number,
     facadeSpan?: { from: number; to: number } | null,
     slope = 0,
@@ -5902,8 +5966,8 @@ export class HouseScene {
 
     const pw = panelWidth ?? (winW + side * 2 + 0.1);
     const cornerClearance = 0.165;
-    let minX = cornerSide === 'left' ? -pw / 2 + cornerClearance : -pw / 2 + 0.02;
-    let maxX = cornerSide === 'right' ? pw / 2 - cornerClearance : pw / 2 - 0.02;
+    let minX = (cornerSide === 'left' || cornerSide === 'both') ? -pw / 2 + cornerClearance : -pw / 2 + 0.02;
+    let maxX = (cornerSide === 'right' || cornerSide === 'both') ? pw / 2 - cornerClearance : pw / 2 - 0.02;
 
     if (facadeSpan) {
       const half = pw / 2;
@@ -9607,7 +9671,7 @@ export class HouseScene {
         doorX: 0,
         doorWidth: Math.min(1.0, pw - 0.2),
         panelWidth: pw,
-        cornerSide
+        cornerSide: cornerSide === 'both' ? null : cornerSide
       });
 
       const canopyGeo = new THREE.BoxGeometry(

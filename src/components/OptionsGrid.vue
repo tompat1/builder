@@ -2847,6 +2847,201 @@
         </button>
       </div>
 
+      <!-- Step 1 & Step 2: Facade & Floor Window Slot Arranger -->
+      <section
+        id="window-facade-arranger"
+        data-testid="window-facade-arranger"
+        class="rounded-xl border border-slate-200/90 bg-slate-50/70 p-3 space-y-3"
+      >
+        <!-- Facade & Floor Level Selector -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between gap-2">
+            <h4 class="text-xs font-bold text-slate-900">
+              <Cms k="slot.facadeLevelTitle" />
+            </h4>
+            <div class="inline-flex rounded-lg border border-slate-200 bg-white p-0.5">
+              <button
+                type="button"
+                id="window-floor-lower"
+                :aria-pressed="!activeWindowIsUpper"
+                @click="selectWindowFloor(false)"
+                class="rounded-md px-2.5 py-1 text-[11px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+                :class="!activeWindowIsUpper
+                  ? 'bg-slate-900 text-white'
+                  : 'text-slate-700 hover:text-slate-900'"
+              >
+                <Cms k="slot.floorLower" />
+              </button>
+              <button
+                type="button"
+                id="window-floor-upper"
+                :disabled="!canUseUpperWindowBand"
+                :aria-pressed="activeWindowIsUpper"
+                :title="!canUseUpperWindowBand ? t('slot.floorUpperUnavailable') : undefined"
+                @click="selectWindowFloor(true)"
+                class="rounded-md px-2.5 py-1 text-[11px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 disabled:cursor-not-allowed disabled:opacity-40"
+                :class="activeWindowIsUpper
+                  ? 'bg-slate-900 text-white'
+                  : 'text-slate-700 hover:text-slate-900'"
+              >
+                <Cms k="slot.floorUpper" />
+              </button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-4 gap-1.5">
+            <button
+              v-for="wall in WINDOW_WALL_SIDES"
+              :key="wall"
+              type="button"
+              :id="`window-wall-${wall}`"
+              :aria-pressed="activeWindowWall === wall"
+              @click="selectWindowWall(wall)"
+              class="rounded-lg border py-1.5 px-2 text-[11px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+              :class="activeWindowWall === wall
+                ? 'border-slate-900 bg-slate-900 text-white'
+                : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:text-slate-900'"
+            >
+              <Cms :k="`category.${wall}`" />
+            </button>
+          </div>
+        </div>
+
+        <!-- Step 1: Select how many equally spaced window slots (1..4) on this floor band -->
+        <div id="window-step1-slot-count" class="pt-2.5 border-t border-slate-200/80 space-y-2">
+          <div>
+            <h4 class="text-xs font-bold text-slate-900">
+              <Cms k="slot.step1SlotCount" />
+            </h4>
+            <p class="text-[11px] text-slate-600 mt-0.5 leading-snug">
+              <Cms k="slot.step1SlotCountHint" />
+            </p>
+          </div>
+
+          <div class="grid grid-cols-4 gap-1.5">
+            <button
+              v-for="count in WINDOW_SLOT_COUNTS"
+              :key="count"
+              type="button"
+              :id="`window-slot-count-${count}`"
+              :aria-pressed="currentBandSlotCount === count"
+              @click="selectWindowBandSlotCount(count)"
+              class="rounded-lg border py-2 px-1.5 flex flex-col items-center gap-1.5 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+              :class="currentBandSlotCount === count
+                ? 'border-slate-900 bg-slate-900 text-white shadow-2xs'
+                : 'border-slate-200 bg-white text-slate-800 hover:border-slate-300'"
+            >
+              <svg class="w-full h-4" viewBox="0 0 64 16" fill="none" aria-hidden="true">
+                <!-- Left and right house corner boards -->
+                <rect x="1" y="1" width="3" height="14" rx="0.8" fill="currentColor" fill-opacity="0.45" />
+                <rect x="60" y="1" width="3" height="14" rx="0.8" fill="currentColor" fill-opacity="0.45" />
+                <!-- N equally spaced window slots with safe corner margins -->
+                <rect
+                  v-for="idx in count"
+                  :key="idx"
+                  :x="7 + ((idx - 1) * (50 / count)) + (50 / count - Math.min(18, 44 / count)) / 2"
+                  y="3"
+                  :width="Math.min(18, 44 / count)"
+                  height="10"
+                  rx="1.2"
+                  stroke="currentColor"
+                  stroke-width="1.5"
+                  fill="currentColor"
+                  fill-opacity="0.2"
+                />
+              </svg>
+              <span class="text-[11px] font-bold tabular-nums leading-none">
+                {{ count === 1 ? t('slot.slotCountOne') : t('slot.slotCountMany', { n: count }) }}
+              </span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Step 2: Equally arranged slots on this floor — pick slot or fill row -->
+        <div id="window-step2-slots-row" class="pt-2.5 border-t border-slate-200/80 space-y-2">
+          <div class="flex items-center justify-between gap-2">
+            <h4 class="text-xs font-bold text-slate-900">
+              <Cms k="slot.step2ArrangeSlots" />
+            </h4>
+            <div class="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                id="btn-fill-band-windows"
+                @click="fillCurrentBandWithActiveWindow()"
+                class="rounded-lg border border-slate-300 bg-white px-2 py-1 text-[11px] font-bold text-slate-800 hover:border-slate-400 hover:bg-slate-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+              >
+                {{ t('slot.fillAllSlots', { n: currentBandSlotCount }) }}
+              </button>
+              <button
+                v-if="currentBandHasAnyWindow"
+                type="button"
+                id="btn-clear-band-windows"
+                @click="store.clearBandWindows(activeWindowWall, activeWindowIsUpper)"
+                class="rounded-lg border border-slate-200 bg-white px-2 py-1 text-[11px] font-semibold text-rose-700 hover:border-rose-300 hover:bg-rose-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+              >
+                <Cms k="slot.clearBandWindows" />
+              </button>
+            </div>
+          </div>
+
+          <!-- Visual Equal-Slot Facade Bar with Corner Margins -->
+          <div
+            id="window-band-slots-bar"
+            class="flex items-stretch gap-1.5"
+          >
+            <div
+              class="w-3 shrink-0 rounded-md bg-slate-200/90 flex items-center justify-center"
+              :title="t('slot.cornerMargin')"
+              aria-hidden="true"
+            >
+              <span class="w-1 h-4 rounded-full bg-slate-400"></span>
+            </div>
+
+            <div
+              class="flex-1 grid gap-1.5"
+              :style="{ gridTemplateColumns: `repeat(${currentBandSlots.length}, minmax(0, 1fr))` }"
+            >
+              <button
+                v-for="slot in currentBandSlots"
+                :key="slot.id"
+                type="button"
+                :id="`window-band-slot-${slot.index}`"
+                :aria-pressed="store.selectedSlotId === slot.id"
+                @click="store.selectSlot(slot.id)"
+                class="rounded-lg border p-2 text-left transition-all flex flex-col justify-between min-h-[54px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+                :class="store.selectedSlotId === slot.id
+                  ? 'border-emerald-700 ring-1 ring-emerald-700 bg-emerald-50/90 text-emerald-950'
+                  : slot.type === 'window'
+                    ? 'border-slate-300 bg-white text-slate-900 hover:border-slate-400'
+                    : 'border-dashed border-slate-300 bg-white/70 text-slate-700 hover:border-slate-400 hover:bg-white'"
+              >
+                <div class="flex items-center justify-between gap-1">
+                  <span class="text-[10px] font-extrabold tabular-nums">
+                    #{{ slot.index + 1 }}
+                  </span>
+                  <span
+                    v-if="store.selectedSlotId === slot.id"
+                    class="w-2 h-2 rounded-full bg-emerald-600"
+                    aria-hidden="true"
+                  ></span>
+                </div>
+                <p class="text-[11px] font-semibold leading-tight truncate mt-1">
+                  {{ bandSlotStatusLabel(slot) }}
+                </p>
+              </button>
+            </div>
+
+            <div
+              class="w-3 shrink-0 rounded-md bg-slate-200/90 flex items-center justify-center"
+              :title="t('slot.cornerMargin')"
+              aria-hidden="true"
+            >
+              <span class="w-1 h-4 rounded-full bg-slate-400"></span>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
         <button
           v-for="win in WINDOWS_OPTIONS"
@@ -3499,7 +3694,11 @@ import {
   WINDOWS_OPTIONS,
   GATES_OPTIONS,
   OUTSIDE_PRICES,
-  isStuganV4
+  bandSlotId,
+  isStuganV4,
+  type BandSlotCount,
+  type WallSide,
+  type WallSlot
 } from '../store/useConfigStore';
 import {
   FASCIA_TRIM_COLORS,
@@ -4094,6 +4293,104 @@ const emit = defineEmits<{
   (e: 'placed'): void;
 }>();
 
+const WINDOW_WALL_SIDES: WallSide[] = ['front', 'back', 'left', 'right'];
+const WINDOW_SLOT_COUNTS: BandSlotCount[] = [1, 2, 3, 4];
+
+const activeWindowWall = ref<WallSide>('front');
+const activeWindowIsUpper = ref<boolean>(false);
+
+const canUseUpperWindowBand = computed(() => store.wallHasUpperBand(activeWindowWall.value));
+
+// Sync Facade & Floor controls whenever the user clicks a slot on the 3D house
+watch(
+  () => store.selectedSlotId,
+  (slotId) => {
+    if (!slotId) return;
+    const slot = store.wallSlots[slotId];
+    if (!slot) return;
+    activeWindowWall.value = slot.wall;
+    const upper = slot.isUpper === true || slotId.endsWith('u');
+    activeWindowIsUpper.value = upper && store.wallHasUpperBand(slot.wall);
+  },
+  { immediate: true }
+);
+
+// Keep floor valid if the active wall has no upper band, and ensure a slot is active in Windows tab
+watch(
+  [() => store.selectedCategory, activeWindowWall, canUseUpperWindowBand],
+  ([cat, wall, canUpper]) => {
+    if (!canUpper && activeWindowIsUpper.value) {
+      activeWindowIsUpper.value = false;
+    }
+    if (cat === 'windows') {
+      const current = store.selectedSlotId ? store.wallSlots[store.selectedSlotId] : null;
+      const onCurrentBand = current
+        && current.wall === wall
+        && (current.isUpper === true || Boolean(store.selectedSlotId?.endsWith('u'))) === activeWindowIsUpper.value;
+      if (!onCurrentBand) {
+        store.selectSlot(bandSlotId(wall, 0, activeWindowIsUpper.value));
+      }
+    }
+  },
+  { immediate: true }
+);
+
+const currentBandSlotCount = computed((): BandSlotCount =>
+  store.getBandSlotCount(activeWindowWall.value, activeWindowIsUpper.value)
+);
+
+const currentBandSlots = computed((): WallSlot[] =>
+  store.getBandSlots(activeWindowWall.value, activeWindowIsUpper.value)
+);
+
+const currentBandHasAnyWindow = computed(() =>
+  currentBandSlots.value.some((s) => s.type === 'window' || Boolean(s.windowRhythm))
+);
+
+function selectWindowWall(wall: WallSide) {
+  activeWindowWall.value = wall;
+  if (!store.wallHasUpperBand(wall) && activeWindowIsUpper.value) {
+    activeWindowIsUpper.value = false;
+  }
+  store.selectSlot(bandSlotId(wall, 0, activeWindowIsUpper.value));
+}
+
+function selectWindowFloor(isUpper: boolean) {
+  if (isUpper && !canUseUpperWindowBand.value) return;
+  activeWindowIsUpper.value = isUpper;
+  store.selectSlot(bandSlotId(activeWindowWall.value, 0, isUpper));
+}
+
+function selectWindowBandSlotCount(count: BandSlotCount) {
+  store.setBandSlotCount(activeWindowWall.value, activeWindowIsUpper.value, count);
+}
+
+function fillCurrentBandWithActiveWindow() {
+  const selected = store.selectedSlotId ? store.wallSlots[store.selectedSlotId] : null;
+  const winId = (selected?.type === 'window' && selected.itemId)
+    ? selected.itemId
+    : (store.activeWindow || 'standard-single');
+  store.fillBandWindows(activeWindowWall.value, activeWindowIsUpper.value, winId);
+}
+
+function bandSlotStatusLabel(slot: WallSlot): string {
+  if (slot.type === 'door') return t('slot.doorOccupied');
+  if (slot.type === 'gate') return t('slot.gateOccupied');
+  if (slot.coveredBy) {
+    const host = store.wallSlots[slot.coveredBy];
+    if (host?.type === 'door') return t('slot.doorOccupied');
+    if (host?.windowRhythm && host.itemId) {
+      const win = WINDOWS_OPTIONS.find((w) => w.id === host.itemId);
+      return win ? catalog(win.id, 'name', win.name) : host.itemId;
+    }
+  }
+  if (slot.type === 'window' && slot.itemId) {
+    const win = WINDOWS_OPTIONS.find((w) => w.id === slot.itemId);
+    return win ? catalog(win.id, 'name', win.name) : slot.itemId;
+  }
+  return `+ ${t('slot.emptySlot')}`;
+}
+
 function placeDoor(doorId: string) {
   store.selectDoor(doorId);
   if (store.selectedSlotId) {
@@ -4104,10 +4401,12 @@ function placeDoor(doorId: string) {
 
 function placeWindow(winId: string) {
   store.selectWindow(winId);
-  if (store.selectedSlotId) {
-    store.assignSlotItem(store.selectedSlotId, 'window', winId);
-    emit('placed');
+  const targetSlotId = store.selectedSlotId ?? bandSlotId(activeWindowWall.value, 0, activeWindowIsUpper.value);
+  if (!store.selectedSlotId) {
+    store.selectSlot(targetSlotId);
   }
+  store.assignSlotItem(targetSlotId, 'window', winId);
+  emit('placed');
 }
 
 function placeGate(gateId: string) {

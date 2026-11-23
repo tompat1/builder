@@ -11,10 +11,12 @@ export function overlightItem(
 }
 
 export type WindowRhythmCount = 2 | 3 | 4;
+export type BandSlotCount = 1 | 2 | 3 | 4;
+export type WallSide = 'front' | 'back' | 'left' | 'right';
 
 export interface WallSlot {
   id: string;
-  wall: 'front' | 'back' | 'left' | 'right';
+  wall: WallSide;
   index: number;
   type: 'empty' | 'door' | 'window' | 'gate';
   itemId?: string;
@@ -29,6 +31,16 @@ export interface WallSlot {
    * Sibling bays in the run use coveredBy pointing at this slot.
    */
   windowRhythm?: WindowRhythmCount;
+  /**
+   * Explicit number of equally spaced slots (1..4) configured on this wall band (lower or upper).
+   */
+  bandSlots?: BandSlotCount;
+}
+
+export function acceptBandSlotCount(value: unknown, fallback: BandSlotCount = 4): BandSlotCount {
+  const n = typeof value === 'string' ? Number(value) : value;
+  if (n === 1 || n === 2 || n === 3 || n === 4) return n;
+  return fallback;
 }
 
 export function bandSlotId(wall: WallSlot['wall'], index: number, isUpper: boolean) {
@@ -238,6 +250,238 @@ export function panelCountsForDimensions(
   };
 }
 
+/**
+ * Resolve the active number of equally spaced slots (1..4) on a given facade band (lower or upper).
+ * Reads explicit `bandSlots` from any slot on that band, falling back to the wall's default panel count.
+ */
+export function bandSlotCountForWall(
+  wallSide: WallSide,
+  isUpper: boolean,
+  widthMm: number,
+  depthMm: number,
+  slots?: Record<string, Pick<WallSlot, 'wall' | 'index' | 'isUpper' | 'bandSlots'>>
+): BandSlotCount {
+  const fallback = acceptBandSlotCount(panelCountForWall(wallSide, widthMm, depthMm));
+  if (!slots) return fallback;
+  for (const [id, slot] of Object.entries(slots)) {
+    if (!slot || slot.wall !== wallSide) continue;
+    const slotUpper = slot.isUpper === true || id.endsWith('u');
+    if (slotUpper !== isUpper) continue;
+    if (slot.bandSlots === 1 || slot.bandSlots === 2 || slot.bandSlots === 3 || slot.bandSlots === 4) {
+      return slot.bandSlots;
+    }
+  }
+  return fallback;
+}
+
+/** Ordered list of active slots (0 .. bandSlotCount - 1) for a facade and floor band. */
+export function slotsOnWallBand(
+  slots: Record<string, WallSlot>,
+  wallSide: WallSide,
+  isUpper: boolean,
+  widthMm: number,
+  depthMm: number
+): WallSlot[] {
+  const count = bandSlotCountForWall(wallSide, isUpper, widthMm, depthMm, slots);
+  const out: WallSlot[] = [];
+  for (let i = 0; i < count; i += 1) {
+    const id = bandSlotId(wallSide, i, isUpper);
+    const existing = slots[id];
+    if (existing) {
+      out.push(existing);
+    } else {
+      out.push({
+        id,
+        wall: wallSide,
+        index: i,
+        type: 'empty',
+        canAcceptDoor: !isUpper,
+        isUpper: isUpper || undefined,
+        bandSlots: count
+      });
+    }
+  }
+  return out;
+}
+
+/**
+ * Set the number of equally spaced slots (1..4) on a facade band (lower or upper).
+ * Preserves existing openings in 0..nextCount-1 and carries any non-empty opening
+ * from removed higher indices into free slots so placed windows are not lost.
+ */
+export function resizeWallBandSlots(
+  slots: Record<string, WallSlot>,
+  wallSide: WallSide,
+  isUpper: boolean,
+  nextCount: BandSlotCount,
+  widthMm = 6040,
+  depthMm = 4950
+): { count: BandSlotCount; activeSlotId: string } {
+  const count = acceptBandSlotCount(nextCount);
+  const lowerCount = isUpper
+    ? bandSlotCountForWall(wallSide, false, widthMm, depthMm, slots)
+    : count;
+
+  // Expand any active windowRhythm on this band into individual slot windows first.
+  for (const [id, s] of Object.entries(slots)) {
+    if (!s || s.wall !== wallSide) continue;
+    const slotUpper = s.isUpper === true || id.endsWith('u');
+    if (slotUpper !== isUpper) continue;
+    if (s.windowRhythm && s.itemId) {
+      const rhythmItem = s.itemId;
+      const rhythmCount = s.windowRhythm;
+      let placed = 0;
+      for (let i = 0; i < 4; i += 1) {
+        const target = slots[bandSlotId(wallSide, i, isUpper)];
+        if (!target) continue;
+        if (target.id === s.id || target.coveredBy === s.id) {
+          if (placed < rhythmCount) {
+            target.type = 'window';
+            target.itemId = rhythmItem;
+            target.fitToWall = true;
+            placed += 1;
+          } else {
+            target.type = 'empty';
+            target.itemId = undefined;
+            target.fitToWall = undefined;
+          }
+          target.windowRhythm = undefined;
+          target.coveredBy = undefined;
+        }
+      }
+    }
+  }
+
+  // Collect any placed openings on indices >= count so we can carry them into free slots.
+  const overflowItems: { type: WallSlot['type']; itemId?: string }[] = [];
+  for (let i = count; i < 4; i += 1) {
+    const id = bandSlotId(wallSide, i, isUpper);
+    const s = slots[id];
+    if (s && s.type !== 'empty' && s.itemId) {
+      overflowItems.push({ type: s.type, itemId: s.itemId });
+    }
+  }
+
+  // Ensure 0 .. count - 1 exist with bandSlots = count.
+  for (let i = 0; i < count; i += 1) {
+    const id = bandSlotId(wallSide, i, isUpper);
+    const existing = slots[id];
+    if (existing) {
+      existing.index = i;
+      existing.wall = wallSide;
+      existing.isUpper = isUpper || undefined;
+      existing.canAcceptDoor = !isUpper;
+      existing.windowRhythm = undefined;
+      existing.bandSlots = count;
+      if (isUpper && existing.coveredBy) {
+        existing.coveredBy = undefined;
+      }
+      if (existing.type === 'window') {
+        existing.fitToWall = true;
+      }
+    } else {
+      slots[id] = {
+        id,
+        wall: wallSide,
+        index: i,
+        type: 'empty',
+        canAcceptDoor: !isUpper,
+        isUpper: isUpper || undefined,
+        bandSlots: count
+      };
+    }
+  }
+
+  // Delete slots on this band with index >= count.
+  for (const [id, s] of Object.entries(slots)) {
+    if (!s || s.wall !== wallSide) continue;
+    const slotUpper = s.isUpper === true || id.endsWith('u');
+    if (slotUpper === isUpper && s.index >= count) {
+      delete slots[id];
+    }
+  }
+
+  // Carry overflow items from removed higher slots into any empty slots in 0 .. count - 1.
+  for (const item of overflowItems) {
+    for (let i = count - 1; i >= 0; i -= 1) {
+      const target = slots[bandSlotId(wallSide, i, isUpper)];
+      if (target && target.type === 'empty' && !target.coveredBy) {
+        target.type = item.type;
+        target.itemId = item.itemId;
+        target.fitToWall = item.type === 'window' ? true : undefined;
+        break;
+      }
+    }
+  }
+
+  // When upper band slot count differs from lower band, an overlight in slot 0u that was
+  // auto-converted from standard-single above a lower door should match sibling upper windows.
+  if (isUpper) {
+    const slot0u = slots[bandSlotId(wallSide, 0, true)];
+    if (slot0u?.type === 'window' && slot0u.itemId === OVERLIGHT) {
+      const lower0 = slots[bandSlotId(wallSide, 0, false)];
+      const hasDoorBelow = count === lowerCount && lower0?.type === 'door' && !SLIDING_DOOR.has(lower0.itemId ?? '');
+      const hasStandardSibling = Array.from({ length: count }, (_, idx) => slots[bandSlotId(wallSide, idx, true)])
+        .some((s) => s && s.index !== 0 && s.type === 'window' && s.itemId === 'standard-single');
+      if (!hasDoorBelow && (hasStandardSibling || count !== lowerCount)) {
+        slot0u.itemId = 'standard-single';
+      }
+    }
+  } else {
+    // Reconcile wide sliding door partner coverage on the lower band.
+    for (let i = 0; i < count; i += 1) {
+      const s = slots[bandSlotId(wallSide, i, false)];
+      if (!s) continue;
+      if (s.coveredBy && !slots[s.coveredBy]) {
+        s.coveredBy = undefined;
+      }
+      if (s.type === 'door' && SLIDING_DOOR.has(s.itemId ?? '')) {
+        if (count === 1) {
+          s.coveredBy = undefined;
+        } else {
+          const partnerIdx = i + 1 < count ? i + 1 : i - 1;
+          const partner = slots[bandSlotId(wallSide, partnerIdx, false)];
+          if (partner && partner.type === 'empty') {
+            partner.coveredBy = s.id;
+          }
+        }
+      }
+    }
+  }
+
+  return { count, activeSlotId: bandSlotId(wallSide, 0, isUpper) };
+}
+
+/**
+ * Fill all non-door/non-gate slots on a facade band (lower or upper) with the given window itemId.
+ */
+export function fillWindowsOnBand(
+  slots: Record<string, WallSlot>,
+  wallSide: WallSide,
+  isUpper: boolean,
+  itemId: string,
+  widthMm = 6040,
+  depthMm = 4950
+) {
+  const count = bandSlotCountForWall(wallSide, isUpper, widthMm, depthMm, slots);
+  for (let i = 0; i < count; i += 1) {
+    const id = bandSlotId(wallSide, i, isUpper);
+    const s = slots[id];
+    if (!s) continue;
+    if (!isUpper && (s.type === 'door' || s.type === 'gate')) continue;
+    if (!isUpper && s.coveredBy) {
+      const host = slots[s.coveredBy];
+      if (host && (host.type === 'door' || SLIDING_DOOR.has(host.itemId ?? ''))) continue;
+    }
+    s.type = 'window';
+    s.itemId = itemId;
+    s.windowRhythm = undefined;
+    s.coveredBy = undefined;
+    s.fitToWall = true;
+    s.bandSlots = count;
+  }
+}
+
 /** Lower bay plus a separate upper panel above the mid-rail. Upper panels take windows only. */
 export function createWallSlots(
   widthMm = 6040,
@@ -385,7 +629,11 @@ export function mergeWallSlots(
   for (const [id, slot] of Object.entries(saved)) {
     if (!slot || typeof slot !== 'object') continue;
     const wall = slot.wall;
-    const maxCount = panelCountForWall(wall, w, d);
+    const upper = id.endsWith('u') || slot.isUpper === true;
+    const explicitCount = slot.bandSlots === 1 || slot.bandSlots === 2 || slot.bandSlots === 3 || slot.bandSlots === 4
+      ? slot.bandSlots
+      : null;
+    const maxCount = explicitCount ?? panelCountForWall(wall, w, d);
     if (slot.index >= maxCount) continue;
     if (slot.isUpper && !id.endsWith('u')) {
       const upperId = `${id}u`;
@@ -407,7 +655,6 @@ export function mergeWallSlots(
       };
       continue;
     }
-    const upper = id.endsWith('u') || slot.isUpper === true;
     slots[id] = {
       ...slot,
       id,
@@ -415,8 +662,28 @@ export function mergeWallSlots(
       canAcceptDoor: !upper
     };
   }
+  const walls: WallSide[] = ['front', 'back', 'left', 'right'];
+  for (const wall of walls) {
+    for (const isUpper of [false, true]) {
+      let bandCount: BandSlotCount | null = null;
+      for (const [id, slot] of Object.entries(saved)) {
+        if (!slot || slot.wall !== wall) continue;
+        const slotUpper = id.endsWith('u') || slot.isUpper === true;
+        if (slotUpper === isUpper && (slot.bandSlots === 1 || slot.bandSlots === 2 || slot.bandSlots === 3 || slot.bandSlots === 4)) {
+          bandCount = slot.bandSlots;
+          break;
+        }
+      }
+      if (bandCount != null) {
+        resizeWallBandSlots(slots, wall, isUpper, bandCount, w, d);
+      }
+    }
+  }
   for (const slot of Object.values(slots)) {
     if (slot.type !== 'window' || !slot.isUpper) continue;
+    const upperCount = bandSlotCountForWall(slot.wall, true, w, d, slots);
+    const lowerCount = bandSlotCountForWall(slot.wall, false, w, d, slots);
+    if (upperCount !== lowerCount) continue;
     const lower = slots[slot.id.replace(/u$/, '')];
     const aboveDoor = lower?.type === 'door';
     slot.itemId = overlightItem(slot.itemId, aboveDoor, lower?.itemId);

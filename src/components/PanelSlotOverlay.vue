@@ -47,6 +47,32 @@
       </div>
 
       <div class="px-3 pb-3 pt-1">
+        <!-- Quick Step 1 slot count selector for this floor band (1..4 equal slots) -->
+        <div id="overlay-band-slot-count" class="mb-2.5 pt-1 border-t border-slate-100">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-xs font-semibold text-slate-600"><Cms k="slot.bandSlotsShort" /></span>
+            <span class="text-xs font-bold tabular-nums text-slate-900">
+              {{ activeBandCount === 1 ? t('slot.slotCountOne') : t('slot.slotCountMany', { n: activeBandCount }) }}
+            </span>
+          </div>
+          <div class="grid grid-cols-4 gap-1">
+            <button
+              v-for="n in BAND_SLOT_COUNTS"
+              :key="n"
+              type="button"
+              :id="`overlay-slot-count-${n}`"
+              :aria-pressed="activeBandCount === n"
+              @click="setOverlayBandCount(n)"
+              class="h-8 rounded-lg border text-xs font-bold tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
+              :class="activeBandCount === n
+                ? 'border-slate-900 bg-slate-900 text-white'
+                : 'border-slate-200 bg-slate-50 text-slate-700 hover:border-slate-300 hover:bg-slate-100'"
+            >
+              {{ n }}
+            </button>
+          </div>
+        </div>
+
         <template v-if="activeSlot.type !== 'empty'">
           <p class="truncate text-sm leading-5 text-slate-600">{{ placedLabel }}</p>
           <div class="mt-3 flex flex-col gap-1.5">
@@ -168,11 +194,14 @@ import {
   GATES_OPTIONS,
   useConfigStore,
   WINDOWS_OPTIONS,
+  type BandSlotCount,
   type CategoryKey,
   type WallSlot
 } from '../store/useConfigStore';
 import { useLabels } from '../i18n';
 import Cms from './Cms.vue';
+
+const BAND_SLOT_COUNTS: BandSlotCount[] = [1, 2, 3, 4];
 
 const store = useConfigStore();
 const { t, catalog } = useLabels();
@@ -186,6 +215,18 @@ const activeBandIsUpper = computed(() => {
   if (!slot) return false;
   return slot.isUpper === true || Boolean(store.selectedSlotId?.endsWith('u'));
 });
+
+const activeBandCount = computed((): BandSlotCount => {
+  const slot = activeSlot.value;
+  if (!slot) return 4;
+  return store.getBandSlotCount(slot.wall, activeBandIsUpper.value);
+});
+
+function setOverlayBandCount(n: BandSlotCount) {
+  const slot = activeSlot.value;
+  if (!slot) return;
+  store.setBandSlotCount(slot.wall, activeBandIsUpper.value, n);
+}
 
 const windowRow = computed(() => {
   const slot = activeSlot.value;

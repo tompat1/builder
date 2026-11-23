@@ -9,6 +9,7 @@ export interface WallSlotLike {
   coveredBy?: string;
   fitToWall?: boolean;
   windowRhythm?: 2 | 3 | 4;
+  bandSlots?: 1 | 2 | 3 | 4;
 }
 
 export function clearWindowRhythmSlots(wallSlots: Record<string, WallSlotLike>, hostId: string) {
@@ -103,14 +104,17 @@ export function moveWallSlot(wallSlots: Record<string, WallSlotLike>, fromId: st
   for (const [id, item] of [[toId, fromItemId], [fromId, toItemId]] as const) {
     const slot = wallSlots[id];
     if ((item === 'SKJUTDORR' || item === 'SKJUTDORR3') && slot && !slot.isUpper) {
-      const count = slot.wall === 'front' || slot.wall === 'back' ? 4 : 3;
-      const partnerIndex = slot.index + 1 < count ? slot.index + 1 : slot.index - 1;
-      const partner = wallSlots[`${slot.wall}-${partnerIndex}`];
-      if (partner && !partner.isUpper) {
-        releaseWideDoorSlots(wallSlots, partner.id);
-        partner.type = 'empty';
-        partner.itemId = undefined;
-        partner.coveredBy = id;
+      const defaultCount = slot.wall === 'front' || slot.wall === 'back' ? 4 : 3;
+      const count = slot.bandSlots ?? defaultCount;
+      if (count >= 2) {
+        const partnerIndex = slot.index + 1 < count ? slot.index + 1 : slot.index - 1;
+        const partner = wallSlots[`${slot.wall}-${partnerIndex}`];
+        if (partner && !partner.isUpper) {
+          releaseWideDoorSlots(wallSlots, partner.id);
+          partner.type = 'empty';
+          partner.itemId = undefined;
+          partner.coveredBy = id;
+        }
       }
     }
   }

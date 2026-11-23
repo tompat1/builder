@@ -62,20 +62,26 @@ export function doorModuleMetres(itemId: string | undefined): number {
  * A corner door stays centred in the gap between that board and the far edge,
  * which is (cornerClearance - edge) / 2 from the middle of the panel.
  */
+export type CornerSide = 'left' | 'right' | 'both' | null;
+
 export function fittedDoorOpening(
   itemId: string | undefined,
   panelWidth: number,
-  cornerSide?: 'left' | 'right' | null
+  cornerSide?: CornerSide
 ): { width: number; shift: number } {
   const wanted = doorModuleMetres(itemId);
+  const cornerClearance = DOOR_CORNER_CLEARANCE_M;
+  const edge = EDGE;
+  const half = panelWidth / 2;
+  if (cornerSide === 'both') {
+    const span = Math.max(0, panelWidth - cornerClearance * 2);
+    return { width: Math.min(wanted, Math.max(0.46, span)), shift: 0 };
+  }
   const corner = cornerSide === 'left' || cornerSide === 'right';
   if (!corner) {
     const available = Math.max(0.46, panelWidth - 0.08);
     return { width: Math.min(wanted, available), shift: 0 };
   }
-  const cornerClearance = DOOR_CORNER_CLEARANCE_M;
-  const edge = EDGE;
-  const half = panelWidth / 2;
   const minLeft = cornerSide === 'left' ? -half + cornerClearance : -half + edge;
   const maxRight = cornerSide === 'right' ? half - cornerClearance : half - edge;
   const span = Math.max(0, maxRight - minLeft);
@@ -221,7 +227,7 @@ export function narrowTallPane(
   panelHeight: number,
   isUpper: boolean,
   woodSpan?: { from: number; to: number } | null,
-  cornerSide?: 'left' | 'right' | null
+  cornerSide?: CornerSide
 ): NarrowTallPane {
   const side = 0.09;
   const headBoard = 0.085;
@@ -235,22 +241,22 @@ export function narrowTallPane(
 
   if (woodSpan) {
     const isWoodOnLeft = woodSpan.from <= -half + 0.01;
-    const minX = (cornerSide === 'left' && isWoodOnLeft)
+    const minX = ((cornerSide === 'left' || cornerSide === 'both') && isWoodOnLeft)
       ? woodSpan.from + cornerClearance
       : woodSpan.from + edge;
-    const maxX = (cornerSide === 'right' && !isWoodOnLeft)
+    const maxX = ((cornerSide === 'right' || cornerSide === 'both') && !isWoodOnLeft)
       ? woodSpan.to - cornerClearance
       : woodSpan.to - edge;
     const clearSpan = Math.max(0.35, maxX - minX);
     shift = (minX + maxX) / 2;
     maxW = Math.max(0.32, clearSpan - (side + sillEar) * 2);
-  } else if (cornerSide) {
-    const availableW = Math.max(0.46, panelWidth - cornerClearance - edge);
-    maxW = Math.max(0.32, availableW - (side + sillEar) * 2);
-    const offset = (cornerClearance - edge) / 2;
-    shift = cornerSide === 'left' ? offset : -offset;
   } else {
-    maxW = Math.max(0.32, panelWidth - (side + sillEar) * 2 - edge * 2);
+    const symmetricMargin = panelWidth >= 1.1 ? cornerClearance : Math.max(edge, panelWidth * 0.14);
+    const minX = -half + (cornerSide === 'left' || cornerSide === 'both' ? cornerClearance : symmetricMargin);
+    const maxX = half - (cornerSide === 'right' || cornerSide === 'both' ? cornerClearance : symmetricMargin);
+    const availableW = Math.max(0.46, maxX - minX);
+    maxW = Math.max(0.32, availableW - (side + sillEar) * 2);
+    shift = (minX + maxX) / 2;
   }
 
   const width = Math.min(0.54, maxW);
@@ -283,7 +289,7 @@ export function fittedWindowOpening(
   panelBase: number,
   isUpper: boolean,
   aboveDoor = false,
-  cornerSide?: 'left' | 'right' | null,
+  cornerSide?: CornerSide,
   woodSpan?: { from: number; to: number } | null
 ): FittedWindowResult {
   const half = panelWidth / 2;
@@ -298,18 +304,18 @@ export function fittedWindowOpening(
 
   if (woodSpan) {
     const isWoodOnLeft = woodSpan.from <= -half + 0.01;
-    minX = (cornerSide === 'left' && isWoodOnLeft)
+    minX = ((cornerSide === 'left' || cornerSide === 'both') && isWoodOnLeft)
       ? woodSpan.from + cornerClearance
       : woodSpan.from + edge;
-    maxX = (cornerSide === 'right' && !isWoodOnLeft)
+    maxX = ((cornerSide === 'right' || cornerSide === 'both') && !isWoodOnLeft)
       ? woodSpan.to - cornerClearance
       : woodSpan.to - edge;
-  } else if (cornerSide) {
-    minX = cornerSide === 'left' ? -half + cornerClearance : -half + edge;
-    maxX = cornerSide === 'right' ? half - cornerClearance : half - edge;
   } else {
-    minX = -half + edge;
-    maxX = half - edge;
+    // Symmetric margin across all bays on the band so 1..4 slots have equal window size,
+    // centered x = 0 placement, equal spacing, and safe corner margins.
+    const symmetricMargin = panelWidth >= 1.1 ? cornerClearance : Math.max(edge, panelWidth * 0.14);
+    minX = -half + (cornerSide === 'left' || cornerSide === 'both' ? cornerClearance : symmetricMargin);
+    maxX = half - (cornerSide === 'right' || cornerSide === 'both' ? cornerClearance : symmetricMargin);
   }
 
   const spaceW = Math.max(0.20, maxX - minX);
@@ -341,7 +347,7 @@ export function fittedWindowOpening(
   }
 
   if (itemId === OVERLIGHT) {
-    const defaultW = Math.max(0.46, panelWidth - 0.09 * 2 - edge * 2);
+    const defaultW = Math.min(1.45, Math.max(0.46, panelWidth - 0.09 * 2 - edge * 2));
     const winW = Math.min(defaultW, maxWinW);
     const winH = overlightHeight(winW);
     const sill = isUpper
@@ -380,7 +386,7 @@ export function fittedWindowOpening(
   if (isUpper && itemId !== 'panorama') {
     const gapAbove = 0.16;
     const head = panelBase + panelHeight - gapAbove - headBoard;
-    const defaultW = Math.max(0.46, panelWidth - 0.09 * 2 - edge * 2);
+    const defaultW = Math.min(1.25, Math.max(0.46, panelWidth - 0.09 * 2 - edge * 2));
     const winW = Math.min(defaultW, maxWinW);
     const maxH = Math.max(0.28, head - (panelBase + sillBoard + 0.04));
     let winH = Math.min(maxH, winW * 0.42);
@@ -431,7 +437,8 @@ export function fittedWindowOpening(
   }
 
   // Any other window (panorama, sprojat, frost, etc.)
-  const defaultW = Math.max(0.46, panelWidth - 0.09 * 2 - edge * 2);
+  const capW = itemId === 'panorama' ? 1.65 : 1.25;
+  const defaultW = Math.min(capW, Math.max(0.46, panelWidth - 0.09 * 2 - edge * 2));
   const winW = Math.min(defaultW, maxWinW);
   const headLimit = panelBase + panelHeight - headBoard - 0.22;
   if (isNarrow && winW < 0.85) {
@@ -480,7 +487,7 @@ export function containWindowInPanel<T extends RoofOpening & { casingSide?: numb
   opening: T,
   panelWidth: number,
   panelHeight: number,
-  cornerSide?: 'left' | 'right' | null,
+  cornerSide?: CornerSide,
   woodSpan?: { from: number; to: number } | null,
   slope = 0
 ): T {
@@ -493,14 +500,16 @@ export function containWindowInPanel<T extends RoofOpening & { casingSide?: numb
   let maxX: number;
   if (woodSpan) {
     const woodOnLeft = woodSpan.from <= -halfW + 0.01;
-    minX = cornerSide === 'left' && woodOnLeft ? woodSpan.from + cornerClearance : woodSpan.from + edge;
-    maxX = cornerSide === 'right' && !woodOnLeft ? woodSpan.to - cornerClearance : woodSpan.to - edge;
-  } else if (cornerSide) {
-    minX = cornerSide === 'left' ? -halfW + cornerClearance : -halfW + edge;
-    maxX = cornerSide === 'right' ? halfW - cornerClearance : halfW - edge;
+    minX = (cornerSide === 'left' || cornerSide === 'both') && woodOnLeft
+      ? woodSpan.from + cornerClearance
+      : woodSpan.from + edge;
+    maxX = (cornerSide === 'right' || cornerSide === 'both') && !woodOnLeft
+      ? woodSpan.to - cornerClearance
+      : woodSpan.to - edge;
   } else {
-    minX = -halfW + edge;
-    maxX = halfW - edge;
+    const symmetricMargin = panelWidth >= 1.1 ? cornerClearance : Math.max(edge, panelWidth * 0.14);
+    minX = -halfW + (cornerSide === 'left' || cornerSide === 'both' ? cornerClearance : symmetricMargin);
+    maxX = halfW - (cornerSide === 'right' || cornerSide === 'both' ? cornerClearance : symmetricMargin);
   }
 
   const spaceW = Math.max(0, maxX - minX);
