@@ -2958,7 +2958,9 @@ export const useConfigStore = defineStore('config', () => {
     const copy = { ...wallSlots.value };
     resizeWallBandSlots(copy, wall, isUpper, next, buildingWidth.value, buildingDepth.value);
     wallSlots.value = copy;
-    selectedSlotId.value = bandSlotId(wall, targetIndex, isUpper);
+    if (selectedSlotId.value != null) {
+      selectedSlotId.value = bandSlotId(wall, targetIndex, isUpper);
+    }
     saveSnapshot();
   };
 
@@ -2970,10 +2972,12 @@ export const useConfigStore = defineStore('config', () => {
     const copy = { ...wallSlots.value };
     fillWindowsOnBand(copy, wall, isUpper, winId, buildingWidth.value, buildingDepth.value);
     wallSlots.value = copy;
-    const current = selectedSlotId.value ? copy[selectedSlotId.value] : null;
-    const sameBand = current && current.wall === wall && (current.isUpper === true || Boolean(selectedSlotId.value?.endsWith('u'))) === isUpper;
-    if (!sameBand) {
-      selectedSlotId.value = bandSlotId(wall, 0, isUpper);
+    if (selectedSlotId.value != null) {
+      const current = copy[selectedSlotId.value];
+      const sameBand = current && current.wall === wall && (current.isUpper === true || Boolean(selectedSlotId.value?.endsWith('u'))) === isUpper;
+      if (!sameBand) {
+        selectedSlotId.value = bandSlotId(wall, 0, isUpper);
+      }
     }
     saveSnapshot();
   };

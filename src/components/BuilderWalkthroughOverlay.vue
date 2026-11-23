@@ -61,7 +61,7 @@
             type="button"
             id="btn-walkthrough-autotour"
             class="flex h-8 items-center gap-1.5 rounded-lg px-2 text-xs font-semibold transition-colors"
-            :class="isAutoPlaying ? 'bg-amber-500 text-slate-950 font-bold shadow-sm' : 'text-slate-300 hover:bg-white/10 hover:text-white'"
+            :class="isAutoPlaying ? 'bg-amber-500 text-slate-950 font-bold shadow-sm' : 'text-white/80 hover:bg-white/10 hover:text-white'"
             :title="locale === 'sv' ? (isAutoPlaying ? 'Pausa automatisk guidning' : 'Starta automatisk guidning') : (isAutoPlaying ? 'Pause auto-tour' : 'Start auto-tour')"
             @click="toggleAutoTour"
           >

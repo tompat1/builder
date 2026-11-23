@@ -3006,10 +3006,10 @@
                 :key="slot.id"
                 type="button"
                 :id="`window-band-slot-${slot.index}`"
-                :aria-pressed="store.selectedSlotId === slot.id"
-                @click="store.selectSlot(slot.id)"
+                :aria-pressed="activeBandSlotId === slot.id"
+                @click="selectWindowBandSlot(slot)"
                 class="rounded-lg border p-2 text-left transition-all flex flex-col justify-between min-h-[54px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-900"
-                :class="store.selectedSlotId === slot.id
+                :class="activeBandSlotId === slot.id
                   ? 'border-emerald-700 ring-1 ring-emerald-700 bg-emerald-50/90 text-emerald-950'
                   : slot.type === 'window'
                     ? 'border-slate-300 bg-white text-slate-900 hover:border-slate-400'
@@ -3020,7 +3020,7 @@
                     #{{ slot.index + 1 }}
                   </span>
                   <span
-                    v-if="store.selectedSlotId === slot.id"
+                    v-if="activeBandSlotId === slot.id"
                     class="w-2 h-2 rounded-full bg-emerald-600"
                     aria-hidden="true"
                   ></span>
@@ -4298,6 +4298,7 @@ const WINDOW_SLOT_COUNTS: BandSlotCount[] = [1, 2, 3, 4];
 
 const activeWindowWall = ref<WallSide>('front');
 const activeWindowIsUpper = ref<boolean>(false);
+const activeWindowSlotIndex = ref<number>(0);
 
 const canUseUpperWindowBand = computed(() => store.wallHasUpperBand(activeWindowWall.value));
 
@@ -4311,25 +4312,17 @@ watch(
     activeWindowWall.value = slot.wall;
     const upper = slot.isUpper === true || slotId.endsWith('u');
     activeWindowIsUpper.value = upper && store.wallHasUpperBand(slot.wall);
+    activeWindowSlotIndex.value = slot.index;
   },
   { immediate: true }
 );
 
-// Keep floor valid if the active wall has no upper band, and ensure a slot is active in Windows tab
+// Keep floor and slot index valid if the active wall has no upper band or fewer slots
 watch(
-  [() => store.selectedCategory, activeWindowWall, canUseUpperWindowBand],
-  ([cat, wall, canUpper]) => {
+  [activeWindowWall, canUseUpperWindowBand],
+  ([, canUpper]) => {
     if (!canUpper && activeWindowIsUpper.value) {
       activeWindowIsUpper.value = false;
-    }
-    if (cat === 'windows') {
-      const current = store.selectedSlotId ? store.wallSlots[store.selectedSlotId] : null;
-      const onCurrentBand = current
-        && current.wall === wall
-        && (current.isUpper === true || Boolean(store.selectedSlotId?.endsWith('u'))) === activeWindowIsUpper.value;
-      if (!onCurrentBand) {
-        store.selectSlot(bandSlotId(wall, 0, activeWindowIsUpper.value));
-      }
     }
   },
   { immediate: true }
@@ -4343,6 +4336,14 @@ const currentBandSlots = computed((): WallSlot[] =>
   store.getBandSlots(activeWindowWall.value, activeWindowIsUpper.value)
 );
 
+const activeBandSlotId = computed(() => {
+  if (store.selectedSlotId && store.wallSlots[store.selectedSlotId]) {
+    return store.selectedSlotId;
+  }
+  const idx = Math.min(activeWindowSlotIndex.value, currentBandSlotCount.value - 1);
+  return bandSlotId(activeWindowWall.value, idx, activeWindowIsUpper.value);
+});
+
 const currentBandHasAnyWindow = computed(() =>
   currentBandSlots.value.some((s) => s.type === 'window' || Boolean(s.windowRhythm))
 );
@@ -4352,23 +4353,37 @@ function selectWindowWall(wall: WallSide) {
   if (!store.wallHasUpperBand(wall) && activeWindowIsUpper.value) {
     activeWindowIsUpper.value = false;
   }
-  store.selectSlot(bandSlotId(wall, 0, activeWindowIsUpper.value));
+  activeWindowSlotIndex.value = 0;
+  if (store.selectedSlotId) {
+    store.selectSlot(bandSlotId(wall, 0, activeWindowIsUpper.value));
+  }
 }
 
 function selectWindowFloor(isUpper: boolean) {
   if (isUpper && !canUseUpperWindowBand.value) return;
   activeWindowIsUpper.value = isUpper;
-  store.selectSlot(bandSlotId(activeWindowWall.value, 0, isUpper));
+  activeWindowSlotIndex.value = 0;
+  if (store.selectedSlotId) {
+    store.selectSlot(bandSlotId(activeWindowWall.value, 0, isUpper));
+  }
+}
+
+function selectWindowBandSlot(slot: WallSlot) {
+  activeWindowSlotIndex.value = slot.index;
+  if (store.selectedSlotId) {
+    store.selectSlot(slot.id);
+  }
 }
 
 function selectWindowBandSlotCount(count: BandSlotCount) {
+  activeWindowSlotIndex.value = Math.min(activeWindowSlotIndex.value, count - 1);
   store.setBandSlotCount(activeWindowWall.value, activeWindowIsUpper.value, count);
 }
 
 function fillCurrentBandWithActiveWindow() {
-  const selected = store.selectedSlotId ? store.wallSlots[store.selectedSlotId] : null;
-  const winId = (selected?.type === 'window' && selected.itemId)
-    ? selected.itemId
+  const targetSlot = store.wallSlots[activeBandSlotId.value];
+  const winId = (targetSlot?.type === 'window' && targetSlot.itemId)
+    ? targetSlot.itemId
     : (store.activeWindow || 'standard-single');
   store.fillBandWindows(activeWindowWall.value, activeWindowIsUpper.value, winId);
 }
@@ -4395,17 +4410,18 @@ function placeDoor(doorId: string) {
   store.selectDoor(doorId);
   if (store.selectedSlotId) {
     store.assignSlotItem(store.selectedSlotId, 'door', doorId);
+    store.deselectSlot();
     emit('placed');
   }
 }
 
 function placeWindow(winId: string) {
   store.selectWindow(winId);
-  const targetSlotId = store.selectedSlotId ?? bandSlotId(activeWindowWall.value, 0, activeWindowIsUpper.value);
-  if (!store.selectedSlotId) {
-    store.selectSlot(targetSlotId);
-  }
+  const targetSlotId = store.selectedSlotId ?? activeBandSlotId.value;
   store.assignSlotItem(targetSlotId, 'window', winId);
+  if (store.selectedSlotId) {
+    store.deselectSlot();
+  }
   emit('placed');
 }
 
@@ -4413,6 +4429,7 @@ function placeGate(gateId: string) {
   store.selectGate(gateId);
   if (store.selectedSlotId) {
     store.assignSlotItem(store.selectedSlotId, 'gate', gateId);
+    store.deselectSlot();
     emit('placed');
   }
 }

@@ -503,6 +503,9 @@ test('Align UI path is only alignWallWindows → alignWindowsOnBand', async () =
   assert.match(overlay, /store\.alignWallWindows\(/);
   assert.doesNotMatch(overlay, /setWallWindowRhythm\(/);
   assert.doesNotMatch(overlay, /alignWindowsOnBand\(/);
+  assert.match(overlay, /onWindowPointerDown/);
+  assert.match(overlay, /overlayCardEl\.value\.contains\(target\)/);
+  assert.match(overlay, /store\.deselectSlot\(\)/);
 
   assert.match(store, /alignWindowsOnBand\(wallSlots\.value/);
   assert.match(wallSlots, /export function alignWindowsOnBand/);

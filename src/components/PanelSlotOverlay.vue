@@ -14,6 +14,8 @@
 
     <div
       v-if="store.viewMode === 'utsida' && !store.framingWalkthrough && store.selectedSlotId && activeSlot"
+      id="panel-slot-overlay"
+      ref="overlayCardEl"
       class="absolute z-20 w-[17.5rem] rounded-2xl bg-white text-slate-900 shadow-[0_18px_40px_-16px_rgba(15,23,42,0.45)] transition-opacity duration-150"
       :class="store.isDragging ? 'pointer-events-none opacity-20' : 'pointer-events-auto opacity-100'"
       :style="overlayStyle"
@@ -188,7 +190,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import {
   DOORS_OPTIONS,
   GATES_OPTIONS,
@@ -205,6 +207,53 @@ const BAND_SLOT_COUNTS: BandSlotCount[] = [1, 2, 3, 4];
 
 const store = useConfigStore();
 const { t, catalog } = useLabels();
+const overlayCardEl = ref<HTMLElement | null>(null);
+const choosingFromCatalog = ref(false);
+let openedAtMs = 0;
+
+watch(
+  () => store.selectedSlotId,
+  (slotId) => {
+    choosingFromCatalog.value = false;
+    if (slotId) {
+      openedAtMs = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    }
+  }
+);
+
+function onWindowPointerDown(event: PointerEvent) {
+  if (!store.selectedSlotId || !overlayCardEl.value) return;
+  const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  // Ignore the same pointer event that just opened the slot
+  if (now - openedAtMs < 40) return;
+  const target = event.target as HTMLElement | null;
+  if (!target) return;
+  if (overlayCardEl.value.contains(target)) return;
+  // If user clicked Choose door / Choose window / Replace in the overlay, allow picking an option in #config-panel
+  if (choosingFromCatalog.value && target.closest('#config-panel')) return;
+
+  store.deselectSlot();
+  // If the outside click was on the 3D canvas, stop it from immediately selecting another wall panel
+  if (target.closest('canvas')) {
+    event.stopPropagation();
+  }
+}
+
+function onWindowKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape' && store.selectedSlotId) {
+    store.deselectSlot();
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('pointerdown', onWindowPointerDown, { capture: true });
+  window.addEventListener('keydown', onWindowKeydown);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('pointerdown', onWindowPointerDown, { capture: true });
+  window.removeEventListener('keydown', onWindowKeydown);
+});
 
 const activeSlot = computed(() => {
   return store.selectedSlotId ? store.wallSlots[store.selectedSlotId] : null;
@@ -322,6 +371,7 @@ function productName(slot: WallSlot | null) {
 }
 
 function openCategory(category: CategoryKey) {
+  choosingFromCatalog.value = true;
   store.selectCategory(category);
 }
 
