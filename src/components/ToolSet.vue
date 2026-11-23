@@ -386,16 +386,14 @@
               id="btn-tool-framing"
               @click="store.framingWalkthrough ? store.stopFramingWalkthrough() : store.startFramingWalkthrough()"
               :aria-pressed="store.framingWalkthrough"
-              :aria-label="locale === 'sv' ? 'Stomguide (byggmästarvandring)' : 'Framing Guide'"
+              :aria-label="t('header.framing')"
               :class="toolButton(store.framingWalkthrough)"
             >
-              <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="m15 12-8.5 8.5c-.83.83-2.17.83-3 0 0 0 0 0 0 0a2.12 2.12 0 0 1 0-3L12 9" />
-                <path d="M17.64 15 22 10.64" />
-                <path d="m20.91 3.26-6.5 6.5" />
-                <path d="m19.26 2.36 2.38 2.38a1.69 1.69 0 0 1 0 2.38L20 8.75l-4.75-4.75 1.63-1.64a1.69 1.69 0 0 1 2.38 0Z" />
+              <svg class="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 7v14" />
+                <path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z" />
               </svg>
-              <span class="tool-tip"><Cms k="header.framing" fallback="Stomguide" /></span>
+              <span class="tool-tip"><Cms k="header.framing" fallback="Byggguide" /></span>
             </button>
           </div>
         </div>

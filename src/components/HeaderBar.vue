@@ -14,17 +14,15 @@
       <button
         type="button"
         id="btn-stomme-mobile"
-        class="grid h-11 w-11 place-items-center rounded-xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5A00]"
-        :class="store.framingWalkthrough ? 'bg-amber-500 text-slate-950 font-bold shadow-sm' : 'text-[#173D35] hover:bg-[#F5F3EC]'"
-        :aria-label="locale === 'sv' ? 'Stomguide' : 'Framing Guide'"
-        :title="locale === 'sv' ? 'Stomguide' : 'Framing Guide'"
+        class="grid h-11 w-11 place-items-center rounded-xl font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#FF5A00]"
+        :class="store.framingWalkthrough ? 'bg-[#FF5A00] text-graphite shadow-sm' : 'text-[#173D35] hover:bg-[#F5F3EC]'"
+        :aria-label="t('header.framing')"
+        :title="t('header.framing')"
         @click="store.framingWalkthrough ? store.stopFramingWalkthrough() : store.startFramingWalkthrough()"
       >
         <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="m15 12-8.5 8.5c-.83.83-2.17.83-3 0 0 0 0 0 0 0a2.12 2.12 0 0 1 0-3L12 9" />
-          <path d="M17.64 15 22 10.64" />
-          <path d="m20.91 3.26-6.5 6.5" />
-          <path d="m19.26 2.36 2.38 2.38a1.69 1.69 0 0 1 0 2.38L20 8.75l-4.75-4.75 1.63-1.64a1.69 1.69 0 0 1 2.38 0Z" />
+          <path d="M12 7v14" />
+          <path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z" />
         </svg>
       </button>
       <button
@@ -212,17 +210,15 @@
         :class="[
           'flex items-center gap-1.5 px-2.5 min-[1180px]:px-4 py-1 text-xs min-[1180px]:text-sm font-semibold rounded-lg transition-all duration-200 min-h-[30px] min-[1180px]:min-h-[34px]',
           store.framingWalkthrough
-            ? 'bg-amber-500 text-slate-950 font-extrabold shadow-sm'
-            : 'text-ivory hover:text-amber-300'
+            ? 'bg-[#FF5A00] text-graphite shadow-sm'
+            : 'text-ivory hover:text-white'
         ]"
       >
-        <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="m15 12-8.5 8.5c-.83.83-2.17.83-3 0 0 0 0 0 0 0a2.12 2.12 0 0 1 0-3L12 9" />
-          <path d="M17.64 15 22 10.64" />
-          <path d="m20.91 3.26-6.5 6.5" />
-          <path d="m19.26 2.36 2.38 2.38a1.69 1.69 0 0 1 0 2.38L20 8.75l-4.75-4.75 1.63-1.64a1.69 1.69 0 0 1 2.38 0Z" />
+        <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 7v14" />
+          <path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z" />
         </svg>
-        <span><Cms k="header.framing" fallback="Stomguide" /></span>
+        <span><Cms k="header.framing" fallback="Byggguide" /></span>
       </button>
     </nav>
     </div>
